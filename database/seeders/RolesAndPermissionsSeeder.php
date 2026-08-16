@@ -32,13 +32,13 @@ class RolesAndPermissionsSeeder extends Seeder
         $viewPackages = Permission::firstOrCreate(['name' => 'view_packages']);
         $managePackages = Permission::firstOrCreate(['name' => 'manage_packages']);
 
-        // Create the roles
+        // Create or retrieve roles
         $superAdmin = Role::firstOrCreate(['name' => 'super_admin']);
-        Role::firstOrCreate(['name' => 'admin']);
-        Role::firstOrCreate(['name' => 'staff']);
-        Role::firstOrCreate(['name' => 'sales']);
-        Role::firstOrCreate(['name' => 'noc']);
-        Role::firstOrCreate(['name' => 'teknisi']);
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
+        $staffRole = Role::firstOrCreate(['name' => 'staff']);
+        $salesRole = Role::firstOrCreate(['name' => 'sales']);
+        $nocRole = Role::firstOrCreate(['name' => 'noc']);
+        $teknisiRole = Role::firstOrCreate(['name' => 'teknisi']);
 
         // super_admin gets all permissions
         $superAdmin->syncPermissions([
@@ -47,8 +47,31 @@ class RolesAndPermissionsSeeder extends Seeder
             $viewPackages, $managePackages,
         ]);
 
-        // Create a default super_admin user if it doesn't exist yet
-        $admin = User::firstOrCreate(
+        // admin gets user and customer management permissions
+        $adminRole->syncPermissions([
+            $viewUsers, $manageUsers,
+            $viewCustomers, $manageCustomers,
+            $viewPackages, $managePackages,
+        ]);
+
+        // sales can create and view customers
+        $salesRole->syncPermissions([
+            $viewCustomers, $manageCustomers,
+        ]);
+
+        // noc & teknisi are view-only for customers
+        $nocRole->syncPermissions([
+            $viewCustomers, $viewPackages,
+        ]);
+        $teknisiRole->syncPermissions([
+            $viewCustomers, $viewPackages,
+        ]);
+        $staffRole->syncPermissions([
+            $viewCustomers,
+        ]);
+
+        // Create default users for each role if they don't exist yet
+        $superAdminUser = User::firstOrCreate(
             ['email' => 'superadmin@example.com'],
             [
                 'name' => 'Super Admin',
@@ -56,7 +79,46 @@ class RolesAndPermissionsSeeder extends Seeder
                 'status' => UserStatus::Active,
             ]
         );
+        $superAdminUser->syncRoles([$superAdmin]);
 
-        $admin->assignRole($superAdmin);
+        $adminUser = User::firstOrCreate(
+            ['email' => 'admin@example.com'],
+            [
+                'name' => 'Admin Staff',
+                'password' => bcrypt('password'),
+                'status' => UserStatus::Active,
+            ]
+        );
+        $adminUser->syncRoles([$adminRole]);
+
+        $salesUser = User::firstOrCreate(
+            ['email' => 'sales@example.com'],
+            [
+                'name' => 'Rian Hidayat (Sales)',
+                'password' => bcrypt('password'),
+                'status' => UserStatus::Active,
+            ]
+        );
+        $salesUser->syncRoles([$salesRole]);
+
+        $teknisiUser = User::firstOrCreate(
+            ['email' => 'teknisi@example.com'],
+            [
+                'name' => 'Bambang Supriyadi (Teknisi)',
+                'password' => bcrypt('password'),
+                'status' => UserStatus::Active,
+            ]
+        );
+        $teknisiUser->syncRoles([$teknisiRole]);
+
+        $nocUser = User::firstOrCreate(
+            ['email' => 'noc@example.com'],
+            [
+                'name' => 'Fajar Pratama (NOC)',
+                'password' => bcrypt('password'),
+                'status' => UserStatus::Active,
+            ]
+        );
+        $nocUser->syncRoles([$nocRole]);
     }
 }

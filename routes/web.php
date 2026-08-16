@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Customers;
 use App\Livewire\Roles;
 use App\Livewire\Users;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +11,16 @@ Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');
 
     Route::view('dashboard', 'dashboard')->name('dashboard');
+
+    Route::middleware('permission:view_customers')
+        ->prefix('customers')
+        ->name('customers.')
+        ->group(function () {
+            Route::get('/', Customers\Index::class)->name('index');
+            Route::get('/create', Customers\Create::class)->name('create');
+            Route::get('/{customer}', Customers\Show::class)->name('show');
+            Route::get('/{customer}/edit', Customers\Edit::class)->name('edit');
+        });
 
     Route::middleware('permission:manage_users')
         ->prefix('users')

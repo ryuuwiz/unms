@@ -22,9 +22,9 @@ test('super_admin can view users list', function () {
         ->assertOk();
 });
 
-test('non super_admin gets 403 on users route', function () {
+test('user without manage_users permission gets 403 on users route', function () {
     $user = User::factory()->create(['status' => UserStatus::Active]);
-    $user->assignRole('admin');
+    $user->assignRole('teknisi');
 
     $this->actingAs($user)
         ->get(route('users.index'))

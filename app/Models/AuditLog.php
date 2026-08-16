@@ -38,9 +38,19 @@ class AuditLog extends Model
     /**
      * The user who performed the action.
      *
-     * @return BelongsTo<User, AuditLog>
+     * @return BelongsTo<User, $this>
      */
     public function actor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Alias relationship for user.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }

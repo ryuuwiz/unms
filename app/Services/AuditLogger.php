@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\CustomerStatus;
 use App\Models\AuditLog;
+use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Support\Facades\Request;
 use Spatie\Permission\Models\Role;
@@ -87,6 +89,81 @@ class AuditLogger
             'subject_type' => User::class,
             'subject_id' => $subject->id,
             'old_values' => null,
+            'new_values' => null,
+            'ip_address' => Request::ip(),
+        ]);
+    }
+
+    /**
+     * Record the creation of a customer.
+     */
+    public static function recordCustomerCreated(User $actor, Customer $customer): void
+    {
+        AuditLog::create([
+            'user_id' => $actor->id,
+            'action' => 'customer_created',
+            'subject_type' => Customer::class,
+            'subject_id' => $customer->id,
+            'old_values' => null,
+            'new_values' => [
+                'customer_code' => $customer->customer_code,
+                'name' => $customer->name,
+                'phone' => $customer->phone,
+                'status' => $customer->status->value,
+            ],
+            'ip_address' => Request::ip(),
+        ]);
+    }
+
+    /**
+     * Record updates to a customer record.
+     *
+     * @param  array<string, mixed>  $oldValues
+     * @param  array<string, mixed>  $newValues
+     */
+    public static function recordCustomerUpdated(User $actor, Customer $customer, array $oldValues, array $newValues): void
+    {
+        AuditLog::create([
+            'user_id' => $actor->id,
+            'action' => 'customer_updated',
+            'subject_type' => Customer::class,
+            'subject_id' => $customer->id,
+            'old_values' => $oldValues,
+            'new_values' => $newValues,
+            'ip_address' => Request::ip(),
+        ]);
+    }
+
+    /**
+     * Record customer status changes.
+     */
+    public static function recordCustomerStatusChanged(User $actor, Customer $customer, CustomerStatus $oldStatus, CustomerStatus $newStatus): void
+    {
+        AuditLog::create([
+            'user_id' => $actor->id,
+            'action' => 'customer_status_changed',
+            'subject_type' => Customer::class,
+            'subject_id' => $customer->id,
+            'old_values' => ['status' => $oldStatus->value],
+            'new_values' => ['status' => $newStatus->value],
+            'ip_address' => Request::ip(),
+        ]);
+    }
+
+    /**
+     * Record customer deletion / archival.
+     */
+    public static function recordCustomerDeleted(User $actor, Customer $customer): void
+    {
+        AuditLog::create([
+            'user_id' => $actor->id,
+            'action' => 'customer_deleted',
+            'subject_type' => Customer::class,
+            'subject_id' => $customer->id,
+            'old_values' => [
+                'customer_code' => $customer->customer_code,
+                'name' => $customer->name,
+            ],
             'new_values' => null,
             'ip_address' => Request::ip(),
         ]);

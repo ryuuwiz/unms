@@ -12,6 +12,13 @@ return [
                 'permission' => null,
             ],
             [
+                'title' => 'Pelanggan',
+                'icon' => 'user-group',
+                'route' => 'customers.index',
+                'active' => 'customers.*',
+                'permission' => 'view_customers',
+            ],
+            [
                 'title' => 'Pengguna',
                 'icon' => 'users',
                 'route' => 'users.index',
