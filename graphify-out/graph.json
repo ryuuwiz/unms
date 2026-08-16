@@ -4,17 +4,17 @@
   "graph": {},
   "nodes": [
     {
-      "label": "UsersList",
+      "label": "Edit",
       "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L10",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L18",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_userslist_userslist",
+      "id": "app_livewire_users_edit_edit",
       "community": 0,
       "community_name": "User",
-      "norm_label": "userslist"
+      "norm_label": "edit"
     },
     {
       "label": "User",
@@ -30,17 +30,17 @@
       "norm_label": "user"
     },
     {
-      "label": "TestCase",
+      "label": "UserFactory",
       "file_type": "code",
-      "source_file": "tests/TestCase.php",
-      "source_location": "L8",
+      "source_file": "database/factories/UserFactory.php",
+      "source_location": "L13",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "tests_testcase_testcase",
+      "id": "database_factories_userfactory_userfactory",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
-      "norm_label": "testcase"
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "userfactory"
     },
     {
       "label": "AuditLog",
@@ -52,20 +52,20 @@
       "_origin": "ast",
       "id": "app_models_auditlog_auditlog",
       "community": 120,
-      "community_name": "AuditLog",
+      "community_name": "AuditLogger",
       "norm_label": "auditlog"
     },
     {
       "label": "AuditLogger",
       "file_type": "code",
       "source_file": "app/Services/AuditLogger.php",
-      "source_location": "L9",
+      "source_location": "L10",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_services_auditlogger_auditlogger",
       "community": 120,
-      "community_name": "AuditLog",
+      "community_name": "AuditLogger",
       "norm_label": "auditlogger"
     },
     {
@@ -82,30 +82,30 @@
       "norm_label": "logout"
     },
     {
-      "label": "DeleteUserForm",
+      "label": "Index",
       "file_type": "code",
-      "source_file": "app/Livewire/Settings/DeleteUserForm.php",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L14",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_index_index",
+      "community": 129,
+      "community_name": "Index",
+      "norm_label": "index"
+    },
+    {
+      "label": "UsersList",
+      "file_type": "code",
+      "source_file": "app/Livewire/UsersList.php",
       "source_location": "L10",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_settings_deleteuserform_deleteuserform",
-      "community": 128,
-      "community_name": "Logout.php",
-      "norm_label": "deleteuserform"
-    },
-    {
-      "label": "Security",
-      "file_type": "code",
-      "source_file": "app/Livewire/Settings/Security.php",
-      "source_location": "L16",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_livewire_settings_security_security",
+      "id": "app_livewire_userslist_userslist",
       "community": 129,
-      "community_name": "Security",
-      "norm_label": "security"
+      "community_name": "Index",
+      "norm_label": "userslist"
     },
     {
       "label": "Profile",
@@ -117,8 +117,47 @@
       "_origin": "ast",
       "id": "app_livewire_settings_profile_profile",
       "community": 138,
-      "community_name": "Profile",
+      "community_name": "Security",
       "norm_label": "profile"
+    },
+    {
+      "label": "Security",
+      "file_type": "code",
+      "source_file": "app/Livewire/Settings/Security.php",
+      "source_location": "L16",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_settings_security_security",
+      "community": 138,
+      "community_name": "Security",
+      "norm_label": "security"
+    },
+    {
+      "label": "Edit",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L19",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_edit_edit",
+      "community": 195,
+      "community_name": "Edit",
+      "norm_label": "edit"
+    },
+    {
+      "label": "Create",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L19",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_create_create",
+      "community": 199,
+      "community_name": "Create",
+      "norm_label": "create"
     },
     {
       "label": "Controller",
@@ -134,6 +173,19 @@
       "norm_label": "controller"
     },
     {
+      "label": "Index",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L15",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_index_index",
+      "community": 3,
+      "community_name": "Livewire\\Component",
+      "norm_label": "index"
+    },
+    {
       "label": "Appearance",
       "file_type": "code",
       "source_file": "app/Livewire/Settings/Appearance.php",
@@ -147,95 +199,43 @@
       "norm_label": "appearance"
     },
     {
-      "label": "Edit",
+      "label": "DeleteUserForm",
       "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L17",
+      "source_file": "app/Livewire/Settings/DeleteUserForm.php",
+      "source_location": "L10",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_users_edit_edit",
+      "id": "app_livewire_settings_deleteuserform_deleteuserform",
       "community": 3,
       "community_name": "Livewire\\Component",
-      "norm_label": "edit"
+      "norm_label": "deleteuserform"
     },
     {
-      "label": "Index",
+      "label": "Create",
       "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
-      "source_location": "L14",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_index_index",
-      "community": 3,
-      "community_name": "Livewire\\Component",
-      "norm_label": "index"
-    },
-    {
-      "label": "AuthenticateUser",
-      "file_type": "code",
-      "source_file": "app/Actions/Fortify/AuthenticateUser.php",
-      "source_location": "L11",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_actions_fortify_authenticateuser_authenticateuser",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "authenticateuser"
-    },
-    {
-      "label": "RecordLastLoginAt",
-      "file_type": "code",
-      "source_file": "app/Listeners/RecordLastLoginAt.php",
-      "source_location": "L7",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_listeners_recordlastloginat_recordlastloginat",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "recordlastloginat"
-    },
-    {
-      "label": "AppServiceProvider",
-      "file_type": "code",
-      "source_file": "app/Providers/AppServiceProvider.php",
-      "source_location": "L14",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_providers_appserviceprovider_appserviceprovider",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "appserviceprovider"
-    },
-    {
-      "label": "FortifyServiceProvider",
-      "file_type": "code",
-      "source_file": "app/Providers/FortifyServiceProvider.php",
+      "source_file": "app/Livewire/Users/Create.php",
       "source_location": "L15",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "fortifyserviceprovider"
+      "id": "app_livewire_users_create_create",
+      "community": 3,
+      "community_name": "Livewire\\Component",
+      "norm_label": "create"
     },
     {
-      "label": "UserFactory",
+      "label": "TestCase",
       "file_type": "code",
-      "source_file": "database/factories/UserFactory.php",
-      "source_location": "L13",
+      "source_file": "tests/TestCase.php",
+      "source_location": "L8",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "database_factories_userfactory_userfactory",
+      "id": "tests_testcase_testcase",
       "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "userfactory"
+      "community_name": "TestCase",
+      "norm_label": "testcase"
     },
     {
       "label": "DatabaseSeeder",
@@ -247,8 +247,21 @@
       "_origin": "ast",
       "id": "database_seeders_databaseseeder_databaseseeder",
       "community": 64,
-      "community_name": "RolesAndPermissionsSeeder.php",
+      "community_name": "DatabaseSeeder.php",
       "norm_label": "databaseseeder"
+    },
+    {
+      "label": "AuthenticateUser",
+      "file_type": "code",
+      "source_file": "app/Actions/Fortify/AuthenticateUser.php",
+      "source_location": "L11",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_actions_fortify_authenticateuser_authenticateuser",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "authenticateuser"
     },
     {
       "label": "CreateNewUser",
@@ -277,17 +290,43 @@
       "norm_label": "resetuserpassword"
     },
     {
-      "label": "Create",
+      "label": "RecordLastLoginAt",
       "file_type": "code",
-      "source_file": "app/Livewire/Users/Create.php",
+      "source_file": "app/Listeners/RecordLastLoginAt.php",
+      "source_location": "L7",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_listeners_recordlastloginat_recordlastloginat",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "recordlastloginat"
+    },
+    {
+      "label": "AppServiceProvider",
+      "file_type": "code",
+      "source_file": "app/Providers/AppServiceProvider.php",
+      "source_location": "L14",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_providers_appserviceprovider_appserviceprovider",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "appserviceprovider"
+    },
+    {
+      "label": "FortifyServiceProvider",
+      "file_type": "code",
+      "source_file": "app/Providers/FortifyServiceProvider.php",
       "source_location": "L15",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_users_create_create",
-      "community": 92,
-      "community_name": "UserStatus.php",
-      "norm_label": "create"
+      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "fortifyserviceprovider"
     },
     {
       "label": "RolesAndPermissionsSeeder",
@@ -303,64 +342,64 @@
       "norm_label": "rolesandpermissionsseeder"
     },
     {
-      "label": ".confirmDelete()",
+      "label": ".mount()",
       "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L47",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L38",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_userslist_userslist_confirmdelete",
+      "id": "app_livewire_users_edit_edit_mount",
       "community": 0,
       "community_name": "User",
-      "norm_label": ".confirmdelete()"
-    },
-    {
-      "label": ".deleteUser()",
-      "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L53",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_userslist_userslist_deleteuser",
-      "community": 0,
-      "community_name": "User",
-      "norm_label": ".deleteuser()"
+      "norm_label": ".mount()"
     },
     {
       "label": ".render()",
       "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L64",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L127",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_userslist_userslist_render",
+      "id": "app_livewire_users_edit_edit_render",
       "community": 0,
       "community_name": "User",
       "norm_label": ".render()"
     },
     {
-      "label": ".save()",
+      "label": ".resetPassword()",
       "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L28",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L79",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_userslist_userslist_save",
+      "id": "app_livewire_users_edit_edit_resetpassword",
+      "community": 0,
+      "community_name": "User",
+      "norm_label": ".resetpassword()"
+    },
+    {
+      "label": ".save()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L48",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_edit_edit_save",
       "community": 0,
       "community_name": "User",
       "norm_label": ".save()"
     },
     {
-      "label": ".updatingSearch()",
+      "label": ".toggleStatus()",
       "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L23",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L96",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_userslist_userslist_updatingsearch",
+      "id": "app_livewire_users_edit_edit_togglestatus",
       "community": 0,
       "community_name": "User",
-      "norm_label": ".updatingsearch()"
+      "norm_label": ".togglestatus()"
     },
     {
       "label": ".casts()",
@@ -409,6 +448,18 @@
       "community": 0,
       "community_name": "User",
       "norm_label": ".scopeactive()"
+    },
+    {
+      "label": ".run()",
+      "file_type": "code",
+      "source_file": "database/seeders/RolesAndPermissionsSeeder.php",
+      "source_location": "L17",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_seeders_rolesandpermissionsseeder_rolesandpermissionsseeder_run",
+      "community": 0,
+      "community_name": "User",
+      "norm_label": ".run()"
     },
     {
       "label": "down()",
@@ -579,28 +630,40 @@
       "norm_label": "up()"
     },
     {
-      "label": ".skipUnlessFortifyHas()",
+      "label": ".definition()",
       "file_type": "code",
-      "source_file": "tests/TestCase.php",
-      "source_location": "L10",
+      "source_file": "database/factories/UserFactory.php",
+      "source_location": "L25",
       "_callable": true,
       "_origin": "ast",
-      "id": "tests_testcase_testcase_skipunlessfortifyhas",
+      "id": "database_factories_userfactory_userfactory_definition",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
-      "norm_label": ".skipunlessfortifyhas()"
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": ".definition()"
     },
     {
-      "label": ".save()",
+      "label": ".unverified()",
       "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L44",
+      "source_file": "database/factories/UserFactory.php",
+      "source_location": "L39",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_users_edit_edit_save",
-      "community": 120,
-      "community_name": "AuditLog",
-      "norm_label": ".save()"
+      "id": "database_factories_userfactory_userfactory_unverified",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": ".unverified()"
+    },
+    {
+      "label": ".withTwoFactor()",
+      "file_type": "code",
+      "source_file": "database/factories/UserFactory.php",
+      "source_location": "L49",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_factories_userfactory_userfactory_withtwofactor",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": ".withtwofactor()"
     },
     {
       "label": ".actor()",
@@ -611,7 +674,7 @@
       "_origin": "ast",
       "id": "app_models_auditlog_auditlog_actor",
       "community": 120,
-      "community_name": "AuditLog",
+      "community_name": "AuditLogger",
       "norm_label": ".actor()"
     },
     {
@@ -623,20 +686,68 @@
       "_origin": "ast",
       "id": "app_models_auditlog_auditlog_casts",
       "community": 120,
-      "community_name": "AuditLog",
+      "community_name": "AuditLogger",
       "norm_label": ".casts()"
+    },
+    {
+      "label": ".recordPasswordReset()",
+      "file_type": "code",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L82",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_services_auditlogger_auditlogger_recordpasswordreset",
+      "community": 120,
+      "community_name": "AuditLogger",
+      "norm_label": ".recordpasswordreset()"
     },
     {
       "label": ".recordRoleChange()",
       "file_type": "code",
       "source_file": "app/Services/AuditLogger.php",
-      "source_location": "L16",
+      "source_location": "L15",
       "_callable": true,
       "_origin": "ast",
       "id": "app_services_auditlogger_auditlogger_recordrolechange",
       "community": 120,
-      "community_name": "AuditLog",
+      "community_name": "AuditLogger",
       "norm_label": ".recordrolechange()"
+    },
+    {
+      "label": ".recordRoleCreated()",
+      "file_type": "code",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L31",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_services_auditlogger_auditlogger_recordrolecreated",
+      "community": 120,
+      "community_name": "AuditLogger",
+      "norm_label": ".recordrolecreated()"
+    },
+    {
+      "label": ".recordRoleDeleted()",
+      "file_type": "code",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L47",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_services_auditlogger_auditlogger_recordroledeleted",
+      "community": 120,
+      "community_name": "AuditLogger",
+      "norm_label": ".recordroledeleted()"
+    },
+    {
+      "label": ".recordRolePermissionsUpdated()",
+      "file_type": "code",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L66",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_services_auditlogger_auditlogger_recordrolepermissionsupdated",
+      "community": 120,
+      "community_name": "AuditLogger",
+      "norm_label": ".recordrolepermissionsupdated()"
     },
     {
       "label": ".__invoke()",
@@ -663,76 +774,112 @@
       "norm_label": ".deleteuser()"
     },
     {
-      "label": ".closeDeleteModal()",
+      "label": ".render()",
       "file_type": "code",
-      "source_file": "app/Livewire/Settings/Security.php",
-      "source_location": "L134",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L41",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_settings_security_security_closedeletemodal",
+      "id": "app_livewire_users_index_index_render",
       "community": 129,
-      "community_name": "Security",
-      "norm_label": ".closedeletemodal()"
+      "community_name": "Index",
+      "norm_label": ".render()"
+    },
+    {
+      "label": ".updatingFilterRole()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L31",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_index_index_updatingfilterrole",
+      "community": 129,
+      "community_name": "Index",
+      "norm_label": ".updatingfilterrole()"
+    },
+    {
+      "label": ".updatingFilterStatus()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L36",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_index_index_updatingfilterstatus",
+      "community": 129,
+      "community_name": "Index",
+      "norm_label": ".updatingfilterstatus()"
+    },
+    {
+      "label": ".updatingSearch()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L26",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_index_index_updatingsearch",
+      "community": 129,
+      "community_name": "Index",
+      "norm_label": ".updatingsearch()"
     },
     {
       "label": ".confirmDelete()",
       "file_type": "code",
-      "source_file": "app/Livewire/Settings/Security.php",
-      "source_location": "L104",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L50",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_settings_security_security_confirmdelete",
+      "id": "app_livewire_userslist_userslist_confirmdelete",
       "community": 129,
-      "community_name": "Security",
+      "community_name": "Index",
       "norm_label": ".confirmdelete()"
     },
     {
-      "label": ".deletePasskey()",
+      "label": ".deleteUser()",
       "file_type": "code",
-      "source_file": "app/Livewire/Settings/Security.php",
-      "source_location": "L116",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L56",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_settings_security_security_deletepasskey",
+      "id": "app_livewire_userslist_userslist_deleteuser",
       "community": 129,
-      "community_name": "Security",
-      "norm_label": ".deletepasskey()"
+      "community_name": "Index",
+      "norm_label": ".deleteuser()"
     },
     {
-      "label": ".loadPasskeys()",
+      "label": ".render()",
       "file_type": "code",
-      "source_file": "app/Livewire/Settings/Security.php",
-      "source_location": "L85",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L67",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_settings_security_security_loadpasskeys",
+      "id": "app_livewire_userslist_userslist_render",
       "community": 129,
-      "community_name": "Security",
-      "norm_label": ".loadpasskeys()"
+      "community_name": "Index",
+      "norm_label": ".render()"
     },
     {
-      "label": ".mount()",
+      "label": ".save()",
       "file_type": "code",
-      "source_file": "app/Livewire/Settings/Security.php",
-      "source_location": "L47",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L31",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_settings_security_security_mount",
+      "id": "app_livewire_userslist_userslist_save",
       "community": 129,
-      "community_name": "Security",
-      "norm_label": ".mount()"
+      "community_name": "Index",
+      "norm_label": ".save()"
     },
     {
-      "label": ".updatePassword()",
+      "label": ".updatingSearch()",
       "file_type": "code",
-      "source_file": "app/Livewire/Settings/Security.php",
-      "source_location": "L60",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L26",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_settings_security_security_updatepassword",
+      "id": "app_livewire_userslist_userslist_updatingsearch",
       "community": 129,
-      "community_name": "Security",
-      "norm_label": ".updatepassword()"
+      "community_name": "Index",
+      "norm_label": ".updatingsearch()"
     },
     {
       "label": ".mount()",
@@ -743,7 +890,7 @@
       "_origin": "ast",
       "id": "app_livewire_settings_profile_profile_mount",
       "community": 138,
-      "community_name": "Profile",
+      "community_name": "Security",
       "norm_label": ".mount()"
     },
     {
@@ -755,8 +902,188 @@
       "_origin": "ast",
       "id": "app_livewire_settings_profile_profile_updateprofileinformation",
       "community": 138,
-      "community_name": "Profile",
+      "community_name": "Security",
       "norm_label": ".updateprofileinformation()"
+    },
+    {
+      "label": ".closeDeleteModal()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Settings/Security.php",
+      "source_location": "L134",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_settings_security_security_closedeletemodal",
+      "community": 138,
+      "community_name": "Security",
+      "norm_label": ".closedeletemodal()"
+    },
+    {
+      "label": ".confirmDelete()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Settings/Security.php",
+      "source_location": "L104",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_settings_security_security_confirmdelete",
+      "community": 138,
+      "community_name": "Security",
+      "norm_label": ".confirmdelete()"
+    },
+    {
+      "label": ".deletePasskey()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Settings/Security.php",
+      "source_location": "L116",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_settings_security_security_deletepasskey",
+      "community": 138,
+      "community_name": "Security",
+      "norm_label": ".deletepasskey()"
+    },
+    {
+      "label": ".loadPasskeys()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Settings/Security.php",
+      "source_location": "L85",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_settings_security_security_loadpasskeys",
+      "community": 138,
+      "community_name": "Security",
+      "norm_label": ".loadpasskeys()"
+    },
+    {
+      "label": ".mount()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Settings/Security.php",
+      "source_location": "L47",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_settings_security_security_mount",
+      "community": 138,
+      "community_name": "Security",
+      "norm_label": ".mount()"
+    },
+    {
+      "label": ".updatePassword()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Settings/Security.php",
+      "source_location": "L60",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_settings_security_security_updatepassword",
+      "community": 138,
+      "community_name": "Security",
+      "norm_label": ".updatepassword()"
+    },
+    {
+      "label": ".getGroupedPermissions()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L77",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_edit_edit_getgroupedpermissions",
+      "community": 195,
+      "community_name": "Edit",
+      "norm_label": ".getgroupedpermissions()"
+    },
+    {
+      "label": ".mount()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L31",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_edit_edit_mount",
+      "community": 195,
+      "community_name": "Edit",
+      "norm_label": ".mount()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L64",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_edit_edit_render",
+      "community": 195,
+      "community_name": "Edit",
+      "norm_label": ".render()"
+    },
+    {
+      "label": ".save()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L38",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_edit_edit_save",
+      "community": 195,
+      "community_name": "Edit",
+      "norm_label": ".save()"
+    },
+    {
+      "label": ".getGroupedPermissions()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L60",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_create_create_getgroupedpermissions",
+      "community": 199,
+      "community_name": "Create",
+      "norm_label": ".getgroupedpermissions()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L48",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_create_create_render",
+      "community": 199,
+      "community_name": "Create",
+      "norm_label": ".render()"
+    },
+    {
+      "label": ".save()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L29",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_create_create_save",
+      "community": 199,
+      "community_name": "Create",
+      "norm_label": ".save()"
+    },
+    {
+      "label": ".deleteRole()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L19",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_index_index_deleterole",
+      "community": 3,
+      "community_name": "Livewire\\Component",
+      "norm_label": ".deleterole()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L43",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_index_index_render",
+      "community": 3,
+      "community_name": "Livewire\\Component",
+      "norm_label": ".render()"
     },
     {
       "label": ".render()",
@@ -771,256 +1098,40 @@
       "norm_label": ".render()"
     },
     {
-      "label": ".mount()",
+      "label": ".save()",
       "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L34",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_edit_edit_mount",
-      "community": 3,
-      "community_name": "Livewire\\Component",
-      "norm_label": ".mount()"
-    },
-    {
-      "label": ".render()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L106",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_edit_edit_render",
-      "community": 3,
-      "community_name": "Livewire\\Component",
-      "norm_label": ".render()"
-    },
-    {
-      "label": ".toggleStatus()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L75",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_edit_edit_togglestatus",
-      "community": 3,
-      "community_name": "Livewire\\Component",
-      "norm_label": ".togglestatus()"
-    },
-    {
-      "label": ".render()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
-      "source_location": "L41",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_index_index_render",
-      "community": 3,
-      "community_name": "Livewire\\Component",
-      "norm_label": ".render()"
-    },
-    {
-      "label": ".updatingFilterRole()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
-      "source_location": "L31",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_index_index_updatingfilterrole",
-      "community": 3,
-      "community_name": "Livewire\\Component",
-      "norm_label": ".updatingfilterrole()"
-    },
-    {
-      "label": ".updatingFilterStatus()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
+      "source_file": "app/Livewire/Users/Create.php",
       "source_location": "L36",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_users_index_index_updatingfilterstatus",
+      "id": "app_livewire_users_create_create_save",
       "community": 3,
       "community_name": "Livewire\\Component",
-      "norm_label": ".updatingfilterstatus()"
+      "norm_label": ".save()"
     },
     {
-      "label": ".updatingSearch()",
+      "label": "something()",
       "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
-      "source_location": "L26",
+      "source_file": "tests/Pest.php",
+      "source_location": "L47",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_users_index_index_updatingsearch",
-      "community": 3,
-      "community_name": "Livewire\\Component",
-      "norm_label": ".updatingsearch()"
-    },
-    {
-      "label": ".__invoke()",
-      "file_type": "code",
-      "source_file": "app/Actions/Fortify/AuthenticateUser.php",
-      "source_location": "L21",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_actions_fortify_authenticateuser_authenticateuser_invoke",
+      "id": "tests_pest_something",
       "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".__invoke()"
+      "community_name": "TestCase",
+      "norm_label": "something()"
     },
     {
-      "label": ".handle()",
+      "label": ".skipUnlessFortifyHas()",
       "file_type": "code",
-      "source_file": "app/Listeners/RecordLastLoginAt.php",
-      "source_location": "L12",
+      "source_file": "tests/TestCase.php",
+      "source_location": "L10",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_listeners_recordlastloginat_recordlastloginat_handle",
+      "id": "tests_testcase_testcase_skipunlessfortifyhas",
       "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".handle()"
-    },
-    {
-      "label": ".boot()",
-      "file_type": "code",
-      "source_file": "app/Providers/AppServiceProvider.php",
-      "source_location": "L27",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_providers_appserviceprovider_appserviceprovider_boot",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".boot()"
-    },
-    {
-      "label": ".configureDefaults()",
-      "file_type": "code",
-      "source_file": "app/Providers/AppServiceProvider.php",
-      "source_location": "L44",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_providers_appserviceprovider_appserviceprovider_configuredefaults",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".configuredefaults()"
-    },
-    {
-      "label": ".register()",
-      "file_type": "code",
-      "source_file": "app/Providers/AppServiceProvider.php",
-      "source_location": "L19",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_providers_appserviceprovider_appserviceprovider_register",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".register()"
-    },
-    {
-      "label": ".registerEventListeners()",
-      "file_type": "code",
-      "source_file": "app/Providers/AppServiceProvider.php",
-      "source_location": "L36",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_providers_appserviceprovider_appserviceprovider_registereventlisteners",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".registereventlisteners()"
-    },
-    {
-      "label": ".boot()",
-      "file_type": "code",
-      "source_file": "app/Providers/FortifyServiceProvider.php",
-      "source_location": "L28",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider_boot",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".boot()"
-    },
-    {
-      "label": ".configureActions()",
-      "file_type": "code",
-      "source_file": "app/Providers/FortifyServiceProvider.php",
-      "source_location": "L38",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider_configureactions",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".configureactions()"
-    },
-    {
-      "label": ".configureRateLimiting()",
-      "file_type": "code",
-      "source_file": "app/Providers/FortifyServiceProvider.php",
-      "source_location": "L60",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider_configureratelimiting",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".configureratelimiting()"
-    },
-    {
-      "label": ".configureViews()",
-      "file_type": "code",
-      "source_file": "app/Providers/FortifyServiceProvider.php",
-      "source_location": "L48",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider_configureviews",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".configureviews()"
-    },
-    {
-      "label": ".register()",
-      "file_type": "code",
-      "source_file": "app/Providers/FortifyServiceProvider.php",
-      "source_location": "L20",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider_register",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".register()"
-    },
-    {
-      "label": ".definition()",
-      "file_type": "code",
-      "source_file": "database/factories/UserFactory.php",
-      "source_location": "L25",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_factories_userfactory_userfactory_definition",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".definition()"
-    },
-    {
-      "label": ".unverified()",
-      "file_type": "code",
-      "source_file": "database/factories/UserFactory.php",
-      "source_location": "L39",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_factories_userfactory_userfactory_unverified",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".unverified()"
-    },
-    {
-      "label": ".withTwoFactor()",
-      "file_type": "code",
-      "source_file": "database/factories/UserFactory.php",
-      "source_location": "L49",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_factories_userfactory_userfactory_withtwofactor",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": ".withtwofactor()"
+      "community_name": "TestCase",
+      "norm_label": ".skipunlessfortifyhas()"
     },
     {
       "label": ".run()",
@@ -1031,8 +1142,20 @@
       "_origin": "ast",
       "id": "database_seeders_databaseseeder_databaseseeder_run",
       "community": 64,
-      "community_name": "RolesAndPermissionsSeeder.php",
+      "community_name": "DatabaseSeeder.php",
       "norm_label": ".run()"
+    },
+    {
+      "label": ".__invoke()",
+      "file_type": "code",
+      "source_file": "app/Actions/Fortify/AuthenticateUser.php",
+      "source_location": "L21",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_actions_fortify_authenticateuser_authenticateuser_invoke",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".__invoke()"
     },
     {
       "label": ".create()",
@@ -1131,6 +1254,126 @@
       "norm_label": "profilerules()"
     },
     {
+      "label": ".handle()",
+      "file_type": "code",
+      "source_file": "app/Listeners/RecordLastLoginAt.php",
+      "source_location": "L12",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_listeners_recordlastloginat_recordlastloginat_handle",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".handle()"
+    },
+    {
+      "label": ".boot()",
+      "file_type": "code",
+      "source_file": "app/Providers/AppServiceProvider.php",
+      "source_location": "L27",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_providers_appserviceprovider_appserviceprovider_boot",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".boot()"
+    },
+    {
+      "label": ".configureDefaults()",
+      "file_type": "code",
+      "source_file": "app/Providers/AppServiceProvider.php",
+      "source_location": "L44",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_providers_appserviceprovider_appserviceprovider_configuredefaults",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".configuredefaults()"
+    },
+    {
+      "label": ".register()",
+      "file_type": "code",
+      "source_file": "app/Providers/AppServiceProvider.php",
+      "source_location": "L19",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_providers_appserviceprovider_appserviceprovider_register",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".register()"
+    },
+    {
+      "label": ".registerEventListeners()",
+      "file_type": "code",
+      "source_file": "app/Providers/AppServiceProvider.php",
+      "source_location": "L36",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_providers_appserviceprovider_appserviceprovider_registereventlisteners",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".registereventlisteners()"
+    },
+    {
+      "label": ".boot()",
+      "file_type": "code",
+      "source_file": "app/Providers/FortifyServiceProvider.php",
+      "source_location": "L28",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider_boot",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".boot()"
+    },
+    {
+      "label": ".configureActions()",
+      "file_type": "code",
+      "source_file": "app/Providers/FortifyServiceProvider.php",
+      "source_location": "L38",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider_configureactions",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".configureactions()"
+    },
+    {
+      "label": ".configureRateLimiting()",
+      "file_type": "code",
+      "source_file": "app/Providers/FortifyServiceProvider.php",
+      "source_location": "L60",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider_configureratelimiting",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".configureratelimiting()"
+    },
+    {
+      "label": ".configureViews()",
+      "file_type": "code",
+      "source_file": "app/Providers/FortifyServiceProvider.php",
+      "source_location": "L48",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider_configureviews",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".configureviews()"
+    },
+    {
+      "label": ".register()",
+      "file_type": "code",
+      "source_file": "app/Providers/FortifyServiceProvider.php",
+      "source_location": "L20",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_providers_fortifyserviceprovider_fortifyserviceprovider_register",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": ".register()"
+    },
+    {
       "label": "label()",
       "file_type": "code",
       "source_file": "app/Enums/UserStatus.php",
@@ -1141,42 +1384,6 @@
       "community": 92,
       "community_name": "UserStatus.php",
       "norm_label": "label()"
-    },
-    {
-      "label": ".save()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Create.php",
-      "source_location": "L36",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_create_create_save",
-      "community": 92,
-      "community_name": "UserStatus.php",
-      "norm_label": ".save()"
-    },
-    {
-      "label": ".run()",
-      "file_type": "code",
-      "source_file": "database/seeders/RolesAndPermissionsSeeder.php",
-      "source_location": "L17",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_seeders_rolesandpermissionsseeder_rolesandpermissionsseeder_run",
-      "community": 92,
-      "community_name": "UserStatus.php",
-      "norm_label": ".run()"
-    },
-    {
-      "label": "something()",
-      "file_type": "code",
-      "source_file": "tests/Pest.php",
-      "source_location": "L47",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "tests_pest_something",
-      "community": 92,
-      "community_name": "UserStatus.php",
-      "norm_label": "something()"
     },
     {
       "label": "User.php",
@@ -4457,6 +4664,39 @@
       "norm_label": "use `shouldbeuniqueuntilprocessing` for early lock release"
     },
     {
+      "label": "AuthenticateUser.php",
+      "file_type": "code",
+      "source_file": "app/Actions/Fortify/AuthenticateUser.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_actions_fortify_authenticateuser",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "authenticateuser.php"
+    },
+    {
+      "label": "cache.php",
+      "file_type": "code",
+      "source_file": "config/cache.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "config_cache",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "cache.php"
+    },
+    {
+      "label": "database.php",
+      "file_type": "code",
+      "source_file": "config/database.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "config_database",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "database.php"
+    },
+    {
       "label": "fortify.php",
       "file_type": "code",
       "source_file": "config/fortify.php",
@@ -4464,8 +4704,30 @@
       "_origin": "ast",
       "id": "config_fortify",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
+      "community_name": "Illuminate\\Support\\Str",
       "norm_label": "fortify.php"
+    },
+    {
+      "label": "session.php",
+      "file_type": "code",
+      "source_file": "config/session.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "config_session",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "session.php"
+    },
+    {
+      "label": "UserFactory.php",
+      "file_type": "code",
+      "source_file": "database/factories/UserFactory.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "database_factories_userfactory",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "userfactory.php"
     },
     {
       "label": "Illuminate\\Auth\\Notifications\\ResetPassword",
@@ -4475,19 +4737,30 @@
       "_origin": "ast",
       "id": "illuminate_auth_notifications_resetpassword",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
+      "community_name": "Illuminate\\Support\\Str",
       "norm_label": "illuminate\\auth\\notifications\\resetpassword"
     },
     {
-      "label": "Illuminate\\Foundation\\Testing\\TestCase",
+      "label": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "illuminate_foundation_testing_testcase",
+      "id": "illuminate_database_eloquent_factories_factory",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
-      "norm_label": "illuminate\\foundation\\testing\\testcase"
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "illuminate\\database\\eloquent\\factories\\factory"
+    },
+    {
+      "label": "Illuminate\\Support\\Facades\\Hash",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_support_facades_hash",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "illuminate\\support\\facades\\hash"
     },
     {
       "label": "Illuminate\\Support\\Facades\\Notification",
@@ -4497,8 +4770,30 @@
       "_origin": "ast",
       "id": "illuminate_support_facades_notification",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
+      "community_name": "Illuminate\\Support\\Str",
       "norm_label": "illuminate\\support\\facades\\notification"
+    },
+    {
+      "label": "Illuminate\\Support\\Str",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_support_str",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "illuminate\\support\\str"
+    },
+    {
+      "label": "Illuminate\\Validation\\ValidationException",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_validation_validationexception",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "illuminate\\validation\\validationexception"
     },
     {
       "label": "Laravel\\Fortify\\Features",
@@ -4508,8 +4803,30 @@
       "_origin": "ast",
       "id": "laravel_fortify_features",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
+      "community_name": "Illuminate\\Support\\Str",
       "norm_label": "laravel\\fortify\\features"
+    },
+    {
+      "label": "Pdo\\Mysql",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "pdo_mysql",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "pdo\\mysql"
+    },
+    {
+      "label": "static",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "static",
+      "community": 12,
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "static"
     },
     {
       "label": "AuthenticationTest.php",
@@ -4519,7 +4836,7 @@
       "_origin": "ast",
       "id": "tests_feature_auth_authenticationtest",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
+      "community_name": "Illuminate\\Support\\Str",
       "norm_label": "authenticationtest.php"
     },
     {
@@ -4530,7 +4847,7 @@
       "_origin": "ast",
       "id": "tests_feature_auth_passwordresettest",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
+      "community_name": "Illuminate\\Support\\Str",
       "norm_label": "passwordresettest.php"
     },
     {
@@ -4541,19 +4858,19 @@
       "_origin": "ast",
       "id": "tests_feature_auth_registrationtest",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
+      "community_name": "Illuminate\\Support\\Str",
       "norm_label": "registrationtest.php"
     },
     {
-      "label": "TestCase.php",
+      "label": "SecurityTest.php",
       "file_type": "code",
-      "source_file": "tests/TestCase.php",
+      "source_file": "tests/Feature/Settings/SecurityTest.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "tests_testcase",
+      "id": "tests_feature_settings_securitytest",
       "community": 12,
-      "community_name": "Laravel\\Fortify\\Features",
-      "norm_label": "testcase.php"
+      "community_name": "Illuminate\\Support\\Str",
+      "norm_label": "securitytest.php"
     },
     {
       "label": "AuditLog.php",
@@ -4563,7 +4880,7 @@
       "_origin": "ast",
       "id": "app_models_auditlog",
       "community": 120,
-      "community_name": "AuditLog",
+      "community_name": "AuditLogger",
       "norm_label": "auditlog.php"
     },
     {
@@ -4574,8 +4891,30 @@
       "_origin": "ast",
       "id": "app_services_auditlogger",
       "community": 120,
-      "community_name": "AuditLog",
+      "community_name": "AuditLogger",
       "norm_label": "auditlogger.php"
+    },
+    {
+      "label": "Role",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "app_services_auditlogger_php_role",
+      "community": 120,
+      "community_name": "AuditLogger",
+      "norm_label": "role"
+    },
+    {
+      "label": "permission.php",
+      "file_type": "code",
+      "source_file": "config/permission.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "config_permission",
+      "community": 120,
+      "community_name": "AuditLogger",
+      "norm_label": "permission.php"
     },
     {
       "label": "Illuminate\\Database\\Eloquent\\Model",
@@ -4585,7 +4924,7 @@
       "_origin": "ast",
       "id": "illuminate_database_eloquent_model",
       "community": 120,
-      "community_name": "AuditLog",
+      "community_name": "AuditLogger",
       "norm_label": "illuminate\\database\\eloquent\\model"
     },
     {
@@ -4596,7 +4935,7 @@
       "_origin": "ast",
       "id": "illuminate_database_eloquent_relations_belongsto",
       "community": 120,
-      "community_name": "AuditLog",
+      "community_name": "AuditLogger",
       "norm_label": "illuminate\\database\\eloquent\\relations\\belongsto"
     },
     {
@@ -4607,8 +4946,30 @@
       "_origin": "ast",
       "id": "illuminate_support_facades_request",
       "community": 120,
-      "community_name": "AuditLog",
+      "community_name": "AuditLogger",
       "norm_label": "illuminate\\support\\facades\\request"
+    },
+    {
+      "label": "Spatie\\Permission\\DefaultTeamResolver",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "spatie_permission_defaultteamresolver",
+      "community": 120,
+      "community_name": "AuditLogger",
+      "norm_label": "spatie\\permission\\defaultteamresolver"
+    },
+    {
+      "label": "Spatie\\Permission\\Models\\Role",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "spatie_permission_models_role",
+      "community": 120,
+      "community_name": "AuditLogger",
+      "norm_label": "spatie\\permission\\models\\role"
     },
     {
       "label": "advanced-queries.md",
@@ -5348,17 +5709,6 @@
       "norm_label": "logout.php"
     },
     {
-      "label": "DeleteUserForm.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Settings/DeleteUserForm.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_settings_deleteuserform",
-      "community": 128,
-      "community_name": "Logout.php",
-      "norm_label": "deleteuserform.php"
-    },
-    {
       "label": "Illuminate\\Http\\RedirectResponse",
       "file_type": "code",
       "source_file": "",
@@ -5392,26 +5742,26 @@
       "norm_label": "livewire\\features\\supportredirects\\redirector"
     },
     {
-      "label": "Laravel\\Fortify\\Actions\\DisableTwoFactorAuthentication",
+      "label": "UsersList.php",
       "file_type": "code",
-      "source_file": "",
-      "source_location": "",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L1",
       "_origin": "ast",
-      "id": "laravel_fortify_actions_disabletwofactorauthentication",
+      "id": "app_livewire_userslist",
       "community": 129,
-      "community_name": "Security",
-      "norm_label": "laravel\\fortify\\actions\\disabletwofactorauthentication"
+      "community_name": "Index",
+      "norm_label": "userslist.php"
     },
     {
-      "label": "Laravel\\Passkeys\\Actions\\DeletePasskey",
+      "label": "Livewire\\WithPagination",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "laravel_passkeys_actions_deletepasskey",
+      "id": "livewire_withpagination",
       "community": 129,
-      "community_name": "Security",
-      "norm_label": "laravel\\passkeys\\actions\\deletepasskey"
+      "community_name": "Index",
+      "norm_label": "livewire\\withpagination"
     },
     {
       "label": "closeDeleteModal",
@@ -6195,26 +6545,26 @@
       "norm_label": "what load is the system expected to handle at launch?"
     },
     {
-      "label": "App\\Livewire\\Users",
+      "label": "Laravel\\Fortify\\Actions\\DisableTwoFactorAuthentication",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "app_livewire_users",
+      "id": "laravel_fortify_actions_disabletwofactorauthentication",
       "community": 138,
-      "community_name": "Profile",
-      "norm_label": "app\\livewire\\users"
+      "community_name": "Security",
+      "norm_label": "laravel\\fortify\\actions\\disabletwofactorauthentication"
     },
     {
-      "label": "Illuminate\\Support\\Facades\\Route",
+      "label": "Laravel\\Passkeys\\Actions\\DeletePasskey",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "illuminate_support_facades_route",
+      "id": "laravel_passkeys_actions_deletepasskey",
       "community": 138,
-      "community_name": "Profile",
-      "norm_label": "illuminate\\support\\facades\\route"
+      "community_name": "Security",
+      "norm_label": "laravel\\passkeys\\actions\\deletepasskey"
     },
     {
       "label": "settings.php",
@@ -6224,19 +6574,8 @@
       "_origin": "ast",
       "id": "routes_settings",
       "community": 138,
-      "community_name": "Profile",
+      "community_name": "Security",
       "norm_label": "settings.php"
-    },
-    {
-      "label": "web.php",
-      "file_type": "code",
-      "source_file": "routes/web.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "routes_web",
-      "community": 138,
-      "community_name": "Profile",
-      "norm_label": "web.php"
     },
     {
       "label": "ProfileUpdateTest.php",
@@ -6246,7 +6585,7 @@
       "_origin": "ast",
       "id": "tests_feature_settings_profileupdatetest",
       "community": 138,
-      "community_name": "Profile",
+      "community_name": "Security",
       "norm_label": "profileupdatetest.php"
     },
     {
@@ -8130,15 +8469,26 @@
       "norm_label": "workflow: graphify"
     },
     {
-      "label": "edit.blade.php",
+      "label": "resetPassword",
+      "file_type": "code",
+      "source_file": "resources/views/livewire/users/edit.blade.php",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "resetpassword",
+      "community": 165,
+      "community_name": "users/edit.blade.php",
+      "norm_label": "resetpassword"
+    },
+    {
+      "label": "users/edit.blade.php",
       "file_type": "code",
       "source_file": "resources/views/livewire/users/edit.blade.php",
       "source_location": null,
       "_origin": "ast",
       "id": "resources_views_livewire_users_edit_blade",
       "community": 165,
-      "community_name": "edit.blade.php",
-      "norm_label": "edit.blade.php"
+      "community_name": "users/edit.blade.php",
+      "norm_label": "users/edit.blade.php"
     },
     {
       "label": "toggleStatus",
@@ -8148,7 +8498,7 @@
       "_origin": "ast",
       "id": "togglestatus",
       "community": 165,
-      "community_name": "edit.blade.php",
+      "community_name": "users/edit.blade.php",
       "norm_label": "togglestatus"
     },
     {
@@ -8542,7 +8892,7 @@
       "norm_label": "settings.delete-user-form"
     },
     {
-      "label": "create.blade.php",
+      "label": "users/create.blade.php",
       "file_type": "code",
       "source_file": "resources/views/livewire/users/create.blade.php",
       "source_location": null,
@@ -8550,10 +8900,10 @@
       "id": "resources_views_livewire_users_create_blade",
       "community": 190,
       "community_name": "create.blade.php",
-      "norm_label": "create.blade.php"
+      "norm_label": "users/create.blade.php"
     },
     {
-      "label": "index.blade.php",
+      "label": "users/index.blade.php",
       "file_type": "code",
       "source_file": "resources/views/livewire/users/index.blade.php",
       "source_location": null,
@@ -8561,7 +8911,117 @@
       "id": "resources_views_livewire_users_index_blade",
       "community": 191,
       "community_name": "index.blade.php",
-      "norm_label": "index.blade.php"
+      "norm_label": "users/index.blade.php"
+    },
+    {
+      "label": "App\\Livewire\\Roles",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "app_livewire_roles",
+      "community": 192,
+      "community_name": "web.php",
+      "norm_label": "app\\livewire\\roles"
+    },
+    {
+      "label": "App\\Livewire\\Users",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "app_livewire_users",
+      "community": 192,
+      "community_name": "web.php",
+      "norm_label": "app\\livewire\\users"
+    },
+    {
+      "label": "Illuminate\\Support\\Facades\\Route",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_support_facades_route",
+      "community": 192,
+      "community_name": "web.php",
+      "norm_label": "illuminate\\support\\facades\\route"
+    },
+    {
+      "label": "web.php",
+      "file_type": "code",
+      "source_file": "routes/web.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "routes_web",
+      "community": 192,
+      "community_name": "web.php",
+      "norm_label": "web.php"
+    },
+    {
+      "label": "CONTEXT.md",
+      "file_type": "document",
+      "source_file": "CONTEXT.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "context",
+      "community": 193,
+      "community_name": "UNMS Domain Context",
+      "norm_label": "context.md"
+    },
+    {
+      "label": "Language",
+      "file_type": "document",
+      "source_file": "CONTEXT.md",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "context_language",
+      "community": 193,
+      "community_name": "UNMS Domain Context",
+      "norm_label": "language"
+    },
+    {
+      "label": "UNMS Domain Context",
+      "file_type": "document",
+      "source_file": "CONTEXT.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "context_unms_domain_context",
+      "community": 193,
+      "community_name": "UNMS Domain Context",
+      "norm_label": "unms domain context"
+    },
+    {
+      "label": "0001-centralized-grouped-navigation-config.md",
+      "file_type": "document",
+      "source_file": "docs/adr/0001-centralized-grouped-navigation-config.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_adr_0001_centralized_grouped_navigation_config",
+      "community": 194,
+      "community_name": "0001-centralized-grouped-navigation-config.md",
+      "norm_label": "0001-centralized-grouped-navigation-config.md"
+    },
+    {
+      "label": "Centralized Grouped Navigation Configuration",
+      "file_type": "document",
+      "source_file": "docs/adr/0001-centralized-grouped-navigation-config.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_adr_0001_centralized_grouped_navigation_config_centralized_grouped_navigation_configuration",
+      "community": 194,
+      "community_name": "0001-centralized-grouped-navigation-config.md",
+      "norm_label": "centralized grouped navigation configuration"
+    },
+    {
+      "label": "Role",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "app_livewire_roles_edit_php_role",
+      "community": 195,
+      "community_name": "Edit",
+      "norm_label": "role"
     },
     {
       "label": "scripts",
@@ -8982,6 +9442,50 @@
       "norm_label": "controller.php"
     },
     {
+      "label": "deleteRole({{ $role->id }})",
+      "file_type": "code",
+      "source_file": "resources/views/livewire/roles/index.blade.php",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "deleterole_role_id",
+      "community": 200,
+      "community_name": "deleteRole({{ $role->id }})",
+      "norm_label": "deleterole({{ $role->id }})"
+    },
+    {
+      "label": "roles/index.blade.php",
+      "file_type": "code",
+      "source_file": "resources/views/livewire/roles/index.blade.php",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "resources_views_livewire_roles_index_blade",
+      "community": 200,
+      "community_name": "deleteRole({{ $role->id }})",
+      "norm_label": "roles/index.blade.php"
+    },
+    {
+      "label": "roles/create.blade.php",
+      "file_type": "code",
+      "source_file": "resources/views/livewire/roles/create.blade.php",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "resources_views_livewire_roles_create_blade",
+      "community": 201,
+      "community_name": "roles/create.blade.php",
+      "norm_label": "roles/create.blade.php"
+    },
+    {
+      "label": "roles/edit.blade.php",
+      "file_type": "code",
+      "source_file": "resources/views/livewire/roles/edit.blade.php",
+      "source_location": null,
+      "_origin": "ast",
+      "id": "resources_views_livewire_roles_edit_blade",
+      "community": 202,
+      "community_name": "roles/edit.blade.php",
+      "norm_label": "roles/edit.blade.php"
+    },
+    {
       "label": "header.blade.php",
       "file_type": "code",
       "source_file": "resources/views/layouts/app/header.blade.php",
@@ -9147,6 +9651,39 @@
       "norm_label": "filesystems.php"
     },
     {
+      "label": "Roles/Create.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_roles_create",
+      "community": 3,
+      "community_name": "Livewire\\Component",
+      "norm_label": "roles/create.php"
+    },
+    {
+      "label": "Roles/Edit.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_roles_edit",
+      "community": 3,
+      "community_name": "Livewire\\Component",
+      "norm_label": "roles/edit.php"
+    },
+    {
+      "label": "Roles/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_roles_index",
+      "community": 3,
+      "community_name": "Livewire\\Component",
+      "norm_label": "roles/index.php"
+    },
+    {
       "label": "Appearance.php",
       "file_type": "code",
       "source_file": "app/Livewire/Settings/Appearance.php",
@@ -9156,6 +9693,17 @@
       "community": 3,
       "community_name": "Livewire\\Component",
       "norm_label": "appearance.php"
+    },
+    {
+      "label": "DeleteUserForm.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Settings/DeleteUserForm.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_settings_deleteuserform",
+      "community": 3,
+      "community_name": "Livewire\\Component",
+      "norm_label": "deleteuserform.php"
     },
     {
       "label": "Profile.php",
@@ -9180,7 +9728,7 @@
       "norm_label": "security.php"
     },
     {
-      "label": "Create.php",
+      "label": "Users/Create.php",
       "file_type": "code",
       "source_file": "app/Livewire/Users/Create.php",
       "source_location": "L1",
@@ -9188,10 +9736,10 @@
       "id": "app_livewire_users_create",
       "community": 3,
       "community_name": "Livewire\\Component",
-      "norm_label": "create.php"
+      "norm_label": "users/create.php"
     },
     {
-      "label": "Edit.php",
+      "label": "Users/Edit.php",
       "file_type": "code",
       "source_file": "app/Livewire/Users/Edit.php",
       "source_location": "L1",
@@ -9199,10 +9747,10 @@
       "id": "app_livewire_users_edit",
       "community": 3,
       "community_name": "Livewire\\Component",
-      "norm_label": "edit.php"
+      "norm_label": "users/edit.php"
     },
     {
-      "label": "Index.php",
+      "label": "Users/Index.php",
       "file_type": "code",
       "source_file": "app/Livewire/Users/Index.php",
       "source_location": "L1",
@@ -9210,18 +9758,7 @@
       "id": "app_livewire_users_index",
       "community": 3,
       "community_name": "Livewire\\Component",
-      "norm_label": "index.php"
-    },
-    {
-      "label": "UsersList.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_userslist",
-      "community": 3,
-      "community_name": "Livewire\\Component",
-      "norm_label": "userslist.php"
+      "norm_label": "users/index.php"
     },
     {
       "label": "Flux\\Flux",
@@ -9233,6 +9770,17 @@
       "community": 3,
       "community_name": "Livewire\\Component",
       "norm_label": "flux\\flux"
+    },
+    {
+      "label": "Illuminate\\Support\\Collection",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_support_collection",
+      "community": 3,
+      "community_name": "Livewire\\Component",
+      "norm_label": "illuminate\\support\\collection"
     },
     {
       "label": "Illuminate\\Support\\Facades\\Auth",
@@ -9310,28 +9858,6 @@
       "community": 3,
       "community_name": "Livewire\\Component",
       "norm_label": "livewire\\component"
-    },
-    {
-      "label": "Livewire\\WithPagination",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "livewire_withpagination",
-      "community": 3,
-      "community_name": "Livewire\\Component",
-      "norm_label": "livewire\\withpagination"
-    },
-    {
-      "label": "Spatie\\Permission\\Models\\Role",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "spatie_permission_models_role",
-      "community": 3,
-      "community_name": "Livewire\\Component",
-      "norm_label": "spatie\\permission\\models\\role"
     },
     {
       "label": "mail.php",
@@ -9873,345 +10399,37 @@
       "norm_label": "group.blade.php"
     },
     {
-      "label": "RecordLastLoginAt.php",
+      "label": "Illuminate\\Foundation\\Testing\\TestCase",
       "file_type": "code",
-      "source_file": "app/Listeners/RecordLastLoginAt.php",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_foundation_testing_testcase",
+      "community": 5,
+      "community_name": "TestCase",
+      "norm_label": "illuminate\\foundation\\testing\\testcase"
+    },
+    {
+      "label": "Pest.php",
+      "file_type": "code",
+      "source_file": "tests/Pest.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_listeners_recordlastloginat",
+      "id": "tests_pest",
       "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "recordlastloginat.php"
+      "community_name": "TestCase",
+      "norm_label": "pest.php"
     },
     {
-      "label": "AppServiceProvider.php",
+      "label": "TestCase.php",
       "file_type": "code",
-      "source_file": "app/Providers/AppServiceProvider.php",
+      "source_file": "tests/TestCase.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_providers_appserviceprovider",
+      "id": "tests_testcase",
       "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "appserviceprovider.php"
-    },
-    {
-      "label": "FortifyServiceProvider.php",
-      "file_type": "code",
-      "source_file": "app/Providers/FortifyServiceProvider.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_providers_fortifyserviceprovider",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "fortifyserviceprovider.php"
-    },
-    {
-      "label": "bootstrap/app.php",
-      "file_type": "code",
-      "source_file": "bootstrap/app.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "bootstrap_app",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "bootstrap/app.php"
-    },
-    {
-      "label": "providers.php",
-      "file_type": "code",
-      "source_file": "bootstrap/providers.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "bootstrap_providers",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "providers.php"
-    },
-    {
-      "label": "Carbon\\CarbonImmutable",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "carbon_carbonimmutable",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "carbon\\carbonimmutable"
-    },
-    {
-      "label": "cache.php",
-      "file_type": "code",
-      "source_file": "config/cache.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "config_cache",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "cache.php"
-    },
-    {
-      "label": "database.php",
-      "file_type": "code",
-      "source_file": "config/database.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "config_database",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "database.php"
-    },
-    {
-      "label": "session.php",
-      "file_type": "code",
-      "source_file": "config/session.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "config_session",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "session.php"
-    },
-    {
-      "label": "UserFactory.php",
-      "file_type": "code",
-      "source_file": "database/factories/UserFactory.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_factories_userfactory",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "userfactory.php"
-    },
-    {
-      "label": "Illuminate\\Auth\\Events\\Login",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_auth_events_login",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\auth\\events\\login"
-    },
-    {
-      "label": "Illuminate\\Cache\\RateLimiting\\Limit",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_cache_ratelimiting_limit",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\cache\\ratelimiting\\limit"
-    },
-    {
-      "label": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_database_eloquent_factories_factory",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\database\\eloquent\\factories\\factory"
-    },
-    {
-      "label": "Illuminate\\Foundation\\Application",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_foundation_application",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\foundation\\application"
-    },
-    {
-      "label": "Illuminate\\Foundation\\Configuration\\Exceptions",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_foundation_configuration_exceptions",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\foundation\\configuration\\exceptions"
-    },
-    {
-      "label": "Illuminate\\Foundation\\Configuration\\Middleware",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_foundation_configuration_middleware",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\foundation\\configuration\\middleware"
-    },
-    {
-      "label": "Illuminate\\Http\\Request",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_http_request",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\http\\request"
-    },
-    {
-      "label": "Illuminate\\Support\\Facades\\Date",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_support_facades_date",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\support\\facades\\date"
-    },
-    {
-      "label": "Illuminate\\Support\\Facades\\DB",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_support_facades_db",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\support\\facades\\db"
-    },
-    {
-      "label": "Illuminate\\Support\\Facades\\Event",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_support_facades_event",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\support\\facades\\event"
-    },
-    {
-      "label": "Illuminate\\Support\\Facades\\RateLimiter",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_support_facades_ratelimiter",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\support\\facades\\ratelimiter"
-    },
-    {
-      "label": "Illuminate\\Support\\ServiceProvider",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_support_serviceprovider",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\support\\serviceprovider"
-    },
-    {
-      "label": "Illuminate\\Support\\Str",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_support_str",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\support\\str"
-    },
-    {
-      "label": "Illuminate\\Validation\\Rules\\Password",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_validation_rules_password",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "illuminate\\validation\\rules\\password"
-    },
-    {
-      "label": "Laravel\\Fortify\\Fortify",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "laravel_fortify_fortify",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "laravel\\fortify\\fortify"
-    },
-    {
-      "label": "Pdo\\Mysql",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "pdo_mysql",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "pdo\\mysql"
-    },
-    {
-      "label": "index.php",
-      "file_type": "code",
-      "source_file": "public/index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "public_index",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "index.php"
-    },
-    {
-      "label": "Spatie\\Permission\\Middleware\\PermissionMiddleware",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "spatie_permission_middleware_permissionmiddleware",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "spatie\\permission\\middleware\\permissionmiddleware"
-    },
-    {
-      "label": "Spatie\\Permission\\Middleware\\RoleMiddleware",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "spatie_permission_middleware_rolemiddleware",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "spatie\\permission\\middleware\\rolemiddleware"
-    },
-    {
-      "label": "Spatie\\Permission\\Middleware\\RoleOrPermissionMiddleware",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "spatie_permission_middleware_roleorpermissionmiddleware",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "spatie\\permission\\middleware\\roleorpermissionmiddleware"
-    },
-    {
-      "label": "static",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "static",
-      "community": 5,
-      "community_name": "FortifyServiceProvider.php",
-      "norm_label": "static"
+      "community_name": "TestCase",
+      "norm_label": "testcase.php"
     },
     {
       "label": "app.blade.php",
@@ -10653,17 +10871,6 @@
       "norm_label": "vite.config.js"
     },
     {
-      "label": "permission.php",
-      "file_type": "code",
-      "source_file": "config/permission.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "config_permission",
-      "community": 64,
-      "community_name": "RolesAndPermissionsSeeder.php",
-      "norm_label": "permission.php"
-    },
-    {
       "label": "DatabaseSeeder.php",
       "file_type": "code",
       "source_file": "database/seeders/DatabaseSeeder.php",
@@ -10671,19 +10878,8 @@
       "_origin": "ast",
       "id": "database_seeders_databaseseeder",
       "community": 64,
-      "community_name": "RolesAndPermissionsSeeder.php",
+      "community_name": "DatabaseSeeder.php",
       "norm_label": "databaseseeder.php"
-    },
-    {
-      "label": "RolesAndPermissionsSeeder.php",
-      "file_type": "code",
-      "source_file": "database/seeders/RolesAndPermissionsSeeder.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_seeders_rolesandpermissionsseeder",
-      "community": 64,
-      "community_name": "RolesAndPermissionsSeeder.php",
-      "norm_label": "rolesandpermissionsseeder.php"
     },
     {
       "label": "Illuminate\\Database\\Console\\Seeds\\WithoutModelEvents",
@@ -10693,7 +10889,7 @@
       "_origin": "ast",
       "id": "illuminate_database_console_seeds_withoutmodelevents",
       "community": 64,
-      "community_name": "RolesAndPermissionsSeeder.php",
+      "community_name": "DatabaseSeeder.php",
       "norm_label": "illuminate\\database\\console\\seeds\\withoutmodelevents"
     },
     {
@@ -10704,41 +10900,8 @@
       "_origin": "ast",
       "id": "illuminate_database_seeder",
       "community": 64,
-      "community_name": "RolesAndPermissionsSeeder.php",
+      "community_name": "DatabaseSeeder.php",
       "norm_label": "illuminate\\database\\seeder"
-    },
-    {
-      "label": "Spatie\\Permission\\DefaultTeamResolver",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "spatie_permission_defaultteamresolver",
-      "community": 64,
-      "community_name": "RolesAndPermissionsSeeder.php",
-      "norm_label": "spatie\\permission\\defaultteamresolver"
-    },
-    {
-      "label": "Spatie\\Permission\\Models\\Permission",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "spatie_permission_models_permission",
-      "community": 64,
-      "community_name": "RolesAndPermissionsSeeder.php",
-      "norm_label": "spatie\\permission\\models\\permission"
-    },
-    {
-      "label": "Spatie\\Permission\\PermissionRegistrar",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "spatie_permission_permissionregistrar",
-      "community": 64,
-      "community_name": "RolesAndPermissionsSeeder.php",
-      "norm_label": "spatie\\permission\\permissionregistrar"
     },
     {
       "label": "confirmDelete({{ $user->id }})",
@@ -18219,6 +18382,94 @@
       "norm_label": "profilevalidationrules.php"
     },
     {
+      "label": "RecordLastLoginAt.php",
+      "file_type": "code",
+      "source_file": "app/Listeners/RecordLastLoginAt.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_listeners_recordlastloginat",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "recordlastloginat.php"
+    },
+    {
+      "label": "AppServiceProvider.php",
+      "file_type": "code",
+      "source_file": "app/Providers/AppServiceProvider.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_providers_appserviceprovider",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "appserviceprovider.php"
+    },
+    {
+      "label": "FortifyServiceProvider.php",
+      "file_type": "code",
+      "source_file": "app/Providers/FortifyServiceProvider.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_providers_fortifyserviceprovider",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "fortifyserviceprovider.php"
+    },
+    {
+      "label": "bootstrap/app.php",
+      "file_type": "code",
+      "source_file": "bootstrap/app.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "bootstrap_app",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "bootstrap/app.php"
+    },
+    {
+      "label": "providers.php",
+      "file_type": "code",
+      "source_file": "bootstrap/providers.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "bootstrap_providers",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "providers.php"
+    },
+    {
+      "label": "Carbon\\CarbonImmutable",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "carbon_carbonimmutable",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "carbon\\carbonimmutable"
+    },
+    {
+      "label": "Illuminate\\Auth\\Events\\Login",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_auth_events_login",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\auth\\events\\login"
+    },
+    {
+      "label": "Illuminate\\Cache\\RateLimiting\\Limit",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_cache_ratelimiting_limit",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\cache\\ratelimiting\\limit"
+    },
+    {
       "label": "Illuminate\\Contracts\\Validation\\ValidationRule",
       "file_type": "code",
       "source_file": "",
@@ -18228,6 +18479,94 @@
       "community": 9,
       "community_name": "PasswordValidationRules.php",
       "norm_label": "illuminate\\contracts\\validation\\validationrule"
+    },
+    {
+      "label": "Illuminate\\Foundation\\Application",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_foundation_application",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\foundation\\application"
+    },
+    {
+      "label": "Illuminate\\Foundation\\Configuration\\Exceptions",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_foundation_configuration_exceptions",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\foundation\\configuration\\exceptions"
+    },
+    {
+      "label": "Illuminate\\Foundation\\Configuration\\Middleware",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_foundation_configuration_middleware",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\foundation\\configuration\\middleware"
+    },
+    {
+      "label": "Illuminate\\Http\\Request",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_http_request",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\http\\request"
+    },
+    {
+      "label": "Illuminate\\Support\\Facades\\Date",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_support_facades_date",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\support\\facades\\date"
+    },
+    {
+      "label": "Illuminate\\Support\\Facades\\DB",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_support_facades_db",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\support\\facades\\db"
+    },
+    {
+      "label": "Illuminate\\Support\\Facades\\Event",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_support_facades_event",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\support\\facades\\event"
+    },
+    {
+      "label": "Illuminate\\Support\\Facades\\RateLimiter",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_support_facades_ratelimiter",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\support\\facades\\ratelimiter"
     },
     {
       "label": "Illuminate\\Support\\Facades\\Validator",
@@ -18241,6 +18580,17 @@
       "norm_label": "illuminate\\support\\facades\\validator"
     },
     {
+      "label": "Illuminate\\Support\\ServiceProvider",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_support_serviceprovider",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\support\\serviceprovider"
+    },
+    {
       "label": "Illuminate\\Validation\\Rule",
       "file_type": "code",
       "source_file": "",
@@ -18250,6 +18600,17 @@
       "community": 9,
       "community_name": "PasswordValidationRules.php",
       "norm_label": "illuminate\\validation\\rule"
+    },
+    {
+      "label": "Illuminate\\Validation\\Rules\\Password",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_validation_rules_password",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "illuminate\\validation\\rules\\password"
     },
     {
       "label": "Laravel\\Fortify\\Contracts\\CreatesNewUsers",
@@ -18272,6 +18633,61 @@
       "community": 9,
       "community_name": "PasswordValidationRules.php",
       "norm_label": "laravel\\fortify\\contracts\\resetsuserpasswords"
+    },
+    {
+      "label": "Laravel\\Fortify\\Fortify",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "laravel_fortify_fortify",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "laravel\\fortify\\fortify"
+    },
+    {
+      "label": "index.php",
+      "file_type": "code",
+      "source_file": "public/index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "public_index",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "index.php"
+    },
+    {
+      "label": "Spatie\\Permission\\Middleware\\PermissionMiddleware",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "spatie_permission_middleware_permissionmiddleware",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "spatie\\permission\\middleware\\permissionmiddleware"
+    },
+    {
+      "label": "Spatie\\Permission\\Middleware\\RoleMiddleware",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "spatie_permission_middleware_rolemiddleware",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "spatie\\permission\\middleware\\rolemiddleware"
+    },
+    {
+      "label": "Spatie\\Permission\\Middleware\\RoleOrPermissionMiddleware",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "spatie_permission_middleware_roleorpermissionmiddleware",
+      "community": 9,
+      "community_name": "PasswordValidationRules.php",
+      "norm_label": "spatie\\permission\\middleware\\roleorpermissionmiddleware"
     },
     {
       "label": ".claude/skills/improve-codebase-architecture/HTML-REPORT.md",
@@ -18714,17 +19130,6 @@
       "norm_label": "process"
     },
     {
-      "label": "AuthenticateUser.php",
-      "file_type": "code",
-      "source_file": "app/Actions/Fortify/AuthenticateUser.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_actions_fortify_authenticateuser",
-      "community": 92,
-      "community_name": "UserStatus.php",
-      "norm_label": "authenticateuser.php"
-    },
-    {
       "label": "UserStatus.php",
       "file_type": "code",
       "source_file": "app/Enums/UserStatus.php",
@@ -18734,6 +19139,17 @@
       "community": 92,
       "community_name": "UserStatus.php",
       "norm_label": "userstatus.php"
+    },
+    {
+      "label": "RolesAndPermissionsSeeder.php",
+      "file_type": "code",
+      "source_file": "database/seeders/RolesAndPermissionsSeeder.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "database_seeders_rolesandpermissionsseeder",
+      "community": 92,
+      "community_name": "UserStatus.php",
+      "norm_label": "rolesandpermissionsseeder.php"
     },
     {
       "label": "Illuminate\\Foundation\\Testing\\RefreshDatabase",
@@ -18747,28 +19163,6 @@
       "norm_label": "illuminate\\foundation\\testing\\refreshdatabase"
     },
     {
-      "label": "Illuminate\\Support\\Facades\\Hash",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_support_facades_hash",
-      "community": 92,
-      "community_name": "UserStatus.php",
-      "norm_label": "illuminate\\support\\facades\\hash"
-    },
-    {
-      "label": "Illuminate\\Validation\\ValidationException",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_validation_validationexception",
-      "community": 92,
-      "community_name": "UserStatus.php",
-      "norm_label": "illuminate\\validation\\validationexception"
-    },
-    {
       "label": "Livewire\\Livewire",
       "file_type": "code",
       "source_file": "",
@@ -18778,6 +19172,28 @@
       "community": 92,
       "community_name": "UserStatus.php",
       "norm_label": "livewire\\livewire"
+    },
+    {
+      "label": "Spatie\\Permission\\Models\\Permission",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "spatie_permission_models_permission",
+      "community": 92,
+      "community_name": "UserStatus.php",
+      "norm_label": "spatie\\permission\\models\\permission"
+    },
+    {
+      "label": "Spatie\\Permission\\PermissionRegistrar",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "spatie_permission_permissionregistrar",
+      "community": 92,
+      "community_name": "UserStatus.php",
+      "norm_label": "spatie\\permission\\permissionregistrar"
     },
     {
       "label": "LoginWithInactiveUserTest.php",
@@ -18791,15 +19207,37 @@
       "norm_label": "loginwithinactiveusertest.php"
     },
     {
-      "label": "SecurityTest.php",
+      "label": "NavigationTest.php",
       "file_type": "code",
-      "source_file": "tests/Feature/Settings/SecurityTest.php",
+      "source_file": "tests/Feature/NavigationTest.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "tests_feature_settings_securitytest",
+      "id": "tests_feature_navigationtest",
       "community": 92,
       "community_name": "UserStatus.php",
-      "norm_label": "securitytest.php"
+      "norm_label": "navigationtest.php"
+    },
+    {
+      "label": "RoleManagementTest.php",
+      "file_type": "code",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "tests_feature_rolemanagementtest",
+      "community": 92,
+      "community_name": "UserStatus.php",
+      "norm_label": "rolemanagementtest.php"
+    },
+    {
+      "label": "UserEditTest.php",
+      "file_type": "code",
+      "source_file": "tests/Feature/UserEditTest.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "tests_feature_useredittest",
+      "community": 92,
+      "community_name": "UserStatus.php",
+      "norm_label": "useredittest.php"
     },
     {
       "label": "UsersCreateTest.php",
@@ -18833,17 +19271,6 @@
       "community": 92,
       "community_name": "UserStatus.php",
       "norm_label": "usersindextest.php"
-    },
-    {
-      "label": "Pest.php",
-      "file_type": "code",
-      "source_file": "tests/Pest.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "tests_pest",
-      "community": 92,
-      "community_name": "UserStatus.php",
-      "norm_label": "pest.php"
     },
     {
       "label": "fortify-development/SKILL.md",
@@ -20349,6 +20776,102 @@
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L51",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create_create_render",
+      "target": "app_livewire_roles_create_create_getgroupedpermissions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L41",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create_create_save",
+      "target": "app_services_auditlogger_auditlogger"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L67",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit_render",
+      "target": "app_livewire_roles_edit_edit_getgroupedpermissions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L68",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit_render",
+      "target": "app_livewire_roles_edit_php_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L44",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit_save",
+      "target": "app_livewire_roles_edit_php_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L56",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit_save",
+      "target": "app_services_auditlogger_auditlogger"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index_index_deleterole",
+      "target": "app_models_user_user"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L36",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index_index_deleterole",
+      "target": "app_services_auditlogger_auditlogger"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Settings/Security.php",
       "source_location": "L127",
       "weight": 1.0,
@@ -20398,7 +20921,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L111",
+      "source_location": "L129",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit_edit_render",
@@ -20410,7 +20933,31 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L53",
+      "source_location": "L81",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_users_edit_edit_resetpassword",
+      "target": "app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L91",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_users_edit_edit_resetpassword",
+      "target": "app_services_auditlogger_auditlogger"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L57",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit_edit_save",
@@ -20423,7 +20970,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L67",
+      "source_location": "L71",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit_edit_save",
@@ -20434,7 +20981,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L77",
+      "source_location": "L98",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit_edit_togglestatus",
@@ -20459,7 +21006,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L56",
+      "source_location": "L59",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist_userslist_deleteuser",
@@ -20471,7 +21018,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L67",
+      "source_location": "L70",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist_userslist_render",
@@ -20483,7 +21030,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L35",
+      "source_location": "L38",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist_userslist_save",
@@ -20555,10 +21102,58 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "app/Services/AuditLogger.php",
-      "source_location": "L18",
+      "source_location": "L84",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordpasswordreset",
+      "target": "app_models_auditlog_auditlog"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L17",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_services_auditlogger_auditlogger_recordrolechange",
+      "target": "app_models_auditlog_auditlog"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L33",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordrolecreated",
+      "target": "app_models_auditlog_auditlog"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L49",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordroledeleted",
+      "target": "app_models_auditlog_auditlog"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L68",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordrolepermissionsupdated",
       "target": "app_models_auditlog_auditlog"
     },
     {
@@ -20831,7 +21426,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "database/seeders/RolesAndPermissionsSeeder.php",
-      "source_location": "L36",
+      "source_location": "L51",
       "weight": 1.0,
       "_origin": "ast",
       "source": "database_seeders_rolesandpermissionsseeder_rolesandpermissionsseeder_run",
@@ -21717,6 +22312,426 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "illuminate_support_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "illuminate_view_view",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "livewire_attributes_layout",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "livewire_attributes_title",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L14",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "livewire_attributes_validate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "livewire_component",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "spatie_permission_models_permission",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "spatie_permission_models_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "app_services_auditlogger_auditlogger",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "flux_flux",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "illuminate_support_collection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "illuminate_support_facades_auth",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "illuminate_support_str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "illuminate_view_view",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "livewire_attributes_layout",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "livewire_attributes_locked",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L14",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "livewire_attributes_title",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "livewire_component",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "spatie_permission_models_permission",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "spatie_permission_models_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "app_services_auditlogger_auditlogger",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "flux_flux",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "illuminate_support_collection",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "illuminate_support_facades_auth",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index",
+      "target": "livewire_attributes_layout",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index",
+      "target": "livewire_attributes_title",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index",
+      "target": "livewire_component",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index",
+      "target": "spatie_permission_models_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index",
+      "target": "app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index",
+      "target": "app_services_auditlogger_auditlogger",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index",
+      "target": "flux_flux",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index",
+      "target": "illuminate_support_facades_auth",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index",
+      "target": "illuminate_view_view",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Settings/Appearance.php",
       "source_location": "L5",
       "weight": 1.0,
@@ -22082,7 +23097,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit",
-      "target": "illuminate_view_view",
+      "target": "illuminate_support_str",
       "confidence_score": 1.0
     },
     {
@@ -22094,7 +23109,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit",
-      "target": "livewire_attributes_layout",
+      "target": "illuminate_view_view",
       "confidence_score": 1.0
     },
     {
@@ -22106,7 +23121,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit",
-      "target": "livewire_attributes_locked",
+      "target": "livewire_attributes_layout",
       "confidence_score": 1.0
     },
     {
@@ -22118,7 +23133,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit",
-      "target": "livewire_attributes_title",
+      "target": "livewire_attributes_locked",
       "confidence_score": 1.0
     },
     {
@@ -22130,7 +23145,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit",
-      "target": "livewire_component",
+      "target": "livewire_attributes_title",
       "confidence_score": 1.0
     },
     {
@@ -22139,6 +23154,18 @@
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
       "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_users_edit",
+      "target": "livewire_component",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L16",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit",
@@ -22310,7 +23337,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist",
-      "target": "livewire_component",
+      "target": "app_models_user_user",
       "confidence_score": 1.0
     },
     {
@@ -22322,7 +23349,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist",
-      "target": "livewire_withpagination",
+      "target": "livewire_attributes_layout",
       "confidence_score": 1.0
     },
     {
@@ -22334,7 +23361,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist",
-      "target": "app_models_user_user",
+      "target": "livewire_component",
       "confidence_score": 1.0
     },
     {
@@ -22346,7 +23373,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist",
-      "target": "livewire_attributes_layout",
+      "target": "livewire_withpagination",
       "confidence_score": 1.0
     },
     {
@@ -22755,6 +23782,18 @@
       "_origin": "ast",
       "source": "app_services_auditlogger",
       "target": "illuminate_support_facades_request",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger",
+      "target": "spatie_permission_models_role",
       "confidence_score": 1.0
     },
     {
@@ -23654,7 +24693,7 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "routes_web",
-      "target": "app_livewire_users",
+      "target": "app_livewire_roles",
       "confidence_score": 1.0
     },
     {
@@ -23663,6 +24702,18 @@
       "confidence": "EXTRACTED",
       "source_file": "routes/web.php",
       "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "routes_web",
+      "target": "app_livewire_users",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "routes/web.php",
+      "source_location": "L5",
       "weight": 1.0,
       "_origin": "ast",
       "source": "routes_web",
@@ -23829,6 +24880,174 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/NavigationTest.php",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_navigationtest",
+      "target": "app_enums_userstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/NavigationTest.php",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_navigationtest",
+      "target": "app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/NavigationTest.php",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_navigationtest",
+      "target": "database_seeders_rolesandpermissionsseeder_rolesandpermissionsseeder",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/NavigationTest.php",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_navigationtest",
+      "target": "illuminate_foundation_testing_refreshdatabase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "livewire_livewire",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "spatie_permission_models_permission",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "spatie_permission_models_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "app_enums_userstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "app_livewire_roles_create_create",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "app_livewire_roles_edit_edit",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "app_livewire_roles_index_index",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "app_models_auditlog_auditlog",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "illuminate_foundation_testing_refreshdatabase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "tests/Feature/Settings/ProfileUpdateTest.php",
       "source_location": "L3",
       "weight": 1.0,
@@ -23919,6 +25138,102 @@
       "_origin": "ast",
       "source": "tests_feature_settings_securitytest",
       "target": "livewire_livewire",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/UserEditTest.php",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_useredittest",
+      "target": "spatie_permission_models_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/UserEditTest.php",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_useredittest",
+      "target": "app_enums_userstatus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/UserEditTest.php",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_useredittest",
+      "target": "app_livewire_users_edit_edit",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/UserEditTest.php",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_useredittest",
+      "target": "app_models_auditlog_auditlog",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/UserEditTest.php",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_useredittest",
+      "target": "app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/UserEditTest.php",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_useredittest",
+      "target": "illuminate_foundation_testing_refreshdatabase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/UserEditTest.php",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_useredittest",
+      "target": "livewire_livewire",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/UserEditTest.php",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_useredittest",
+      "target": "spatie_permission_models_permission",
       "confidence_score": 1.0
     },
     {
@@ -24224,6 +25539,18 @@
     {
       "relation": "references",
       "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L31",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit_mount",
+      "target": "spatie_permission_models_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Settings/DeleteUserForm.php",
       "source_location": "L19",
       "weight": 1.0,
@@ -24261,7 +25588,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L34",
+      "source_location": "L38",
       "weight": 1.0,
       "context": "parameter_type",
       "_origin": "ast",
@@ -24270,10 +25597,94 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L31",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordrolecreated",
+      "target": "app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L31",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordrolecreated",
+      "target": "spatie_permission_models_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L47",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordroledeleted",
+      "target": "app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L47",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordroledeleted",
+      "target": "spatie_permission_models_role",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L66",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordrolepermissionsupdated",
+      "target": "app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L66",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordrolepermissionsupdated",
+      "target": "spatie_permission_models_role",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "references_constant",
       "confidence": "EXTRACTED",
       "source_file": "app/Services/AuditLogger.php",
-      "source_location": "L21",
+      "source_location": "L87",
+      "weight": 1.0,
+      "context": "parameter_type",
+      "_origin": "ast",
+      "confidence_score": 1.0,
+      "source": "app_services_auditlogger_auditlogger_recordpasswordreset",
+      "target": "app_models_user_user"
+    },
+    {
+      "relation": "references_constant",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L20",
       "weight": 1.0,
       "context": "parameter_type",
       "_origin": "ast",
@@ -24332,6 +25743,42 @@
     {
       "relation": "references",
       "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L48",
+      "weight": 1.0,
+      "context": "return_type",
+      "_origin": "ast",
+      "source": "app_livewire_roles_create_create_render",
+      "target": "illuminate_view_view",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L64",
+      "weight": 1.0,
+      "context": "return_type",
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit_render",
+      "target": "illuminate_view_view",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L43",
+      "weight": 1.0,
+      "context": "return_type",
+      "_origin": "ast",
+      "source": "app_livewire_roles_index_index_render",
+      "target": "illuminate_view_view",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Create.php",
       "source_location": "L55",
       "weight": 1.0,
@@ -24345,7 +25792,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L106",
+      "source_location": "L127",
       "weight": 1.0,
       "context": "return_type",
       "_origin": "ast",
@@ -24417,6 +25864,17 @@
       "relation": "binds_method",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
+      "source_file": "resources/views/livewire/roles/index.blade.php",
+      "source_location": null,
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "resources_views_livewire_roles_index_blade",
+      "target": "deleterole_role_id"
+    },
+    {
+      "relation": "binds_method",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "resources/views/livewire/settings/security.blade.php",
       "source_location": null,
       "weight": 1.0,
@@ -24445,6 +25903,17 @@
       "_origin": "ast",
       "source": "resources_views_livewire_settings_security_blade",
       "target": "resources_views_livewire_settings_security_blade_php_deletepasskey"
+    },
+    {
+      "relation": "binds_method",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "resources/views/livewire/users/edit.blade.php",
+      "source_location": null,
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "resources_views_livewire_users_edit_blade",
+      "target": "resetpassword"
     },
     {
       "relation": "binds_method",
@@ -30840,6 +32309,39 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create",
+      "target": "app_livewire_roles_create_create",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit",
+      "target": "app_livewire_roles_edit_edit",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index",
+      "target": "app_livewire_roles_index_index",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Settings/Appearance.php",
       "source_location": "L8",
       "weight": 1.0,
@@ -30896,7 +32398,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L17",
+      "source_location": "L18",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit",
@@ -30973,7 +32475,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app/Services/AuditLogger.php",
-      "source_location": "L9",
+      "source_location": "L10",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_services_auditlogger",
@@ -34668,6 +36170,28 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "CONTEXT.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "context",
+      "target": "context_unms_domain_context",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CONTEXT.md",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "context_unms_domain_context",
+      "target": "context_language",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "database/factories/UserFactory.php",
       "source_location": "L13",
       "weight": 1.0,
@@ -34850,6 +36374,17 @@
       "_origin": "ast",
       "source": "database_seeders_rolesandpermissionsseeder",
       "target": "database_seeders_rolesandpermissionsseeder_rolesandpermissionsseeder",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/adr/0001-centralized-grouped-navigation-config.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "docs_adr_0001_centralized_grouped_navigation_config",
+      "target": "docs_adr_0001_centralized_grouped_navigation_config_centralized_grouped_navigation_configuration",
       "confidence_score": 1.0
     },
     {
@@ -39079,6 +40614,39 @@
     {
       "relation": "inherits",
       "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L21",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create_create",
+      "target": "livewire_component",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L21",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit",
+      "target": "livewire_component",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index_index",
+      "target": "livewire_component",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Settings/Appearance.php",
       "source_location": "L9",
       "weight": 1.0,
@@ -39135,7 +40703,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L19",
+      "source_location": "L20",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit_edit",
@@ -39310,6 +40878,105 @@
     {
       "relation": "method",
       "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L29",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create_create",
+      "target": "app_livewire_roles_create_create_save",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L48",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create_create",
+      "target": "app_livewire_roles_create_create_render",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Create.php",
+      "source_location": "L60",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_create_create",
+      "target": "app_livewire_roles_create_create_getgroupedpermissions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit",
+      "target": "app_livewire_roles_edit_edit_mount",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L38",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit",
+      "target": "app_livewire_roles_edit_edit_save",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L64",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit",
+      "target": "app_livewire_roles_edit_edit_render",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Edit.php",
+      "source_location": "L77",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_edit_edit",
+      "target": "app_livewire_roles_edit_edit_getgroupedpermissions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index_index",
+      "target": "app_livewire_roles_index_index_deleterole",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L43",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_roles_index_index",
+      "target": "app_livewire_roles_index_index_render",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Settings/DeleteUserForm.php",
       "source_location": "L19",
       "weight": 1.0,
@@ -39432,7 +41099,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L106",
+      "source_location": "L127",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit_edit",
@@ -39443,7 +41110,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L34",
+      "source_location": "L38",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit_edit",
@@ -39454,7 +41121,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L44",
+      "source_location": "L48",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit_edit",
@@ -39465,7 +41132,18 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L75",
+      "source_location": "L79",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_livewire_users_edit_edit",
+      "target": "app_livewire_users_edit_edit_resetpassword",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L96",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_users_edit_edit",
@@ -39520,7 +41198,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L23",
+      "source_location": "L26",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist_userslist",
@@ -39531,7 +41209,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L28",
+      "source_location": "L31",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist_userslist",
@@ -39542,7 +41220,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L47",
+      "source_location": "L50",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist_userslist",
@@ -39553,7 +41231,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L53",
+      "source_location": "L56",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist_userslist",
@@ -39564,7 +41242,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L64",
+      "source_location": "L67",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_livewire_userslist_userslist",
@@ -39740,11 +41418,55 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "app/Services/AuditLogger.php",
-      "source_location": "L16",
+      "source_location": "L15",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_services_auditlogger_auditlogger",
       "target": "app_services_auditlogger_auditlogger_recordrolechange",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger",
+      "target": "app_services_auditlogger_auditlogger_recordrolecreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L47",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger",
+      "target": "app_services_auditlogger_auditlogger_recordroledeleted",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L66",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger",
+      "target": "app_services_auditlogger_auditlogger_recordrolepermissionsupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L82",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger",
+      "target": "app_services_auditlogger_auditlogger_recordpasswordreset",
       "confidence_score": 1.0
     },
     {
@@ -40947,6 +42669,39 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "references_constant",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L36",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordrolecreated",
+      "target": "app_services_auditlogger_php_role"
+    },
+    {
+      "relation": "references_constant",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L52",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordroledeleted",
+      "target": "app_services_auditlogger_php_role"
+    },
+    {
+      "relation": "references_constant",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/Services/AuditLogger.php",
+      "source_location": "L71",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_services_auditlogger_auditlogger_recordrolepermissionsupdated",
+      "target": "app_services_auditlogger_php_role"
+    },
+    {
       "relation": "uses_component",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
@@ -40970,5 +42725,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "e18edd693236cc1674286daff1ed973054e03441"
+  "built_at_commit": "ef51caa0bc68308d0a69024eb24935683945fd95"
 }

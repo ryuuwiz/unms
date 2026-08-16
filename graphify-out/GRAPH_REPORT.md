@@ -1,16 +1,16 @@
 # Graph Report - unms  (2026-08-16)
 
 ## Corpus Check
-- 294 files · ~132,017 words
+- 305 files · ~134,057 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1787 nodes · 1868 edges · 192 communities (180 shown, 12 thin omitted)
+- 1824 nodes · 1981 edges · 200 communities (182 shown, 18 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e18edd69`
+- Built from commit: `ef51caa0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -20,14 +20,14 @@
 - scripts
 - Livewire\Component
 - dependencies
-- FortifyServiceProvider.php
+- TestCase
 - .agents/skills/wizard/template.sh
 - .claude/skills/wizard/template.sh
 - .kilocode/skills/wizard/template.sh
 - PasswordValidationRules.php
 - Illuminate\Database\Migrations\Migration
 - PRD #1: Users & Roles Management
-- Laravel\Fortify\Features
+- Illuminate\Support\Str
 - security.blade.php
 - logging.php
 - .agents/skills/diagnosing-bugs/scripts/hitl-loop.template.sh
@@ -42,7 +42,7 @@
 - simple.blade.php
 - split.blade.php
 - appearance.blade.php
-- RolesAndPermissionsSeeder.php
+- DatabaseSeeder.php
 - users-list.blade.php
 - require
 - Issue tracker: GitHub
@@ -97,7 +97,7 @@
 - Flux UI Development
 - Architecture Best Practices
 - Queue & Job Best Practices
-- AuditLog
+- AuditLogger
 - Advanced Query Patterns
 - Database Performance Best Practices
 - Events & Notifications Best Practices
@@ -106,7 +106,7 @@
 - Migration Best Practices
 - .agents/skills/to-spec/SKILL.md
 - Logout.php
-- Security
+- Index
 - .claude/skills/to-spec/SKILL.md
 - .kilocode/skills/to-spec/SKILL.md
 - Process
@@ -115,7 +115,7 @@
 - Task Scheduling Best Practices
 - Testing Best Practices
 - <Questionnaire title>
-- Profile
+- Security
 - Process
 - <Questionnaire title>
 - composer.json
@@ -142,40 +142,46 @@
 - keywords
 - rules/graphify.md
 - workflows/graphify.md
-- edit.blade.php
+- users/edit.blade.php
+- web.php
+- UNMS Domain Context
+- 0001-centralized-grouped-navigation-config.md
+- Edit
+- Create
+- deleteRole({{ $role->id }})
 
 ## God Nodes (most connected - your core abstractions)
-1. `User` - 49 edges
-2. `scripts` - 13 edges
-3. `require-dev` - 12 edges
-4. `PRD #0: Dashboard Shell & UI Foundation` - 12 edges
-5. `PRD #1: Users & Roles Management` - 12 edges
-6. `template.sh script` - 11 edges
-7. `template.sh script` - 11 edges
+1. `User` - 61 edges
+2. `AuditLogger` - 15 edges
+3. `AuditLog` - 13 edges
+4. `scripts` - 13 edges
+5. `require-dev` - 12 edges
+6. `PRD #0: Dashboard Shell & UI Foundation` - 12 edges
+7. `PRD #1: Users & Roles Management` - 12 edges
 8. `template.sh script` - 11 edges
-9. `Security` - 11 edges
-10. `Detection Checklist` - 11 edges
+9. `template.sh script` - 11 edges
+10. `template.sh script` - 11 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `DeleteUserForm` --inherits--> `Livewire\Component`  [EXTRACTED]
-  app/Livewire/Settings/DeleteUserForm.php →   _Bridges community 128 → community 3_
+- `Create` --inherits--> `Livewire\Component`  [EXTRACTED]
+  app/Livewire/Roles/Create.php →   _Bridges community 199 → community 3_
+- `Edit` --inherits--> `Livewire\Component`  [EXTRACTED]
+  app/Livewire/Roles/Edit.php →   _Bridges community 195 → community 3_
 - `Profile` --inherits--> `Livewire\Component`  [EXTRACTED]
   app/Livewire/Settings/Profile.php →   _Bridges community 138 → community 3_
-- `Security` --inherits--> `Livewire\Component`  [EXTRACTED]
-  app/Livewire/Settings/Security.php →   _Bridges community 129 → community 3_
 - `UsersList` --inherits--> `Livewire\Component`  [EXTRACTED]
-  app/Livewire/UsersList.php →   _Bridges community 0 → community 3_
-- `Create` --inherits--> `Livewire\Component`  [EXTRACTED]
-  app/Livewire/Users/Create.php →   _Bridges community 92 → community 3_
+  app/Livewire/UsersList.php →   _Bridges community 129 → community 3_
+- `Edit` --inherits--> `Livewire\Component`  [EXTRACTED]
+  app/Livewire/Users/Edit.php →   _Bridges community 0 → community 3_
 
 ## Import Cycles
 - None detected.
 
-## Communities (192 total, 12 thin omitted)
+## Communities (200 total, 18 thin omitted)
 
 ### Community 0 - "User"
 Cohesion: 0.11
-Nodes (12): UsersList, User, Illuminate\Database\Eloquent\Attributes\Fillable, Illuminate\Database\Eloquent\Attributes\Hidden, Illuminate\Database\Eloquent\Builder, Illuminate\Database\Eloquent\Factories\HasFactory, Illuminate\Foundation\Auth\User, Illuminate\Notifications\Notifiable (+4 more)
+Nodes (12): Edit, User, Illuminate\Database\Eloquent\Attributes\Fillable, Illuminate\Database\Eloquent\Attributes\Hidden, Illuminate\Database\Eloquent\Builder, Illuminate\Database\Eloquent\Factories\HasFactory, Illuminate\Foundation\Auth\User, Illuminate\Notifications\Notifiable (+4 more)
 
 ### Community 1 - "require-dev"
 Cohesion: 0.17
@@ -186,16 +192,12 @@ Cohesion: 0.06
 Nodes (37): scripts, ci:check, dev, lint, lint:check, post-autoload-dump, post-create-project-cmd, post-root-package-install (+29 more)
 
 ### Community 3 - "Livewire\Component"
-Cohesion: 0.14
-Nodes (13): Appearance, Edit, Index, Flux\Flux, Illuminate\Support\Facades\Auth, Illuminate\View\View, Livewire\Attributes\Layout, Livewire\Attributes\Locked (+5 more)
+Cohesion: 0.19
+Nodes (13): Index, Appearance, DeleteUserForm, Create, Flux\Flux, Illuminate\Support\Collection, Illuminate\Support\Facades\Auth, Illuminate\View\View (+5 more)
 
 ### Community 4 - "dependencies"
 Cohesion: 0.07
 Nodes (28): concurrently, @laravel/multiplex, @laravel/passkeys, laravel-vite-plugin, lightningcss-linux-x64-gnu, dependencies, concurrently, @laravel/passkeys (+20 more)
-
-### Community 5 - "FortifyServiceProvider.php"
-Cohesion: 0.05
-Nodes (26): AuthenticateUser, RecordLastLoginAt, AppServiceProvider, FortifyServiceProvider, Carbon\CarbonImmutable, UserFactory, Illuminate\Auth\Events\Login, Illuminate\Cache\RateLimiting\Limit (+18 more)
 
 ### Community 6 - ".agents/skills/wizard/template.sh"
 Cohesion: 0.22
@@ -210,8 +212,8 @@ Cohesion: 0.22
 Nodes (16): ask(), ask_secret(), banner(), _clear(), finish(), note(), open_url(), pause() (+8 more)
 
 ### Community 9 - "PasswordValidationRules.php"
-Cohesion: 0.16
-Nodes (11): CreateNewUser, ResetUserPassword, emailRules(), nameRules(), phoneRules(), profileRules(), Illuminate\Contracts\Validation\ValidationRule, Illuminate\Support\Facades\Validator (+3 more)
+Cohesion: 0.05
+Nodes (32): AuthenticateUser, CreateNewUser, ResetUserPassword, emailRules(), nameRules(), phoneRules(), profileRules(), RecordLastLoginAt (+24 more)
 
 ### Community 10 - "Illuminate\Database\Migrations\Migration"
 Cohesion: 0.13
@@ -221,9 +223,9 @@ Nodes (3): Illuminate\Database\Migrations\Migration, Illuminate\Database\Schema\
 Cohesion: 0.15
 Nodes (12): 10. Dependencies, 11. Acceptance Criteria, 1. Ringkasan, 2. Tujuan, 3. Role & Akses Modul Ini, 4. User Stories, 5. Functional Requirements, 6. Data Model (+4 more)
 
-### Community 12 - "Laravel\Fortify\Features"
-Cohesion: 0.18
-Nodes (5): Illuminate\Auth\Notifications\ResetPassword, Illuminate\Foundation\Testing\TestCase, Illuminate\Support\Facades\Notification, Laravel\Fortify\Features, TestCase
+### Community 12 - "Illuminate\Support\Str"
+Cohesion: 0.10
+Nodes (10): UserFactory, Illuminate\Auth\Notifications\ResetPassword, Illuminate\Database\Eloquent\Factories\Factory, Illuminate\Support\Facades\Hash, Illuminate\Support\Facades\Notification, Illuminate\Support\Str, Illuminate\Validation\ValidationException, Laravel\Fortify\Features (+2 more)
 
 ### Community 13 - "security.blade.php"
 Cohesion: 0.40
@@ -245,9 +247,9 @@ Nodes (3): capture(), hitl-loop.template.sh script, step()
 Cohesion: 0.83
 Nodes (3): capture(), hitl-loop.template.sh script, step()
 
-### Community 64 - "RolesAndPermissionsSeeder.php"
-Cohesion: 0.24
-Nodes (6): DatabaseSeeder, Illuminate\Database\Console\Seeds\WithoutModelEvents, Illuminate\Database\Seeder, Spatie\Permission\DefaultTeamResolver, Spatie\Permission\Models\Permission, Spatie\Permission\PermissionRegistrar
+### Community 64 - "DatabaseSeeder.php"
+Cohesion: 0.60
+Nodes (3): DatabaseSeeder, Illuminate\Database\Console\Seeds\WithoutModelEvents, Illuminate\Database\Seeder
 
 ### Community 65 - "users-list.blade.php"
 Cohesion: 0.40
@@ -354,8 +356,8 @@ Cohesion: 0.10
 Nodes (18): Call-graph collapse, Candidate card, Cross-section (good for layered shallowness), Diagram patterns, Hand-built boxes-and-arrows (when Mermaid's layout fights you), Header, HTML Report Format, Mass diagram (good for "interface as wide as implementation") (+10 more)
 
 ### Community 92 - "UserStatus.php"
-Cohesion: 0.17
-Nodes (6): Create, RolesAndPermissionsSeeder, Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Support\Facades\Hash, Illuminate\Validation\ValidationException, Livewire\Livewire
+Cohesion: 0.30
+Nodes (5): RolesAndPermissionsSeeder, Illuminate\Foundation\Testing\RefreshDatabase, Livewire\Livewire, Spatie\Permission\Models\Permission, Spatie\Permission\PermissionRegistrar
 
 ### Community 93 - "Laravel Fortify Development"
 Cohesion: 0.12
@@ -465,9 +467,9 @@ Nodes (11): Architecture Best Practices, Code to Interfaces, Convention Over Con
 Cohesion: 0.18
 Nodes (10): Always Implement `failed()`, Batch Related Jobs, Implement `ShouldBeUnique`, Queue & Job Best Practices, Rate Limit External API Calls in Jobs, `retryUntil()` Needs `$tries = 0`, Set `retry_after` Greater Than `timeout`, Use Exponential Backoff (+2 more)
 
-### Community 120 - "AuditLog"
-Cohesion: 0.24
-Nodes (5): AuditLog, AuditLogger, Illuminate\Database\Eloquent\Model, Illuminate\Database\Eloquent\Relations\BelongsTo, Illuminate\Support\Facades\Request
+### Community 120 - "AuditLogger"
+Cohesion: 0.19
+Nodes (8): AuditLog, AuditLogger, Role, Illuminate\Database\Eloquent\Model, Illuminate\Database\Eloquent\Relations\BelongsTo, Illuminate\Support\Facades\Request, Spatie\Permission\DefaultTeamResolver, Spatie\Permission\Models\Role
 
 ### Community 121 - "Advanced Query Patterns"
 Cohesion: 0.20
@@ -498,12 +500,12 @@ Cohesion: 0.22
 Nodes (8): Further Notes, Implementation Decisions, Out of Scope, Problem Statement, Process, Solution, Testing Decisions, User Stories
 
 ### Community 128 - "Logout.php"
-Cohesion: 0.31
-Nodes (5): Logout, DeleteUserForm, Illuminate\Http\RedirectResponse, Illuminate\Support\Facades\Session, Livewire\Features\SupportRedirects\Redirector
+Cohesion: 0.38
+Nodes (4): Logout, Illuminate\Http\RedirectResponse, Illuminate\Support\Facades\Session, Livewire\Features\SupportRedirects\Redirector
 
-### Community 129 - "Security"
-Cohesion: 0.31
-Nodes (3): Security, Laravel\Fortify\Actions\DisableTwoFactorAuthentication, Laravel\Passkeys\Actions\DeletePasskey
+### Community 129 - "Index"
+Cohesion: 0.17
+Nodes (3): Index, UsersList, Livewire\WithPagination
 
 ### Community 130 - ".claude/skills/to-spec/SKILL.md"
 Cohesion: 0.22
@@ -537,9 +539,9 @@ Nodes (7): Call `Event::fake()` After Factory Setup, Testing Best Practices, Use
 Cohesion: 0.25
 Nodes (7): Anything else?, Context, Document structure, How to answer, <Questionnaire title>, <Theme heading>, What load is the system expected to handle at launch?
 
-### Community 138 - "Profile"
-Cohesion: 0.25
-Nodes (3): Profile, App\Livewire\Users, Illuminate\Support\Facades\Route
+### Community 138 - "Security"
+Cohesion: 0.18
+Nodes (4): Profile, Security, Laravel\Fortify\Actions\DisableTwoFactorAuthentication, Laravel\Passkeys\Actions\DeletePasskey
 
 ### Community 139 - "Process"
 Cohesion: 0.25
@@ -637,25 +639,29 @@ Nodes (3): autoload-dev, psr-4, Tests\\
 Cohesion: 0.67
 Nodes (3): keywords, framework, laravel
 
+### Community 192 - "web.php"
+Cohesion: 0.50
+Nodes (3): App\Livewire\Roles, App\Livewire\Users, Illuminate\Support\Facades\Route
+
 ## Knowledge Gaps
-- **998 isolated node(s):** `Controller`, `$schema`, `name`, `type`, `description` (+993 more)
+- **1002 isolated node(s):** `Controller`, `$schema`, `name`, `type`, `description` (+997 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **12 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `User` to `RolesAndPermissionsSeeder.php`, `Livewire\Component`, `FortifyServiceProvider.php`, `PasswordValidationRules.php`, `Profile`, `Laravel\Fortify\Features`, `AuditLog`, `UserStatus.php`?**
-  _High betweenness centrality (0.006) - this node is a cross-community bridge._
-- **Why does `Architecture Best Practices` connect `Architecture Best Practices` to `laravel-best-practices/SKILL.md`?**
-  _High betweenness centrality (0.002) - this node is a cross-community bridge._
+- **Why does `User` connect `User` to `DatabaseSeeder.php`, `Index`, `Livewire\Component`, `PasswordValidationRules.php`, `Security`, `Illuminate\Support\Str`, `AuditLogger`, `UserStatus.php`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
 - **Why does `scripts` connect `scripts` to `composer.json`?**
   _High betweenness centrality (0.002) - this node is a cross-community bridge._
+- **Why does `AuditLog` connect `AuditLogger` to `UserStatus.php`?**
+  _High betweenness centrality (0.002) - this node is a cross-community bridge._
 - **What connects `Controller`, `$schema`, `name` to the rest of the system?**
-  _998 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1002 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `User` be split into smaller, more focused modules?**
-  _Cohesion score 0.10666666666666667 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1076923076923077 - nodes in this community are weakly interconnected._
 - **Should `scripts` be split into smaller, more focused modules?**
   _Cohesion score 0.057057057057057055 - nodes in this community are weakly interconnected._
-- **Should `Livewire\Component` be split into smaller, more focused modules?**
-  _Cohesion score 0.13756613756613756 - nodes in this community are weakly interconnected._
+- **Should `dependencies` be split into smaller, more focused modules?**
+  _Cohesion score 0.06896551724137931 - nodes in this community are weakly interconnected._

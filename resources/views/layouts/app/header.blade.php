@@ -21,24 +21,6 @@
                 <flux:tooltip :content="__('Search')" position="bottom">
                     <flux:navbar.item class="!h-10 [&>div>svg]:size-5" icon="magnifying-glass" href="#" :label="__('Search')" />
                 </flux:tooltip>
-                <flux:tooltip :content="__('Repository')" position="bottom">
-                    <flux:navbar.item
-                        class="h-10 max-lg:hidden [&>div>svg]:size-5"
-                        icon="folder-git-2"
-                        href="https://github.com/laravel/livewire-starter-kit"
-                        target="_blank"
-                        :label="__('Repository')"
-                    />
-                </flux:tooltip>
-                <flux:tooltip :content="__('Documentation')" position="bottom">
-                    <flux:navbar.item
-                        class="h-10 max-lg:hidden [&>div>svg]:size-5"
-                        icon="book-open-text"
-                        href="https://laravel.com/docs/starter-kits#livewire"
-                        target="_blank"
-                        :label="__('Documentation')"
-                    />
-                </flux:tooltip>
             </flux:navbar>
 
             <x-desktop-user-menu />
@@ -52,22 +34,28 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')">
-                    <flux:sidebar.item icon="layout-grid" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard')  }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
-            </flux:sidebar.nav>
+                @foreach (config('menu', []) as $group)
+                    @php
+                        $visibleItems = collect($group['items'] ?? [])->filter(function ($item) {
+                            return !isset($item['permission']) || empty($item['permission']) || (auth()->check() && auth()->user()->can($item['permission']));
+                        });
+                    @endphp
 
-            <flux:spacer />
-
-            <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
-                </flux:sidebar.item>
+                    @if ($visibleItems->isNotEmpty())
+                        <flux:sidebar.group :heading="__($group['heading'] ?? '')" class="grid">
+                            @foreach ($visibleItems as $item)
+                                <flux:sidebar.item
+                                    :icon="$item['icon']"
+                                    :href="route($item['route'])"
+                                    :current="request()->routeIs($item['active'] ?? $item['route'])"
+                                    wire:navigate
+                                >
+                                    {{ __($item['title']) }}
+                                </flux:sidebar.item>
+                            @endforeach
+                        </flux:sidebar.group>
+                    @endif
+                @endforeach
             </flux:sidebar.nav>
         </flux:sidebar>
 

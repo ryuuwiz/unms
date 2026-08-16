@@ -2,10 +2,10 @@
 
 namespace App\Livewire;
 
-use Livewire\Component;
-use Livewire\WithPagination;
 use App\Models\User;
 use Livewire\Attributes\Layout;
+use Livewire\Component;
+use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 class UsersList extends Component
@@ -13,11 +13,14 @@ class UsersList extends Component
     use WithPagination;
 
     public $search = '';
+
     public $userToDelete = null;
-    
+
     // Form state
     public $showModal = false;
+
     public $name = '';
+
     public $email = '';
 
     public function updatingSearch()
@@ -40,7 +43,7 @@ class UsersList extends Component
 
         $this->showModal = false;
         $this->reset(['name', 'email']);
-        
+
         \Flux::toast('User created successfully.');
     }
 
@@ -56,7 +59,7 @@ class UsersList extends Component
             User::find($this->userToDelete)?->delete();
             \Flux::toast('User deleted successfully.');
         }
-        
+
         $this->dispatch('close-modal', 'delete-user-modal');
         $this->userToDelete = null;
     }
@@ -65,8 +68,8 @@ class UsersList extends Component
     {
         return view('livewire.users-list', [
             'users' => User::where('name', 'like', '%'.$this->search.'%')
-                        ->orWhere('email', 'like', '%'.$this->search.'%')
-                        ->paginate(5)
+                ->orWhere('email', 'like', '%'.$this->search.'%')
+                ->paginate(5),
         ]);
     }
 }
