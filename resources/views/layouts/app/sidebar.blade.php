@@ -12,9 +12,13 @@
 
             <flux:sidebar.nav>
                 <flux:sidebar.group :heading="__('Platform')" class="grid">
-                    <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
-                    </flux:sidebar.item>
+                    @foreach (config('menu') as $item)
+                        @if (!isset($item['permission']) || (auth()->check() && auth()->user()->can($item['permission'])))
+                            <flux:sidebar.item :icon="$item['icon']" :href="route($item['route'])" :current="request()->routeIs($item['route'])" wire:navigate>
+                                {{ __($item['title']) }}
+                            </flux:sidebar.item>
+                        @endif
+                    @endforeach
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
