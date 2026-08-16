@@ -2,9 +2,12 @@
 
 namespace App\Providers;
 
+use App\Listeners\RecordLastLoginAt;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -24,6 +27,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->registerEventListeners();
+    }
+
+    /**
+     * Register application event listeners.
+     */
+    protected function registerEventListeners(): void
+    {
+        Event::listen(Login::class, RecordLastLoginAt::class);
     }
 
     /**

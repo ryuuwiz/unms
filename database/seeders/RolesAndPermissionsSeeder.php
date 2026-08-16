@@ -2,11 +2,12 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Enums\UserStatus;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use App\Models\User;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -16,32 +17,46 @@ class RolesAndPermissionsSeeder extends Seeder
     public function run(): void
     {
         // Reset cached roles and permissions
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // create permissions
-        Permission::create(['name' => 'view_users']);
-        Permission::create(['name' => 'view_customers']);
-        Permission::create(['name' => 'view_packages']);
+        // Users module permissions
+        $viewUsers = Permission::firstOrCreate(['name' => 'view_users']);
+        $manageUsers = Permission::firstOrCreate(['name' => 'manage_users']);
+        $manageRoles = Permission::firstOrCreate(['name' => 'manage_roles']);
 
-        // create roles and assign created permissions
-        $roleAdmin = Role::create(['name' => 'admin']);
-        $roleAdmin->givePermissionTo(Permission::all());
+        // Customers module permissions
+        $viewCustomers = Permission::firstOrCreate(['name' => 'view_customers']);
+        $manageCustomers = Permission::firstOrCreate(['name' => 'manage_customers']);
 
-        $roleStaff = Role::create(['name' => 'staff']);
-        $roleStaff->givePermissionTo(['view_customers']);
+        // Packages module permissions
+        $viewPackages = Permission::firstOrCreate(['name' => 'view_packages']);
+        $managePackages = Permission::firstOrCreate(['name' => 'manage_packages']);
 
-        // create a dummy admin user
-        $admin = User::factory()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
+        // Create the roles
+        $superAdmin = Role::firstOrCreate(['name' => 'super_admin']);
+        Role::firstOrCreate(['name' => 'admin']);
+        Role::firstOrCreate(['name' => 'staff']);
+        Role::firstOrCreate(['name' => 'sales']);
+        Role::firstOrCreate(['name' => 'noc']);
+        Role::firstOrCreate(['name' => 'teknisi']);
+
+        // super_admin gets all permissions
+        $superAdmin->syncPermissions([
+            $viewUsers, $manageUsers, $manageRoles,
+            $viewCustomers, $manageCustomers,
+            $viewPackages, $managePackages,
         ]);
-        $admin->assignRole($roleAdmin);
 
-        // create a dummy staff user
-        $staff = User::factory()->create([
-            'name' => 'Staff User',
-            'email' => 'staff@example.com',
-        ]);
-        $staff->assignRole($roleStaff);
+        // Create a default super_admin user if it doesn't exist yet
+        $admin = User::firstOrCreate(
+            ['email' => 'superadmin@example.com'],
+            [
+                'name' => 'Super Admin',
+                'password' => bcrypt('password'),
+                'status' => UserStatus::Active,
+            ]
+        );
+
+        $admin->assignRole($superAdmin);
     }
 }

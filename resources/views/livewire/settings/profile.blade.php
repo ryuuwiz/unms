@@ -12,6 +12,10 @@
 
             </div>
 
+            <div>
+                <flux:input wire:model="phone" :label="__('No. Telepon')" type="tel" autocomplete="tel" placeholder="08xx-xxxx-xxxx" />
+            </div>
+
             <div class="flex items-center gap-4">
                 <flux:button variant="primary" type="submit">{{ __('Save') }}</flux:button>
             </div>

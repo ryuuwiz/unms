@@ -20,6 +20,14 @@
                         @endif
                     @endforeach
                 </flux:sidebar.group>
+
+                @if (auth()->check() && auth()->user()->hasRole('super_admin'))
+                    <flux:sidebar.group :heading="__('Administration')" class="grid">
+                        <flux:sidebar.item icon="shield-check" :href="route('roles.index')" :current="request()->routeIs('roles.*')" wire:navigate>
+                            {{ __('Roles') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endif
             </flux:sidebar.nav>
 
             <flux:spacer />
