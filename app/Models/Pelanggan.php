@@ -154,6 +154,16 @@ class Pelanggan extends Model
     }
 
     /**
+     * Relasi ke semua invoice tagihan pelanggan.
+     *
+     * @return HasMany<Invoice, $this>
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'pelanggan_id');
+    }
+
+    /**
      * Relasi ke akun portal pelanggan.
      *
      * @return HasOne<AkunPelanggan, $this>

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -20,6 +21,8 @@ use Illuminate\Support\Carbon;
 #[Fillable(['pelanggan_id', 'email', 'password', 'email_verified_at'])]
 class AkunPelanggan extends Authenticatable
 {
+    use HasFactory;
+
     protected $table = 'akun_pelanggan';
 
     /**

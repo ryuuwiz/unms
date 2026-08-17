@@ -16,6 +16,11 @@ class DatabaseSeeder extends Seeder
             WilayahSeeder::class,
             RouterSeeder::class,
             IpPoolSeeder::class,
+            ProfilBandwidthSeeder::class,
+            PaketLayananSeeder::class,
+            OdpSeeder::class,
+            PromoSeeder::class,
+            PelangganSeeder::class,
         ]);
     }
 }

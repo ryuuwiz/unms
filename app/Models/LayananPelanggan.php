@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -137,6 +138,16 @@ class LayananPelanggan extends Model
     public function odpPort(): BelongsTo
     {
         return $this->belongsTo(OdpPort::class, 'odp_port_id');
+    }
+
+    /**
+     * Relasi ke seluruh invoice tagihan layanan ini.
+     *
+     * @return HasMany<Invoice, $this>
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'layanan_pelanggan_id');
     }
 
     /**

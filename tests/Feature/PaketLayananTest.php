@@ -29,8 +29,8 @@ beforeEach(function () {
 
     $this->profilBandwidth = ProfilBandwidth::factory()->create([
         'nama_bandwidth' => '20Mbps-Standard',
-        'max_limit_tx' => 20000,
-        'max_limit_rx' => 20000,
+        'max_limit_tx' => 20,
+        'max_limit_rx' => 20,
     ]);
 });
 

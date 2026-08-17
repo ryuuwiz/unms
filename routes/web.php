@@ -1,10 +1,15 @@
 <?php
 
+use App\Http\Controllers\InvoicePdfController;
+use App\Livewire\Invoice;
 use App\Livewire\IpPool;
+use App\Livewire\Laporan;
 use App\Livewire\LayananPelanggan;
 use App\Livewire\PaketLayanan;
 use App\Livewire\Pelanggan;
+use App\Livewire\Pembayaran;
 use App\Livewire\ProfilBandwidth;
+use App\Livewire\Promo;
 use App\Livewire\Roles;
 use App\Livewire\Router;
 use App\Livewire\Users;
@@ -68,6 +73,47 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::middleware('permission:profil_bandwidth.lihat')->group(function () {
             Route::get('/', ProfilBandwidth\Index::class)->name('index');
+        });
+    });
+
+    // ─── Invoice & Tagihan ────────────────────────────────────────
+    Route::prefix('invoice')->name('invoice.')->group(function () {
+        Route::middleware('permission:invoice.buat')->group(function () {
+            Route::get('/create', Invoice\Create::class)->name('create');
+        });
+        Route::middleware('permission:invoice.cetak')->group(function () {
+            Route::get('/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('cetak');
+        });
+        Route::middleware('permission:invoice.lihat')->group(function () {
+            Route::get('/', Invoice\Index::class)->name('index');
+            Route::get('/{invoice}', Invoice\Show::class)->name('show');
+        });
+    });
+
+    // ─── Pembayaran ───────────────────────────────────────────────
+    Route::prefix('pembayaran')->name('pembayaran.')->group(function () {
+        Route::middleware('permission:pembayaran.lihat')->group(function () {
+            Route::get('/', Pembayaran\Index::class)->name('index');
+        });
+    });
+
+    // ─── Promo & Diskon ───────────────────────────────────────────
+    Route::prefix('promo')->name('promo.')->group(function () {
+        Route::middleware('permission:promo.buat')->group(function () {
+            Route::get('/create', Promo\Create::class)->name('create');
+        });
+        Route::middleware('permission:promo.ubah')->group(function () {
+            Route::get('/{promo}/edit', Promo\Edit::class)->name('edit');
+        });
+        Route::middleware('permission:promo.lihat')->group(function () {
+            Route::get('/', Promo\Index::class)->name('index');
+        });
+    });
+
+    // ─── Laporan Keuangan ─────────────────────────────────────────
+    Route::prefix('laporan')->name('laporan.')->group(function () {
+        Route::middleware('permission:laporan.lihat')->group(function () {
+            Route::get('/billing', Laporan\Billing::class)->name('billing');
         });
     });
 

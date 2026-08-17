@@ -65,12 +65,14 @@ class Create extends Component
         ];
 
         if ($this->useBurst) {
-            $rules['burst_rate_tx'] = ['required', 'integer', 'min:1'];
-            $rules['burst_rate_rx'] = ['required', 'integer', 'min:1'];
-            $rules['burst_threshold_tx'] = ['required', 'integer', 'min:1'];
-            $rules['burst_threshold_rx'] = ['required', 'integer', 'min:1'];
+            $rules['burst_rate_tx'] = ['required', 'integer', 'min:1', 'gte:max_limit_tx'];
+            $rules['burst_rate_rx'] = ['required', 'integer', 'min:1', 'gte:max_limit_rx'];
+            $rules['burst_threshold_tx'] = ['required', 'integer', 'min:1', 'lte:burst_rate_tx'];
+            $rules['burst_threshold_rx'] = ['required', 'integer', 'min:1', 'lte:burst_rate_rx'];
             $rules['burst_time_tx'] = ['required', 'integer', 'min:1'];
             $rules['burst_time_rx'] = ['required', 'integer', 'min:1'];
+            $rules['limit_rate_tx'] = ['nullable', 'integer', 'min:1', 'lte:max_limit_tx'];
+            $rules['limit_rate_rx'] = ['nullable', 'integer', 'min:1', 'lte:max_limit_rx'];
         }
 
         return $rules;

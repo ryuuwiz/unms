@@ -14,18 +14,18 @@ return new class extends Migration
         Schema::create('profil_bandwidth', function (Blueprint $table) {
             $table->id();
             $table->string('nama_bandwidth')->unique();
-            // Kecepatan maksimum wajib diisi (dalam Kbps)
-            $table->unsignedBigInteger('max_limit_tx');
-            $table->unsignedBigInteger('max_limit_rx');
+            // Kecepatan maksimum wajib diisi (dalam Mbps)
+            $table->unsignedInteger('max_limit_tx')->comment('Mbps');
+            $table->unsignedInteger('max_limit_rx')->comment('Mbps');
             // Field burst — semua nullable, jika null tidak di-provisioning ke RouterOS
-            $table->unsignedBigInteger('burst_rate_tx')->nullable();
-            $table->unsignedBigInteger('burst_rate_rx')->nullable();
-            $table->unsignedBigInteger('burst_threshold_tx')->nullable();
-            $table->unsignedBigInteger('burst_threshold_rx')->nullable();
+            $table->unsignedInteger('burst_rate_tx')->nullable()->comment('Mbps');
+            $table->unsignedInteger('burst_rate_rx')->nullable()->comment('Mbps');
+            $table->unsignedInteger('burst_threshold_tx')->nullable()->comment('Mbps');
+            $table->unsignedInteger('burst_threshold_rx')->nullable()->comment('Mbps');
             $table->unsignedInteger('burst_time_tx')->nullable()->comment('detik');
             $table->unsignedInteger('burst_time_rx')->nullable()->comment('detik');
-            $table->unsignedBigInteger('limit_rate_tx')->nullable();
-            $table->unsignedBigInteger('limit_rate_rx')->nullable();
+            $table->unsignedInteger('limit_rate_tx')->nullable()->comment('Mbps');
+            $table->unsignedInteger('limit_rate_rx')->nullable()->comment('Mbps');
             $table->tinyInteger('priority')->default(8)->comment('1=highest, 8=lowest');
             $table->timestamps();
         });

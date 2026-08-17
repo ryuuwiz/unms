@@ -85,7 +85,7 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['paket_layanan.lihat'], $p['paket_layanan.buat'], $p['paket_layanan.ubah'], $p['paket_layanan.hapus'],
             $p['profil_bandwidth.lihat'],
             $p['wilayah.lihat'],
-            $p['promo.lihat'],
+            $p['promo.lihat'], $p['promo.buat'], $p['promo.ubah'], $p['promo.hapus'],
             $p['ticket.lihat'], $p['ticket.buat'], $p['ticket.ubah'], $p['ticket.hapus'],
             $p['laporan.lihat'], $p['laporan.ekspor'],
             $p['pengguna.lihat'], $p['pengguna.buat'], $p['pengguna.ubah'],

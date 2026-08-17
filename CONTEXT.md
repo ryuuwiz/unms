@@ -8,6 +8,10 @@ Ubiquiti & ISP Network Management System (UNMS) staff application context and ub
 Kelompok navigasi utama untuk fitur operasional harian yang dapat diakses oleh staff sesuai hak aksesnya.
 _Avoid_: Platform, Main Navigation, Navigasi
 
+**Keuangan & Billing**:
+Kelompok navigasi untuk manajemen tagihan invoice, penerimaan pembayaran, promo, dan laporan keuangan.
+_Avoid_: Finance, Kasir, Akuntansi
+
 **Administrasi**:
 Kelompok navigasi untuk manajemen sistem, konfigurasi peran, dan kontrol hak akses pengguna.
 _Avoid_: Administration, Settings, Pengaturan
@@ -24,34 +28,42 @@ _Avoid_: Role, Group, Level
 Entitas master data konsumen/klien ISP yang mencakup identitas kontak dan lokasi fisik pemasangan jaringan.
 _Avoid_: Client, Customer Account, Member
 
-**Kode Pelanggan**:
-Pengenal unik terstandarisasi sistem untuk setiap pelanggan (format `CUST-XXXXXX`).
-_Avoid_: Customer ID, Nomor Pelanggan, No Langganan
+**No. Registrasi**:
+Pengenal unik terstandarisasi sistem untuk setiap pelanggan (format `REG-YYYY-NNNNNN`).
+_Avoid_: Customer ID, Nomor Pelanggan, No Langganan, CUST-XXXXXX
 
-**Alamat Instalasi**:
-Titik lokasi fisik tempat jaringan dan perangkat ISP dipasang, dilengkapi alamat teks dan koordinat geografis (lat/lng).
-_Avoid_: Lokasi Pasang, Installation Site
+**Layanan Pelanggan**:
+Entitas langganan aktif yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu, router gateway, kredensial PPP, dan masa aktif.
+_Avoid_: Subscription, Akun Internet, Koneksi
 
-**Status Pelanggan**:
-Status operasional akun master pelanggan (`Active` / `Inactive`).
-_Avoid_: Kondisi, State
+**Site ID**:
+Pengenal unik titik instalasi layanan pelanggan (format `SITE-XXXXXXXX`).
+_Avoid_: Service ID, Lokasi ID
 
-**Paket Internet**:
-Entitas katalog layanan langganan internet ISP yang menentukan kecepatan unduh/unggah, harga bulanan, dan status penjualan.
-_Avoid_: Package, Product, Paket Layanan, Paket Data
+**Paket Layanan**:
+Entitas katalog paket internet ISP yang menentukan profil bandwidth, tarif, dan masa aktif (hari/bulan).
+_Avoid_: Package, Product, Paket Data
 
-**Kecepatan Bandwidth**:
-Kapasitas kecepatan transfer data paket internet dalam satuan Mbps, mencakup Kecepatan Unduh (Download) dan Kecepatan Unggah (Upload).
-_Avoid_: Speed, Bandwidth Limit, Rate Limit
+**Profil Bandwidth**:
+Konfigurasi limit kecepatan transfer data (max limit upload/download, burst rate, priority) dalam satuan standar Mbps untuk di-provision ke MikroTik RouterOS.
+_Avoid_: Speed Profile, Paket Bandwidth, Konfigurasi Kbps (Gunakan Mbps)
 
-**Status Paket**:
-Status ketersediaan penjualan paket internet (`Active` / `Inactive`). Paket nonaktif tetap valid bagi pelanggan lama namun tidak dapat dipilih untuk pelanggan baru.
-_Avoid_: Status Jual, Kondisi Paket
-
-**Router MikroTik**:
-Entitas perangkat jaringan (hardware/OS) yang menggunakan sistem MikroTik (RouterOS) sebagai pengendali layanan dan bandwidth, diakses utamanya melalui RouterOS API (misal port 8728).
-_Avoid_: Router Umum, Switch, Gateway
+**Router**:
+Entitas perangkat MikroTik RouterOS sebagai pengendali layanan dan bandwidth, diakses melalui RouterOS API (port 8728).
+_Avoid_: Switch, Gateway Umum
 
 **IP Pool**:
-Blok alokasi alamat IP (Network, CIDR, Range IP) yang terikat pada satu Router MikroTik, dilengkapi dengan batasan profil QoS (Queue TX/RX Mbps) untuk kebutuhan distribusi bandwidth.
-_Avoid_: DHCP Server (jika konteksnya hanya sekadar penamaan pool), Subnet Bebas
+Blok alokasi alamat IP (Network, CIDR, Range IP) yang terikat pada Router untuk distribusi IP pelanggan.
+_Avoid_: Subnet Bebas, DHCP Range
+
+**Invoice**:
+Dokumen tagihan pembayaran resmi atas layanan internet pelanggan dengan format penomoran `INV-YYYYMM-NNNNNN`.
+_Avoid_: Tagihan Bebas, Kuitansi (sebelum dibayar), Bill
+
+**Pembayaran**:
+Catatan transaksi penerimaan dana atas sebuah invoice yang memicu perpanjangan masa aktif layanan secara otomatis.
+_Avoid_: Transaksi Kasar, Setoran
+
+**Promo**:
+Program diskon (nominal / persentase) atau bonus durasi yang dapat diaplikasikan pada penerbitan invoice.
+_Avoid_: Voucher Bebas, Potongan Informal

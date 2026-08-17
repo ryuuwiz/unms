@@ -23,8 +23,8 @@ class ProfilBandwidthFactory extends Factory
 
         return [
             'nama_bandwidth' => "{$speedMbps}Mbps-".fake()->unique()->numerify('###'),
-            'max_limit_tx' => $speedMbps * 1000, // Kbps
-            'max_limit_rx' => $speedMbps * 1000,
+            'max_limit_tx' => $speedMbps, // Mbps
+            'max_limit_rx' => $speedMbps,
             'priority' => 8,
             // burst fields nullable by default
         ];

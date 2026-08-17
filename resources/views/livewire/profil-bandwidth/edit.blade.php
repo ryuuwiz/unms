@@ -15,13 +15,13 @@
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <flux:field>
-                <flux:label>Max Limit Upload (TX) <span class="font-mono text-xs text-zinc-400">Kbps</span></flux:label>
+                <flux:label>Max Limit Upload (TX) <span class="font-mono text-xs text-zinc-400">Mbps</span></flux:label>
                 <flux:input wire:model="max_limit_tx" type="number" />
                 <flux:error name="max_limit_tx" />
             </flux:field>
 
             <flux:field>
-                <flux:label>Max Limit Download (RX) <span class="font-mono text-xs text-zinc-400">Kbps</span></flux:label>
+                <flux:label>Max Limit Download (RX) <span class="font-mono text-xs text-zinc-400">Mbps</span></flux:label>
                 <flux:input wire:model="max_limit_rx" type="number" />
                 <flux:error name="max_limit_rx" />
             </flux:field>
@@ -47,25 +47,25 @@
             @if ($useBurst)
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 p-4 rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900/50">
                     <flux:field>
-                        <flux:label>Burst Rate TX (Kbps)</flux:label>
+                        <flux:label>Burst Rate TX (Mbps)</flux:label>
                         <flux:input wire:model="burst_rate_tx" type="number" />
                         <flux:error name="burst_rate_tx" />
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Burst Rate RX (Kbps)</flux:label>
+                        <flux:label>Burst Rate RX (Mbps)</flux:label>
                         <flux:input wire:model="burst_rate_rx" type="number" />
                         <flux:error name="burst_rate_rx" />
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Burst Threshold TX (Kbps)</flux:label>
+                        <flux:label>Burst Threshold TX (Mbps)</flux:label>
                         <flux:input wire:model="burst_threshold_tx" type="number" />
                         <flux:error name="burst_threshold_tx" />
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Burst Threshold RX (Kbps)</flux:label>
+                        <flux:label>Burst Threshold RX (Mbps)</flux:label>
                         <flux:input wire:model="burst_threshold_rx" type="number" />
                         <flux:error name="burst_threshold_rx" />
                     </flux:field>

@@ -42,6 +42,39 @@ return [
         ],
     ],
     [
+        'heading' => 'Keuangan & Billing',
+        'items' => [
+            [
+                'title' => 'Tagihan (Invoice)',
+                'icon' => 'document-text',
+                'route' => 'invoice.index',
+                'active' => 'invoice.*',
+                'permission' => 'invoice.lihat',
+            ],
+            [
+                'title' => 'Riwayat Pembayaran',
+                'icon' => 'banknotes',
+                'route' => 'pembayaran.index',
+                'active' => 'pembayaran.*',
+                'permission' => 'pembayaran.lihat',
+            ],
+            [
+                'title' => 'Promo & Diskon',
+                'icon' => 'tag',
+                'route' => 'promo.index',
+                'active' => 'promo.*',
+                'permission' => 'promo.lihat',
+            ],
+            [
+                'title' => 'Laporan Keuangan',
+                'icon' => 'chart-bar',
+                'route' => 'laporan.billing',
+                'active' => 'laporan.*',
+                'permission' => 'laporan.lihat',
+            ],
+        ],
+    ],
+    [
         'heading' => 'Jaringan & Infrastruktur',
         'items' => [
             [
@@ -104,7 +137,7 @@ return [
                 'permission' => 'pengguna.lihat',
             ],
             [
-                'title' => 'Peran',
+                'title' => 'Peran (Role)',
                 'icon' => 'shield-check',
                 'route' => 'roles.index',
                 'active' => 'roles.*',

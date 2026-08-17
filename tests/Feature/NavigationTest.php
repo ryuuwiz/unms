@@ -24,6 +24,11 @@ test('super_admin sees all navigation groups and items in indonesian', function 
         ->assertSee('Layanan Pelanggan')
         ->assertSee('Paket Layanan')
         ->assertSee('Profil Bandwidth')
+        ->assertSee('Keuangan & Billing')
+        ->assertSee('Tagihan (Invoice)')
+        ->assertSee('Riwayat Pembayaran')
+        ->assertSee('Promo & Diskon')
+        ->assertSee('Laporan Keuangan')
         ->assertSee('Jaringan & Infrastruktur')
         ->assertSee('Router')
         ->assertSee('IP Pool')
@@ -45,6 +50,8 @@ test('user without permissions only sees menu utama and dashboard', function () 
         ->assertSee('Dashboard')
         ->assertDontSee('Layanan Pelanggan')
         ->assertDontSee('Profil Bandwidth')
+        ->assertDontSee('Keuangan & Billing')
+        ->assertDontSee('Tagihan (Invoice)')
         ->assertDontSee('Administrasi');
 });
 
@@ -58,5 +65,5 @@ test('user with pengguna.lihat permission sees pengguna menu item', function () 
         ->assertSee('Menu Utama')
         ->assertSee('Dashboard')
         ->assertSee('Pengguna')
-        ->assertDontSee('Peran');
+        ->assertDontSee('Peran (Role)');
 });

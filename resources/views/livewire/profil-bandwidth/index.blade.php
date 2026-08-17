@@ -42,15 +42,15 @@
 
                     <flux:table.cell>
                         <div class="flex items-center gap-1.5 font-mono text-sm">
-                            <flux:badge size="sm" color="indigo">↑ {{ $profil->max_limit_tx }} Kbps</flux:badge>
-                            <flux:badge size="sm" color="sky">↓ {{ $profil->max_limit_rx }} Kbps</flux:badge>
+                            <flux:badge size="sm" color="indigo">↑ {{ $profil->max_limit_tx }} Mbps</flux:badge>
+                            <flux:badge size="sm" color="sky">↓ {{ $profil->max_limit_rx }} Mbps</flux:badge>
                         </div>
                     </flux:table.cell>
 
                     <flux:table.cell>
                         @if ($profil->hasBurst())
                             <flux:badge size="sm" color="amber">
-                                {{ $profil->burst_rate_tx }}K / {{ $profil->burst_rate_rx }}K ({{ $profil->burst_time_rx }}s)
+                                {{ $profil->burst_rate_tx }}M / {{ $profil->burst_rate_rx }}M ({{ $profil->burst_time_rx }}s)
                             </flux:badge>
                         @else
                             <span class="text-xs text-zinc-400">Nonaktif</span>
