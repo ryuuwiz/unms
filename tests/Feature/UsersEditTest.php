@@ -2,7 +2,6 @@
 
 use App\Enums\UserStatus;
 use App\Livewire\Users\Edit;
-use App\Models\AuditLog;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -33,7 +32,7 @@ test('super_admin can edit a user profile', function () {
         ->and($user->fresh()->phone)->toBe('089999999');
 });
 
-test('role change is recorded in audit log', function () {
+test('super_admin can change user role', function () {
     $admin = User::factory()->create(['status' => UserStatus::Active]);
     $admin->assignRole('super_admin');
 
@@ -43,20 +42,18 @@ test('role change is recorded in audit log', function () {
     Livewire::actingAs($admin)
         ->test(Edit::class, ['user' => $user])
         ->set('role', 'sales')
-        ->call('save');
+        ->call('save')
+        ->assertHasNoErrors();
 
     expect($user->fresh()->hasRole('sales'))->toBeTrue();
-    expect(AuditLog::where('action', 'role_changed')->where('subject_id', $user->id)->exists())->toBeTrue();
 });
 
 test('super_admin cannot deactivate the last active super_admin', function () {
-    // Deactivate the default super_admin created by the seeder so our test actor is the only one
     User::where('email', 'superadmin@example.com')->update(['status' => UserStatus::Inactive]);
 
     $admin = User::factory()->create(['status' => UserStatus::Active]);
     $admin->assignRole('super_admin');
 
-    // admin is now the only active super_admin — cannot deactivate
     Livewire::actingAs($admin)
         ->test(Edit::class, ['user' => $admin])
         ->call('toggleStatus')

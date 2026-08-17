@@ -2,48 +2,110 @@
 
 namespace App\Models;
 
-use App\Enums\RouterStatus;
+use App\Enums\StatusRouter;
+use Database\Factories\RouterFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
- * @property string $name
+ * @property string $nama_router
  * @property string $ip_address
- * @property int $api_port
+ * @property int $port
  * @property string $username
- * @property string|null $password
- * @property string|null $description
- * @property RouterStatus $status
+ * @property string $password_terenkripsi
+ * @property string|null $deskripsi
+ * @property StatusRouter $status_koneksi
+ * @property Carbon|null $last_sync_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property Carbon|null $deleted_at
  */
-#[Fillable(['name', 'ip_address', 'api_port', 'username', 'password', 'description', 'status'])]
-#[Hidden(['password'])]
+#[Fillable([
+    'nama_router',
+    'ip_address',
+    'port',
+    'username',
+    'password_terenkripsi',
+    'deskripsi',
+    'status_koneksi',
+    'last_sync_at',
+])]
 class Router extends Model
 {
-    use HasFactory, SoftDeletes;
+    /** @use HasFactory<RouterFactory> */
+    use HasFactory, LogsActivity;
 
+    protected $table = 'router';
+
+    /**
+     * Konfigurasi logging aktivitas.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['nama_router', 'ip_address', 'port', 'username', 'status_koneksi'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->useLogName('router');
+    }
+
+    /**
+     * Cast atribut model.
+     *
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
-            'status' => RouterStatus::class,
-            'password' => 'encrypted',
-            'api_port' => 'integer',
+            'status_koneksi' => StatusRouter::class,
+            'password_terenkripsi' => 'encrypted',
+            'last_sync_at' => 'datetime',
+            'port' => 'integer',
         ];
     }
 
     /**
-     * Get the IP pools associated with the router.
+     * Relasi ke semua IP pool yang dimiliki router ini.
+     *
+     * @return HasMany<IpPool, $this>
      */
     public function ipPools(): HasMany
     {
         return $this->hasMany(IpPool::class, 'router_id');
+    }
+
+    /**
+     * Relasi ke semua layanan pelanggan yang terhubung ke router ini.
+     *
+     * @return HasMany<LayananPelanggan, $this>
+     */
+    public function layanans(): HasMany
+    {
+        return $this->hasMany(LayananPelanggan::class, 'router_id');
+    }
+
+    /**
+     * Scope filter router yang berstatus online.
+     *
+     * @param  Builder<Router>  $query
+     * @return Builder<Router>
+     */
+    public function scopeOnline(Builder $query): Builder
+    {
+        return $query->where('status_koneksi', StatusRouter::Online);
+    }
+
+    /**
+     * Label koneksi untuk API (ip:port).
+     */
+    public function labelKoneksi(): string
+    {
+        return "{$this->ip_address}:{$this->port}";
     }
 }

@@ -3,9 +3,7 @@
 namespace App\Livewire\Roles;
 
 use App\Models\User;
-use App\Services\AuditLogger;
 use Flux\Flux;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -30,10 +28,6 @@ class Index extends Component
 
             return;
         }
-
-        /** @var User $actor */
-        $actor = Auth::user();
-        AuditLogger::recordRoleDeleted($actor, $role);
 
         $role->delete();
 

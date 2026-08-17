@@ -2,11 +2,8 @@
 
 namespace App\Livewire\Roles;
 
-use App\Models\User;
-use App\Services\AuditLogger;
 use Flux\Flux;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -36,10 +33,6 @@ class Create extends Component
             $role->syncPermissions($this->selectedPermissions);
         }
 
-        /** @var User $actor */
-        $actor = Auth::user();
-        AuditLogger::recordRoleCreated($actor, $role);
-
         Flux::toast(variant: 'success', text: "Role \"{$role->name}\" berhasil dibuat.");
 
         $this->redirectRoute('roles.index', navigate: true);
@@ -59,12 +52,10 @@ class Create extends Component
      */
     private function getGroupedPermissions(): array
     {
-        return Permission::orderBy('name')
-            ->get()
-            ->groupBy(fn ($perm) => Str::after(
-                $perm->name,
-                Str::startsWith($perm->name, 'manage_') ? 'manage_' : 'view_'
-            ))
-            ->toArray();
+        return Permission::all()
+            ->groupBy(function (Permission $permission) {
+                return explode('.', $permission->name)[0];
+            })
+            ->all();
     }
 }

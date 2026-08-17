@@ -4,9 +4,7 @@ namespace App\Livewire\Users;
 
 use App\Enums\UserStatus;
 use App\Models\User;
-use App\Services\AuditLogger;
 use Flux\Flux;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -65,10 +63,6 @@ class Edit extends Component
 
         if ($oldRole !== $this->role) {
             $user->syncRoles([$this->role]);
-
-            /** @var User $actor */
-            $actor = Auth::user();
-            AuditLogger::recordRoleChange($actor, $user, $oldRole, $this->role);
         }
 
         Flux::toast(variant: 'success', text: 'User berhasil diperbarui.');
@@ -85,10 +79,6 @@ class Edit extends Component
         $user->update(['password' => $newPassword]);
 
         $this->generatedPassword = $newPassword;
-
-        /** @var User $actor */
-        $actor = Auth::user();
-        AuditLogger::recordPasswordReset($actor, $user);
 
         Flux::toast(variant: 'success', text: 'Password berhasil direset.');
     }

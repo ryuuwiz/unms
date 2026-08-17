@@ -16,44 +16,40 @@ class IpPoolSeeder extends Seeder
         $mainRouter = Router::where('ip_address', '192.168.88.1')->first();
 
         if ($mainRouter) {
-            // 1. Pool A (Home)
+            // Pool A — Pelanggan Rumahan
             IpPool::updateOrCreate(
                 [
                     'router_id' => $mainRouter->id,
-                    'ip_network' => '10.0.0.0/24',
+                    'ip_network' => '10.0.0.0',
                 ],
                 [
-                    'name' => 'Pool A (Home)',
+                    'nama_pool' => 'Pool-Rumah',
                     'cidr' => 24,
-                    'ip_range_start' => '10.0.0.2',
-                    'ip_range_end' => '10.0.0.254',
-                    'queue_tx_mbps' => 20,
-                    'queue_rx_mbps' => 20,
+                    'rentang_ip_awal' => '10.0.0.2',
+                    'rentang_ip_akhir' => '10.0.0.254',
                     'priority_tx' => 8,
                     'priority_rx' => 8,
                 ]
             );
 
-            // 2. Pool B (Office)
+            // Pool B — Pelanggan Bisnis (prioritas lebih tinggi)
             IpPool::updateOrCreate(
                 [
                     'router_id' => $mainRouter->id,
-                    'ip_network' => '10.0.1.0/24',
+                    'ip_network' => '10.0.1.0',
                 ],
                 [
-                    'name' => 'Pool B (Office)',
+                    'nama_pool' => 'Pool-Bisnis',
                     'cidr' => 24,
-                    'ip_range_start' => '10.0.1.2',
-                    'ip_range_end' => '10.0.1.254',
-                    'queue_tx_mbps' => 50,
-                    'queue_rx_mbps' => 50,
+                    'rentang_ip_awal' => '10.0.1.2',
+                    'rentang_ip_akhir' => '10.0.1.254',
                     'priority_tx' => 2,
                     'priority_rx' => 2,
                 ]
             );
         }
 
-        // Generate additional dummy pools for all other routers
+        // Pool dummy untuk router lain
         $otherRouters = Router::where('ip_address', '!=', '192.168.88.1')->get();
         foreach ($otherRouters as $router) {
             IpPool::factory()->count(2)->create([

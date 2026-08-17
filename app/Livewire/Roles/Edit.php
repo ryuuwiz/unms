@@ -2,11 +2,8 @@
 
 namespace App\Livewire\Roles;
 
-use App\Models\User;
-use App\Services\AuditLogger;
 use Flux\Flux;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -43,18 +40,8 @@ class Edit extends Component
 
         $role = Role::findOrFail($this->roleId);
 
-        $oldPermissions = $role->permissions->pluck('name')->sort()->values()->all();
-
         $role->update(['name' => Str::lower($this->name)]);
         $role->syncPermissions($this->selectedPermissions);
-
-        $newPermissions = collect($this->selectedPermissions)->sort()->values()->all();
-
-        if ($oldPermissions !== $newPermissions) {
-            /** @var User $actor */
-            $actor = Auth::user();
-            AuditLogger::recordRolePermissionsUpdated($actor, $role, $oldPermissions, $newPermissions);
-        }
 
         Flux::toast(variant: 'success', text: "Role \"{$role->name}\" berhasil diperbarui.");
 
@@ -65,23 +52,20 @@ class Edit extends Component
     {
         return view('livewire.roles.edit', [
             'groupedPermissions' => $this->getGroupedPermissions(),
-            'role' => Role::findOrFail($this->roleId),
         ]);
     }
 
     /**
-     * Group all available permissions by module (derived from name prefix).
+     * Group all available permissions by module.
      *
      * @return array<string, Collection<int, Permission>>
      */
     private function getGroupedPermissions(): array
     {
-        return Permission::orderBy('name')
-            ->get()
-            ->groupBy(fn ($perm) => Str::after(
-                $perm->name,
-                Str::startsWith($perm->name, 'manage_') ? 'manage_' : 'view_'
-            ))
-            ->toArray();
+        return Permission::all()
+            ->groupBy(function (Permission $permission) {
+                return explode('.', $permission->name)[0];
+            })
+            ->all();
     }
 }

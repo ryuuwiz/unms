@@ -2,7 +2,7 @@
 
 namespace Database\Factories;
 
-use App\Enums\RouterStatus;
+use App\Enums\StatusRouter;
 use App\Models\Router;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class RouterFactory extends Factory
 {
+    protected $model = Router::class;
+
     /**
      * Define the model's default state.
      *
@@ -19,13 +21,22 @@ class RouterFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => 'Router '.$this->faker->words(2, true),
-            'ip_address' => $this->faker->ipv4(),
-            'api_port' => 8728,
+            'nama_router' => 'ROUTER-'.fake()->unique()->numerify('###'),
+            'ip_address' => fake()->localIpv4(),
+            'port' => 8728,
             'username' => 'admin',
-            'password' => 'password',
-            'description' => $this->faker->sentence(),
-            'status' => $this->faker->randomElement([RouterStatus::Online, RouterStatus::Offline, RouterStatus::Unknown]),
+            'password_terenkripsi' => 'admin123',
+            'deskripsi' => null,
+            'status_koneksi' => StatusRouter::Unknown,
+            'last_sync_at' => null,
         ];
+    }
+
+    /**
+     * State untuk router yang online.
+     */
+    public function online(): static
+    {
+        return $this->state(['status_koneksi' => StatusRouter::Online]);
     }
 }

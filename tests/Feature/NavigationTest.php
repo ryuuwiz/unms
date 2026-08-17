@@ -11,7 +11,7 @@ beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
 });
 
-test('super_admin sees all navigation groups and items in indonesian without repo or docs links', function () {
+test('super_admin sees all navigation groups and items in indonesian', function () {
     $superAdmin = User::factory()->create(['status' => UserStatus::Active]);
     $superAdmin->assignRole('super_admin');
 
@@ -21,33 +21,36 @@ test('super_admin sees all navigation groups and items in indonesian without rep
         ->assertSee('Menu Utama')
         ->assertSee('Dashboard')
         ->assertSee('Pelanggan')
-        ->assertSee('Paket Internet')
-        ->assertSee('Pengguna')
+        ->assertSee('Layanan Pelanggan')
+        ->assertSee('Paket Layanan')
+        ->assertSee('Profil Bandwidth')
+        ->assertSee('Jaringan & Infrastruktur')
+        ->assertSee('Router')
+        ->assertSee('IP Pool')
+        ->assertSee('Area & Wilayah')
+        ->assertSee('Kota')
         ->assertSee('Administrasi')
-        ->assertSee('Peran')
-        ->assertDontSee('Repository')
-        ->assertDontSee('Documentation');
+        ->assertSee('Pengguna')
+        ->assertSee('Peran');
 });
 
-test('regular user without permissions only sees menu utama and dashboard', function () {
+test('user without permissions only sees menu utama and dashboard', function () {
     $user = User::factory()->create(['status' => UserStatus::Active]);
-    $user->assignRole('staff');
+    // No role assigned
 
     $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertOk()
         ->assertSee('Menu Utama')
         ->assertSee('Dashboard')
-        ->assertDontSee('Pengguna')
-        ->assertDontSee('Administrasi')
-        ->assertDontSee('Peran')
-        ->assertDontSee('Repository')
-        ->assertDontSee('Documentation');
+        ->assertDontSee('Layanan Pelanggan')
+        ->assertDontSee('Profil Bandwidth')
+        ->assertDontSee('Administrasi');
 });
 
-test('user with manage_users permission sees pengguna menu item', function () {
+test('user with pengguna.lihat permission sees pengguna menu item', function () {
     $user = User::factory()->create(['status' => UserStatus::Active]);
-    $user->givePermissionTo('manage_users');
+    $user->givePermissionTo('pengguna.lihat');
 
     $response = $this->actingAs($user)->get(route('dashboard'));
 
@@ -55,6 +58,5 @@ test('user with manage_users permission sees pengguna menu item', function () {
         ->assertSee('Menu Utama')
         ->assertSee('Dashboard')
         ->assertSee('Pengguna')
-        ->assertDontSee('Administrasi')
         ->assertDontSee('Peran');
 });

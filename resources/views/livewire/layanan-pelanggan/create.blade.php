@@ -1,0 +1,105 @@
+<div class="mx-auto max-w-2xl space-y-6">
+    <div>
+        <flux:heading size="xl">Tambah Layanan Pelanggan</flux:heading>
+        <flux:subheading>Hubungkan pelanggan dengan paket layanan internet dan konfigurasi PPP.</flux:subheading>
+    </div>
+
+    {{-- Stepper Progress --}}
+    <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 {{ $step >= 1 ? 'text-primary-600 dark:text-primary-400 font-semibold' : 'text-zinc-400' }}">
+            <span class="flex size-6 items-center justify-center rounded-full border {{ $step >= 1 ? 'border-primary-600 bg-primary-50 dark:bg-primary-950' : 'border-zinc-300' }} text-xs">1</span>
+            <span>Pilih Pelanggan & Paket</span>
+        </div>
+        <div class="h-px flex-1 bg-zinc-200 dark:bg-zinc-700"></div>
+        <div class="flex items-center gap-2 {{ $step >= 2 ? 'text-primary-600 dark:text-primary-400 font-semibold' : 'text-zinc-400' }}">
+            <span class="flex size-6 items-center justify-center rounded-full border {{ $step >= 2 ? 'border-primary-600 bg-primary-50 dark:bg-primary-950' : 'border-zinc-300' }} text-xs">2</span>
+            <span>Konfigurasi Jaringan & PPP</span>
+        </div>
+    </div>
+
+    <flux:separator />
+
+    @if ($step === 1)
+        <div class="space-y-6">
+            <flux:field>
+                <flux:label>Pilih Pelanggan</flux:label>
+                <flux:select wire:model="pelanggan_id" placeholder="Pilih pelanggan aktif...">
+                    @foreach ($pelanggans as $p)
+                        <flux:select.option value="{{ $p->id }}">
+                            {{ $p->namaLengkap() }} ({{ $p->no_reg }} - {{ $p->no_hp }})
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="pelanggan_id" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>Pilih Paket Layanan</flux:label>
+                <flux:select wire:model="paket_layanan_id" placeholder="Pilih paket...">
+                    @foreach ($pakets as $pk)
+                        <flux:select.option value="{{ $pk->id }}">
+                            {{ $pk->nama_paket }} — {{ $pk->formattedHarga() }} ({{ $pk->profilBandwidth?->labelKecepatan() ?? 'No Profile' }})
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="paket_layanan_id" />
+            </flux:field>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <flux:button :href="route('layanan-pelanggan.index')" wire:navigate variant="ghost">Batal</flux:button>
+                <flux:button wire:click="nextStep" variant="primary" icon-trailing="arrow-right">Lanjut ke Konfigurasi</flux:button>
+            </div>
+        </div>
+    @elseif ($step === 2)
+        <form wire:submit="save" class="space-y-6">
+            <flux:field>
+                <flux:label>Router Gateway</flux:label>
+                <flux:select wire:model="router_id" placeholder="Pilih router...">
+                    @foreach ($routers as $r)
+                        <flux:select.option value="{{ $r->id }}">
+                            {{ $r->nama_router }} ({{ $r->ip_address }})
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:error name="router_id" />
+            </flux:field>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <flux:field>
+                    <flux:label>Username PPP</flux:label>
+                    <flux:input wire:model="ppp_username" placeholder="Contoh: user_budi_01" />
+                    <flux:error name="ppp_username" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Password PPP</flux:label>
+                    <flux:input wire:model="ppp_password" type="password" placeholder="Minimal 6 karakter" />
+                    <flux:error name="ppp_password" />
+                </flux:field>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <flux:field>
+                    <flux:label>Jenis Koneksi</flux:label>
+                    <flux:select wire:model="jenis_koneksi">
+                        @foreach ($jenisKoneksi as $jk)
+                            <flux:select.option value="{{ $jk->value }}">{{ $jk->label() }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    <flux:error name="jenis_koneksi" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Tanggal Mulai Berlangganan</flux:label>
+                    <flux:input wire:model="tanggal_mulai" type="date" />
+                    <flux:error name="tanggal_mulai" />
+                </flux:field>
+            </div>
+
+            <div class="flex items-center justify-between pt-2">
+                <flux:button wire:click="prevStep" variant="ghost" icon="arrow-left">Kembali</flux:button>
+                <flux:button type="submit" variant="primary" icon="check">Daftarkan Layanan</flux:button>
+            </div>
+        </form>
+    @endif
+</div>

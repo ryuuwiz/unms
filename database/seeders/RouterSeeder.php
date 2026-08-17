@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Enums\RouterStatus;
+use App\Enums\StatusRouter;
 use App\Models\Router;
 use Illuminate\Database\Seeder;
 
@@ -13,20 +13,20 @@ class RouterSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Create main specific router
+        // Router utama untuk core network
         Router::updateOrCreate(
             ['ip_address' => '192.168.88.1'],
             [
-                'name' => 'Main Router',
-                'api_port' => 8728,
+                'nama_router' => 'Main Router',
+                'port' => 8728,
                 'username' => 'admin',
-                'password' => 'password',
-                'description' => 'Main MikroTik Router for Core Network',
-                'status' => RouterStatus::Online,
+                'password_terenkripsi' => 'password',
+                'deskripsi' => 'Router MikroTik utama untuk Core Network',
+                'status_koneksi' => StatusRouter::Online,
             ]
         );
 
-        // 2. Generate dummy data for load testing
+        // Data dummy untuk testing
         Router::factory(4)->create();
     }
 }
