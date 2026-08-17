@@ -8,6 +8,7 @@ use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 use function Pest\Laravel\actingAs;
@@ -107,4 +108,13 @@ it('renders permission labels properly without raw json string', function () {
         ->assertSee('Lihat')
         ->assertDontSee('"guard_name"')
         ->assertDontSee('"Guard Name"');
+});
+
+it('assigns all permissions to super_admin in seeder', function () {
+    $superAdminRole = Role::where('name', 'super_admin')->first();
+    $totalPermissionsCount = Permission::count();
+
+    expect($superAdminRole)->not->toBeNull()
+        ->and($superAdminRole->permissions()->count())->toBe($totalPermissionsCount)
+        ->and($totalPermissionsCount)->toBeGreaterThan(0);
 });

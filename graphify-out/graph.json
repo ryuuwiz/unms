@@ -108,17 +108,30 @@
       "norm_label": "edit"
     },
     {
-      "label": "Index",
+      "label": "AkunPelanggan",
       "file_type": "code",
-      "source_file": "app/Livewire/Pembayaran/Index.php",
-      "source_location": "L15",
+      "source_file": "app/Models/AkunPelanggan.php",
+      "source_location": "L21",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_pembayaran_index_index",
+      "id": "app_models_akunpelanggan_akunpelanggan",
       "community": 1,
-      "community_name": "Index",
-      "norm_label": "index"
+      "community_name": ".run",
+      "norm_label": "akunpelanggan"
+    },
+    {
+      "label": "PelangganSeeder",
+      "file_type": "code",
+      "source_file": "database/seeders/PelangganSeeder.php",
+      "source_location": "L29",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "database_seeders_pelangganseeder_pelangganseeder",
+      "community": 1,
+      "community_name": ".run",
+      "norm_label": "pelangganseeder"
     },
     {
       "label": "Edit",
@@ -173,17 +186,43 @@
       "norm_label": "routerpolicy"
     },
     {
-      "label": "Create",
+      "label": "DatabaseSeeder",
       "file_type": "code",
-      "source_file": "app/Livewire/Router/Create.php",
-      "source_location": "L13",
+      "source_file": "database/seeders/DatabaseSeeder.php",
+      "source_location": "L7",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_router_create_create",
+      "id": "database_seeders_databaseseeder_databaseseeder",
       "community": 103,
-      "community_name": "Create",
-      "norm_label": "create"
+      "community_name": "Illuminate\\Database\\Seeder",
+      "norm_label": "databaseseeder"
+    },
+    {
+      "label": "PaketLayananSeeder",
+      "file_type": "code",
+      "source_file": "database/seeders/PaketLayananSeeder.php",
+      "source_location": "L11",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "database_seeders_paketlayananseeder_paketlayananseeder",
+      "community": 103,
+      "community_name": "Illuminate\\Database\\Seeder",
+      "norm_label": "paketlayananseeder"
+    },
+    {
+      "label": "ProfilBandwidthSeeder",
+      "file_type": "code",
+      "source_file": "database/seeders/ProfilBandwidthSeeder.php",
+      "source_location": "L8",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "database_seeders_profilbandwidthseeder_profilbandwidthseeder",
+      "community": 103,
+      "community_name": "Illuminate\\Database\\Seeder",
+      "norm_label": "profilbandwidthseeder"
     },
     {
       "label": "ProfilBandwidth",
@@ -212,43 +251,17 @@
       "norm_label": "profilbandwidthpolicy"
     },
     {
-      "label": "DatabaseSeeder",
+      "label": "Index",
       "file_type": "code",
-      "source_file": "database/seeders/DatabaseSeeder.php",
-      "source_location": "L7",
+      "source_file": "app/Livewire/Pelanggan/Index.php",
+      "source_location": "L16",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "database_seeders_databaseseeder_databaseseeder",
+      "id": "app_livewire_pelanggan_index_index",
       "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": "databaseseeder"
-    },
-    {
-      "label": "PaketLayananSeeder",
-      "file_type": "code",
-      "source_file": "database/seeders/PaketLayananSeeder.php",
-      "source_location": "L11",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "database_seeders_paketlayananseeder_paketlayananseeder",
-      "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": "paketlayananseeder"
-    },
-    {
-      "label": "PromoSeeder",
-      "file_type": "code",
-      "source_file": "database/seeders/PromoSeeder.php",
-      "source_location": "L10",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "database_seeders_promoseeder_promoseeder",
-      "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": "promoseeder"
+      "community_name": "Index",
+      "norm_label": "index"
     },
     {
       "label": "Controller",
@@ -368,43 +381,17 @@
       "norm_label": "invoice"
     },
     {
-      "label": "PromoPenggunaan",
+      "label": "CustomerPolicy",
       "file_type": "code",
-      "source_file": "app/Models/PromoPenggunaan.php",
-      "source_location": "L22",
+      "source_file": "app/Policies/CustomerPolicy.php",
+      "source_location": "L8",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_models_promopenggunaan_promopenggunaan",
-      "community": 2,
-      "community_name": "Invoice",
-      "norm_label": "promopenggunaan"
-    },
-    {
-      "label": "AkunPelanggan",
-      "file_type": "code",
-      "source_file": "app/Models/AkunPelanggan.php",
-      "source_location": "L21",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_models_akunpelanggan_akunpelanggan",
+      "id": "app_policies_customerpolicy_customerpolicy",
       "community": 204,
-      "community_name": ".run",
-      "norm_label": "akunpelanggan"
-    },
-    {
-      "label": "PelangganSeeder",
-      "file_type": "code",
-      "source_file": "database/seeders/PelangganSeeder.php",
-      "source_location": "L29",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "database_seeders_pelangganseeder_pelangganseeder",
-      "community": 204,
-      "community_name": ".run",
-      "norm_label": "pelangganseeder"
+      "community_name": "CustomerPolicy",
+      "norm_label": "customerpolicy"
     },
     {
       "label": "Index",
@@ -576,19 +563,6 @@
       "norm_label": "ippoolfactory"
     },
     {
-      "label": "LayananPelangganFactory",
-      "file_type": "code",
-      "source_file": "database/factories/LayananPelangganFactory.php",
-      "source_location": "L17",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "database_factories_layananpelangganfactory_layananpelangganfactory",
-      "community": 209,
-      "community_name": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
-      "norm_label": "layananpelangganfactory"
-    },
-    {
       "label": "PaketLayananFactory",
       "file_type": "code",
       "source_file": "database/factories/PaketLayananFactory.php",
@@ -667,32 +641,6 @@
       "norm_label": "userfactory"
     },
     {
-      "label": "Edit",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L16",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_edit_edit",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": "edit"
-    },
-    {
-      "label": "UsersList",
-      "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L10",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_livewire_userslist_userslist",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": "userslist"
-    },
-    {
       "label": "User",
       "file_type": "code",
       "source_file": "app/Models/User.php",
@@ -717,6 +665,19 @@
       "community": 210,
       "community_name": "User",
       "norm_label": "invoicepolicy"
+    },
+    {
+      "label": "LayananPelangganPolicy",
+      "file_type": "code",
+      "source_file": "app/Policies/LayananPelangganPolicy.php",
+      "source_location": "L8",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy",
+      "community": 210,
+      "community_name": "User",
+      "norm_label": "layananpelangganpolicy"
     },
     {
       "label": "PelangganPolicy",
@@ -797,17 +758,30 @@
       "norm_label": "create"
     },
     {
-      "label": "CustomerPolicy",
+      "label": "Index",
       "file_type": "code",
-      "source_file": "app/Policies/CustomerPolicy.php",
-      "source_location": "L8",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L13",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_policies_customerpolicy_customerpolicy",
+      "id": "app_livewire_roles_index_index",
       "community": 213,
-      "community_name": "CustomerPolicy",
-      "norm_label": "customerpolicy"
+      "community_name": "Edit",
+      "norm_label": "index"
+    },
+    {
+      "label": "Edit",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L16",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_edit_edit",
+      "community": 213,
+      "community_name": "Edit",
+      "norm_label": "edit"
     },
     {
       "label": "Pembayaran",
@@ -819,8 +793,21 @@
       "_origin": "ast",
       "id": "app_models_pembayaran_pembayaran",
       "community": 215,
-      "community_name": "Pembayaran",
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
       "norm_label": "pembayaran"
+    },
+    {
+      "label": "PromoPenggunaan",
+      "file_type": "code",
+      "source_file": "app/Models/PromoPenggunaan.php",
+      "source_location": "L22",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_models_promopenggunaan_promopenggunaan",
+      "community": 215,
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+      "norm_label": "promopenggunaan"
     },
     {
       "label": "Create",
@@ -953,32 +940,6 @@
       "norm_label": "edit"
     },
     {
-      "label": "Index",
-      "file_type": "code",
-      "source_file": "app/Livewire/Roles/Index.php",
-      "source_location": "L13",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_livewire_roles_index_index",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": "index"
-    },
-    {
-      "label": "Create",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Create.php",
-      "source_location": "L15",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_create_create",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": "create"
-    },
-    {
       "label": "FortifyServiceProvider",
       "file_type": "code",
       "source_file": "app/Providers/FortifyServiceProvider.php",
@@ -1031,17 +992,17 @@
       "norm_label": "createnewuser"
     },
     {
-      "label": "Index",
+      "label": "Create",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Index.php",
+      "source_file": "app/Livewire/Pelanggan/Create.php",
       "source_location": "L16",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_index_index",
+      "id": "app_livewire_pelanggan_create_create",
       "community": 226,
-      "community_name": "Index",
-      "norm_label": "index"
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "create"
     },
     {
       "label": "LaporanBillingExport",
@@ -1057,29 +1018,29 @@
       "norm_label": "laporanbillingexport"
     },
     {
-      "label": "Index",
+      "label": "Create",
       "file_type": "code",
-      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
-      "source_location": "L13",
+      "source_file": "app/Livewire/PaketLayanan/Create.php",
+      "source_location": "L15",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_wilayah_kecamatan_index_index",
+      "id": "app_livewire_paketlayanan_create_create",
       "community": 230,
-      "community_name": "Index",
-      "norm_label": "index"
+      "community_name": "Create",
+      "norm_label": "create"
     },
     {
       "label": "Index",
       "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
-      "source_location": "L14",
+      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
+      "source_location": "L13",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_users_index_index",
+      "id": "app_livewire_profilbandwidth_index_index",
       "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
+      "community_name": "Index",
       "norm_label": "index"
     },
     {
@@ -1096,17 +1057,17 @@
       "norm_label": "edit"
     },
     {
-      "label": "RouterSeeder",
+      "label": "PromoSeeder",
       "file_type": "code",
-      "source_file": "database/seeders/RouterSeeder.php",
-      "source_location": "L9",
+      "source_file": "database/seeders/PromoSeeder.php",
+      "source_location": "L10",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "database_seeders_routerseeder_routerseeder",
+      "id": "database_seeders_promoseeder_promoseeder",
       "community": 238,
-      "community_name": "StatusRouter.php",
-      "norm_label": "routerseeder"
+      "community_name": "JenisPromo.php",
+      "norm_label": "promoseeder"
     },
     {
       "label": "Billing",
@@ -1124,14 +1085,14 @@
     {
       "label": "Create",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Create.php",
-      "source_location": "L16",
+      "source_file": "app/Livewire/Invoice/Create.php",
+      "source_location": "L18",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_create_create",
-      "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
+      "id": "app_livewire_invoice_create_create",
+      "community": 241,
+      "community_name": "Promo",
       "norm_label": "create"
     },
     {
@@ -1187,17 +1148,30 @@
       "norm_label": "promopolicy"
     },
     {
-      "label": "Index",
+      "label": "RouterSeeder",
       "file_type": "code",
-      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
-      "source_location": "L13",
+      "source_file": "database/seeders/RouterSeeder.php",
+      "source_location": "L9",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_profilbandwidth_index_index",
+      "id": "database_seeders_routerseeder_routerseeder",
       "community": 242,
-      "community_name": "Index",
-      "norm_label": "index"
+      "community_name": "StatusRouter.php",
+      "norm_label": "routerseeder"
+    },
+    {
+      "label": "Create",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Create.php",
+      "source_location": "L15",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_create_create",
+      "community": 26,
+      "community_name": "UserStatus.php",
+      "norm_label": "create"
     },
     {
       "label": "RolesAndPermissionsSeeder",
@@ -1213,17 +1187,69 @@
       "norm_label": "rolesandpermissionsseeder"
     },
     {
-      "label": "ProfilBandwidthSeeder",
+      "label": "Create",
       "file_type": "code",
-      "source_file": "database/seeders/ProfilBandwidthSeeder.php",
-      "source_location": "L8",
+      "source_file": "app/Livewire/Router/Create.php",
+      "source_location": "L13",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "database_seeders_profilbandwidthseeder_profilbandwidthseeder",
+      "id": "app_livewire_router_create_create",
+      "community": 267,
+      "community_name": "Create",
+      "norm_label": "create"
+    },
+    {
+      "label": "UsersList",
+      "file_type": "code",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L10",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_userslist_userslist",
       "community": 273,
-      "community_name": "ProfilBandwidthSeeder.php",
-      "norm_label": "profilbandwidthseeder"
+      "community_name": "UsersList",
+      "norm_label": "userslist"
+    },
+    {
+      "label": "Index",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L14",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_index_index",
+      "community": 274,
+      "community_name": "Index",
+      "norm_label": "index"
+    },
+    {
+      "label": "Index",
+      "file_type": "code",
+      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
+      "source_location": "L13",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_wilayah_kecamatan_index_index",
+      "community": 281,
+      "community_name": "Index",
+      "norm_label": "index"
+    },
+    {
+      "label": "Index",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pembayaran/Index.php",
+      "source_location": "L15",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "app_livewire_pembayaran_index_index",
+      "community": 282,
+      "community_name": "Index",
+      "norm_label": "index"
     },
     {
       "label": "CheckExpiredInvoicesCommand",
@@ -1235,7 +1261,7 @@
       "_origin": "ast",
       "id": "app_console_commands_checkexpiredinvoicescommand_checkexpiredinvoicescommand",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": "checkexpiredinvoicescommand"
     },
     {
@@ -1248,21 +1274,21 @@
       "_origin": "ast",
       "id": "app_console_commands_generateinvoicescommand_generateinvoicescommand",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": "generateinvoicescommand"
     },
     {
-      "label": "Create",
+      "label": "LayananPelanggan",
       "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Create.php",
-      "source_location": "L18",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L42",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_invoice_create_create",
+      "id": "app_models_layananpelanggan_layananpelanggan",
       "community": 35,
-      "community_name": "Create",
-      "norm_label": "create"
+      "community_name": "LayananPelanggan",
+      "norm_label": "layananpelanggan"
     },
     {
       "label": "BillingService",
@@ -1274,8 +1300,21 @@
       "_origin": "ast",
       "id": "app_services_billing_billingservice_billingservice",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": "billingservice"
+    },
+    {
+      "label": "InvoiceFactory",
+      "file_type": "code",
+      "source_file": "database/factories/InvoiceFactory.php",
+      "source_location": "L14",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "database_factories_invoicefactory_invoicefactory",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": "invoicefactory"
     },
     {
       "label": "AuthenticateUser",
@@ -1382,6 +1421,19 @@
       "norm_label": "akunpelangganfactory"
     },
     {
+      "label": "LayananPelangganFactory",
+      "file_type": "code",
+      "source_file": "database/factories/LayananPelangganFactory.php",
+      "source_location": "L17",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "database_factories_layananpelangganfactory_layananpelangganfactory",
+      "community": 54,
+      "community_name": "Pelanggan",
+      "norm_label": "layananpelangganfactory"
+    },
+    {
       "label": "Create",
       "file_type": "code",
       "source_file": "app/Livewire/LayananPelanggan/Create.php",
@@ -1395,17 +1447,17 @@
       "norm_label": "create"
     },
     {
-      "label": "Create",
+      "label": "Edit",
       "file_type": "code",
-      "source_file": "app/Livewire/PaketLayanan/Create.php",
-      "source_location": "L15",
+      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
+      "source_location": "L17",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "id": "app_livewire_paketlayanan_create_create",
+      "id": "app_livewire_layananpelanggan_edit_edit",
       "community": 76,
       "community_name": "PaketLayanan",
-      "norm_label": "create"
+      "norm_label": "edit"
     },
     {
       "label": "Edit",
@@ -1460,19 +1512,6 @@
       "norm_label": "paketlayananpolicy"
     },
     {
-      "label": "Edit",
-      "file_type": "code",
-      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
-      "source_location": "L17",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_livewire_layananpelanggan_edit_edit",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": "edit"
-    },
-    {
       "label": "Index",
       "file_type": "code",
       "source_file": "app/Livewire/LayananPelanggan/Index.php",
@@ -1482,47 +1521,8 @@
       "_origin": "ast",
       "id": "app_livewire_layananpelanggan_index_index",
       "community": 94,
-      "community_name": "LayananPelanggan",
+      "community_name": "Index",
       "norm_label": "index"
-    },
-    {
-      "label": "LayananPelanggan",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L42",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": "layananpelanggan"
-    },
-    {
-      "label": "LayananPelangganPolicy",
-      "file_type": "code",
-      "source_file": "app/Policies/LayananPelangganPolicy.php",
-      "source_location": "L8",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": "layananpelangganpolicy"
-    },
-    {
-      "label": "InvoiceFactory",
-      "file_type": "code",
-      "source_file": "database/factories/InvoiceFactory.php",
-      "source_location": "L14",
-      "_callable": true,
-      "_callable_class": true,
-      "_origin": "ast",
-      "id": "database_factories_invoicefactory_invoicefactory",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": "invoicefactory"
     },
     {
       "label": ".mount()",
@@ -1669,40 +1669,76 @@
       "norm_label": ".render()"
     },
     {
-      "label": ".render()",
+      "label": ".casts()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pembayaran/Index.php",
-      "source_location": "L37",
+      "source_file": "app/Models/AkunPelanggan.php",
+      "source_location": "L33",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pembayaran_index_index_render",
+      "id": "app_models_akunpelanggan_akunpelanggan_casts",
       "community": 1,
-      "community_name": "Index",
-      "norm_label": ".render()"
+      "community_name": ".run",
+      "norm_label": ".casts()"
     },
     {
-      "label": ".updatedMetode()",
+      "label": ".pelanggan()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pembayaran/Index.php",
-      "source_location": "L32",
+      "source_file": "app/Models/AkunPelanggan.php",
+      "source_location": "L46",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pembayaran_index_index_updatedmetode",
+      "id": "app_models_akunpelanggan_akunpelanggan_pelanggan",
       "community": 1,
-      "community_name": "Index",
-      "norm_label": ".updatedmetode()"
+      "community_name": ".run",
+      "norm_label": ".pelanggan()"
     },
     {
-      "label": ".updatedSearch()",
+      "label": ".createInvoiceRecord()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pembayaran/Index.php",
-      "source_location": "L27",
+      "source_file": "database/seeders/PelangganSeeder.php",
+      "source_location": "L196",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pembayaran_index_index_updatedsearch",
+      "id": "database_seeders_pelangganseeder_pelangganseeder_createinvoicerecord",
       "community": 1,
-      "community_name": "Index",
-      "norm_label": ".updatedsearch()"
+      "community_name": ".run",
+      "norm_label": ".createinvoicerecord()"
+    },
+    {
+      "label": ".createPaymentRecord()",
+      "file_type": "code",
+      "source_file": "database/seeders/PelangganSeeder.php",
+      "source_location": "L250",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_seeders_pelangganseeder_pelangganseeder_createpaymentrecord",
+      "community": 1,
+      "community_name": ".run",
+      "norm_label": ".createpaymentrecord()"
+    },
+    {
+      "label": ".daftarPelanggan()",
+      "file_type": "code",
+      "source_file": "database/seeders/PelangganSeeder.php",
+      "source_location": "L272",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_seeders_pelangganseeder_pelangganseeder_daftarpelanggan",
+      "community": 1,
+      "community_name": ".run",
+      "norm_label": ".daftarpelanggan()"
+    },
+    {
+      "label": ".run()",
+      "file_type": "code",
+      "source_file": "database/seeders/PelangganSeeder.php",
+      "source_location": "L34",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_seeders_pelangganseeder_pelangganseeder_run",
+      "community": 1,
+      "community_name": ".run",
+      "norm_label": ".run()"
     },
     {
       "label": ".mount()",
@@ -1957,64 +1993,40 @@
       "norm_label": ".viewany()"
     },
     {
-      "label": ".messages()",
+      "label": ".run()",
       "file_type": "code",
-      "source_file": "app/Livewire/Router/Create.php",
-      "source_location": "L52",
+      "source_file": "database/seeders/DatabaseSeeder.php",
+      "source_location": "L12",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_router_create_create_messages",
+      "id": "database_seeders_databaseseeder_databaseseeder_run",
       "community": 103,
-      "community_name": "Create",
-      "norm_label": ".messages()"
+      "community_name": "Illuminate\\Database\\Seeder",
+      "norm_label": ".run()"
     },
     {
-      "label": ".mount()",
+      "label": ".run()",
       "file_type": "code",
-      "source_file": "app/Livewire/Router/Create.php",
-      "source_location": "L29",
+      "source_file": "database/seeders/PaketLayananSeeder.php",
+      "source_location": "L16",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_router_create_create_mount",
+      "id": "database_seeders_paketlayananseeder_paketlayananseeder_run",
       "community": 103,
-      "community_name": "Create",
-      "norm_label": ".mount()"
+      "community_name": "Illuminate\\Database\\Seeder",
+      "norm_label": ".run()"
     },
     {
-      "label": ".render()",
+      "label": ".run()",
       "file_type": "code",
-      "source_file": "app/Livewire/Router/Create.php",
-      "source_location": "L84",
+      "source_file": "database/seeders/ProfilBandwidthSeeder.php",
+      "source_location": "L13",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_router_create_create_render",
+      "id": "database_seeders_profilbandwidthseeder_profilbandwidthseeder_run",
       "community": 103,
-      "community_name": "Create",
-      "norm_label": ".render()"
-    },
-    {
-      "label": ".rules()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Router/Create.php",
-      "source_location": "L37",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_router_create_create_rules",
-      "community": 103,
-      "community_name": "Create",
-      "norm_label": ".rules()"
-    },
-    {
-      "label": ".save()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Router/Create.php",
-      "source_location": "L64",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_router_create_create_save",
-      "community": 103,
-      "community_name": "Create",
-      "norm_label": ".save()"
+      "community_name": "Illuminate\\Database\\Seeder",
+      "norm_label": ".run()"
     },
     {
       "label": ".casts()",
@@ -2161,64 +2173,88 @@
       "norm_label": ".viewany()"
     },
     {
-      "label": "color()",
+      "label": ".confirmDelete()",
       "file_type": "code",
-      "source_file": "app/Enums/JenisPromo.php",
-      "source_location": "L24",
+      "source_file": "app/Livewire/Pelanggan/Index.php",
+      "source_location": "L45",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_enums_jenispromo_color",
+      "id": "app_livewire_pelanggan_index_index_confirmdelete",
       "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": "color()"
+      "community_name": "Index",
+      "norm_label": ".confirmdelete()"
     },
     {
-      "label": "label()",
+      "label": ".deleteCustomer()",
       "file_type": "code",
-      "source_file": "app/Enums/JenisPromo.php",
-      "source_location": "L13",
+      "source_file": "app/Livewire/Pelanggan/Index.php",
+      "source_location": "L50",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_enums_jenispromo_label",
+      "id": "app_livewire_pelanggan_index_index_deletecustomer",
       "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": "label()"
+      "community_name": "Index",
+      "norm_label": ".deletecustomer()"
     },
     {
-      "label": ".run()",
+      "label": ".render()",
       "file_type": "code",
-      "source_file": "database/seeders/DatabaseSeeder.php",
-      "source_location": "L12",
+      "source_file": "app/Livewire/Pelanggan/Index.php",
+      "source_location": "L90",
       "_callable": true,
       "_origin": "ast",
-      "id": "database_seeders_databaseseeder_databaseseeder_run",
+      "id": "app_livewire_pelanggan_index_index_render",
       "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": ".run()"
+      "community_name": "Index",
+      "norm_label": ".render()"
     },
     {
-      "label": ".run()",
+      "label": ".toggleStatus()",
       "file_type": "code",
-      "source_file": "database/seeders/PaketLayananSeeder.php",
-      "source_location": "L16",
+      "source_file": "app/Livewire/Pelanggan/Index.php",
+      "source_location": "L70",
       "_callable": true,
       "_origin": "ast",
-      "id": "database_seeders_paketlayananseeder_paketlayananseeder_run",
+      "id": "app_livewire_pelanggan_index_index_togglestatus",
       "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": ".run()"
+      "community_name": "Index",
+      "norm_label": ".togglestatus()"
     },
     {
-      "label": ".run()",
+      "label": ".updatingFilterScope()",
       "file_type": "code",
-      "source_file": "database/seeders/PromoSeeder.php",
-      "source_location": "L15",
+      "source_file": "app/Livewire/Pelanggan/Index.php",
+      "source_location": "L40",
       "_callable": true,
       "_origin": "ast",
-      "id": "database_seeders_promoseeder_promoseeder_run",
+      "id": "app_livewire_pelanggan_index_index_updatingfilterscope",
       "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": ".run()"
+      "community_name": "Index",
+      "norm_label": ".updatingfilterscope()"
+    },
+    {
+      "label": ".updatingFilterStatus()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pelanggan/Index.php",
+      "source_location": "L35",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_pelanggan_index_index_updatingfilterstatus",
+      "community": 116,
+      "community_name": "Index",
+      "norm_label": ".updatingfilterstatus()"
+    },
+    {
+      "label": ".updatingSearch()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pelanggan/Index.php",
+      "source_location": "L30",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_pelanggan_index_index_updatingsearch",
+      "community": 116,
+      "community_name": "Index",
+      "norm_label": ".updatingsearch()"
     },
     {
       "label": ".cetak()",
@@ -2485,6 +2521,18 @@
       "norm_label": ".openbayarmodal()"
     },
     {
+      "label": ".prosesBayar()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Invoice/Show.php",
+      "source_location": "L53",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_invoice_show_show_prosesbayar",
+      "community": 2,
+      "community_name": "Invoice",
+      "norm_label": ".prosesbayar()"
+    },
+    {
       "label": ".render()",
       "file_type": "code",
       "source_file": "app/Livewire/Invoice/Show.php",
@@ -2677,76 +2725,160 @@
       "norm_label": ".promo()"
     },
     {
-      "label": ".odpPort()",
+      "label": ".scopeLunas()",
+      "file_type": "code",
+      "source_file": "app/Models/Invoice.php",
+      "source_location": "L221",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_invoice_invoice_scopelunas",
+      "community": 2,
+      "community_name": "Invoice",
+      "norm_label": ".scopelunas()"
+    },
+    {
+      "label": ".scopeMenungguPembayaran()",
+      "file_type": "code",
+      "source_file": "app/Models/Invoice.php",
+      "source_location": "L210",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_invoice_invoice_scopemenunggupembayaran",
+      "community": 2,
+      "community_name": "Invoice",
+      "norm_label": ".scopemenunggupembayaran()"
+    },
+    {
+      "label": ".scopeSearch()",
+      "file_type": "code",
+      "source_file": "app/Models/Invoice.php",
+      "source_location": "L232",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_invoice_invoice_scopesearch",
+      "community": 2,
+      "community_name": "Invoice",
+      "norm_label": ".scopesearch()"
+    },
+    {
+      "label": ".scopeAktif()",
       "file_type": "code",
       "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L138",
+      "source_location": "L159",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_odpport",
+      "id": "app_models_layananpelanggan_layananpelanggan_scopeaktif",
       "community": 2,
       "community_name": "Invoice",
-      "norm_label": ".odpport()"
+      "norm_label": ".scopeaktif()"
     },
     {
-      "label": ".pembuat()",
+      "label": ".scopeExpiredSebelum()",
+      "file_type": "code",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L170",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_layananpelanggan_layananpelanggan_scopeexpiredsebelum",
+      "community": 2,
+      "community_name": "Invoice",
+      "norm_label": ".scopeexpiredsebelum()"
+    },
+    {
+      "label": ".scopeAktif()",
+      "file_type": "code",
+      "source_file": "app/Models/PaketLayanan.php",
+      "source_location": "L102",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_paketlayanan_paketlayanan_scopeaktif",
+      "community": 2,
+      "community_name": "Invoice",
+      "norm_label": ".scopeaktif()"
+    },
+    {
+      "label": ".scopeSearch()",
+      "file_type": "code",
+      "source_file": "app/Models/PaketLayanan.php",
+      "source_location": "L113",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_paketlayanan_paketlayanan_scopesearch",
+      "community": 2,
+      "community_name": "Invoice",
+      "norm_label": ".scopesearch()"
+    },
+    {
+      "label": ".scopeAktif()",
       "file_type": "code",
       "source_file": "app/Models/Pelanggan.php",
-      "source_location": "L131",
+      "source_location": "L182",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_models_pelanggan_pelanggan_pembuat",
+      "id": "app_models_pelanggan_pelanggan_scopeaktif",
       "community": 2,
       "community_name": "Invoice",
-      "norm_label": ".pembuat()"
+      "norm_label": ".scopeaktif()"
     },
     {
-      "label": ".casts()",
+      "label": ".scopeProspek()",
       "file_type": "code",
-      "source_file": "app/Models/PromoPenggunaan.php",
-      "source_location": "L32",
+      "source_file": "app/Models/Pelanggan.php",
+      "source_location": "L193",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_models_promopenggunaan_promopenggunaan_casts",
+      "id": "app_models_pelanggan_pelanggan_scopeprospek",
       "community": 2,
       "community_name": "Invoice",
-      "norm_label": ".casts()"
+      "norm_label": ".scopeprospek()"
     },
     {
-      "label": ".invoice()",
+      "label": ".scopeSearch()",
       "file_type": "code",
-      "source_file": "app/Models/PromoPenggunaan.php",
-      "source_location": "L58",
+      "source_file": "app/Models/Pelanggan.php",
+      "source_location": "L204",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_models_promopenggunaan_promopenggunaan_invoice",
+      "id": "app_models_pelanggan_pelanggan_scopesearch",
       "community": 2,
       "community_name": "Invoice",
-      "norm_label": ".invoice()"
+      "norm_label": ".scopesearch()"
     },
     {
-      "label": ".pelanggan()",
+      "label": ".scopeAktif()",
       "file_type": "code",
-      "source_file": "app/Models/PromoPenggunaan.php",
-      "source_location": "L50",
+      "source_file": "app/Models/Promo.php",
+      "source_location": "L122",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_models_promopenggunaan_promopenggunaan_pelanggan",
+      "id": "app_models_promo_promo_scopeaktif",
       "community": 2,
       "community_name": "Invoice",
-      "norm_label": ".pelanggan()"
+      "norm_label": ".scopeaktif()"
     },
     {
-      "label": ".promo()",
+      "label": ".scopeOnline()",
       "file_type": "code",
-      "source_file": "app/Models/PromoPenggunaan.php",
-      "source_location": "L42",
+      "source_file": "app/Models/Router.php",
+      "source_location": "L99",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_models_promopenggunaan_promopenggunaan_promo",
+      "id": "app_models_router_router_scopeonline",
       "community": 2,
       "community_name": "Invoice",
-      "norm_label": ".promo()"
+      "norm_label": ".scopeonline()"
+    },
+    {
+      "label": ".scopeActive()",
+      "file_type": "code",
+      "source_file": "app/Models/User.php",
+      "source_location": "L63",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_user_user_scopeactive",
+      "community": 2,
+      "community_name": "Invoice",
+      "norm_label": ".scopeactive()"
     },
     {
       "label": "down()",
@@ -3193,76 +3325,64 @@
       "norm_label": "up()"
     },
     {
-      "label": ".casts()",
+      "label": ".create()",
       "file_type": "code",
-      "source_file": "app/Models/AkunPelanggan.php",
-      "source_location": "L33",
+      "source_file": "app/Policies/CustomerPolicy.php",
+      "source_location": "L29",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_models_akunpelanggan_akunpelanggan_casts",
+      "id": "app_policies_customerpolicy_customerpolicy_create",
       "community": 204,
-      "community_name": ".run",
-      "norm_label": ".casts()"
+      "community_name": "CustomerPolicy",
+      "norm_label": ".create()"
     },
     {
-      "label": ".pelanggan()",
+      "label": ".delete()",
       "file_type": "code",
-      "source_file": "app/Models/AkunPelanggan.php",
-      "source_location": "L46",
+      "source_file": "app/Policies/CustomerPolicy.php",
+      "source_location": "L55",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_models_akunpelanggan_akunpelanggan_pelanggan",
+      "id": "app_policies_customerpolicy_customerpolicy_delete",
       "community": 204,
-      "community_name": ".run",
-      "norm_label": ".pelanggan()"
+      "community_name": "CustomerPolicy",
+      "norm_label": ".delete()"
     },
     {
-      "label": ".createInvoiceRecord()",
+      "label": ".update()",
       "file_type": "code",
-      "source_file": "database/seeders/PelangganSeeder.php",
-      "source_location": "L196",
+      "source_file": "app/Policies/CustomerPolicy.php",
+      "source_location": "L38",
       "_callable": true,
       "_origin": "ast",
-      "id": "database_seeders_pelangganseeder_pelangganseeder_createinvoicerecord",
+      "id": "app_policies_customerpolicy_customerpolicy_update",
       "community": 204,
-      "community_name": ".run",
-      "norm_label": ".createinvoicerecord()"
+      "community_name": "CustomerPolicy",
+      "norm_label": ".update()"
     },
     {
-      "label": ".createPaymentRecord()",
+      "label": ".view()",
       "file_type": "code",
-      "source_file": "database/seeders/PelangganSeeder.php",
-      "source_location": "L250",
+      "source_file": "app/Policies/CustomerPolicy.php",
+      "source_location": "L21",
       "_callable": true,
       "_origin": "ast",
-      "id": "database_seeders_pelangganseeder_pelangganseeder_createpaymentrecord",
+      "id": "app_policies_customerpolicy_customerpolicy_view",
       "community": 204,
-      "community_name": ".run",
-      "norm_label": ".createpaymentrecord()"
+      "community_name": "CustomerPolicy",
+      "norm_label": ".view()"
     },
     {
-      "label": ".daftarPelanggan()",
+      "label": ".viewAny()",
       "file_type": "code",
-      "source_file": "database/seeders/PelangganSeeder.php",
-      "source_location": "L272",
+      "source_file": "app/Policies/CustomerPolicy.php",
+      "source_location": "L13",
       "_callable": true,
       "_origin": "ast",
-      "id": "database_seeders_pelangganseeder_pelangganseeder_daftarpelanggan",
+      "id": "app_policies_customerpolicy_customerpolicy_viewany",
       "community": 204,
-      "community_name": ".run",
-      "norm_label": ".daftarpelanggan()"
-    },
-    {
-      "label": ".run()",
-      "file_type": "code",
-      "source_file": "database/seeders/PelangganSeeder.php",
-      "source_location": "L34",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_seeders_pelangganseeder_pelangganseeder_run",
-      "community": 204,
-      "community_name": ".run",
-      "norm_label": ".run()"
+      "community_name": "CustomerPolicy",
+      "norm_label": ".viewany()"
     },
     {
       "label": ".confirmDelete()",
@@ -3699,42 +3819,6 @@
     {
       "label": ".definition()",
       "file_type": "code",
-      "source_file": "database/factories/LayananPelangganFactory.php",
-      "source_location": "L26",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_factories_layananpelangganfactory_layananpelangganfactory_definition",
-      "community": 209,
-      "community_name": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
-      "norm_label": ".definition()"
-    },
-    {
-      "label": ".proses()",
-      "file_type": "code",
-      "source_file": "database/factories/LayananPelangganFactory.php",
-      "source_location": "L46",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_factories_layananpelangganfactory_layananpelangganfactory_proses",
-      "community": 209,
-      "community_name": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
-      "norm_label": ".proses()"
-    },
-    {
-      "label": ".suspend()",
-      "file_type": "code",
-      "source_file": "database/factories/LayananPelangganFactory.php",
-      "source_location": "L54",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_factories_layananpelangganfactory_layananpelangganfactory_suspend",
-      "community": 209,
-      "community_name": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
-      "norm_label": ".suspend()"
-    },
-    {
-      "label": ".definition()",
-      "file_type": "code",
       "source_file": "database/factories/PaketLayananFactory.php",
       "source_location": "L23",
       "_callable": true,
@@ -3853,126 +3937,6 @@
       "norm_label": ".withtwofactor()"
     },
     {
-      "label": ".mount()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L36",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_edit_edit_mount",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": ".mount()"
-    },
-    {
-      "label": ".render()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L117",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_edit_edit_render",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": ".render()"
-    },
-    {
-      "label": ".resetPassword()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L73",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_edit_edit_resetpassword",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": ".resetpassword()"
-    },
-    {
-      "label": ".save()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L46",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_edit_edit_save",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": ".save()"
-    },
-    {
-      "label": ".toggleStatus()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Edit.php",
-      "source_location": "L86",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_edit_edit_togglestatus",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": ".togglestatus()"
-    },
-    {
-      "label": ".confirmDelete()",
-      "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L50",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_userslist_userslist_confirmdelete",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": ".confirmdelete()"
-    },
-    {
-      "label": ".deleteUser()",
-      "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L56",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_userslist_userslist_deleteuser",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": ".deleteuser()"
-    },
-    {
-      "label": ".render()",
-      "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L67",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_userslist_userslist_render",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": ".render()"
-    },
-    {
-      "label": ".save()",
-      "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L31",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_userslist_userslist_save",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": ".save()"
-    },
-    {
-      "label": ".updatingSearch()",
-      "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L26",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_userslist_userslist_updatingsearch",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": ".updatingsearch()"
-    },
-    {
       "label": ".casts()",
       "file_type": "code",
       "source_file": "app/Models/User.php",
@@ -4064,6 +4028,66 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_policies_invoicepolicy_invoicepolicy_viewany",
+      "community": 210,
+      "community_name": "User",
+      "norm_label": ".viewany()"
+    },
+    {
+      "label": ".create()",
+      "file_type": "code",
+      "source_file": "app/Policies/LayananPelangganPolicy.php",
+      "source_location": "L20",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy_create",
+      "community": 210,
+      "community_name": "User",
+      "norm_label": ".create()"
+    },
+    {
+      "label": ".delete()",
+      "file_type": "code",
+      "source_file": "app/Policies/LayananPelangganPolicy.php",
+      "source_location": "L30",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy_delete",
+      "community": 210,
+      "community_name": "User",
+      "norm_label": ".delete()"
+    },
+    {
+      "label": ".update()",
+      "file_type": "code",
+      "source_file": "app/Policies/LayananPelangganPolicy.php",
+      "source_location": "L25",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy_update",
+      "community": 210,
+      "community_name": "User",
+      "norm_label": ".update()"
+    },
+    {
+      "label": ".view()",
+      "file_type": "code",
+      "source_file": "app/Policies/LayananPelangganPolicy.php",
+      "source_location": "L15",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy_view",
+      "community": 210,
+      "community_name": "User",
+      "norm_label": ".view()"
+    },
+    {
+      "label": ".viewAny()",
+      "file_type": "code",
+      "source_file": "app/Policies/LayananPelangganPolicy.php",
+      "source_location": "L10",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy_viewany",
       "community": 210,
       "community_name": "User",
       "norm_label": ".viewany()"
@@ -4357,64 +4381,112 @@
       "norm_label": ".save()"
     },
     {
-      "label": ".create()",
+      "label": ".deleteRole()",
       "file_type": "code",
-      "source_file": "app/Policies/CustomerPolicy.php",
-      "source_location": "L29",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L17",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_policies_customerpolicy_customerpolicy_create",
+      "id": "app_livewire_roles_index_index_deleterole",
       "community": 213,
-      "community_name": "CustomerPolicy",
-      "norm_label": ".create()"
+      "community_name": "Edit",
+      "norm_label": ".deleterole()"
     },
     {
-      "label": ".delete()",
+      "label": ".render()",
       "file_type": "code",
-      "source_file": "app/Policies/CustomerPolicy.php",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L37",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_roles_index_index_render",
+      "community": 213,
+      "community_name": "Edit",
+      "norm_label": ".render()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Create.php",
       "source_location": "L55",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_policies_customerpolicy_customerpolicy_delete",
+      "id": "app_livewire_users_create_create_render",
       "community": 213,
-      "community_name": "CustomerPolicy",
-      "norm_label": ".delete()"
+      "community_name": "Edit",
+      "norm_label": ".render()"
     },
     {
-      "label": ".update()",
+      "label": ".mount()",
       "file_type": "code",
-      "source_file": "app/Policies/CustomerPolicy.php",
-      "source_location": "L38",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L36",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_policies_customerpolicy_customerpolicy_update",
+      "id": "app_livewire_users_edit_edit_mount",
       "community": 213,
-      "community_name": "CustomerPolicy",
-      "norm_label": ".update()"
+      "community_name": "Edit",
+      "norm_label": ".mount()"
     },
     {
-      "label": ".view()",
+      "label": ".render()",
       "file_type": "code",
-      "source_file": "app/Policies/CustomerPolicy.php",
-      "source_location": "L21",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L117",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_policies_customerpolicy_customerpolicy_view",
+      "id": "app_livewire_users_edit_edit_render",
       "community": 213,
-      "community_name": "CustomerPolicy",
-      "norm_label": ".view()"
+      "community_name": "Edit",
+      "norm_label": ".render()"
     },
     {
-      "label": ".viewAny()",
+      "label": ".resetPassword()",
       "file_type": "code",
-      "source_file": "app/Policies/CustomerPolicy.php",
-      "source_location": "L13",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L73",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_policies_customerpolicy_customerpolicy_viewany",
+      "id": "app_livewire_users_edit_edit_resetpassword",
       "community": 213,
-      "community_name": "CustomerPolicy",
-      "norm_label": ".viewany()"
+      "community_name": "Edit",
+      "norm_label": ".resetpassword()"
+    },
+    {
+      "label": ".save()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L46",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_edit_edit_save",
+      "community": 213,
+      "community_name": "Edit",
+      "norm_label": ".save()"
+    },
+    {
+      "label": ".toggleStatus()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Edit.php",
+      "source_location": "L86",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_edit_edit_togglestatus",
+      "community": 213,
+      "community_name": "Edit",
+      "norm_label": ".togglestatus()"
+    },
+    {
+      "label": ".run()",
+      "file_type": "code",
+      "source_file": "database/seeders/RolesAndPermissionsSeeder.php",
+      "source_location": "L19",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_seeders_rolesandpermissionsseeder_rolesandpermissionsseeder_run",
+      "community": 213,
+      "community_name": "Edit",
+      "norm_label": ".run()"
     },
     {
       "label": ".casts()",
@@ -4425,7 +4497,7 @@
       "_origin": "ast",
       "id": "app_models_pembayaran_pembayaran_casts",
       "community": 215,
-      "community_name": "Pembayaran",
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
       "norm_label": ".casts()"
     },
     {
@@ -4437,7 +4509,7 @@
       "_origin": "ast",
       "id": "app_models_pembayaran_pembayaran_dicatatoleh",
       "community": 215,
-      "community_name": "Pembayaran",
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
       "norm_label": ".dicatatoleh()"
     },
     {
@@ -4449,7 +4521,7 @@
       "_origin": "ast",
       "id": "app_models_pembayaran_pembayaran_formattedjumlah",
       "community": 215,
-      "community_name": "Pembayaran",
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
       "norm_label": ".formattedjumlah()"
     },
     {
@@ -4461,7 +4533,7 @@
       "_origin": "ast",
       "id": "app_models_pembayaran_pembayaran_getactivitylogoptions",
       "community": 215,
-      "community_name": "Pembayaran",
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
       "norm_label": ".getactivitylogoptions()"
     },
     {
@@ -4473,8 +4545,56 @@
       "_origin": "ast",
       "id": "app_models_pembayaran_pembayaran_invoice",
       "community": 215,
-      "community_name": "Pembayaran",
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
       "norm_label": ".invoice()"
+    },
+    {
+      "label": ".casts()",
+      "file_type": "code",
+      "source_file": "app/Models/PromoPenggunaan.php",
+      "source_location": "L32",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_promopenggunaan_promopenggunaan_casts",
+      "community": 215,
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+      "norm_label": ".casts()"
+    },
+    {
+      "label": ".invoice()",
+      "file_type": "code",
+      "source_file": "app/Models/PromoPenggunaan.php",
+      "source_location": "L58",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_promopenggunaan_promopenggunaan_invoice",
+      "community": 215,
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+      "norm_label": ".invoice()"
+    },
+    {
+      "label": ".pelanggan()",
+      "file_type": "code",
+      "source_file": "app/Models/PromoPenggunaan.php",
+      "source_location": "L50",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_promopenggunaan_promopenggunaan_pelanggan",
+      "community": 215,
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+      "norm_label": ".pelanggan()"
+    },
+    {
+      "label": ".promo()",
+      "file_type": "code",
+      "source_file": "app/Models/PromoPenggunaan.php",
+      "source_location": "L42",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_promopenggunaan_promopenggunaan_promo",
+      "community": 215,
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+      "norm_label": ".promo()"
     },
     {
       "label": ".mount()",
@@ -5017,66 +5137,6 @@
       "norm_label": ".save()"
     },
     {
-      "label": ".deleteRole()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Roles/Index.php",
-      "source_location": "L17",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_roles_index_index_deleterole",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": ".deleterole()"
-    },
-    {
-      "label": ".render()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Roles/Index.php",
-      "source_location": "L37",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_roles_index_index_render",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": ".render()"
-    },
-    {
-      "label": ".render()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Create.php",
-      "source_location": "L55",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_create_create_render",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": ".render()"
-    },
-    {
-      "label": ".save()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Create.php",
-      "source_location": "L36",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_create_create_save",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": ".save()"
-    },
-    {
-      "label": ".render()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
-      "source_location": "L41",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_users_index_index_render",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": ".render()"
-    },
-    {
       "label": ".boot()",
       "file_type": "code",
       "source_file": "app/Providers/FortifyServiceProvider.php",
@@ -5269,88 +5329,100 @@
       "norm_label": "profilerules()"
     },
     {
-      "label": ".confirmDelete()",
+      "label": "label()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Index.php",
-      "source_location": "L45",
+      "source_file": "app/Enums/JenisKoneksi.php",
+      "source_location": "L13",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_index_index_confirmdelete",
+      "id": "app_enums_jeniskoneksi_label",
       "community": 226,
-      "community_name": "Index",
-      "norm_label": ".confirmdelete()"
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "label()"
     },
     {
-      "label": ".deleteCustomer()",
+      "label": "color()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Index.php",
-      "source_location": "L50",
+      "source_file": "app/Enums/StatusPelanggan.php",
+      "source_location": "L26",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_index_index_deletecustomer",
+      "id": "app_enums_statuspelanggan_color",
       "community": 226,
-      "community_name": "Index",
-      "norm_label": ".deletecustomer()"
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "color()"
+    },
+    {
+      "label": "label()",
+      "file_type": "code",
+      "source_file": "app/Enums/StatusPelanggan.php",
+      "source_location": "L14",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_enums_statuspelanggan_label",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "label()"
+    },
+    {
+      "label": ".messages()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pelanggan/Create.php",
+      "source_location": "L85",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_pelanggan_create_create_messages",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": ".messages()"
+    },
+    {
+      "label": ".mount()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pelanggan/Create.php",
+      "source_location": "L52",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_pelanggan_create_create_mount",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": ".mount()"
     },
     {
       "label": ".render()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Index.php",
-      "source_location": "L90",
+      "source_file": "app/Livewire/Pelanggan/Create.php",
+      "source_location": "L126",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_index_index_render",
+      "id": "app_livewire_pelanggan_create_create_render",
       "community": 226,
-      "community_name": "Index",
+      "community_name": "LayananPelanggan/Edit.php",
       "norm_label": ".render()"
     },
     {
-      "label": ".toggleStatus()",
+      "label": ".rules()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Index.php",
-      "source_location": "L70",
+      "source_file": "app/Livewire/Pelanggan/Create.php",
+      "source_location": "L60",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_index_index_togglestatus",
+      "id": "app_livewire_pelanggan_create_create_rules",
       "community": 226,
-      "community_name": "Index",
-      "norm_label": ".togglestatus()"
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": ".rules()"
     },
     {
-      "label": ".updatingFilterScope()",
+      "label": ".save()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Index.php",
-      "source_location": "L40",
+      "source_file": "app/Livewire/Pelanggan/Create.php",
+      "source_location": "L96",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_index_index_updatingfilterscope",
+      "id": "app_livewire_pelanggan_create_create_save",
       "community": 226,
-      "community_name": "Index",
-      "norm_label": ".updatingfilterscope()"
-    },
-    {
-      "label": ".updatingFilterStatus()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Index.php",
-      "source_location": "L35",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_pelanggan_index_index_updatingfilterstatus",
-      "community": 226,
-      "community_name": "Index",
-      "norm_label": ".updatingfilterstatus()"
-    },
-    {
-      "label": ".updatingSearch()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Index.php",
-      "source_location": "L30",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_pelanggan_index_index_updatingsearch",
-      "community": 226,
-      "community_name": "Index",
-      "norm_label": ".updatingsearch()"
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": ".save()"
     },
     {
       "label": ".collection()",
@@ -5401,52 +5473,64 @@
       "norm_label": ".map()"
     },
     {
-      "label": ".confirmDelete()",
+      "label": ".messages()",
       "file_type": "code",
-      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
-      "source_location": "L28",
+      "source_file": "app/Livewire/PaketLayanan/Create.php",
+      "source_location": "L57",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_wilayah_kecamatan_index_index_confirmdelete",
+      "id": "app_livewire_paketlayanan_create_create_messages",
       "community": 230,
-      "community_name": "Index",
-      "norm_label": ".confirmdelete()"
+      "community_name": "Create",
+      "norm_label": ".messages()"
     },
     {
-      "label": ".deleteKecamatan()",
+      "label": ".mount()",
       "file_type": "code",
-      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
+      "source_file": "app/Livewire/PaketLayanan/Create.php",
       "source_location": "L33",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_wilayah_kecamatan_index_index_deletekecamatan",
+      "id": "app_livewire_paketlayanan_create_create_mount",
       "community": 230,
-      "community_name": "Index",
-      "norm_label": ".deletekecamatan()"
+      "community_name": "Create",
+      "norm_label": ".mount()"
     },
     {
       "label": ".render()",
       "file_type": "code",
-      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
-      "source_location": "L43",
+      "source_file": "app/Livewire/PaketLayanan/Create.php",
+      "source_location": "L86",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_wilayah_kecamatan_index_index_render",
+      "id": "app_livewire_paketlayanan_create_create_render",
       "community": 230,
-      "community_name": "Index",
+      "community_name": "Create",
       "norm_label": ".render()"
     },
     {
-      "label": ".updatingSearch()",
+      "label": ".rules()",
       "file_type": "code",
-      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
-      "source_location": "L23",
+      "source_file": "app/Livewire/PaketLayanan/Create.php",
+      "source_location": "L41",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_wilayah_kecamatan_index_index_updatingsearch",
+      "id": "app_livewire_paketlayanan_create_create_rules",
       "community": 230,
-      "community_name": "Index",
-      "norm_label": ".updatingsearch()"
+      "community_name": "Create",
+      "norm_label": ".rules()"
+    },
+    {
+      "label": ".save()",
+      "file_type": "code",
+      "source_file": "app/Livewire/PaketLayanan/Create.php",
+      "source_location": "L67",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_paketlayanan_create_create_save",
+      "community": 230,
+      "community_name": "Create",
+      "norm_label": ".save()"
     },
     {
       "label": "label()",
@@ -5485,39 +5569,51 @@
       "norm_label": "label()"
     },
     {
-      "label": ".updatingFilterRole()",
+      "label": ".confirmDelete()",
       "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
-      "source_location": "L31",
+      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
+      "source_location": "L28",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_users_index_index_updatingfilterrole",
+      "id": "app_livewire_profilbandwidth_index_index_confirmdelete",
       "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": ".updatingfilterrole()"
+      "community_name": "Index",
+      "norm_label": ".confirmdelete()"
     },
     {
-      "label": ".updatingFilterStatus()",
+      "label": ".deleteProfilBandwidth()",
       "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
-      "source_location": "L36",
+      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
+      "source_location": "L33",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_users_index_index_updatingfilterstatus",
+      "id": "app_livewire_profilbandwidth_index_index_deleteprofilbandwidth",
       "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": ".updatingfilterstatus()"
+      "community_name": "Index",
+      "norm_label": ".deleteprofilbandwidth()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
+      "source_location": "L54",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_profilbandwidth_index_index_render",
+      "community": 233,
+      "community_name": "Index",
+      "norm_label": ".render()"
     },
     {
       "label": ".updatingSearch()",
       "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
-      "source_location": "L26",
+      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
+      "source_location": "L23",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_users_index_index_updatingsearch",
+      "id": "app_livewire_profilbandwidth_index_index_updatingsearch",
       "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
+      "community_name": "Index",
       "norm_label": ".updatingsearch()"
     },
     {
@@ -5571,37 +5667,37 @@
     {
       "label": "color()",
       "file_type": "code",
-      "source_file": "app/Enums/StatusRouter.php",
-      "source_location": "L26",
+      "source_file": "app/Enums/JenisPromo.php",
+      "source_location": "L24",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_enums_statusrouter_color",
+      "id": "app_enums_jenispromo_color",
       "community": 238,
-      "community_name": "StatusRouter.php",
+      "community_name": "JenisPromo.php",
       "norm_label": "color()"
     },
     {
       "label": "label()",
       "file_type": "code",
-      "source_file": "app/Enums/StatusRouter.php",
-      "source_location": "L14",
+      "source_file": "app/Enums/JenisPromo.php",
+      "source_location": "L13",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_enums_statusrouter_label",
+      "id": "app_enums_jenispromo_label",
       "community": 238,
-      "community_name": "StatusRouter.php",
+      "community_name": "JenisPromo.php",
       "norm_label": "label()"
     },
     {
       "label": ".run()",
       "file_type": "code",
-      "source_file": "database/seeders/RouterSeeder.php",
-      "source_location": "L14",
+      "source_file": "database/seeders/PromoSeeder.php",
+      "source_location": "L15",
       "_callable": true,
       "_origin": "ast",
-      "id": "database_seeders_routerseeder_routerseeder_run",
+      "id": "database_seeders_promoseeder_promoseeder_run",
       "community": 238,
-      "community_name": "StatusRouter.php",
+      "community_name": "JenisPromo.php",
       "norm_label": ".run()"
     },
     {
@@ -5641,100 +5737,76 @@
       "norm_label": ".render()"
     },
     {
-      "label": "label()",
-      "file_type": "code",
-      "source_file": "app/Enums/JenisKoneksi.php",
-      "source_location": "L13",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_enums_jeniskoneksi_label",
-      "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "label()"
-    },
-    {
-      "label": "color()",
-      "file_type": "code",
-      "source_file": "app/Enums/StatusPelanggan.php",
-      "source_location": "L26",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_enums_statuspelanggan_color",
-      "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "color()"
-    },
-    {
-      "label": "label()",
-      "file_type": "code",
-      "source_file": "app/Enums/StatusPelanggan.php",
-      "source_location": "L14",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_enums_statuspelanggan_label",
-      "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "label()"
-    },
-    {
-      "label": ".messages()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Create.php",
-      "source_location": "L85",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_pelanggan_create_create_messages",
-      "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": ".messages()"
-    },
-    {
       "label": ".mount()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Create.php",
-      "source_location": "L52",
+      "source_file": "app/Livewire/Invoice/Create.php",
+      "source_location": "L36",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_create_create_mount",
-      "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
+      "id": "app_livewire_invoice_create_create_mount",
+      "community": 241,
+      "community_name": "Promo",
       "norm_label": ".mount()"
+    },
+    {
+      "label": ".recalculate()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Invoice/Create.php",
+      "source_location": "L59",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_invoice_create_create_recalculate",
+      "community": 241,
+      "community_name": "Promo",
+      "norm_label": ".recalculate()"
     },
     {
       "label": ".render()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Create.php",
-      "source_location": "L126",
+      "source_file": "app/Livewire/Invoice/Create.php",
+      "source_location": "L119",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_create_create_render",
-      "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
+      "id": "app_livewire_invoice_create_create_render",
+      "community": 241,
+      "community_name": "Promo",
       "norm_label": ".render()"
     },
     {
-      "label": ".rules()",
+      "label": ".updatedLayananPelangganId()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Create.php",
-      "source_location": "L60",
+      "source_file": "app/Livewire/Invoice/Create.php",
+      "source_location": "L49",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_create_create_rules",
-      "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": ".rules()"
+      "id": "app_livewire_invoice_create_create_updatedlayananpelangganid",
+      "community": 241,
+      "community_name": "Promo",
+      "norm_label": ".updatedlayananpelangganid()"
     },
     {
-      "label": ".save()",
+      "label": ".updatedPelangganId()",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Create.php",
-      "source_location": "L96",
+      "source_file": "app/Livewire/Invoice/Create.php",
+      "source_location": "L42",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_create_create_save",
-      "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": ".save()"
+      "id": "app_livewire_invoice_create_create_updatedpelangganid",
+      "community": 241,
+      "community_name": "Promo",
+      "norm_label": ".updatedpelangganid()"
+    },
+    {
+      "label": ".updatedPromoId()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Invoice/Create.php",
+      "source_location": "L54",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_invoice_create_create_updatedpromoid",
+      "community": 241,
+      "community_name": "Promo",
+      "norm_label": ".updatedpromoid()"
     },
     {
       "label": ".mount()",
@@ -5953,52 +6025,40 @@
       "norm_label": ".viewany()"
     },
     {
-      "label": ".confirmDelete()",
+      "label": "color()",
       "file_type": "code",
-      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
-      "source_location": "L28",
+      "source_file": "app/Enums/StatusRouter.php",
+      "source_location": "L26",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_profilbandwidth_index_index_confirmdelete",
+      "id": "app_enums_statusrouter_color",
       "community": 242,
-      "community_name": "Index",
-      "norm_label": ".confirmdelete()"
+      "community_name": "StatusRouter.php",
+      "norm_label": "color()"
     },
     {
-      "label": ".deleteProfilBandwidth()",
+      "label": "label()",
       "file_type": "code",
-      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
-      "source_location": "L33",
+      "source_file": "app/Enums/StatusRouter.php",
+      "source_location": "L14",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_profilbandwidth_index_index_deleteprofilbandwidth",
+      "id": "app_enums_statusrouter_label",
       "community": 242,
-      "community_name": "Index",
-      "norm_label": ".deleteprofilbandwidth()"
+      "community_name": "StatusRouter.php",
+      "norm_label": "label()"
     },
     {
-      "label": ".render()",
+      "label": ".run()",
       "file_type": "code",
-      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
-      "source_location": "L54",
+      "source_file": "database/seeders/RouterSeeder.php",
+      "source_location": "L14",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_profilbandwidth_index_index_render",
+      "id": "database_seeders_routerseeder_routerseeder_run",
       "community": 242,
-      "community_name": "Index",
-      "norm_label": ".render()"
-    },
-    {
-      "label": ".updatingSearch()",
-      "file_type": "code",
-      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
-      "source_location": "L23",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_profilbandwidth_index_index_updatingsearch",
-      "community": 242,
-      "community_name": "Index",
-      "norm_label": ".updatingsearch()"
+      "community_name": "StatusRouter.php",
+      "norm_label": ".run()"
     },
     {
       "label": "label()",
@@ -6013,28 +6073,268 @@
       "norm_label": "label()"
     },
     {
-      "label": ".run()",
+      "label": ".save()",
       "file_type": "code",
-      "source_file": "database/seeders/RolesAndPermissionsSeeder.php",
-      "source_location": "L19",
+      "source_file": "app/Livewire/Users/Create.php",
+      "source_location": "L36",
       "_callable": true,
       "_origin": "ast",
-      "id": "database_seeders_rolesandpermissionsseeder_rolesandpermissionsseeder_run",
+      "id": "app_livewire_users_create_create_save",
       "community": 26,
       "community_name": "UserStatus.php",
-      "norm_label": ".run()"
+      "norm_label": ".save()"
     },
     {
-      "label": ".run()",
+      "label": ".messages()",
       "file_type": "code",
-      "source_file": "database/seeders/ProfilBandwidthSeeder.php",
-      "source_location": "L13",
+      "source_file": "app/Livewire/Router/Create.php",
+      "source_location": "L52",
       "_callable": true,
       "_origin": "ast",
-      "id": "database_seeders_profilbandwidthseeder_profilbandwidthseeder_run",
+      "id": "app_livewire_router_create_create_messages",
+      "community": 267,
+      "community_name": "Create",
+      "norm_label": ".messages()"
+    },
+    {
+      "label": ".mount()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Router/Create.php",
+      "source_location": "L29",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_router_create_create_mount",
+      "community": 267,
+      "community_name": "Create",
+      "norm_label": ".mount()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Router/Create.php",
+      "source_location": "L84",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_router_create_create_render",
+      "community": 267,
+      "community_name": "Create",
+      "norm_label": ".render()"
+    },
+    {
+      "label": ".rules()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Router/Create.php",
+      "source_location": "L37",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_router_create_create_rules",
+      "community": 267,
+      "community_name": "Create",
+      "norm_label": ".rules()"
+    },
+    {
+      "label": ".save()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Router/Create.php",
+      "source_location": "L64",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_router_create_create_save",
+      "community": 267,
+      "community_name": "Create",
+      "norm_label": ".save()"
+    },
+    {
+      "label": ".confirmDelete()",
+      "file_type": "code",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L50",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_userslist_userslist_confirmdelete",
       "community": 273,
-      "community_name": "ProfilBandwidthSeeder.php",
-      "norm_label": ".run()"
+      "community_name": "UsersList",
+      "norm_label": ".confirmdelete()"
+    },
+    {
+      "label": ".deleteUser()",
+      "file_type": "code",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L56",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_userslist_userslist_deleteuser",
+      "community": 273,
+      "community_name": "UsersList",
+      "norm_label": ".deleteuser()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L67",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_userslist_userslist_render",
+      "community": 273,
+      "community_name": "UsersList",
+      "norm_label": ".render()"
+    },
+    {
+      "label": ".save()",
+      "file_type": "code",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L31",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_userslist_userslist_save",
+      "community": 273,
+      "community_name": "UsersList",
+      "norm_label": ".save()"
+    },
+    {
+      "label": ".updatingSearch()",
+      "file_type": "code",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L26",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_userslist_userslist_updatingsearch",
+      "community": 273,
+      "community_name": "UsersList",
+      "norm_label": ".updatingsearch()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L41",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_index_index_render",
+      "community": 274,
+      "community_name": "Index",
+      "norm_label": ".render()"
+    },
+    {
+      "label": ".updatingFilterRole()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L31",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_index_index_updatingfilterrole",
+      "community": 274,
+      "community_name": "Index",
+      "norm_label": ".updatingfilterrole()"
+    },
+    {
+      "label": ".updatingFilterStatus()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L36",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_index_index_updatingfilterstatus",
+      "community": 274,
+      "community_name": "Index",
+      "norm_label": ".updatingfilterstatus()"
+    },
+    {
+      "label": ".updatingSearch()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L26",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_users_index_index_updatingsearch",
+      "community": 274,
+      "community_name": "Index",
+      "norm_label": ".updatingsearch()"
+    },
+    {
+      "label": ".confirmDelete()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
+      "source_location": "L28",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_wilayah_kecamatan_index_index_confirmdelete",
+      "community": 281,
+      "community_name": "Index",
+      "norm_label": ".confirmdelete()"
+    },
+    {
+      "label": ".deleteKecamatan()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
+      "source_location": "L33",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_wilayah_kecamatan_index_index_deletekecamatan",
+      "community": 281,
+      "community_name": "Index",
+      "norm_label": ".deletekecamatan()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
+      "source_location": "L43",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_wilayah_kecamatan_index_index_render",
+      "community": 281,
+      "community_name": "Index",
+      "norm_label": ".render()"
+    },
+    {
+      "label": ".updatingSearch()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
+      "source_location": "L23",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_wilayah_kecamatan_index_index_updatingsearch",
+      "community": 281,
+      "community_name": "Index",
+      "norm_label": ".updatingsearch()"
+    },
+    {
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pembayaran/Index.php",
+      "source_location": "L37",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_pembayaran_index_index_render",
+      "community": 282,
+      "community_name": "Index",
+      "norm_label": ".render()"
+    },
+    {
+      "label": ".updatedMetode()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pembayaran/Index.php",
+      "source_location": "L32",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_pembayaran_index_index_updatedmetode",
+      "community": 282,
+      "community_name": "Index",
+      "norm_label": ".updatedmetode()"
+    },
+    {
+      "label": ".updatedSearch()",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pembayaran/Index.php",
+      "source_location": "L27",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_livewire_pembayaran_index_index_updatedsearch",
+      "community": 282,
+      "community_name": "Index",
+      "norm_label": ".updatedsearch()"
     },
     {
       "label": ".handle()",
@@ -6045,7 +6345,7 @@
       "_origin": "ast",
       "id": "app_console_commands_checkexpiredinvoicescommand_checkexpiredinvoicescommand_handle",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": ".handle()"
     },
     {
@@ -6057,44 +6357,8 @@
       "_origin": "ast",
       "id": "app_console_commands_generateinvoicescommand_generateinvoicescommand_handle",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": ".handle()"
-    },
-    {
-      "label": ".mount()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Create.php",
-      "source_location": "L36",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_invoice_create_create_mount",
-      "community": 35,
-      "community_name": "Create",
-      "norm_label": ".mount()"
-    },
-    {
-      "label": ".recalculate()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Create.php",
-      "source_location": "L59",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_invoice_create_create_recalculate",
-      "community": 35,
-      "community_name": "Create",
-      "norm_label": ".recalculate()"
-    },
-    {
-      "label": ".render()",
-      "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Create.php",
-      "source_location": "L119",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_invoice_create_create_render",
-      "community": 35,
-      "community_name": "Create",
-      "norm_label": ".render()"
     },
     {
       "label": ".save()",
@@ -6105,56 +6369,128 @@
       "_origin": "ast",
       "id": "app_livewire_invoice_create_create_save",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": ".save()"
     },
     {
-      "label": ".updatedLayananPelangganId()",
+      "label": ".booted()",
       "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Create.php",
-      "source_location": "L49",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L77",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_invoice_create_create_updatedlayananpelangganid",
+      "id": "app_models_layananpelanggan_layananpelanggan_booted",
       "community": 35,
-      "community_name": "Create",
-      "norm_label": ".updatedlayananpelangganid()"
+      "community_name": "LayananPelanggan",
+      "norm_label": ".booted()"
     },
     {
-      "label": ".updatedPelangganId()",
+      "label": ".casts()",
       "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Create.php",
-      "source_location": "L42",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L91",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_invoice_create_create_updatedpelangganid",
+      "id": "app_models_layananpelanggan_layananpelanggan_casts",
       "community": 35,
-      "community_name": "Create",
-      "norm_label": ".updatedpelangganid()"
+      "community_name": "LayananPelanggan",
+      "norm_label": ".casts()"
     },
     {
-      "label": ".updatedPromoId()",
+      "label": ".generateSiteId()",
       "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Create.php",
-      "source_location": "L54",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L186",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_invoice_create_create_updatedpromoid",
+      "id": "app_models_layananpelanggan_layananpelanggan_generatesiteid",
       "community": 35,
-      "community_name": "Create",
-      "norm_label": ".updatedpromoid()"
+      "community_name": "LayananPelanggan",
+      "norm_label": ".generatesiteid()"
     },
     {
-      "label": ".prosesBayar()",
+      "label": ".getActivitylogOptions()",
       "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Show.php",
-      "source_location": "L53",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L65",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_invoice_show_show_prosesbayar",
+      "id": "app_models_layananpelanggan_layananpelanggan_getactivitylogoptions",
       "community": 35,
-      "community_name": "Create",
-      "norm_label": ".prosesbayar()"
+      "community_name": "LayananPelanggan",
+      "norm_label": ".getactivitylogoptions()"
+    },
+    {
+      "label": ".invoices()",
+      "file_type": "code",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L148",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_layananpelanggan_layananpelanggan_invoices",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": ".invoices()"
+    },
+    {
+      "label": ".isAktif()",
+      "file_type": "code",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L178",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_layananpelanggan_layananpelanggan_isaktif",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": ".isaktif()"
+    },
+    {
+      "label": ".odpPort()",
+      "file_type": "code",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L138",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_layananpelanggan_layananpelanggan_odpport",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": ".odpport()"
+    },
+    {
+      "label": ".paketLayanan()",
+      "file_type": "code",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L118",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_layananpelanggan_layananpelanggan_paketlayanan",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": ".paketlayanan()"
+    },
+    {
+      "label": ".pelanggan()",
+      "file_type": "code",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L108",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_layananpelanggan_layananpelanggan_pelanggan",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": ".pelanggan()"
+    },
+    {
+      "label": ".router()",
+      "file_type": "code",
+      "source_file": "app/Models/LayananPelanggan.php",
+      "source_location": "L128",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_layananpelanggan_layananpelanggan_router",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": ".router()"
     },
     {
       "label": ".generateInvoice()",
@@ -6165,7 +6501,7 @@
       "_origin": "ast",
       "id": "app_services_billing_billingservice_billingservice_generateinvoice",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": ".generateinvoice()"
     },
     {
@@ -6177,8 +6513,32 @@
       "_origin": "ast",
       "id": "app_services_billing_billingservice_billingservice_prosespembayaranmanual",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": ".prosespembayaranmanual()"
+    },
+    {
+      "label": ".definition()",
+      "file_type": "code",
+      "source_file": "database/factories/InvoiceFactory.php",
+      "source_location": "L18",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_factories_invoicefactory_invoicefactory_definition",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": ".definition()"
+    },
+    {
+      "label": ".lunas()",
+      "file_type": "code",
+      "source_file": "database/factories/InvoiceFactory.php",
+      "source_location": "L40",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_factories_invoicefactory_invoicefactory_lunas",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": ".lunas()"
     },
     {
       "label": ".__invoke()",
@@ -6325,90 +6685,6 @@
       "norm_label": ".save()"
     },
     {
-      "label": ".scopeLunas()",
-      "file_type": "code",
-      "source_file": "app/Models/Invoice.php",
-      "source_location": "L221",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_invoice_invoice_scopelunas",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopelunas()"
-    },
-    {
-      "label": ".scopeMenungguPembayaran()",
-      "file_type": "code",
-      "source_file": "app/Models/Invoice.php",
-      "source_location": "L210",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_invoice_invoice_scopemenunggupembayaran",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopemenunggupembayaran()"
-    },
-    {
-      "label": ".scopeSearch()",
-      "file_type": "code",
-      "source_file": "app/Models/Invoice.php",
-      "source_location": "L232",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_invoice_invoice_scopesearch",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopesearch()"
-    },
-    {
-      "label": ".scopeAktif()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L159",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_scopeaktif",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopeaktif()"
-    },
-    {
-      "label": ".scopeExpiredSebelum()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L170",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_scopeexpiredsebelum",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopeexpiredsebelum()"
-    },
-    {
-      "label": ".scopeAktif()",
-      "file_type": "code",
-      "source_file": "app/Models/PaketLayanan.php",
-      "source_location": "L102",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_paketlayanan_paketlayanan_scopeaktif",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopeaktif()"
-    },
-    {
-      "label": ".scopeSearch()",
-      "file_type": "code",
-      "source_file": "app/Models/PaketLayanan.php",
-      "source_location": "L113",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_paketlayanan_paketlayanan_scopesearch",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopesearch()"
-    },
-    {
       "label": ".akunPelanggan()",
       "file_type": "code",
       "source_file": "app/Models/Pelanggan.php",
@@ -6541,6 +6817,18 @@
       "norm_label": ".normalizephone()"
     },
     {
+      "label": ".pembuat()",
+      "file_type": "code",
+      "source_file": "app/Models/Pelanggan.php",
+      "source_location": "L131",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_models_pelanggan_pelanggan_pembuat",
+      "community": 54,
+      "community_name": "Pelanggan",
+      "norm_label": ".pembuat()"
+    },
+    {
       "label": ".perumahan()",
       "file_type": "code",
       "source_file": "app/Models/Pelanggan.php",
@@ -6553,78 +6841,6 @@
       "norm_label": ".perumahan()"
     },
     {
-      "label": ".scopeAktif()",
-      "file_type": "code",
-      "source_file": "app/Models/Pelanggan.php",
-      "source_location": "L182",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_pelanggan_pelanggan_scopeaktif",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopeaktif()"
-    },
-    {
-      "label": ".scopeProspek()",
-      "file_type": "code",
-      "source_file": "app/Models/Pelanggan.php",
-      "source_location": "L193",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_pelanggan_pelanggan_scopeprospek",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopeprospek()"
-    },
-    {
-      "label": ".scopeSearch()",
-      "file_type": "code",
-      "source_file": "app/Models/Pelanggan.php",
-      "source_location": "L204",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_pelanggan_pelanggan_scopesearch",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopesearch()"
-    },
-    {
-      "label": ".scopeAktif()",
-      "file_type": "code",
-      "source_file": "app/Models/Promo.php",
-      "source_location": "L122",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_promo_promo_scopeaktif",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopeaktif()"
-    },
-    {
-      "label": ".scopeOnline()",
-      "file_type": "code",
-      "source_file": "app/Models/Router.php",
-      "source_location": "L99",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_router_router_scopeonline",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopeonline()"
-    },
-    {
-      "label": ".scopeActive()",
-      "file_type": "code",
-      "source_file": "app/Models/User.php",
-      "source_location": "L63",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_user_user_scopeactive",
-      "community": 54,
-      "community_name": "Pelanggan",
-      "norm_label": ".scopeactive()"
-    },
-    {
       "label": ".definition()",
       "file_type": "code",
       "source_file": "database/factories/AkunPelangganFactory.php",
@@ -6635,6 +6851,42 @@
       "community": 54,
       "community_name": "Pelanggan",
       "norm_label": ".definition()"
+    },
+    {
+      "label": ".definition()",
+      "file_type": "code",
+      "source_file": "database/factories/LayananPelangganFactory.php",
+      "source_location": "L26",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_factories_layananpelangganfactory_layananpelangganfactory_definition",
+      "community": 54,
+      "community_name": "Pelanggan",
+      "norm_label": ".definition()"
+    },
+    {
+      "label": ".proses()",
+      "file_type": "code",
+      "source_file": "database/factories/LayananPelangganFactory.php",
+      "source_location": "L46",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_factories_layananpelangganfactory_layananpelangganfactory_proses",
+      "community": 54,
+      "community_name": "Pelanggan",
+      "norm_label": ".proses()"
+    },
+    {
+      "label": ".suspend()",
+      "file_type": "code",
+      "source_file": "database/factories/LayananPelangganFactory.php",
+      "source_location": "L54",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "database_factories_layananpelangganfactory_layananpelangganfactory_suspend",
+      "community": 54,
+      "community_name": "Pelanggan",
+      "norm_label": ".suspend()"
     },
     {
       "label": ".mount()",
@@ -6721,25 +6973,13 @@
       "norm_label": ".save()"
     },
     {
-      "label": ".messages()",
-      "file_type": "code",
-      "source_file": "app/Livewire/PaketLayanan/Create.php",
-      "source_location": "L57",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_paketlayanan_create_create_messages",
-      "community": 76,
-      "community_name": "PaketLayanan",
-      "norm_label": ".messages()"
-    },
-    {
       "label": ".mount()",
       "file_type": "code",
-      "source_file": "app/Livewire/PaketLayanan/Create.php",
-      "source_location": "L33",
+      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
+      "source_location": "L40",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_paketlayanan_create_create_mount",
+      "id": "app_livewire_layananpelanggan_edit_edit_mount",
       "community": 76,
       "community_name": "PaketLayanan",
       "norm_label": ".mount()"
@@ -6747,11 +6987,11 @@
     {
       "label": ".render()",
       "file_type": "code",
-      "source_file": "app/Livewire/PaketLayanan/Create.php",
-      "source_location": "L86",
+      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
+      "source_location": "L99",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_paketlayanan_create_create_render",
+      "id": "app_livewire_layananpelanggan_edit_edit_render",
       "community": 76,
       "community_name": "PaketLayanan",
       "norm_label": ".render()"
@@ -6759,11 +6999,11 @@
     {
       "label": ".rules()",
       "file_type": "code",
-      "source_file": "app/Livewire/PaketLayanan/Create.php",
-      "source_location": "L41",
+      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
+      "source_location": "L58",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_paketlayanan_create_create_rules",
+      "id": "app_livewire_layananpelanggan_edit_edit_rules",
       "community": 76,
       "community_name": "PaketLayanan",
       "norm_label": ".rules()"
@@ -6771,11 +7011,11 @@
     {
       "label": ".save()",
       "file_type": "code",
-      "source_file": "app/Livewire/PaketLayanan/Create.php",
-      "source_location": "L67",
+      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
+      "source_location": "L72",
       "_callable": true,
       "_origin": "ast",
-      "id": "app_livewire_paketlayanan_create_create_save",
+      "id": "app_livewire_layananpelanggan_edit_edit_save",
       "community": 76,
       "community_name": "PaketLayanan",
       "norm_label": ".save()"
@@ -7033,54 +7273,6 @@
       "norm_label": ".viewany()"
     },
     {
-      "label": ".mount()",
-      "file_type": "code",
-      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
-      "source_location": "L40",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_layananpelanggan_edit_edit_mount",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".mount()"
-    },
-    {
-      "label": ".render()",
-      "file_type": "code",
-      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
-      "source_location": "L99",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_layananpelanggan_edit_edit_render",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".render()"
-    },
-    {
-      "label": ".rules()",
-      "file_type": "code",
-      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
-      "source_location": "L58",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_layananpelanggan_edit_edit_rules",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".rules()"
-    },
-    {
-      "label": ".save()",
-      "file_type": "code",
-      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
-      "source_location": "L72",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_livewire_layananpelanggan_edit_edit_save",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".save()"
-    },
-    {
       "label": ".confirmDelete()",
       "file_type": "code",
       "source_file": "app/Livewire/LayananPelanggan/Index.php",
@@ -7089,7 +7281,7 @@
       "_origin": "ast",
       "id": "app_livewire_layananpelanggan_index_index_confirmdelete",
       "community": 94,
-      "community_name": "LayananPelanggan",
+      "community_name": "Index",
       "norm_label": ".confirmdelete()"
     },
     {
@@ -7101,7 +7293,7 @@
       "_origin": "ast",
       "id": "app_livewire_layananpelanggan_index_index_deletelayanan",
       "community": 94,
-      "community_name": "LayananPelanggan",
+      "community_name": "Index",
       "norm_label": ".deletelayanan()"
     },
     {
@@ -7113,7 +7305,7 @@
       "_origin": "ast",
       "id": "app_livewire_layananpelanggan_index_index_render",
       "community": 94,
-      "community_name": "LayananPelanggan",
+      "community_name": "Index",
       "norm_label": ".render()"
     },
     {
@@ -7125,7 +7317,7 @@
       "_origin": "ast",
       "id": "app_livewire_layananpelanggan_index_index_updatingfilterstatus",
       "community": 94,
-      "community_name": "LayananPelanggan",
+      "community_name": "Index",
       "norm_label": ".updatingfilterstatus()"
     },
     {
@@ -7137,200 +7329,8 @@
       "_origin": "ast",
       "id": "app_livewire_layananpelanggan_index_index_updatingsearch",
       "community": 94,
-      "community_name": "LayananPelanggan",
+      "community_name": "Index",
       "norm_label": ".updatingsearch()"
-    },
-    {
-      "label": ".booted()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L77",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_booted",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".booted()"
-    },
-    {
-      "label": ".casts()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L91",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_casts",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".casts()"
-    },
-    {
-      "label": ".generateSiteId()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L186",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_generatesiteid",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".generatesiteid()"
-    },
-    {
-      "label": ".getActivitylogOptions()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L65",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_getactivitylogoptions",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".getactivitylogoptions()"
-    },
-    {
-      "label": ".invoices()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L148",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_invoices",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".invoices()"
-    },
-    {
-      "label": ".isAktif()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L178",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_isaktif",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".isaktif()"
-    },
-    {
-      "label": ".paketLayanan()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L118",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_paketlayanan",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".paketlayanan()"
-    },
-    {
-      "label": ".pelanggan()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L108",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_pelanggan",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".pelanggan()"
-    },
-    {
-      "label": ".router()",
-      "file_type": "code",
-      "source_file": "app/Models/LayananPelanggan.php",
-      "source_location": "L128",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_layananpelanggan_router",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".router()"
-    },
-    {
-      "label": ".create()",
-      "file_type": "code",
-      "source_file": "app/Policies/LayananPelangganPolicy.php",
-      "source_location": "L20",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy_create",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".create()"
-    },
-    {
-      "label": ".delete()",
-      "file_type": "code",
-      "source_file": "app/Policies/LayananPelangganPolicy.php",
-      "source_location": "L30",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy_delete",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".delete()"
-    },
-    {
-      "label": ".update()",
-      "file_type": "code",
-      "source_file": "app/Policies/LayananPelangganPolicy.php",
-      "source_location": "L25",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy_update",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".update()"
-    },
-    {
-      "label": ".view()",
-      "file_type": "code",
-      "source_file": "app/Policies/LayananPelangganPolicy.php",
-      "source_location": "L15",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy_view",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".view()"
-    },
-    {
-      "label": ".viewAny()",
-      "file_type": "code",
-      "source_file": "app/Policies/LayananPelangganPolicy.php",
-      "source_location": "L10",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "app_policies_layananpelangganpolicy_layananpelangganpolicy_viewany",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".viewany()"
-    },
-    {
-      "label": ".definition()",
-      "file_type": "code",
-      "source_file": "database/factories/InvoiceFactory.php",
-      "source_location": "L18",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_factories_invoicefactory_invoicefactory_definition",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".definition()"
-    },
-    {
-      "label": ".lunas()",
-      "file_type": "code",
-      "source_file": "database/factories/InvoiceFactory.php",
-      "source_location": "L40",
-      "_callable": true,
-      "_origin": "ast",
-      "id": "database_factories_invoicefactory_invoicefactory_lunas",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": ".lunas()"
     },
     {
       "label": "Pelanggan/Show.php",
@@ -7353,6 +7353,17 @@
       "community": 0,
       "community_name": "Livewire\\Component",
       "norm_label": "appearance.php"
+    },
+    {
+      "label": "UsersList.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/UsersList.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_userslist",
+      "community": 0,
+      "community_name": "Livewire\\Component",
+      "norm_label": "userslist.php"
     },
     {
       "label": "Kecamatan/Create.php",
@@ -7421,17 +7432,6 @@
       "norm_label": "perumahan/edit.php"
     },
     {
-      "label": "Illuminate\\View\\View",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_view_view",
-      "community": 0,
-      "community_name": "Livewire\\Component",
-      "norm_label": "illuminate\\view\\view"
-    },
-    {
       "label": "Livewire\\Component",
       "file_type": "code",
       "source_file": "",
@@ -7441,6 +7441,50 @@
       "community": 0,
       "community_name": "Livewire\\Component",
       "norm_label": "livewire\\component"
+    },
+    {
+      "label": "Carbon",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "database_seeders_pelangganseeder_php_carbon",
+      "community": 1,
+      "community_name": ".run",
+      "norm_label": "carbon"
+    },
+    {
+      "label": "Illuminate\\Foundation\\Auth\\User",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_foundation_auth_user",
+      "community": 1,
+      "community_name": ".run",
+      "norm_label": "illuminate\\foundation\\auth\\user"
+    },
+    {
+      "label": "MetodePembayaran",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "metodepembayaran",
+      "community": 1,
+      "community_name": ".run",
+      "norm_label": "metodepembayaran"
+    },
+    {
+      "label": "StatusInvoice",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "statusinvoice",
+      "community": 1,
+      "community_name": ".run",
+      "norm_label": "statusinvoice"
     },
     {
       "label": ".kilocode/skills/triage/AGENT-BRIEF.md",
@@ -8035,6 +8079,50 @@
       "community": 102,
       "community_name": "laravel-best-practices/SKILL.md",
       "norm_label": "rule index"
+    },
+    {
+      "label": "DatabaseSeeder.php",
+      "file_type": "code",
+      "source_file": "database/seeders/DatabaseSeeder.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "database_seeders_databaseseeder",
+      "community": 103,
+      "community_name": "Illuminate\\Database\\Seeder",
+      "norm_label": "databaseseeder.php"
+    },
+    {
+      "label": "PaketLayananSeeder.php",
+      "file_type": "code",
+      "source_file": "database/seeders/PaketLayananSeeder.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "database_seeders_paketlayananseeder",
+      "community": 103,
+      "community_name": "Illuminate\\Database\\Seeder",
+      "norm_label": "paketlayananseeder.php"
+    },
+    {
+      "label": "ProfilBandwidthSeeder.php",
+      "file_type": "code",
+      "source_file": "database/seeders/ProfilBandwidthSeeder.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "database_seeders_profilbandwidthseeder",
+      "community": 103,
+      "community_name": "Illuminate\\Database\\Seeder",
+      "norm_label": "profilbandwidthseeder.php"
+    },
+    {
+      "label": "Illuminate\\Database\\Seeder",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_database_seeder",
+      "community": 103,
+      "community_name": "Illuminate\\Database\\Seeder",
+      "norm_label": "illuminate\\database\\seeder"
     },
     {
       "label": "closeDeleteModal",
@@ -8699,61 +8787,6 @@
       "community": 115,
       "community_name": "GLOSSARY.md Format",
       "norm_label": "structure"
-    },
-    {
-      "label": "JenisPromo.php",
-      "file_type": "code",
-      "source_file": "app/Enums/JenisPromo.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_enums_jenispromo",
-      "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": "jenispromo.php"
-    },
-    {
-      "label": "DatabaseSeeder.php",
-      "file_type": "code",
-      "source_file": "database/seeders/DatabaseSeeder.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_seeders_databaseseeder",
-      "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": "databaseseeder.php"
-    },
-    {
-      "label": "PaketLayananSeeder.php",
-      "file_type": "code",
-      "source_file": "database/seeders/PaketLayananSeeder.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_seeders_paketlayananseeder",
-      "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": "paketlayananseeder.php"
-    },
-    {
-      "label": "PromoSeeder.php",
-      "file_type": "code",
-      "source_file": "database/seeders/PromoSeeder.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_seeders_promoseeder",
-      "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": "promoseeder.php"
-    },
-    {
-      "label": "Illuminate\\Database\\Seeder",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_database_seeder",
-      "community": 116,
-      "community_name": "Illuminate\\Database\\Seeder",
-      "norm_label": "illuminate\\database\\seeder"
     },
     {
       "label": "keywords",
@@ -9832,17 +9865,6 @@
       "community": 131,
       "community_name": "split.blade.php",
       "norm_label": "partials.head"
-    },
-    {
-      "label": "Kota/Create.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Wilayah/Kota/Create.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_wilayah_kota_create",
-      "community": 132,
-      "community_name": "Kota",
-      "norm_label": "kota/create.php"
     },
     {
       "label": "Kota/Edit.php",
@@ -12650,15 +12672,15 @@
       "norm_label": "logoptions"
     },
     {
-      "label": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+      "label": "Illuminate\\Database\\Eloquent\\Builder",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "illuminate_database_eloquent_relations_belongsto",
+      "id": "illuminate_database_eloquent_builder",
       "community": 2,
       "community_name": "Invoice",
-      "norm_label": "illuminate\\database\\eloquent\\relations\\belongsto"
+      "norm_label": "illuminate\\database\\eloquent\\builder"
     },
     {
       "label": "0001_01_01_000000_create_users_table.php",
@@ -12947,48 +12969,26 @@
       "norm_label": "vite.config.js"
     },
     {
-      "label": "Carbon",
+      "label": "App\\Models\\Customer",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "database_seeders_pelangganseeder_php_carbon",
+      "id": "app_models_customer",
       "community": 204,
-      "community_name": ".run",
-      "norm_label": "carbon"
+      "community_name": "CustomerPolicy",
+      "norm_label": "app\\models\\customer"
     },
     {
-      "label": "Illuminate\\Foundation\\Auth\\User",
+      "label": "CustomerPolicy.php",
       "file_type": "code",
-      "source_file": "",
-      "source_location": "",
+      "source_file": "app/Policies/CustomerPolicy.php",
+      "source_location": "L1",
       "_origin": "ast",
-      "id": "illuminate_foundation_auth_user",
+      "id": "app_policies_customerpolicy",
       "community": 204,
-      "community_name": ".run",
-      "norm_label": "illuminate\\foundation\\auth\\user"
-    },
-    {
-      "label": "MetodePembayaran",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "metodepembayaran",
-      "community": 204,
-      "community_name": ".run",
-      "norm_label": "metodepembayaran"
-    },
-    {
-      "label": "StatusInvoice",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "statusinvoice",
-      "community": 204,
-      "community_name": ".run",
-      "norm_label": "statusinvoice"
+      "community_name": "CustomerPolicy",
+      "norm_label": "customerpolicy.php"
     },
     {
       "label": "WilayahSeeder.php",
@@ -13132,28 +13132,6 @@
       "community": 209,
       "community_name": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
       "norm_label": "ippoolfactory.php"
-    },
-    {
-      "label": "LayananPelangganFactory.php",
-      "file_type": "code",
-      "source_file": "database/factories/LayananPelangganFactory.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_factories_layananpelangganfactory",
-      "community": 209,
-      "community_name": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
-      "norm_label": "layananpelangganfactory.php"
-    },
-    {
-      "label": "static",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "database_factories_layananpelangganfactory_php_static",
-      "community": 209,
-      "community_name": "Illuminate\\Database\\Eloquent\\Factories\\Factory",
-      "norm_label": "static"
     },
     {
       "label": "PaketLayananFactory.php",
@@ -13563,6 +13541,17 @@
       "norm_label": "invoicepolicy.php"
     },
     {
+      "label": "LayananPelangganPolicy.php",
+      "file_type": "code",
+      "source_file": "app/Policies/LayananPelangganPolicy.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_policies_layananpelangganpolicy",
+      "community": 210,
+      "community_name": "User",
+      "norm_label": "layananpelangganpolicy.php"
+    },
+    {
       "label": "PelangganPolicy.php",
       "file_type": "code",
       "source_file": "app/Policies/PelangganPolicy.php",
@@ -13695,17 +13684,6 @@
       "norm_label": "pelangganpolicytest.php"
     },
     {
-      "label": "UsersEditTest.php",
-      "file_type": "code",
-      "source_file": "tests/Feature/UsersEditTest.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "tests_feature_usersedittest",
-      "community": 210,
-      "community_name": "User",
-      "norm_label": "usersedittest.php"
-    },
-    {
       "label": "Illuminate\\Support\\Facades\\Route",
       "file_type": "code",
       "source_file": "",
@@ -13772,37 +13750,26 @@
       "norm_label": "promo/create.php"
     },
     {
-      "label": "Promo/Edit.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Promo/Edit.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_promo_edit",
-      "community": 212,
-      "community_name": "Promo/Create.php",
-      "norm_label": "promo/edit.php"
-    },
-    {
-      "label": "App\\Models\\Customer",
+      "label": "Role",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "app_models_customer",
+      "id": "role",
       "community": 213,
-      "community_name": "CustomerPolicy",
-      "norm_label": "app\\models\\customer"
+      "community_name": "Edit",
+      "norm_label": "role"
     },
     {
-      "label": "CustomerPolicy.php",
+      "label": "UsersEditTest.php",
       "file_type": "code",
-      "source_file": "app/Policies/CustomerPolicy.php",
+      "source_file": "tests/Feature/UsersEditTest.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_policies_customerpolicy",
+      "id": "tests_feature_usersedittest",
       "community": 213,
-      "community_name": "CustomerPolicy",
-      "norm_label": "customerpolicy.php"
+      "community_name": "Edit",
+      "norm_label": "usersedittest.php"
     },
     {
       "label": "0003-package-bandwidth-modeling-and-status-lifecycle.md",
@@ -13856,8 +13823,30 @@
       "_origin": "ast",
       "id": "app_models_pembayaran_php_logoptions",
       "community": 215,
-      "community_name": "Pembayaran",
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
       "norm_label": "logoptions"
+    },
+    {
+      "label": "PromoPenggunaan.php",
+      "file_type": "code",
+      "source_file": "app/Models/PromoPenggunaan.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_models_promopenggunaan",
+      "community": 215,
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+      "norm_label": "promopenggunaan.php"
+    },
+    {
+      "label": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_database_eloquent_relations_belongsto",
+      "community": 215,
+      "community_name": "Illuminate\\Database\\Eloquent\\Relations\\BelongsTo",
+      "norm_label": "illuminate\\database\\eloquent\\relations\\belongsto"
     },
     {
       "label": "IpPoolPolicy.php",
@@ -14432,28 +14421,6 @@
       "norm_label": "roles/edit.php"
     },
     {
-      "label": "Roles/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Roles/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_roles_index",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": "roles/index.php"
-    },
-    {
-      "label": "Users/Create.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Create.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_users_create",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": "users/create.php"
-    },
-    {
       "label": "Users/Edit.php",
       "file_type": "code",
       "source_file": "app/Livewire/Users/Edit.php",
@@ -14485,17 +14452,6 @@
       "community": 220,
       "community_name": "Illuminate\\Support\\Str",
       "norm_label": "database.php"
-    },
-    {
-      "label": "permission.php",
-      "file_type": "code",
-      "source_file": "config/permission.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "config_permission",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": "permission.php"
     },
     {
       "label": "session.php",
@@ -14540,39 +14496,6 @@
       "community": 220,
       "community_name": "Illuminate\\Support\\Str",
       "norm_label": "pdo\\mysql"
-    },
-    {
-      "label": "Role",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "role",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": "role"
-    },
-    {
-      "label": "Spatie\\Permission\\DefaultTeamResolver",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "spatie_permission_defaultteamresolver",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": "spatie\\permission\\defaultteamresolver"
-    },
-    {
-      "label": "Spatie\\Permission\\Models\\Permission",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "spatie_permission_models_permission",
-      "community": 220,
-      "community_name": "Illuminate\\Support\\Str",
-      "norm_label": "spatie\\permission\\models\\permission"
     },
     {
       "label": "Spatie\\Permission\\Models\\Role",
@@ -14870,6 +14793,105 @@
       "community": 225,
       "community_name": "ProfileValidationRules.php",
       "norm_label": "laravel\\fortify\\contracts\\createsnewusers"
+    },
+    {
+      "label": "JenisKoneksi.php",
+      "file_type": "code",
+      "source_file": "app/Enums/JenisKoneksi.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_enums_jeniskoneksi",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "jeniskoneksi.php"
+    },
+    {
+      "label": "StatusPelanggan.php",
+      "file_type": "code",
+      "source_file": "app/Enums/StatusPelanggan.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_enums_statuspelanggan",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "statuspelanggan.php"
+    },
+    {
+      "label": "LayananPelanggan/Edit.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_layananpelanggan_edit",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "layananpelanggan/edit.php"
+    },
+    {
+      "label": "Pelanggan/Create.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pelanggan/Create.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_pelanggan_create",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "pelanggan/create.php"
+    },
+    {
+      "label": "Pelanggan/Edit.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pelanggan/Edit.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_pelanggan_edit",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "pelanggan/edit.php"
+    },
+    {
+      "label": "Profile.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Settings/Profile.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_settings_profile",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "profile.php"
+    },
+    {
+      "label": "Security.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Settings/Security.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_settings_security",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "security.php"
+    },
+    {
+      "label": "Illuminate\\Support\\Facades\\Auth",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_support_facades_auth",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "illuminate\\support\\facades\\auth"
+    },
+    {
+      "label": "Livewire\\Attributes\\Locked",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "livewire_attributes_locked",
+      "community": 226,
+      "community_name": "LayananPelanggan/Edit.php",
+      "norm_label": "livewire\\attributes\\locked"
     },
     {
       "label": "LaporanBillingExport.php",
@@ -15224,17 +15246,6 @@
       "norm_label": "promo.php"
     },
     {
-      "label": "PromoPenggunaan.php",
-      "file_type": "code",
-      "source_file": "app/Models/PromoPenggunaan.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_models_promopenggunaan",
-      "community": 23,
-      "community_name": "Illuminate\\Database\\Eloquent\\Model",
-      "norm_label": "promopenggunaan.php"
-    },
-    {
       "label": "Router.php",
       "file_type": "code",
       "source_file": "app/Models/Router.php",
@@ -15444,336 +15455,6 @@
       "norm_label": "paketlayanan/edit.php"
     },
     {
-      "label": "Invoice/Create.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Create.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_invoice_create",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "invoice/create.php"
-    },
-    {
-      "label": "Invoice/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_invoice_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "invoice/index.php"
-    },
-    {
-      "label": "Invoice/Show.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Invoice/Show.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_invoice_show",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "invoice/show.php"
-    },
-    {
-      "label": "IpPool/Create.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/IpPool/Create.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_ippool_create",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "ippool/create.php"
-    },
-    {
-      "label": "IpPool/Edit.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/IpPool/Edit.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_ippool_edit",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "ippool/edit.php"
-    },
-    {
-      "label": "IpPool/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/IpPool/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_ippool_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "ippool/index.php"
-    },
-    {
-      "label": "LayananPelanggan/Create.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/LayananPelanggan/Create.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_layananpelanggan_create",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "layananpelanggan/create.php"
-    },
-    {
-      "label": "LayananPelanggan/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/LayananPelanggan/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_layananpelanggan_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "layananpelanggan/index.php"
-    },
-    {
-      "label": "PaketLayanan/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/PaketLayanan/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_paketlayanan_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "paketlayanan/index.php"
-    },
-    {
-      "label": "Pelanggan/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_pelanggan_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "pelanggan/index.php"
-    },
-    {
-      "label": "Pembayaran/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Pembayaran/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_pembayaran_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "pembayaran/index.php"
-    },
-    {
-      "label": "ProfilBandwidth/Create.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/ProfilBandwidth/Create.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_profilbandwidth_create",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "profilbandwidth/create.php"
-    },
-    {
-      "label": "ProfilBandwidth/Edit.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/ProfilBandwidth/Edit.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_profilbandwidth_edit",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "profilbandwidth/edit.php"
-    },
-    {
-      "label": "ProfilBandwidth/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_profilbandwidth_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "profilbandwidth/index.php"
-    },
-    {
-      "label": "Promo/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Promo/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_promo_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "promo/index.php"
-    },
-    {
-      "label": "Router/Create.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Router/Create.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_router_create",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "router/create.php"
-    },
-    {
-      "label": "Router/Edit.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Router/Edit.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_router_edit",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "router/edit.php"
-    },
-    {
-      "label": "Router/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Router/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_router_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "router/index.php"
-    },
-    {
-      "label": "Users/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Users/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_users_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "users/index.php"
-    },
-    {
-      "label": "UsersList.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/UsersList.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_userslist",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "userslist.php"
-    },
-    {
-      "label": "Kecamatan/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_wilayah_kecamatan_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "kecamatan/index.php"
-    },
-    {
-      "label": "Kelurahan/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Wilayah/Kelurahan/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_wilayah_kelurahan_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "kelurahan/index.php"
-    },
-    {
-      "label": "Kota/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Wilayah/Kota/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_wilayah_kota_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "kota/index.php"
-    },
-    {
-      "label": "Perumahan/Index.php",
-      "file_type": "code",
-      "source_file": "app/Livewire/Wilayah/Perumahan/Index.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_livewire_wilayah_perumahan_index",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "perumahan/index.php"
-    },
-    {
-      "label": "Flux\\Flux",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "flux_flux",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "flux\\flux"
-    },
-    {
-      "label": "Illuminate\\Contracts\\Pagination\\LengthAwarePaginator",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "illuminate_contracts_pagination_lengthawarepaginator",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "illuminate\\contracts\\pagination\\lengthawarepaginator"
-    },
-    {
-      "label": "Livewire\\Attributes\\Layout",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "livewire_attributes_layout",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "livewire\\attributes\\layout"
-    },
-    {
-      "label": "Livewire\\Attributes\\Title",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "livewire_attributes_title",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "livewire\\attributes\\title"
-    },
-    {
-      "label": "Livewire\\Attributes\\Url",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "livewire_attributes_url",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "livewire\\attributes\\url"
-    },
-    {
-      "label": "Livewire\\WithPagination",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "livewire_withpagination",
-      "community": 233,
-      "community_name": "Livewire\\Attributes\\Title",
-      "norm_label": "livewire\\withpagination"
-    },
-    {
       "label": "confirmDelete({{ $layanan->id }})",
       "file_type": "code",
       "source_file": "resources/views/livewire/layanan-pelanggan/index.blade.php",
@@ -15906,26 +15587,26 @@
       "norm_label": "$set("
     },
     {
-      "label": "StatusRouter.php",
+      "label": "JenisPromo.php",
       "file_type": "code",
-      "source_file": "app/Enums/StatusRouter.php",
+      "source_file": "app/Enums/JenisPromo.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_enums_statusrouter",
+      "id": "app_enums_jenispromo",
       "community": 238,
-      "community_name": "StatusRouter.php",
-      "norm_label": "statusrouter.php"
+      "community_name": "JenisPromo.php",
+      "norm_label": "jenispromo.php"
     },
     {
-      "label": "RouterSeeder.php",
+      "label": "PromoSeeder.php",
       "file_type": "code",
-      "source_file": "database/seeders/RouterSeeder.php",
+      "source_file": "database/seeders/PromoSeeder.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "database_seeders_routerseeder",
+      "id": "database_seeders_promoseeder",
       "community": 238,
-      "community_name": "StatusRouter.php",
-      "norm_label": "routerseeder.php"
+      "community_name": "JenisPromo.php",
+      "norm_label": "promoseeder.php"
     },
     {
       "label": "Billing.php",
@@ -16225,103 +15906,378 @@
       "norm_label": "relationships"
     },
     {
-      "label": "JenisKoneksi.php",
+      "label": "Invoice/Create.php",
       "file_type": "code",
-      "source_file": "app/Enums/JenisKoneksi.php",
+      "source_file": "app/Livewire/Invoice/Create.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_enums_jeniskoneksi",
+      "id": "app_livewire_invoice_create",
       "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "jeniskoneksi.php"
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "invoice/create.php"
     },
     {
-      "label": "StatusPelanggan.php",
+      "label": "Invoice/Index.php",
       "file_type": "code",
-      "source_file": "app/Enums/StatusPelanggan.php",
+      "source_file": "app/Livewire/Invoice/Index.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_enums_statuspelanggan",
+      "id": "app_livewire_invoice_index",
       "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "statuspelanggan.php"
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "invoice/index.php"
     },
     {
-      "label": "LayananPelanggan/Edit.php",
+      "label": "Invoice/Show.php",
       "file_type": "code",
-      "source_file": "app/Livewire/LayananPelanggan/Edit.php",
+      "source_file": "app/Livewire/Invoice/Show.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_livewire_layananpelanggan_edit",
+      "id": "app_livewire_invoice_show",
       "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "layananpelanggan/edit.php"
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "invoice/show.php"
     },
     {
-      "label": "Pelanggan/Create.php",
+      "label": "IpPool/Create.php",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Create.php",
+      "source_file": "app/Livewire/IpPool/Create.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_create",
+      "id": "app_livewire_ippool_create",
       "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "pelanggan/create.php"
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "ippool/create.php"
     },
     {
-      "label": "Pelanggan/Edit.php",
+      "label": "IpPool/Edit.php",
       "file_type": "code",
-      "source_file": "app/Livewire/Pelanggan/Edit.php",
+      "source_file": "app/Livewire/IpPool/Edit.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_livewire_pelanggan_edit",
+      "id": "app_livewire_ippool_edit",
       "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "pelanggan/edit.php"
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "ippool/edit.php"
     },
     {
-      "label": "Profile.php",
+      "label": "IpPool/Index.php",
       "file_type": "code",
-      "source_file": "app/Livewire/Settings/Profile.php",
+      "source_file": "app/Livewire/IpPool/Index.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_livewire_settings_profile",
+      "id": "app_livewire_ippool_index",
       "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "profile.php"
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "ippool/index.php"
     },
     {
-      "label": "Security.php",
+      "label": "LayananPelanggan/Create.php",
       "file_type": "code",
-      "source_file": "app/Livewire/Settings/Security.php",
+      "source_file": "app/Livewire/LayananPelanggan/Create.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "app_livewire_settings_security",
+      "id": "app_livewire_layananpelanggan_create",
       "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "security.php"
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "layananpelanggan/create.php"
     },
     {
-      "label": "Illuminate\\Support\\Facades\\Auth",
+      "label": "LayananPelanggan/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/LayananPelanggan/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_layananpelanggan_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "layananpelanggan/index.php"
+    },
+    {
+      "label": "PaketLayanan/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/PaketLayanan/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_paketlayanan_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "paketlayanan/index.php"
+    },
+    {
+      "label": "Pelanggan/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pelanggan/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_pelanggan_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "pelanggan/index.php"
+    },
+    {
+      "label": "Pembayaran/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Pembayaran/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_pembayaran_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "pembayaran/index.php"
+    },
+    {
+      "label": "ProfilBandwidth/Create.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/ProfilBandwidth/Create.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_profilbandwidth_create",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "profilbandwidth/create.php"
+    },
+    {
+      "label": "ProfilBandwidth/Edit.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/ProfilBandwidth/Edit.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_profilbandwidth_edit",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "profilbandwidth/edit.php"
+    },
+    {
+      "label": "ProfilBandwidth/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/ProfilBandwidth/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_profilbandwidth_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "profilbandwidth/index.php"
+    },
+    {
+      "label": "Promo/Edit.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Promo/Edit.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_promo_edit",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "promo/edit.php"
+    },
+    {
+      "label": "Promo/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Promo/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_promo_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "promo/index.php"
+    },
+    {
+      "label": "Roles/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Roles/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_roles_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "roles/index.php"
+    },
+    {
+      "label": "Router/Create.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Router/Create.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_router_create",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "router/create.php"
+    },
+    {
+      "label": "Router/Edit.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Router/Edit.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_router_edit",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "router/edit.php"
+    },
+    {
+      "label": "Router/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Router/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_router_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "router/index.php"
+    },
+    {
+      "label": "Users/Create.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Create.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_users_create",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "users/create.php"
+    },
+    {
+      "label": "Users/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Users/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_users_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "users/index.php"
+    },
+    {
+      "label": "Kecamatan/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Wilayah/Kecamatan/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_wilayah_kecamatan_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "kecamatan/index.php"
+    },
+    {
+      "label": "Kelurahan/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Wilayah/Kelurahan/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_wilayah_kelurahan_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "kelurahan/index.php"
+    },
+    {
+      "label": "Kota/Create.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Wilayah/Kota/Create.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_wilayah_kota_create",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "kota/create.php"
+    },
+    {
+      "label": "Kota/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Wilayah/Kota/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_wilayah_kota_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "kota/index.php"
+    },
+    {
+      "label": "Perumahan/Index.php",
+      "file_type": "code",
+      "source_file": "app/Livewire/Wilayah/Perumahan/Index.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "app_livewire_wilayah_perumahan_index",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "perumahan/index.php"
+    },
+    {
+      "label": "Flux\\Flux",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "illuminate_support_facades_auth",
+      "id": "flux_flux",
       "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "illuminate\\support\\facades\\auth"
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "flux\\flux"
     },
     {
-      "label": "Livewire\\Attributes\\Locked",
+      "label": "Illuminate\\Contracts\\Pagination\\LengthAwarePaginator",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "livewire_attributes_locked",
+      "id": "illuminate_contracts_pagination_lengthawarepaginator",
       "community": 240,
-      "community_name": "LayananPelanggan/Edit.php",
-      "norm_label": "livewire\\attributes\\locked"
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "illuminate\\contracts\\pagination\\lengthawarepaginator"
+    },
+    {
+      "label": "Illuminate\\View\\View",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "illuminate_view_view",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "illuminate\\view\\view"
+    },
+    {
+      "label": "Livewire\\Attributes\\Layout",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "livewire_attributes_layout",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "livewire\\attributes\\layout"
+    },
+    {
+      "label": "Livewire\\Attributes\\Title",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "livewire_attributes_title",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "livewire\\attributes\\title"
+    },
+    {
+      "label": "Livewire\\Attributes\\Url",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "livewire_attributes_url",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "livewire\\attributes\\url"
+    },
+    {
+      "label": "Livewire\\WithPagination",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "livewire_withpagination",
+      "community": 240,
+      "community_name": "Illuminate\\View\\View",
+      "norm_label": "livewire\\withpagination"
     },
     {
       "label": "LogOptions",
@@ -16346,15 +16302,26 @@
       "norm_label": "promopolicy.php"
     },
     {
-      "label": "PromoTest.php",
+      "label": "StatusRouter.php",
       "file_type": "code",
-      "source_file": "tests/Feature/PromoTest.php",
+      "source_file": "app/Enums/StatusRouter.php",
       "source_location": "L1",
       "_origin": "ast",
-      "id": "tests_feature_promotest",
-      "community": 241,
-      "community_name": "Promo",
-      "norm_label": "promotest.php"
+      "id": "app_enums_statusrouter",
+      "community": 242,
+      "community_name": "StatusRouter.php",
+      "norm_label": "statusrouter.php"
+    },
+    {
+      "label": "RouterSeeder.php",
+      "file_type": "code",
+      "source_file": "database/seeders/RouterSeeder.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "database_seeders_routerseeder",
+      "community": 242,
+      "community_name": "StatusRouter.php",
+      "norm_label": "routerseeder.php"
     },
     {
       "label": "nextStep",
@@ -16863,6 +16830,17 @@
       "norm_label": "userstatus.php"
     },
     {
+      "label": "permission.php",
+      "file_type": "code",
+      "source_file": "config/permission.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "config_permission",
+      "community": 26,
+      "community_name": "UserStatus.php",
+      "norm_label": "permission.php"
+    },
+    {
       "label": "RolesAndPermissionsSeeder.php",
       "file_type": "code",
       "source_file": "database/seeders/RolesAndPermissionsSeeder.php",
@@ -16927,6 +16905,28 @@
       "community": 26,
       "community_name": "UserStatus.php",
       "norm_label": "spatie\\activitylog\\models\\activity"
+    },
+    {
+      "label": "Spatie\\Permission\\DefaultTeamResolver",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "spatie_permission_defaultteamresolver",
+      "community": 26,
+      "community_name": "UserStatus.php",
+      "norm_label": "spatie\\permission\\defaultteamresolver"
+    },
+    {
+      "label": "Spatie\\Permission\\Models\\Permission",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "spatie_permission_models_permission",
+      "community": 26,
+      "community_name": "UserStatus.php",
+      "norm_label": "spatie\\permission\\models\\permission"
     },
     {
       "label": "Spatie\\Permission\\PermissionRegistrar",
@@ -17048,6 +17048,17 @@
       "community": 26,
       "community_name": "UserStatus.php",
       "norm_label": "profilbandwidthtest.php"
+    },
+    {
+      "label": "PromoTest.php",
+      "file_type": "code",
+      "source_file": "tests/Feature/PromoTest.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "tests_feature_promotest",
+      "community": 26,
+      "community_name": "UserStatus.php",
+      "norm_label": "promotest.php"
     },
     {
       "label": "RoleManagementTest.php",
@@ -17631,17 +17642,6 @@
       "community": 272,
       "community_name": "map-view.blade.php",
       "norm_label": "map-view.blade.php"
-    },
-    {
-      "label": "ProfilBandwidthSeeder.php",
-      "file_type": "code",
-      "source_file": "database/seeders/ProfilBandwidthSeeder.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_seeders_profilbandwidthseeder",
-      "community": 273,
-      "community_name": "ProfilBandwidthSeeder.php",
-      "norm_label": "profilbandwidthseeder.php"
     },
     {
       "label": "exportExcel",
@@ -19784,8 +19784,19 @@
       "_origin": "ast",
       "id": "app_console_commands_checkexpiredinvoicescommand",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": "checkexpiredinvoicescommand.php"
+    },
+    {
+      "label": "LogOptions",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "app_models_layananpelanggan_php_logoptions",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": "logoptions"
     },
     {
       "label": "Carbon",
@@ -19795,7 +19806,7 @@
       "_origin": "ast",
       "id": "app_services_billing_billingservice_php_carbon",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": "carbon"
     },
     {
@@ -19806,8 +19817,30 @@
       "_origin": "ast",
       "id": "command",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": "command"
+    },
+    {
+      "label": "InvoiceFactory.php",
+      "file_type": "code",
+      "source_file": "database/factories/InvoiceFactory.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "database_factories_invoicefactory",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": "invoicefactory.php"
+    },
+    {
+      "label": "static",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "database_factories_invoicefactory_php_static",
+      "community": 35,
+      "community_name": "LayananPelanggan",
+      "norm_label": "static"
     },
     {
       "label": "Illuminate\\Console\\Command",
@@ -19817,7 +19850,7 @@
       "_origin": "ast",
       "id": "illuminate_console_command",
       "community": 35,
-      "community_name": "Create",
+      "community_name": "LayananPelanggan",
       "norm_label": "illuminate\\console\\command"
     },
     {
@@ -23625,15 +23658,26 @@
       "norm_label": "akunpelangganfactory.php"
     },
     {
-      "label": "Illuminate\\Database\\Eloquent\\Builder",
+      "label": "LayananPelangganFactory.php",
+      "file_type": "code",
+      "source_file": "database/factories/LayananPelangganFactory.php",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "database_factories_layananpelangganfactory",
+      "community": 54,
+      "community_name": "Pelanggan",
+      "norm_label": "layananpelangganfactory.php"
+    },
+    {
+      "label": "static",
       "file_type": "code",
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "illuminate_database_eloquent_builder",
+      "id": "database_factories_layananpelangganfactory_php_static",
       "community": 54,
       "community_name": "Pelanggan",
-      "norm_label": "illuminate\\database\\eloquent\\builder"
+      "norm_label": "static"
     },
     {
       "label": "Illuminate\\Database\\Eloquent\\Relations\\HasOne",
@@ -29288,50 +29332,6 @@
       "community": 93,
       "community_name": "Routing & Controllers Best Practices",
       "norm_label": "use scoped bindings for nested resources"
-    },
-    {
-      "label": "LogOptions",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "app_models_layananpelanggan_php_logoptions",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": "logoptions"
-    },
-    {
-      "label": "LayananPelangganPolicy.php",
-      "file_type": "code",
-      "source_file": "app/Policies/LayananPelangganPolicy.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "app_policies_layananpelangganpolicy",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": "layananpelangganpolicy.php"
-    },
-    {
-      "label": "InvoiceFactory.php",
-      "file_type": "code",
-      "source_file": "database/factories/InvoiceFactory.php",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "database_factories_invoicefactory",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": "invoicefactory.php"
-    },
-    {
-      "label": "static",
-      "file_type": "code",
-      "source_file": "",
-      "source_location": "",
-      "_origin": "ast",
-      "id": "database_factories_invoicefactory_php_static",
-      "community": 94,
-      "community_name": "LayananPelanggan",
-      "norm_label": "static"
     },
     {
       "label": "style.md",
@@ -44918,6 +44918,18 @@
       "confidence": "EXTRACTED",
       "source_file": "tests/Feature/RoleManagementTest.php",
       "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_feature_rolemanagementtest",
+      "target": "spatie_permission_models_permission",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/Feature/RoleManagementTest.php",
+      "source_location": "L12",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_feature_rolemanagementtest",
@@ -73092,5 +73104,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "3625157fbe6eece66e9e4731095bd468a047589d"
+  "built_at_commit": "f56082bf750f255c2a4594703885360f5a817821"
 }

@@ -71,8 +71,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $nocRole = Role::firstOrCreate(['name' => 'noc']);
         $teknisiRole = Role::firstOrCreate(['name' => 'teknisi']);
 
-        // super_admin bypasses semua permission check via Gate::before() di AppServiceProvider.
-        $superAdmin->syncPermissions([]);
+        // super_admin memiliki SEMUA permissions + bypass via Gate::before() di AppServiceProvider.
+        $superAdmin->syncPermissions(Permission::all());
 
         // admin: operasional harian — semua kecuali router provision/sync, wilayah config, WA gateway
         $adminRole->syncPermissions([
