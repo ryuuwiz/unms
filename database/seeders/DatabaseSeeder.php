@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             CustomerSeeder::class,
             PackageSeeder::class,
+            RouterSeeder::class,
+            IpPoolSeeder::class,
         ]);
     }
 }

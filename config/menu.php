@@ -44,6 +44,20 @@ return [
                 'active' => 'roles.*',
                 'permission' => 'manage_roles',
             ],
+            [
+                'title' => 'Routers',
+                'icon' => 'server',
+                'route' => 'routers.index',
+                'active' => 'routers.*',
+                'permission' => 'view_routers',
+            ],
+            [
+                'title' => 'IP Pools',
+                'icon' => 'server-stack',
+                'route' => 'ip-pools.index',
+                'active' => 'ip-pools.*',
+                'permission' => 'view_ip_pools',
+            ],
         ],
     ],
 ];

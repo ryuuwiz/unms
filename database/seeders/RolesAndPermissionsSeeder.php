@@ -32,6 +32,14 @@ class RolesAndPermissionsSeeder extends Seeder
         $viewPackages = Permission::firstOrCreate(['name' => 'view_packages']);
         $managePackages = Permission::firstOrCreate(['name' => 'manage_packages']);
 
+        // Routers module permissions
+        $viewRouters = Permission::firstOrCreate(['name' => 'view_routers']);
+        $manageRouters = Permission::firstOrCreate(['name' => 'manage_routers']);
+
+        // IP Pools module permissions
+        $viewIpPools = Permission::firstOrCreate(['name' => 'view_ip_pools']);
+        $manageIpPools = Permission::firstOrCreate(['name' => 'manage_ip_pools']);
+
         // Create or retrieve roles
         $superAdmin = Role::firstOrCreate(['name' => 'super_admin']);
         $adminRole = Role::firstOrCreate(['name' => 'admin']);
@@ -40,18 +48,17 @@ class RolesAndPermissionsSeeder extends Seeder
         $nocRole = Role::firstOrCreate(['name' => 'noc']);
         $teknisiRole = Role::firstOrCreate(['name' => 'teknisi']);
 
-        // super_admin gets all permissions
-        $superAdmin->syncPermissions([
-            $viewUsers, $manageUsers, $manageRoles,
-            $viewCustomers, $manageCustomers,
-            $viewPackages, $managePackages,
-        ]);
+        // super_admin bypasses all permission checks via Gate::before() in AppServiceProvider.
+        // No explicit permission sync needed.
+        $superAdmin->syncPermissions([]);
 
         // admin gets user and customer management permissions
         $adminRole->syncPermissions([
             $viewUsers, $manageUsers,
             $viewCustomers, $manageCustomers,
             $viewPackages, $managePackages,
+            $viewRouters,
+            $viewIpPools, $manageIpPools,
         ]);
 
         // sales can create and view customers, and view packages
@@ -59,9 +66,10 @@ class RolesAndPermissionsSeeder extends Seeder
             $viewCustomers, $manageCustomers, $viewPackages,
         ]);
 
-        // noc & teknisi are view-only for customers
+        // noc & teknisi are view-only for customers; noc can also see routers & ip-pools
         $nocRole->syncPermissions([
             $viewCustomers, $viewPackages,
+            $viewRouters, $viewIpPools,
         ]);
         $teknisiRole->syncPermissions([
             $viewCustomers, $viewPackages,
