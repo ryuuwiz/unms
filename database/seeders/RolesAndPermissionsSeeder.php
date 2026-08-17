@@ -54,9 +54,9 @@ class RolesAndPermissionsSeeder extends Seeder
             $viewPackages, $managePackages,
         ]);
 
-        // sales can create and view customers
+        // sales can create and view customers, and view packages
         $salesRole->syncPermissions([
-            $viewCustomers, $manageCustomers,
+            $viewCustomers, $manageCustomers, $viewPackages,
         ]);
 
         // noc & teknisi are view-only for customers

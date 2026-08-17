@@ -36,3 +36,14 @@ _Avoid_: Lokasi Pasang, Installation Site
 Status operasional akun master pelanggan (`Active` / `Inactive`).
 _Avoid_: Kondisi, State
 
+**Paket Internet**:
+Entitas katalog layanan langganan internet ISP yang menentukan kecepatan unduh/unggah, harga bulanan, dan status penjualan.
+_Avoid_: Package, Product, Paket Layanan, Paket Data
+
+**Kecepatan Bandwidth**:
+Kapasitas kecepatan transfer data paket internet dalam satuan Mbps, mencakup Kecepatan Unduh (Download) dan Kecepatan Unggah (Upload).
+_Avoid_: Speed, Bandwidth Limit, Rate Limit
+
+**Status Paket**:
+Status ketersediaan penjualan paket internet (`Active` / `Inactive`). Paket nonaktif tetap valid bagi pelanggan lama namun tidak dapat dipilih untuk pelanggan baru.
+_Avoid_: Status Jual, Kondisi Paket

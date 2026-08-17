@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Customers;
+use App\Livewire\Packages;
 use App\Livewire\Roles;
 use App\Livewire\Users;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,13 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/create', Customers\Create::class)->name('create');
             Route::get('/{customer}', Customers\Show::class)->name('show');
             Route::get('/{customer}/edit', Customers\Edit::class)->name('edit');
+        });
+
+    Route::middleware('permission:view_packages')
+        ->prefix('packages')
+        ->name('packages.')
+        ->group(function () {
+            Route::get('/', Packages\Index::class)->name('index');
         });
 
     Route::middleware('permission:manage_users')

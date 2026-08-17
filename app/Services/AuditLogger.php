@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Enums\CustomerStatus;
+use App\Enums\PackageStatus;
 use App\Models\AuditLog;
 use App\Models\Customer;
+use App\Models\Package;
 use App\Models\User;
 use Illuminate\Support\Facades\Request;
 use Spatie\Permission\Models\Role;
@@ -163,6 +165,82 @@ class AuditLogger
             'old_values' => [
                 'customer_code' => $customer->customer_code,
                 'name' => $customer->name,
+            ],
+            'new_values' => null,
+            'ip_address' => Request::ip(),
+        ]);
+    }
+
+    /**
+     * Record the creation of an internet package.
+     */
+    public static function recordPackageCreated(User $actor, Package $package): void
+    {
+        AuditLog::create([
+            'user_id' => $actor->id,
+            'action' => 'package_created',
+            'subject_type' => Package::class,
+            'subject_id' => $package->id,
+            'old_values' => null,
+            'new_values' => [
+                'name' => $package->name,
+                'download_speed_mbps' => $package->download_speed_mbps,
+                'upload_speed_mbps' => $package->upload_speed_mbps,
+                'price' => $package->price,
+                'status' => $package->status->value,
+            ],
+            'ip_address' => Request::ip(),
+        ]);
+    }
+
+    /**
+     * Record updates to an internet package.
+     *
+     * @param  array<string, mixed>  $oldValues
+     * @param  array<string, mixed>  $newValues
+     */
+    public static function recordPackageUpdated(User $actor, Package $package, array $oldValues, array $newValues): void
+    {
+        AuditLog::create([
+            'user_id' => $actor->id,
+            'action' => 'package_updated',
+            'subject_type' => Package::class,
+            'subject_id' => $package->id,
+            'old_values' => $oldValues,
+            'new_values' => $newValues,
+            'ip_address' => Request::ip(),
+        ]);
+    }
+
+    /**
+     * Record internet package status changes.
+     */
+    public static function recordPackageStatusChanged(User $actor, Package $package, PackageStatus $oldStatus, PackageStatus $newStatus): void
+    {
+        AuditLog::create([
+            'user_id' => $actor->id,
+            'action' => 'package_status_changed',
+            'subject_type' => Package::class,
+            'subject_id' => $package->id,
+            'old_values' => ['status' => $oldStatus->value],
+            'new_values' => ['status' => $newStatus->value],
+            'ip_address' => Request::ip(),
+        ]);
+    }
+
+    /**
+     * Record internet package deletion / archival.
+     */
+    public static function recordPackageDeleted(User $actor, Package $package): void
+    {
+        AuditLog::create([
+            'user_id' => $actor->id,
+            'action' => 'package_deleted',
+            'subject_type' => Package::class,
+            'subject_id' => $package->id,
+            'old_values' => [
+                'name' => $package->name,
+                'price' => $package->price,
             ],
             'new_values' => null,
             'ip_address' => Request::ip(),

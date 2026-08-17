@@ -19,6 +19,13 @@ return [
                 'permission' => 'view_customers',
             ],
             [
+                'title' => 'Paket Internet',
+                'icon' => 'bolt',
+                'route' => 'packages.index',
+                'active' => 'packages.*',
+                'permission' => 'view_packages',
+            ],
+            [
                 'title' => 'Pengguna',
                 'icon' => 'users',
                 'route' => 'users.index',

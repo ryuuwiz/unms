@@ -20,6 +20,8 @@ test('super_admin sees all navigation groups and items in indonesian without rep
     $response->assertOk()
         ->assertSee('Menu Utama')
         ->assertSee('Dashboard')
+        ->assertSee('Pelanggan')
+        ->assertSee('Paket Internet')
         ->assertSee('Pengguna')
         ->assertSee('Administrasi')
         ->assertSee('Peran')
