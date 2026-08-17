@@ -4,13 +4,29 @@ Ubiquiti & ISP Network Management System (UNMS) staff application context and ub
 
 ## Language
 
-**Menu Utama**:
-Kelompok navigasi utama untuk fitur operasional harian yang dapat diakses oleh staff sesuai hak aksesnya.
-_Avoid_: Platform, Main Navigation, Navigasi
+**Dashboard**:
+Halaman beranda utama ringkasan metrik operasional dan status sistem yang dapat diakses oleh semua staff aktif.
+_Avoid_: Home, Beranda Bebas, Main View
+
+**Navigasi Sekunder**:
+Bilah navigasi horizontal kontekstual di bagian atas layar (Secondary Header) yang menyajikan tab sub-menu modul aktif atau aksi spesifik halaman.
+_Avoid_: Top Menu Bebas, Double Header, Tab Lepas
+
+**Pelanggan & Layanan**:
+Kelompok navigasi utama untuk operasional data pelanggan, langganan layanan internet aktif, katalog paket, dan konfigurasi profil bandwidth.
+_Avoid_: Menu Utama, Main Navigation, CRM, Pelanggan Saja
 
 **Keuangan & Billing**:
 Kelompok navigasi untuk manajemen tagihan invoice, penerimaan pembayaran, promo, dan laporan keuangan.
 _Avoid_: Finance, Kasir, Akuntansi
+
+**Jaringan & Infrastruktur**:
+Kelompok navigasi untuk konfigurasi teknis perangkat MikroTik RouterOS dan distribusi alokasi subnet IP Pool.
+_Avoid_: Network, Hardware, Alat Jaringan
+
+**Area & Wilayah**:
+Kelompok navigasi untuk manajemen hierarki cakupan lokasi operasional ISP dari tingkat Kota, Kecamatan, Kelurahan, hingga Perumahan/Cluster.
+_Avoid_: Lokasi, Mapping, Coverage Area
 
 **Administrasi**:
 Kelompok navigasi untuk manajemen sistem, konfigurasi peran, dan kontrol hak akses pengguna.
@@ -55,6 +71,22 @@ _Avoid_: Switch, Gateway Umum
 **IP Pool**:
 Blok alokasi alamat IP (Network, CIDR, Range IP) yang terikat pada Router untuk distribusi IP pelanggan.
 _Avoid_: Subnet Bebas, DHCP Range
+
+**Kota**:
+Entitas tingkat administratif kota/kabupaten dalam cakupan operasional ISP.
+_Avoid_: City, Daerah
+
+**Kecamatan**:
+Entitas tingkat administratif kecamatan di bawah kota/kabupaten.
+_Avoid_: District, Wilayah 2
+
+**Kelurahan**:
+Entitas tingkat administratif kelurahan/desa di bawah kecamatan.
+_Avoid_: Sub-district, Desa
+
+**Perumahan**:
+Entitas cluster, perumahan, atau kawasan pemukiman spesifik titik pemasangan instalasi pelanggan.
+_Avoid_: Residential, Cluster, Komplek
 
 **Invoice**:
 Dokumen tagihan pembayaran resmi atas layanan internet pelanggan dengan format penomoran `INV-YYYYMM-NNNNNN`.

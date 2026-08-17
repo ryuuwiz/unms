@@ -18,8 +18,8 @@ test('super_admin sees all navigation groups and items in indonesian', function 
     $response = $this->actingAs($superAdmin)->get(route('dashboard'));
 
     $response->assertOk()
-        ->assertSee('Menu Utama')
         ->assertSee('Dashboard')
+        ->assertSee('Pelanggan & Layanan')
         ->assertSee('Pelanggan')
         ->assertSee('Layanan Pelanggan')
         ->assertSee('Paket Layanan')
@@ -39,19 +39,21 @@ test('super_admin sees all navigation groups and items in indonesian', function 
         ->assertSee('Peran');
 });
 
-test('user without permissions only sees menu utama and dashboard', function () {
+test('user without permissions only sees dashboard', function () {
     $user = User::factory()->create(['status' => UserStatus::Active]);
     // No role assigned
 
     $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertOk()
-        ->assertSee('Menu Utama')
         ->assertSee('Dashboard')
+        ->assertDontSee('Pelanggan & Layanan')
         ->assertDontSee('Layanan Pelanggan')
         ->assertDontSee('Profil Bandwidth')
         ->assertDontSee('Keuangan & Billing')
         ->assertDontSee('Tagihan (Invoice)')
+        ->assertDontSee('Jaringan & Infrastruktur')
+        ->assertDontSee('Area & Wilayah')
         ->assertDontSee('Administrasi');
 });
 
@@ -62,8 +64,22 @@ test('user with pengguna.lihat permission sees pengguna menu item', function () 
     $response = $this->actingAs($user)->get(route('dashboard'));
 
     $response->assertOk()
-        ->assertSee('Menu Utama')
         ->assertSee('Dashboard')
+        ->assertSee('Administrasi')
         ->assertSee('Pengguna')
+        ->assertDontSee('Pelanggan & Layanan')
         ->assertDontSee('Peran (Role)');
+});
+
+test('secondary header displays contextual sub-navigation when visiting a module page', function () {
+    $superAdmin = User::factory()->create(['status' => UserStatus::Active]);
+    $superAdmin->assignRole('super_admin');
+
+    $response = $this->actingAs($superAdmin)->get(route('pelanggan.index'));
+
+    $response->assertOk()
+        ->assertSee('Pelanggan')
+        ->assertSee('Layanan Pelanggan')
+        ->assertSee('Paket Layanan')
+        ->assertSee('Profil Bandwidth');
 });

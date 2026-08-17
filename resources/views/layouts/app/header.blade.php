@@ -34,15 +34,39 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                @foreach (config('menu', []) as $group)
+                @foreach (config('menu.standalone', []) as $item)
+                    @if (!isset($item['permission']) || empty($item['permission']) || (auth()->check() && auth()->user()->can($item['permission'])))
+                        <flux:sidebar.item
+                            :icon="$item['icon']"
+                            :href="route($item['route'])"
+                            :current="request()->routeIs($item['active'] ?? $item['route'])"
+                            wire:navigate
+                        >
+                            {{ __($item['title']) }}
+                        </flux:sidebar.item>
+                    @endif
+                @endforeach
+
+                @foreach (config('menu.groups', []) as $group)
                     @php
                         $visibleItems = collect($group['items'] ?? [])->filter(function ($item) {
                             return !isset($item['permission']) || empty($item['permission']) || (auth()->check() && auth()->user()->can($item['permission']));
                         });
+                        $hasActiveItem = $visibleItems->contains(function ($item) {
+                            return request()->routeIs($item['active'] ?? $item['route']);
+                        });
+                        $isExpandable = $group['expandable'] ?? false;
+                        $isExpanded = $hasActiveItem || ($group['expanded'] ?? false);
                     @endphp
 
                     @if ($visibleItems->isNotEmpty())
-                        <flux:sidebar.group :heading="__($group['heading'] ?? '')" class="grid">
+                        <flux:sidebar.group
+                            :heading="__($group['heading'] ?? '')"
+                            :icon="$group['icon'] ?? null"
+                            :expandable="$isExpandable"
+                            :expanded="$isExpanded"
+                            class="grid"
+                        >
                             @foreach ($visibleItems as $item)
                                 <flux:sidebar.item
                                     :icon="$item['icon']"

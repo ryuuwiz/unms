@@ -1,7 +1,7 @@
 # Graph Report - unms  (2026-08-17)
 
 ## Corpus Check
-- 479 files · ~170,429 words
+- 479 files · ~170,726 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `982b9dec`
+- Built from commit: `b6ef231b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -50,7 +50,7 @@
 - HTML Report Format
 - HTML Report Format
 - .agents/skills/wizard/template.sh
-- StatusRouter.php
+- LayananPelanggan/Edit.php
 - .claude/skills/wizard/template.sh
 - .kilocode/skills/wizard/template.sh
 - Laravel Fortify Development
@@ -161,7 +161,7 @@
 - User
 - Security
 - Promo/Create.php
-- LayananPelanggan/Edit.php
+- CustomerPolicy
 - Package Bandwidth Modeling, Status Lifecycle, and Mikrotik Boundary Policy
 - Pembayaran
 - Create
@@ -180,26 +180,26 @@
 - Standardisasi Satuan Mbps pada Profil Bandwidth dan Sinkronisasi RouterOS
 - Index
 - paket-layanan/index.blade.php
-- ProfilBandwidthSeeder.php
+- StatusRouter.php
 - Livewire\Attributes\Title
-- CustomerPolicy
+- Edit
 - layanan-pelanggan/index.blade.php
 - ip-pool/index.blade.php
 - profil-bandwidth/index.blade.php
+- Index
 - Billing.php
 - Livewire\Component
 - Promo
-- Edit
+- Index
 - layanan-pelanggan/create.blade.php
 - ip-pool/create.blade.php
 - ip-pool/edit.blade.php
-- Index
+- ProfilBandwidthSeeder.php
 - promo/index.blade.php
 - ADR 0004: Siklus Hidup Billing, Invoice, dan Pembayaran Manual
 - invoice/index.blade.php
 - invoice/show.blade.php
 - exportExcel
-- Index
 
 ## God Nodes (most connected - your core abstractions)
 1. `User` - 136 edges
@@ -830,11 +830,11 @@ Nodes (3): confirmDelete({{ $inv->id }}), deleteInvoice, $set(
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `User` to `Create`, `PasswordValidationRules.php`, `ProfilBandwidth`, `Illuminate\Database\Eloquent\Model`, `UserStatus.php`, `Laravel\Fortify\Features`, `Pelanggan`, `.run`, `PaketLayanan`, `TipePelanggan.php`, `IpPool`, `PelangganSeeder.php`, `Illuminate\Support\Str`, `LayananPelanggan`, `ProfileValidationRules.php`, `Router`, `Livewire\Attributes\Title`, `CustomerPolicy`, `Promo`?**
+- **Why does `User` connect `User` to `Create`, `PasswordValidationRules.php`, `ProfilBandwidth`, `Illuminate\Database\Eloquent\Model`, `UserStatus.php`, `Laravel\Fortify\Features`, `Pelanggan`, `.run`, `PaketLayanan`, `TipePelanggan.php`, `CustomerPolicy`, `IpPool`, `PelangganSeeder.php`, `Illuminate\Support\Str`, `LayananPelanggan`, `ProfileValidationRules.php`, `Router`, `Livewire\Attributes\Title`, `Promo`?**
   _High betweenness centrality (0.031) - this node is a cross-community bridge._
 - **Why does `Invoice` connect `Invoice` to `Create`, `LaporanBillingExport`, `UserStatus.php`, `Livewire\Attributes\Title`, `.run`, `Billing.php`, `Illuminate\Database\Eloquent\Factories\Factory`, `User`, `Pelanggan`, `Illuminate\Database\Eloquent\Model`, `LayananPelanggan`, `PelangganSeeder.php`, `InvoicePdfController.php`, `Index`?**
   _High betweenness centrality (0.015) - this node is a cross-community bridge._
-- **Why does `Router` connect `Router` to `StatusRouter.php`, `UserStatus.php`, `Create`, `Livewire\Attributes\Title`, `PaketLayanan`, `.run`, `Illuminate\Database\Eloquent\Factories\Factory`, `LayananPelanggan/Edit.php`, `Pelanggan`, `Illuminate\Database\Eloquent\Model`, `IpPool`, `PelangganSeeder.php`, `LayananPelanggan`?**
+- **Why does `Router` connect `Router` to `LayananPelanggan/Edit.php`, `UserStatus.php`, `Create`, `StatusRouter.php`, `Livewire\Attributes\Title`, `PaketLayanan`, `.run`, `Illuminate\Database\Eloquent\Factories\Factory`, `Pelanggan`, `Illuminate\Database\Eloquent\Model`, `IpPool`, `PelangganSeeder.php`, `LayananPelanggan`?**
   _High betweenness centrality (0.012) - this node is a cross-community bridge._
 - **What connects `$schema`, `name`, `type` to the rest of the system?**
   _1066 weakly-connected nodes found - possible documentation gaps or missing edges._
