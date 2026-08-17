@@ -28,15 +28,20 @@
             @foreach ($groupedPermissions as $module => $permissions)
                 <div class="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
                     <flux:text class="mb-3 font-semibold capitalize">
-                        {{ Str::title($module) }}
+                        {{ Str::headline($module) }}
                     </flux:text>
 
                     <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         @foreach ($permissions as $permission)
+                            @php
+                                $permName = is_string($permission) ? $permission : ($permission->name ?? $permission['name'] ?? '');
+                                $action = Str::contains($permName, '.') ? Str::afterLast($permName, '.') : $permName;
+                                $label = Str::headline($action);
+                            @endphp
                             <flux:checkbox
                                 wire:model="selectedPermissions"
-                                value="{{ is_array($permission) ? $permission['name'] : $permission }}"
-                                label="{{ Str::title(str_replace('_', ' ', is_array($permission) ? $permission['name'] : $permission)) }}"
+                                :value="$permName"
+                                :label="$label"
                             />
                         @endforeach
                     </div>

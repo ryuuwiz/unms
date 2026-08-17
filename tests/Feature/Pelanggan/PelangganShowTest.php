@@ -63,3 +63,17 @@ test('renders empty state when coordinates are not set', function () {
         ->assertSee('Koordinat belum ditentukan')
         ->assertSee('Atur Titik Koordinat');
 });
+
+test('can switch to audit tab and render activity logs', function () {
+    activity()
+        ->performedOn($this->pelanggan)
+        ->causedBy($this->superAdmin)
+        ->log('Memperbarui data pelanggan');
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->call('setTab', 'audit')
+        ->assertSet('activeTab', 'audit')
+        ->assertSee('Log Aktivitas Data Pelanggan')
+        ->assertSee('Memperbarui data pelanggan');
+});

@@ -125,10 +125,7 @@ class Edit extends Component
          * @var array<string, array<string>> $groupedPermissions
          */
         $groupedPermissions = $user->getAllPermissions()
-            ->groupBy(fn ($perm) => Str::after(
-                $perm->name,
-                Str::startsWith($perm->name, 'manage_') ? 'manage_' : 'view_'
-            ))
+            ->groupBy(fn ($perm) => explode('.', $perm->name)[0])
             ->map(fn ($perms) => $perms->pluck('name')->all())
             ->toArray();
 

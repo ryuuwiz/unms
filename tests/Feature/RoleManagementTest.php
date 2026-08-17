@@ -85,3 +85,26 @@ it('deletes a role that has no users', function () {
 
     expect(Role::where('name', 'to_be_deleted')->exists())->toBeFalse();
 });
+
+it('renders permission labels properly without raw json string', function () {
+    actingAs($this->superAdmin);
+
+    $role = Role::where('name', 'admin')->first();
+
+    Livewire::test(Edit::class, ['role' => $role])
+        ->assertOk()
+        ->assertSee('Pelanggan')
+        ->assertSee('Lihat')
+        ->assertSee('Buat')
+        ->assertSee('Ubah')
+        ->assertSee('Hapus')
+        ->assertDontSee('"guard_name"')
+        ->assertDontSee('"Guard Name"');
+
+    Livewire::test(Create::class)
+        ->assertOk()
+        ->assertSee('Pelanggan')
+        ->assertSee('Lihat')
+        ->assertDontSee('"guard_name"')
+        ->assertDontSee('"Guard Name"');
+});

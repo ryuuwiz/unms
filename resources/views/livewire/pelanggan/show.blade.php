@@ -64,97 +64,121 @@
 
     {{-- Tab 1: Informasi & Lokasi --}}
     @if ($activeTab === 'overview')
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {{-- Kolom Kiri: Detail Kontak & Alamat --}}
-            <div class="space-y-6 lg:col-span-2">
-                {{-- Card Kontak --}}
-                <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                    <flux:heading size="base" class="mb-4">Kontak & Identitas</flux:heading>
+        <div class="space-y-6">
+            {{-- Bagian Atas: Kontak, Alamat, & Informasi Internal --}}
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                {{-- Kolom Kiri: Detail Kontak & Alamat --}}
+                <div class="space-y-6 lg:col-span-2">
+                    {{-- Card Kontak --}}
+                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                        <flux:heading size="base" class="mb-4">Kontak & Identitas</flux:heading>
 
-                    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div>
-                            <dt class="text-xs font-medium text-zinc-400">Nama Lengkap</dt>
-                            <dd class="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $pelanggan->namaLengkap() }}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs font-medium text-zinc-400">Nomor WhatsApp / HP</dt>
-                            <dd class="mt-1 flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                {{ $pelanggan->no_hp }}
-                                <a
-                                    href="https://wa.me/{{ $pelanggan->no_hp }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
-                                    title="Hubungi via WhatsApp"
-                                >
-                                    <flux:icon name="chat-bubble-left-right" class="size-3" />
-                                    Chat WA
-                                </a>
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs font-medium text-zinc-400">Alamat Email</dt>
-                            <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->email ?: '—' }}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs font-medium text-zinc-400">Telepon Rumah</dt>
-                            <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->telepon_rumah ?: '—' }}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs font-medium text-zinc-400">Tipe Pelanggan</dt>
-                            <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->tipe_pelanggan->label() }}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs font-medium text-zinc-400">Kode Pembayaran (VA)</dt>
-                            <dd class="mt-1 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">{{ $pelanggan->kode_pembayaran }}</dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs font-medium text-zinc-400">Status Akun</dt>
-                            <dd class="mt-1">
-                                <flux:badge size="sm" :color="$pelanggan->status->color()">
-                                    {{ $pelanggan->status->label() }}
-                                </flux:badge>
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs font-medium text-zinc-400">Perumahan / Area</dt>
-                            <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->perumahan?->nama_perumahan ?? '—' }}</dd>
-                        </div>
-                    </dl>
+                        <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <dt class="text-xs font-medium text-zinc-400">Nama Lengkap</dt>
+                                <dd class="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $pelanggan->namaLengkap() }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-zinc-400">Nomor WhatsApp / HP</dt>
+                                <dd class="mt-1 flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                    {{ $pelanggan->no_hp }}
+                                    <a
+                                        href="https://wa.me/{{ $pelanggan->no_hp }}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
+                                        title="Hubungi via WhatsApp"
+                                    >
+                                        <flux:icon name="chat-bubble-left-right" class="size-3" />
+                                        Chat WA
+                                    </a>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-zinc-400">Alamat Email</dt>
+                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->email ?: '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-zinc-400">Telepon Rumah</dt>
+                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->telepon_rumah ?: '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-zinc-400">Tipe Pelanggan</dt>
+                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->tipe_pelanggan->label() }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-zinc-400">Kode Pembayaran (VA)</dt>
+                                <dd class="mt-1 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">{{ $pelanggan->kode_pembayaran }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-zinc-400">Status Akun</dt>
+                                <dd class="mt-1">
+                                    <flux:badge size="sm" :color="$pelanggan->status->color()">
+                                        {{ $pelanggan->status->label() }}
+                                    </flux:badge>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-zinc-400">Perumahan / Area</dt>
+                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->perumahan?->nama_perumahan ?? '—' }}</dd>
+                            </div>
+                        </dl>
+                    </div>
+
+                    {{-- Card Alamat --}}
+                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                        <flux:heading size="base" class="mb-4">Alamat Pemasangan</flux:heading>
+
+                        <dl class="space-y-4">
+                            <div>
+                                <dt class="text-xs font-medium text-zinc-400">Alamat Lengkap</dt>
+                                <dd class="mt-1 text-sm text-zinc-800 dark:text-zinc-200">{{ $pelanggan->alamat_lengkap }}</dd>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                                <div>
+                                    <dt class="text-xs font-medium text-zinc-400">RT / RW</dt>
+                                    <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->rt ?? '-' }} / {{ $pelanggan->rw ?? '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-zinc-400">No. Rumah</dt>
+                                    <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->no_rumah ?? '—' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-zinc-400">Kode Pos</dt>
+                                    <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->kode_pos ?? '—' }}</dd>
+                                </div>
+                            </div>
+                        </dl>
+                    </div>
                 </div>
 
-                {{-- Card Alamat --}}
-                <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                    <flux:heading size="base" class="mb-4">Alamat Pemasangan</flux:heading>
+                {{-- Kolom Kanan: Informasi Internal --}}
+                <div class="space-y-6">
+                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                        <flux:heading size="base" class="mb-4">Informasi Internal</flux:heading>
 
-                    <dl class="space-y-4">
-                        <div>
-                            <dt class="text-xs font-medium text-zinc-400">Alamat Lengkap</dt>
-                            <dd class="mt-1 text-sm text-zinc-800 dark:text-zinc-200">{{ $pelanggan->alamat_lengkap }}</dd>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <dl class="space-y-4 text-xs">
                             <div>
-                                <dt class="text-xs font-medium text-zinc-400">RT / RW</dt>
-                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->rt ?? '-' }} / {{ $pelanggan->rw ?? '-' }}</dd>
+                                <dt class="text-zinc-400">Didaftarkan Oleh</dt>
+                                <dd class="mt-0.5 font-medium text-zinc-800 dark:text-zinc-200">{{ $pelanggan->pembuat?->name ?? '—' }}</dd>
                             </div>
                             <div>
-                                <dt class="text-xs font-medium text-zinc-400">No. Rumah</dt>
-                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->no_rumah ?? '—' }}</dd>
+                                <dt class="text-zinc-400">Tanggal Dibuat</dt>
+                                <dd class="mt-0.5 text-zinc-700 dark:text-zinc-300">{{ $pelanggan->created_at?->format('d/m/Y H:i') ?? '—' }}</dd>
                             </div>
                             <div>
-                                <dt class="text-xs font-medium text-zinc-400">Kode Pos</dt>
-                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">{{ $pelanggan->kode_pos ?? '—' }}</dd>
+                                <dt class="text-zinc-400">Terakhir Diperbarui</dt>
+                                <dd class="mt-0.5 text-zinc-700 dark:text-zinc-300">{{ $pelanggan->updated_at?->format('d/m/Y H:i') ?? '—' }}</dd>
                             </div>
-                        </div>
-                    </dl>
+                        </dl>
+                    </div>
                 </div>
             </div>
 
-            {{-- Kolom Kanan: Peta Titik Koordinat & Informasi Sistem --}}
-            <div class="space-y-6">
-                {{-- Card Peta Koordinat --}}
-                <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                    <div class="mb-3 flex items-center justify-between">
+            {{-- Card Titik Koordinat Lokasi (Full Width) --}}
+            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="flex items-center gap-3">
                         <flux:heading size="base">Titik Koordinat Lokasi</flux:heading>
                         @if ($pelanggan->latitude && $pelanggan->longitude)
                             <flux:badge size="sm" color="emerald" class="font-mono text-xs">
@@ -165,87 +189,77 @@
                     </div>
 
                     @if ($pelanggan->latitude && $pelanggan->longitude)
-                        <div class="space-y-3">
-                            {{-- Peta Leaflet --}}
-                            <x-map-view
-                                :lat="$pelanggan->latitude"
-                                :lng="$pelanggan->longitude"
-                                :popup-title="$pelanggan->namaLengkap()"
-                                :popup-subtitle="$pelanggan->alamat_lengkap"
-                                height="220px"
-                            />
-
-                            {{-- Coordinate Chips / Details --}}
-                            <div class="grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-2.5 text-xs dark:bg-zinc-800/50">
-                                <div>
-                                    <span class="text-[11px] text-zinc-400">Latitude</span>
-                                    <div class="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{{ number_format((float) $pelanggan->latitude, 7, '.', '') }}</div>
-                                </div>
-                                <div>
-                                    <span class="text-[11px] text-zinc-400">Longitude</span>
-                                    <div class="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{{ number_format((float) $pelanggan->longitude, 7, '.', '') }}</div>
-                                </div>
-                            </div>
-
-                            {{-- External Map Actions --}}
-                            <div class="flex flex-col gap-2 pt-1">
-                                <a
-                                    href="https://www.google.com/maps?q={{ $pelanggan->latitude }},{{ $pelanggan->longitude }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                                >
-                                    <flux:icon name="arrow-top-right-on-square" class="size-3.5" />
-                                    Buka di Google Maps
-                                </a>
-                                <a
-                                    href="https://www.openstreetmap.org/?mlat={{ $pelanggan->latitude }}&mlon={{ $pelanggan->longitude }}#map=16/{{ $pelanggan->latitude }}/{{ $pelanggan->longitude }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                                >
-                                    <flux:icon name="map" class="size-3.5" />
-                                    Buka di OpenStreetMap
-                                </a>
-                            </div>
-                        </div>
-                    @else
-                        <div class="flex flex-col items-center justify-center py-8 text-center">
-                            <div class="flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-                                <flux:icon name="map-pin" class="size-6 text-zinc-400 dark:text-zinc-500" />
-                            </div>
-                            <span class="mt-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">Koordinat belum ditentukan</span>
-                            <span class="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-500">Tentukan titik koordinat untuk memudahkan teknisi instalasi di lapangan.</span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <a
+                                href="https://www.google.com/maps?q={{ $pelanggan->latitude }},{{ $pelanggan->longitude }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                            >
+                                <flux:icon name="arrow-top-right-on-square" class="size-3.5" />
+                                Buka di Google Maps
+                            </a>
+                            <a
+                                href="https://www.openstreetmap.org/?mlat={{ $pelanggan->latitude }}&mlon={{ $pelanggan->longitude }}#map=16/{{ $pelanggan->latitude }}/{{ $pelanggan->longitude }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                            >
+                                <flux:icon name="map" class="size-3.5" />
+                                Buka di OpenStreetMap
+                            </a>
                             @can('update', $pelanggan)
-                                <div class="mt-3">
-                                    <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate size="xs" variant="subtle" icon="pencil-square">
-                                        Atur Titik Koordinat
-                                    </flux:button>
-                                </div>
+                                <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate size="xs" variant="subtle" icon="pencil-square">
+                                    Atur Titik Koordinat
+                                </flux:button>
                             @endcan
                         </div>
                     @endif
                 </div>
 
-                {{-- Card Info Internal --}}
-                <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                    <flux:heading size="base" class="mb-3">Informasi Internal</flux:heading>
+                @if ($pelanggan->latitude && $pelanggan->longitude)
+                    <div class="space-y-4">
+                        {{-- Peta Leaflet Berukuran Besar --}}
+                        <x-map-view
+                            :lat="$pelanggan->latitude"
+                            :lng="$pelanggan->longitude"
+                            :popup-title="$pelanggan->namaLengkap()"
+                            :popup-subtitle="$pelanggan->alamat_lengkap"
+                            height="380px"
+                        />
 
-                    <dl class="space-y-3 text-xs">
-                        <div class="flex justify-between">
-                            <dt class="text-zinc-400">Didaftarkan Oleh</dt>
-                            <dd class="font-medium text-zinc-800 dark:text-zinc-200">{{ $pelanggan->pembuat?->name ?? '—' }}</dd>
+                        {{-- Coordinate Details Bar --}}
+                        <div class="grid grid-cols-1 gap-3 rounded-lg bg-zinc-50 p-3.5 text-xs dark:bg-zinc-800/50 sm:grid-cols-3">
+                            <div>
+                                <span class="text-[11px] text-zinc-400">Latitude</span>
+                                <div class="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{{ number_format((float) $pelanggan->latitude, 7, '.', '') }}</div>
+                            </div>
+                            <div>
+                                <span class="text-[11px] text-zinc-400">Longitude</span>
+                                <div class="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{{ number_format((float) $pelanggan->longitude, 7, '.', '') }}</div>
+                            </div>
+                            <div>
+                                <span class="text-[11px] text-zinc-400">Koordinat Format (Lat, Lng)</span>
+                                <div class="font-mono text-zinc-700 dark:text-zinc-300">{{ $pelanggan->latitude }}, {{ $pelanggan->longitude }}</div>
+                            </div>
                         </div>
-                        <div class="flex justify-between">
-                            <dt class="text-zinc-400">Tanggal Dibuat</dt>
-                            <dd class="text-zinc-700 dark:text-zinc-300">{{ $pelanggan->created_at?->format('d/m/Y H:i') ?? '—' }}</dd>
+                    </div>
+                @else
+                    <div class="flex flex-col items-center justify-center py-12 text-center">
+                        <div class="flex size-14 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
+                            <flux:icon name="map-pin" class="size-7 text-zinc-400 dark:text-zinc-500" />
                         </div>
-                        <div class="flex justify-between">
-                            <dt class="text-zinc-400">Terakhir Diperbarui</dt>
-                            <dd class="text-zinc-700 dark:text-zinc-300">{{ $pelanggan->updated_at?->format('d/m/Y H:i') ?? '—' }}</dd>
-                        </div>
-                    </dl>
-                </div>
+                        <span class="mt-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">Koordinat belum ditentukan</span>
+                        <span class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Tentukan titik koordinat untuk memudahkan teknisi instalasi di lapangan dan pemetaan jaringan.</span>
+                        @can('update', $pelanggan)
+                            <div class="mt-4">
+                                <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate size="sm" variant="primary" icon="pencil-square">
+                                    Atur Titik Koordinat
+                                </flux:button>
+                            </div>
+                        @endcan
+                    </div>
+                @endif
             </div>
         </div>
     @endif
@@ -314,45 +328,47 @@
                 <flux:subheading>Catatan perubahan data dan riwayat administratif pelanggan.</flux:subheading>
             </div>
 
-            <flux:table>
-                <flux:table.columns>
-                    <flux:table.column>Waktu</flux:table.column>
-                    <flux:table.column>Pengguna</flux:table.column>
-                    <flux:table.column>Deskripsi</flux:table.column>
-                    <flux:table.column>Detail</flux:table.column>
-                </flux:table.columns>
+            <div class="px-6 pb-6">
+                <flux:table>
+                    <flux:table.columns>
+                        <flux:table.column>Waktu</flux:table.column>
+                        <flux:table.column>Pengguna</flux:table.column>
+                        <flux:table.column>Deskripsi</flux:table.column>
+                        <flux:table.column>Detail</flux:table.column>
+                    </flux:table.columns>
 
-                <flux:table.rows>
-                    @forelse ($activityLogs as $log)
-                        <flux:table.row :key="$log->id">
-                            <flux:table.cell class="text-xs text-zinc-500">
-                                {{ $log->created_at->translatedFormat('d M Y, H:i') }}
-                            </flux:table.cell>
-                            <flux:table.cell class="font-medium text-xs">
-                                {{ $log->causer?->name ?? 'Sistem' }}
-                            </flux:table.cell>
-                            <flux:table.cell>
-                                <flux:badge size="sm" color="zinc">
-                                    {{ $log->description }}
-                                </flux:badge>
-                            </flux:table.cell>
-                            <flux:table.cell class="text-xs text-zinc-600 dark:text-zinc-300">
-                                @if ($log->properties->isNotEmpty())
-                                    <span class="font-mono text-[11px]">{{ $log->properties->toJson() }}</span>
-                                @else
-                                    —
-                                @endif
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @empty
-                        <flux:table.row>
-                            <flux:table.cell colspan="4" class="py-8 text-center text-zinc-400">
-                                Belum ada riwayat aktivitas tercatat untuk pelanggan ini.
-                            </flux:table.cell>
-                        </flux:table.row>
-                    @endforelse
-                </flux:table.rows>
-            </flux:table>
+                    <flux:table.rows>
+                        @forelse ($activityLogs as $log)
+                            <flux:table.row :key="$log->id">
+                                <flux:table.cell class="text-xs text-zinc-500">
+                                    {{ $log->created_at->translatedFormat('d M Y, H:i') }}
+                                </flux:table.cell>
+                                <flux:table.cell class="font-medium text-xs">
+                                    {{ $log->causer?->name ?? 'Sistem' }}
+                                </flux:table.cell>
+                                <flux:table.cell>
+                                    <flux:badge size="sm" color="zinc">
+                                        {{ $log->description }}
+                                    </flux:badge>
+                                </flux:table.cell>
+                                <flux:table.cell class="text-xs text-zinc-600 dark:text-zinc-300">
+                                    @if ($log->properties->isNotEmpty())
+                                        <span class="font-mono text-[11px]">{{ $log->properties->toJson() }}</span>
+                                    @else
+                                        —
+                                    @endif
+                                </flux:table.cell>
+                            </flux:table.row>
+                        @empty
+                            <flux:table.row>
+                                <flux:table.cell colspan="4" class="py-8 text-center text-zinc-400">
+                                    Belum ada riwayat aktivitas tercatat untuk pelanggan ini.
+                                </flux:table.cell>
+                            </flux:table.row>
+                        @endforelse
+                    </flux:table.rows>
+                </flux:table>
+            </div>
         </div>
     @endif
 </div>

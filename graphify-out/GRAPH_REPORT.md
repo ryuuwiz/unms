@@ -1,22 +1,22 @@
 # Graph Report - unms  (2026-08-17)
 
 ## Corpus Check
-- 480 files · ~171,429 words
+- 480 files · ~171,565 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2611 nodes · 3799 edges · 279 communities (243 shown, 36 thin omitted)
+- 2611 nodes · 3799 edges · 279 communities (244 shown, 35 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5cb99d46`
+- Built from commit: `3625157f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- Illuminate\View\View
-- Create
+- Livewire\Component
+- Index
 - Invoice
 - scripts
 - Issue tracker: GitHub
@@ -50,7 +50,7 @@
 - HTML Report Format
 - HTML Report Format
 - .agents/skills/wizard/template.sh
-- LayananPelanggan/Edit.php
+- Create
 - .claude/skills/wizard/template.sh
 - .kilocode/skills/wizard/template.sh
 - Laravel Fortify Development
@@ -180,25 +180,24 @@
 - Standardisasi Satuan Mbps pada Profil Bandwidth dan Sinkronisasi RouterOS
 - Index
 - paket-layanan/index.blade.php
-- StatusRouter.php
 - Livewire\Attributes\Title
 - Edit
 - layanan-pelanggan/index.blade.php
 - ip-pool/index.blade.php
 - profil-bandwidth/index.blade.php
-- Index
+- StatusRouter.php
 - Billing.php
-- Livewire\Component
+- LayananPelanggan/Edit.php
 - Promo
 - Index
 - layanan-pelanggan/create.blade.php
 - ip-pool/create.blade.php
 - ip-pool/edit.blade.php
-- ProfilBandwidthSeeder.php
 - promo/index.blade.php
 - ADR 0004: Siklus Hidup Billing, Invoice, dan Pembayaran Manual
 - invoice/index.blade.php
 - invoice/show.blade.php
+- ProfilBandwidthSeeder.php
 - exportExcel
 
 ## God Nodes (most connected - your core abstractions)
@@ -224,15 +223,11 @@
 ## Import Cycles
 - None detected.
 
-## Communities (279 total, 36 thin omitted)
+## Communities (279 total, 35 thin omitted)
 
-### Community 0 - "Illuminate\View\View"
-Cohesion: 0.13
-Nodes (6): Show, Create, Edit, Create, Edit, Illuminate\View\View
-
-### Community 1 - "Create"
-Cohesion: 0.13
-Nodes (7): CheckExpiredInvoicesCommand, GenerateInvoicesCommand, Create, BillingService, Carbon, Command, Illuminate\Console\Command
+### Community 0 - "Livewire\Component"
+Cohesion: 0.11
+Nodes (10): Show, Appearance, Create, Edit, Create, Edit, Create, Edit (+2 more)
 
 ### Community 2 - "Invoice"
 Cohesion: 0.09
@@ -365,6 +360,10 @@ Nodes (18): Call-graph collapse, Candidate card, Cross-section (good for layered
 ### Community 34 - ".agents/skills/wizard/template.sh"
 Cohesion: 0.22
 Nodes (16): ask(), ask_secret(), banner(), _clear(), finish(), note(), open_url(), pause() (+8 more)
+
+### Community 35 - "Create"
+Cohesion: 0.13
+Nodes (7): CheckExpiredInvoicesCommand, GenerateInvoicesCommand, Create, BillingService, Carbon, Command, Illuminate\Console\Command
 
 ### Community 36 - ".claude/skills/wizard/template.sh"
 Cohesion: 0.22
@@ -802,9 +801,9 @@ Nodes (3): confirmDelete({{ $profil->id }}), deleteProfilBandwidth, $set(
 Cohesion: 0.33
 Nodes (3): Billing, Maatwebsite\Excel\Facades\Excel, Symfony\Component\HttpFoundation\BinaryFileResponse
 
-### Community 240 - "Livewire\Component"
-Cohesion: 0.13
-Nodes (6): Create, Appearance, Create, Edit, Illuminate\Support\Facades\Auth, Livewire\Component
+### Community 240 - "LayananPelanggan/Edit.php"
+Cohesion: 0.12
+Nodes (3): Create, Illuminate\Support\Facades\Auth, Livewire\Attributes\Locked
 
 ### Community 241 - "Promo"
 Cohesion: 0.11
@@ -825,22 +824,22 @@ Nodes (3): confirmDelete({{ $inv->id }}), deleteInvoice, $set(
 ## Knowledge Gaps
 - **1066 isolated node(s):** `$schema`, `name`, `type`, `description`, `laravel` (+1061 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **36 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **35 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `User` to `Create`, `PasswordValidationRules.php`, `ProfilBandwidth`, `Illuminate\Database\Eloquent\Model`, `UserStatus.php`, `Laravel\Fortify\Features`, `Pelanggan`, `.run`, `PaketLayanan`, `TipePelanggan.php`, `CustomerPolicy`, `IpPool`, `PelangganSeeder.php`, `Illuminate\Support\Str`, `LayananPelanggan`, `ProfileValidationRules.php`, `Router`, `Livewire\Attributes\Title`, `Promo`?**
+- **Why does `User` connect `User` to `PasswordValidationRules.php`, `ProfilBandwidth`, `Illuminate\Database\Eloquent\Model`, `UserStatus.php`, `Create`, `Laravel\Fortify\Features`, `Pelanggan`, `.run`, `PaketLayanan`, `TipePelanggan.php`, `CustomerPolicy`, `IpPool`, `PelangganSeeder.php`, `Illuminate\Support\Str`, `LayananPelanggan`, `ProfileValidationRules.php`, `Router`, `Livewire\Attributes\Title`, `Promo`?**
   _High betweenness centrality (0.031) - this node is a cross-community bridge._
 - **Why does `Invoice` connect `Invoice` to `Create`, `LaporanBillingExport`, `UserStatus.php`, `Livewire\Attributes\Title`, `.run`, `Billing.php`, `Illuminate\Database\Eloquent\Factories\Factory`, `User`, `Pelanggan`, `Illuminate\Database\Eloquent\Model`, `LayananPelanggan`, `PelangganSeeder.php`, `InvoicePdfController.php`, `Index`?**
   _High betweenness centrality (0.015) - this node is a cross-community bridge._
-- **Why does `Router` connect `Router` to `LayananPelanggan/Edit.php`, `UserStatus.php`, `Create`, `StatusRouter.php`, `Livewire\Attributes\Title`, `PaketLayanan`, `.run`, `Illuminate\Database\Eloquent\Factories\Factory`, `Pelanggan`, `Illuminate\Database\Eloquent\Model`, `IpPool`, `PelangganSeeder.php`, `LayananPelanggan`?**
+- **Why does `Router` connect `Router` to `UserStatus.php`, `Create`, `Livewire\Attributes\Title`, `PaketLayanan`, `.run`, `StatusRouter.php`, `LayananPelanggan/Edit.php`, `Illuminate\Database\Eloquent\Factories\Factory`, `Pelanggan`, `Illuminate\Database\Eloquent\Model`, `IpPool`, `PelangganSeeder.php`, `LayananPelanggan`?**
   _High betweenness centrality (0.012) - this node is a cross-community bridge._
 - **What connects `$schema`, `name`, `type` to the rest of the system?**
   _1066 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Illuminate\View\View` be split into smaller, more focused modules?**
-  _Cohesion score 0.12631578947368421 - nodes in this community are weakly interconnected._
-- **Should `Create` be split into smaller, more focused modules?**
-  _Cohesion score 0.13157894736842105 - nodes in this community are weakly interconnected._
+- **Should `Livewire\Component` be split into smaller, more focused modules?**
+  _Cohesion score 0.11494252873563218 - nodes in this community are weakly interconnected._
 - **Should `Invoice` be split into smaller, more focused modules?**
   _Cohesion score 0.08620689655172414 - nodes in this community are weakly interconnected._
+- **Should `scripts` be split into smaller, more focused modules?**
+  _Cohesion score 0.057057057057057055 - nodes in this community are weakly interconnected._

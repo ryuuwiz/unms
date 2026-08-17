@@ -88,13 +88,13 @@
                 @foreach ($groupedPermissions as $module => $permissions)
                     <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
                         <flux:text class="mb-2 font-semibold capitalize text-xs text-zinc-500 uppercase tracking-wide">
-                            {{ Str::title($module) }}
+                            {{ Str::headline($module) }}
                         </flux:text>
                         <div class="space-y-1">
                             @foreach ($permissions as $perm)
                                 <div class="flex items-center gap-2">
                                     <flux:icon.check-circle class="size-3.5 text-green-500 shrink-0" />
-                                    <flux:text size="sm">{{ Str::title(str_replace('_', ' ', $perm)) }}</flux:text>
+                                    <flux:text size="sm">{{ Str::headline(Str::afterLast($perm, '.')) }}</flux:text>
                                 </div>
                             @endforeach
                         </div>
