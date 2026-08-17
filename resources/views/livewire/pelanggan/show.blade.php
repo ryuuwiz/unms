@@ -154,30 +154,75 @@
             <div class="space-y-6">
                 {{-- Card Peta Koordinat --}}
                 <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                    <flux:heading size="base" class="mb-3">Titik Koordinat Lokasi</flux:heading>
+                    <div class="mb-3 flex items-center justify-between">
+                        <flux:heading size="base">Titik Koordinat Lokasi</flux:heading>
+                        @if ($pelanggan->latitude && $pelanggan->longitude)
+                            <flux:badge size="sm" color="emerald" class="font-mono text-xs">
+                                <flux:icon name="map-pin" class="mr-1 size-3" />
+                                Terpetakan
+                            </flux:badge>
+                        @endif
+                    </div>
 
                     @if ($pelanggan->latitude && $pelanggan->longitude)
                         <div class="space-y-3">
-                            <div class="flex items-center justify-between text-xs text-zinc-500">
-                                <span>Lat: <strong class="font-mono text-zinc-700 dark:text-zinc-300">{{ $pelanggan->latitude }}</strong></span>
-                                <span>Lng: <strong class="font-mono text-zinc-700 dark:text-zinc-300">{{ $pelanggan->longitude }}</strong></span>
+                            {{-- Peta Leaflet --}}
+                            <x-map-view
+                                :lat="$pelanggan->latitude"
+                                :lng="$pelanggan->longitude"
+                                :popup-title="$pelanggan->namaLengkap()"
+                                :popup-subtitle="$pelanggan->alamat_lengkap"
+                                height="220px"
+                            />
+
+                            {{-- Coordinate Chips / Details --}}
+                            <div class="grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-2.5 text-xs dark:bg-zinc-800/50">
+                                <div>
+                                    <span class="text-[11px] text-zinc-400">Latitude</span>
+                                    <div class="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{{ number_format((float) $pelanggan->latitude, 7, '.', '') }}</div>
+                                </div>
+                                <div>
+                                    <span class="text-[11px] text-zinc-400">Longitude</span>
+                                    <div class="font-mono font-semibold text-zinc-800 dark:text-zinc-200">{{ number_format((float) $pelanggan->longitude, 7, '.', '') }}</div>
+                                </div>
                             </div>
-                            <div>
+
+                            {{-- External Map Actions --}}
+                            <div class="flex flex-col gap-2 pt-1">
                                 <a
                                     href="https://www.google.com/maps?q={{ $pelanggan->latitude }},{{ $pelanggan->longitude }}"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                    class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                                 >
                                     <flux:icon name="arrow-top-right-on-square" class="size-3.5" />
                                     Buka di Google Maps
                                 </a>
+                                <a
+                                    href="https://www.openstreetmap.org/?mlat={{ $pelanggan->latitude }}&mlon={{ $pelanggan->longitude }}#map=16/{{ $pelanggan->latitude }}/{{ $pelanggan->longitude }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                >
+                                    <flux:icon name="map" class="size-3.5" />
+                                    Buka di OpenStreetMap
+                                </a>
                             </div>
                         </div>
                     @else
-                        <div class="flex flex-col items-center justify-center py-8 text-center text-zinc-400">
-                            <flux:icon name="map-pin" class="size-8 stroke-1 text-zinc-300 dark:text-zinc-600" />
-                            <span class="mt-2 text-xs">Koordinat belum ditentukan untuk pelanggan ini.</span>
+                        <div class="flex flex-col items-center justify-center py-8 text-center">
+                            <div class="flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
+                                <flux:icon name="map-pin" class="size-6 text-zinc-400 dark:text-zinc-500" />
+                            </div>
+                            <span class="mt-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">Koordinat belum ditentukan</span>
+                            <span class="mt-0.5 text-[11px] text-zinc-400 dark:text-zinc-500">Tentukan titik koordinat untuk memudahkan teknisi instalasi di lapangan.</span>
+                            @can('update', $pelanggan)
+                                <div class="mt-3">
+                                    <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate size="xs" variant="subtle" icon="pencil-square">
+                                        Atur Titik Koordinat
+                                    </flux:button>
+                                </div>
+                            @endcan
                         </div>
                     @endif
                 </div>

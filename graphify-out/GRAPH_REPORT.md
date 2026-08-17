@@ -1,16 +1,16 @@
 # Graph Report - unms  (2026-08-17)
 
 ## Corpus Check
-- 479 files · ~170,726 words
+- 480 files · ~171,429 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2610 nodes · 3799 edges · 278 communities (242 shown, 36 thin omitted)
+- 2611 nodes · 3799 edges · 279 communities (243 shown, 36 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b6ef231b`
+- Built from commit: `5cb99d46`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -224,7 +224,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (278 total, 36 thin omitted)
+## Communities (279 total, 36 thin omitted)
 
 ### Community 0 - "Illuminate\View\View"
 Cohesion: 0.13

@@ -271,6 +271,7 @@
   "269": "ADR 0004: Siklus Hidup Billing, Invoice, dan Pembayaran Manual",
   "270": "invoice/index.blade.php",
   "271": "invoice/show.blade.php",
+  "272": "map-view.blade.php",
   "275": "exportExcel",
   "276": "invoice/create.blade.php",
   "277": "pembayaran/index.blade.php",

@@ -32,3 +32,34 @@ test('can render pelanggan detail page with info and tabs', function () {
         ->assertSee('628123456789')
         ->assertSee('Jl. Merdeka No. 1, Jakarta');
 });
+
+test('renders leaflet map and coordinate details when coordinates exist', function () {
+    $pelangganWithCoords = Pelanggan::factory()->create([
+        'latitude' => -6.2088000,
+        'longitude' => 106.8456000,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $pelangganWithCoords])
+        ->assertOk()
+        ->assertSee('Titik Koordinat Lokasi')
+        ->assertSee('Terpetakan')
+        ->assertSee('-6.2088000')
+        ->assertSee('106.8456000')
+        ->assertSee('Buka di Google Maps')
+        ->assertSee('Buka di OpenStreetMap');
+});
+
+test('renders empty state when coordinates are not set', function () {
+    $pelangganWithoutCoords = Pelanggan::factory()->create([
+        'latitude' => null,
+        'longitude' => null,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $pelangganWithoutCoords])
+        ->assertOk()
+        ->assertSee('Titik Koordinat Lokasi')
+        ->assertSee('Koordinat belum ditentukan')
+        ->assertSee('Atur Titik Koordinat');
+});
