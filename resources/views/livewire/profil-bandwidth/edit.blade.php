@@ -47,39 +47,51 @@
             @if ($useBurst)
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 p-4 rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900/50">
                     <flux:field>
-                        <flux:label>Burst Rate TX (Mbps)</flux:label>
+                        <flux:label>Burst Rate Upload (TX) <span class="font-mono text-xs text-zinc-400">Mbps</span></flux:label>
                         <flux:input wire:model="burst_rate_tx" type="number" />
                         <flux:error name="burst_rate_tx" />
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Burst Rate RX (Mbps)</flux:label>
+                        <flux:label>Burst Rate Download (RX) <span class="font-mono text-xs text-zinc-400">Mbps</span></flux:label>
                         <flux:input wire:model="burst_rate_rx" type="number" />
                         <flux:error name="burst_rate_rx" />
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Burst Threshold TX (Mbps)</flux:label>
+                        <flux:label>Burst Threshold Upload (TX) <span class="font-mono text-xs text-zinc-400">Mbps</span></flux:label>
                         <flux:input wire:model="burst_threshold_tx" type="number" />
                         <flux:error name="burst_threshold_tx" />
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Burst Threshold RX (Mbps)</flux:label>
+                        <flux:label>Burst Threshold Download (RX) <span class="font-mono text-xs text-zinc-400">Mbps</span></flux:label>
                         <flux:input wire:model="burst_threshold_rx" type="number" />
                         <flux:error name="burst_threshold_rx" />
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Burst Time TX (Detik)</flux:label>
+                        <flux:label>Burst Time TX <span class="font-mono text-xs text-zinc-400">Detik</span></flux:label>
                         <flux:input wire:model="burst_time_tx" type="number" />
                         <flux:error name="burst_time_tx" />
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Burst Time RX (Detik)</flux:label>
+                        <flux:label>Burst Time RX <span class="font-mono text-xs text-zinc-400">Detik</span></flux:label>
                         <flux:input wire:model="burst_time_rx" type="number" />
                         <flux:error name="burst_time_rx" />
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Limit Rate Upload (TX) <span class="font-mono text-xs text-zinc-400">Mbps (Opsional)</span></flux:label>
+                        <flux:input wire:model="limit_rate_tx" type="number" />
+                        <flux:error name="limit_rate_tx" />
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Limit Rate Download (RX) <span class="font-mono text-xs text-zinc-400">Mbps (Opsional)</span></flux:label>
+                        <flux:input wire:model="limit_rate_rx" type="number" />
+                        <flux:error name="limit_rate_rx" />
                     </flux:field>
                 </div>
             @endif

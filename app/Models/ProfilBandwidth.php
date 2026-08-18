@@ -91,7 +91,7 @@ class ProfilBandwidth extends Model
     }
 
     /**
-     * Label kecepatan maksimum (misal: "20/10 Mbps" atau "20 Mbps (1:1)").
+     * Label kecepatan maksimum format TX / RX (misal: "20/10 Mbps" atau "20 Mbps (1:1)").
      */
     public function labelKecepatan(): string
     {
@@ -111,7 +111,7 @@ class ProfilBandwidth extends Model
     }
 
     /**
-     * Format string rate-limit lengkap untuk RouterOS queue/profile.
+     * Format string rate-limit lengkap untuk RouterOS queue/profile sesuai data_unms.md.
      */
     public function routerOsRateLimit(): string
     {
@@ -122,12 +122,16 @@ class ProfilBandwidth extends Model
         }
 
         $burstRate = "{$this->burst_rate_tx}M/{$this->burst_rate_rx}M";
-        $burstThreshold = "{$this->burst_threshold_tx}M/{$this->burst_threshold_rx}M";
-        $burstTime = "{$this->burst_time_tx}/{$this->burst_time_rx}";
+        $burstThreshold = ($this->burst_threshold_tx !== null && $this->burst_threshold_rx !== null)
+            ? "{$this->burst_threshold_tx}M/{$this->burst_threshold_rx}M"
+            : '0/0';
+        $burstTime = ($this->burst_time_tx !== null && $this->burst_time_rx !== null)
+            ? "{$this->burst_time_tx}/{$this->burst_time_rx}"
+            : '0/0';
         $priority = (string) $this->priority;
         $limitRate = ($this->limit_rate_tx !== null && $this->limit_rate_rx !== null)
             ? "{$this->limit_rate_tx}M/{$this->limit_rate_rx}M"
-            : $maxLimit;
+            : '0/0';
 
         return "{$maxLimit} {$burstRate} {$burstThreshold} {$burstTime} {$priority} {$limitRate}";
     }

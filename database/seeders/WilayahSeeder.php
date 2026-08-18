@@ -12,7 +12,7 @@ class WilayahSeeder extends Seeder
 {
     /**
      * Seed data wilayah yang relevan dengan area coverage ISP.
-     * Mengisi data Kota, Kecamatan, Kelurahan, dan Perumahan.
+     * Mengisi data Kota, Kecamatan, Kelurahan, dan Perumahan beserta titik koordinat geolokasi.
      */
     public function run(): void
     {
@@ -51,6 +51,8 @@ class WilayahSeeder extends Seeder
                                 ],
                                 [
                                     'singkatan' => $perumahanData['singkatan'] ?? null,
+                                    'latitude' => $perumahanData['latitude'] ?? null,
+                                    'longitude' => $perumahanData['longitude'] ?? null,
                                     'keterangan' => $perumahanData['keterangan'] ?? null,
                                 ]
                             );
@@ -64,7 +66,7 @@ class WilayahSeeder extends Seeder
     /**
      * Data wilayah area coverage ISP.
      *
-     * @return array<int, array{nama: string, keterangan?: string, kecamatan: array<int, array{nama: string, keterangan?: string, kelurahan: array<int, array{nama: string, keterangan?: string, perumahan?: array<int, array{nama: string, singkatan?: string, keterangan?: string}>}>}>}>
+     * @return array<int, array{nama: string, keterangan?: string, kecamatan: array<int, array{nama: string, keterangan?: string, kelurahan: array<int, array{nama: string, keterangan?: string, perumahan?: array<int, array{nama: string, singkatan?: string, latitude?: float, longitude?: float, keterangan?: string}>}>}>}>
      */
     private function wilayahData(): array
     {
@@ -80,14 +82,14 @@ class WilayahSeeder extends Seeder
                             [
                                 'nama' => 'Margasari',
                                 'perumahan' => [
-                                    ['nama' => 'Griya Bandung Indah', 'singkatan' => 'GBI', 'keterangan' => 'Cluster Blok A-H'],
-                                    ['nama' => 'Margahayu Raya Barat', 'singkatan' => 'MHR', 'keterangan' => 'Cluster Blok L-R'],
+                                    ['nama' => 'Griya Bandung Indah', 'singkatan' => 'GBI', 'latitude' => -6.9663450, 'longitude' => 107.6698120, 'keterangan' => 'Cluster Blok A-H'],
+                                    ['nama' => 'Margahayu Raya Barat', 'singkatan' => 'MHR', 'latitude' => -6.9532100, 'longitude' => 107.6587340, 'keterangan' => 'Cluster Blok L-R'],
                                 ],
                             ],
                             [
                                 'nama' => 'Sekejati',
                                 'perumahan' => [
-                                    ['nama' => 'Bumi Adipura', 'singkatan' => 'BAP', 'keterangan' => 'Cluster Pinus & Cendana'],
+                                    ['nama' => 'Bumi Adipura', 'singkatan' => 'BAP', 'latitude' => -6.9621500, 'longitude' => 107.6892100, 'keterangan' => 'Cluster Pinus & Cendana'],
                                 ],
                             ],
                         ],
@@ -99,14 +101,14 @@ class WilayahSeeder extends Seeder
                             [
                                 'nama' => 'Turangga',
                                 'perumahan' => [
-                                    ['nama' => 'Batununggal Indah', 'singkatan' => 'BTI', 'keterangan' => 'Perumahan Elit Batununggal'],
-                                    ['nama' => 'Turangga Asri', 'singkatan' => 'TGA', 'keterangan' => 'Cluster Townhouse'],
+                                    ['nama' => 'Batununggal Indah', 'singkatan' => 'BTI', 'latitude' => -6.9554200, 'longitude' => 107.6256400, 'keterangan' => 'Perumahan Elit Batununggal'],
+                                    ['nama' => 'Turangga Asri', 'singkatan' => 'TGA', 'latitude' => -6.9388100, 'longitude' => 107.6291500, 'keterangan' => 'Cluster Townhouse'],
                                 ],
                             ],
                             [
                                 'nama' => 'Malabar',
                                 'perumahan' => [
-                                    ['nama' => 'Komp. Malabar Permai', 'singkatan' => 'MBP', 'keterangan' => 'Perumahan Malabar'],
+                                    ['nama' => 'Komp. Malabar Permai', 'singkatan' => 'MBP', 'latitude' => -6.9298400, 'longitude' => 107.6221100, 'keterangan' => 'Perumahan Malabar'],
                                 ],
                             ],
                         ],
@@ -118,14 +120,14 @@ class WilayahSeeder extends Seeder
                             [
                                 'nama' => 'Dago',
                                 'perumahan' => [
-                                    ['nama' => 'Dago Village Resort', 'singkatan' => 'DVR', 'keterangan' => 'Residensi Dago Atas'],
-                                    ['nama' => 'Cisitu Indah', 'singkatan' => 'CSI', 'keterangan' => 'Cluster Cisitu'],
+                                    ['nama' => 'Dago Village Resort', 'singkatan' => 'DVR', 'latitude' => -6.8687300, 'longitude' => 107.6272400, 'keterangan' => 'Residensi Dago Atas'],
+                                    ['nama' => 'Cisitu Indah', 'singkatan' => 'CSI', 'latitude' => -6.8791200, 'longitude' => 107.6114500, 'keterangan' => 'Cluster Cisitu'],
                                 ],
                             ],
                             [
                                 'nama' => 'Sadang Serang',
                                 'perumahan' => [
-                                    ['nama' => 'Sadang Hegar Residence', 'singkatan' => 'SHR', 'keterangan' => 'Komp. Sadang Hegar'],
+                                    ['nama' => 'Sadang Hegar Residence', 'singkatan' => 'SHR', 'latitude' => -6.8865400, 'longitude' => 107.6234100, 'keterangan' => 'Komp. Sadang Hegar'],
                                 ],
                             ],
                         ],
@@ -142,8 +144,8 @@ class WilayahSeeder extends Seeder
                             [
                                 'nama' => 'Cibabat',
                                 'perumahan' => [
-                                    ['nama' => 'Pesona Cibabat Indah', 'singkatan' => 'PCI', 'keterangan' => 'Cluster Cibabat Regency'],
-                                    ['nama' => 'Permata Cimahi', 'singkatan' => 'PTC', 'keterangan' => 'Komp. Permata Blok B-D'],
+                                    ['nama' => 'Pesona Cibabat Indah', 'singkatan' => 'PCI', 'latitude' => -6.8789100, 'longitude' => 107.5492300, 'keterangan' => 'Cluster Cibabat Regency'],
+                                    ['nama' => 'Permata Cimahi', 'singkatan' => 'PTC', 'latitude' => -6.8834200, 'longitude' => 107.5312400, 'keterangan' => 'Komp. Permata Blok B-D'],
                                 ],
                             ],
                         ],
@@ -154,7 +156,7 @@ class WilayahSeeder extends Seeder
                             [
                                 'nama' => 'Baros',
                                 'perumahan' => [
-                                    ['nama' => 'Baros City View', 'singkatan' => 'BCV', 'keterangan' => 'Townhouse Baros'],
+                                    ['nama' => 'Baros City View', 'singkatan' => 'BCV', 'latitude' => -6.8992100, 'longitude' => 107.5411200, 'keterangan' => 'Townhouse Baros'],
                                 ],
                             ],
                         ],
@@ -171,8 +173,8 @@ class WilayahSeeder extends Seeder
                             [
                                 'nama' => 'Kertajaya',
                                 'perumahan' => [
-                                    ['nama' => 'Kota Baru Parahyangan', 'singkatan' => 'KBP', 'keterangan' => 'Tatar Wangsakancana & Jingganagara'],
-                                    ['nama' => 'Bumi Parahyangan Regency', 'singkatan' => 'BPR', 'keterangan' => 'Cluster Asri Padalarang'],
+                                    ['nama' => 'Kota Baru Parahyangan', 'singkatan' => 'KBP', 'latitude' => -6.8521300, 'longitude' => 107.4789100, 'keterangan' => 'Tatar Wangsakancana & Jingganagara'],
+                                    ['nama' => 'Bumi Parahyangan Regency', 'singkatan' => 'BPR', 'latitude' => -6.8592400, 'longitude' => 107.4851200, 'keterangan' => 'Cluster Asri Padalarang'],
                                 ],
                             ],
                         ],

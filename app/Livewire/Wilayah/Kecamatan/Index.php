@@ -3,6 +3,7 @@
 namespace App\Livewire\Wilayah\Kecamatan;
 
 use App\Models\Kecamatan;
+use App\Models\Kota;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -18,6 +19,8 @@ class Index extends Component
 
     public string $search = '';
 
+    public ?int $filterKotaId = null;
+
     public ?int $deletingId = null;
 
     public function updatingSearch(): void
@@ -25,8 +28,14 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function updatingFilterKotaId(): void
+    {
+        $this->resetPage();
+    }
+
     public function confirmDelete(int $id): void
     {
+        $this->authorize('delete', new Kota);
         $this->deletingId = $id;
     }
 
@@ -35,19 +44,42 @@ class Index extends Component
         if (! $this->deletingId) {
             return;
         }
-        Kecamatan::findOrFail($this->deletingId)->delete();
+
+        $kecamatan = Kecamatan::withCount(['kelurahans'])->findOrFail($this->deletingId);
+        $this->authorize('delete', $kecamatan->kota);
+
+        if (! $kecamatan->canBeDeleted()) {
+            $this->deletingId = null;
+            Flux::toast(
+                variant: 'danger',
+                text: "Kecamatan {$kecamatan->nama_kecamatan} tidak dapat dihapus karena masih memiliki {$kecamatan->kelurahans_count} kelurahan terkait."
+            );
+
+            return;
+        }
+
+        $nama = $kecamatan->nama_kecamatan;
+        $kecamatan->delete();
+
         $this->deletingId = null;
-        Flux::toast(variant: 'success', text: 'Data kecamatan berhasil dihapus.');
+        Flux::toast(variant: 'success', text: "Kecamatan {$nama} berhasil dihapus.");
     }
 
     public function render(): View
     {
         $kecamatans = Kecamatan::query()
             ->with('kota')
+            ->withCount('kelurahans')
+            ->when($this->filterKotaId, fn ($q) => $q->where('kota_id', $this->filterKotaId))
             ->when($this->search, fn ($q) => $q->where('nama_kecamatan', 'like', "%{$this->search}%"))
             ->orderBy('nama_kecamatan')
-            ->paginate(20);
+            ->paginate(15);
 
-        return view('livewire.wilayah.kecamatan.index', compact('kecamatans'));
+        $kotas = Kota::orderBy('nama_kota')->get();
+
+        return view('livewire.wilayah.kecamatan.index', [
+            'kecamatans' => $kecamatans,
+            'kotas' => $kotas,
+        ]);
     }
 }

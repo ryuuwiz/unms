@@ -50,7 +50,7 @@
                     <flux:table.cell>
                         @if ($profil->hasBurst())
                             <flux:badge size="sm" color="amber">
-                                {{ $profil->burst_rate_tx }}M / {{ $profil->burst_rate_rx }}M ({{ $profil->burst_time_rx }}s)
+                                {{ $profil->burst_rate_tx }}M / {{ $profil->burst_rate_rx }}M ({{ $profil->burst_time_tx }}s)
                             </flux:badge>
                         @else
                             <span class="text-xs text-zinc-400">Nonaktif</span>

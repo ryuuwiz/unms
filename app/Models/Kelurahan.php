@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['kecamatan_id', 'nama_kelurahan', 'keterangan'])]
 class Kelurahan extends Model
 {
+    use HasFactory;
+
     protected $table = 'kelurahan';
 
     /**
@@ -39,5 +42,13 @@ class Kelurahan extends Model
     public function perumahans(): HasMany
     {
         return $this->hasMany(Perumahan::class, 'kelurahan_id');
+    }
+
+    /**
+     * Periksa apakah kelurahan aman untuk dihapus (tidak memiliki data perumahan turunan).
+     */
+    public function canBeDeleted(): bool
+    {
+        return ! $this->perumahans()->exists();
     }
 }

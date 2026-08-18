@@ -14,17 +14,30 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $kelurahan_id
  * @property string $nama_perumahan
  * @property string|null $singkatan
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property string|null $keterangan
  * @property-read Kelurahan $kelurahan
  * @property-read Collection<int, Pelanggan> $pelanggans
  * @property-read Collection<int, Odp> $odps
  */
-#[Fillable(['kelurahan_id', 'nama_perumahan', 'singkatan', 'keterangan'])]
+#[Fillable(['kelurahan_id', 'nama_perumahan', 'singkatan', 'latitude', 'longitude', 'keterangan'])]
 class Perumahan extends Model
 {
     use HasFactory;
 
     protected $table = 'perumahan';
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
+        ];
+    }
 
     /**
      * Relasi ke kelurahan induk.
@@ -54,5 +67,13 @@ class Perumahan extends Model
     public function odps(): HasMany
     {
         return $this->hasMany(Odp::class, 'perumahan_id');
+    }
+
+    /**
+     * Periksa apakah perumahan aman untuk dihapus (tidak memiliki data pelanggan atau ODP).
+     */
+    public function canBeDeleted(): bool
+    {
+        return ! $this->pelanggans()->exists() && ! $this->odps()->exists();
     }
 }

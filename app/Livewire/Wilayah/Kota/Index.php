@@ -37,22 +37,33 @@ class Index extends Component
             return;
         }
 
-        $kota = Kota::findOrFail($this->deletingId);
+        $kota = Kota::withCount('kecamatans')->findOrFail($this->deletingId);
         $this->authorize('delete', $kota);
 
+        if (! $kota->canBeDeleted()) {
+            $this->deletingId = null;
+            Flux::toast(
+                variant: 'danger',
+                text: "Kota {$kota->nama_kota} tidak dapat dihapus karena masih memiliki {$kota->kecamatans_count} kecamatan terkait."
+            );
+
+            return;
+        }
+
+        $nama = $kota->nama_kota;
         $kota->delete();
 
         $this->deletingId = null;
-        Flux::toast(variant: 'success', text: 'Data kota berhasil dihapus.');
+        Flux::toast(variant: 'success', text: "Kota {$nama} berhasil dihapus.");
     }
 
     public function render(): View
     {
         $kotas = Kota::query()
             ->when($this->search, fn ($q) => $q->where('nama_kota', 'like', "%{$this->search}%"))
-            ->withCount('kecamatans')
+            ->withCount(['kecamatans', 'kelurahans'])
             ->orderBy('nama_kota')
-            ->paginate(20);
+            ->paginate(15);
 
         return view('livewire.wilayah.kota.index', ['kotas' => $kotas]);
     }

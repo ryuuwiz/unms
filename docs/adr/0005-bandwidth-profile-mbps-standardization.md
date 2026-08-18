@@ -10,17 +10,20 @@ Sebelumnya, modul `ProfilBandwidth` (`profil_bandwidth`) menyimpan nilai kecepat
 1. **Penyimpanan Integer Mbps Murni (Pure Mbps Storage)**:
    - Seluruh kolom kecepatan pada tabel `profil_bandwidth` (`max_limit_tx`, `max_limit_rx`, `burst_rate_tx`, `burst_rate_rx`, `burst_threshold_tx`, `burst_threshold_rx`, `limit_rate_tx`, `limit_rate_rx`) menggunakan tipe `unsignedInteger` dalam satuan **Mbps**.
 2. **Cakupan Satuan Menyeluruh**:
-   - Perubahan satuan ke Mbps diberlakukan seragam untuk parameter kecepatan utama (Max Limit), batas lonjakan (Burst Rate & Burst Threshold), serta jaminan kecepatan minimum (Limit Rate/CIR).
+   - Perubahan satuan ke Mbps diberlakukan seragam untuk parameter kecepatan utama (Max Limit), batas lonjakan (Burst Rate & Burst Threshold), durasi burst (detik), serta batas kecepatan limit rate.
 3. **Format Sinkronisasi MikroTik RouterOS**:
-   - String rate-limit yang digenerate untuk MikroTik RouterOS API / PPP profile menggunakan suffix `M` (Mega), misalnya `"20M/20M"` untuk max-limit dan `"30M/30M 15M/15M 16/16 8 5M/5M"` untuk konfigurasi burst lengkap.
+   - Format rate-limit RouterOS mengikuti spesifikasi `data_unms.md`:
+     - Non-burst: format ringkas `max_limit_tx M/max_limit_rx M` (misal `"20M/20M"`).
+     - Burst: format string lengkap `max_limit burst_rate burst_threshold burst_time priority limit_rate`.
 4. **Pembaruan Seeder, Factory, dan Test Suite**:
    - Seluruh database seeders, factory, dan automated test suite diperbarui menggunakan angka Mbps bulat standar ISP (`10`, `20`, `50`, `100`).
 5. **Validasi Hierarki Logika Burst RouterOS**:
-   - Form Livewire menerapkan validasi terstruktur (`burst_rate >= max_limit`, `burst_threshold <= burst_rate`, dan `limit_rate <= max_limit`) untuk mencegah kesalahan input staf NOC sebelum profil di-push ke RouterOS.
-6. **Helper Enkapsulasi Rate-Limit RouterOS pada Model**:
-   - Model `ProfilBandwidth` menyediakan method `routerOsRateLimit(): string` yang menghasilkan format string lengkap rate-limit standar MikroTik baik untuk profil standar maupun burst.
+   - Form Livewire menerapkan validasi terstruktur (`burst_rate >= max_limit`, `burst_threshold <= burst_rate`, dan `limit_rate <= max_limit`). Konfigurasi burst dan limit-rate dikelompokkan dalam toggle Burst opsional sesuai `data_unms.md`.
+6. **Helper Enkapsulasi Model dan Konvensi Label TX / RX**:
+   - Model `ProfilBandwidth` menyediakan `labelKecepatan(): string` dengan format konsisten **TX / RX** (misal `"20/10 Mbps"` atau `"20 Mbps (1:1)"`), serta `routerOsRateLimit(): string` yang menghasilkan format string yang kompatibel dengan RouterOS.
 
 ## Consequences
 - Memangkas logika konversi pembagian/perkalian 1000/1024 pada model dan presentasi Blade.
-- UI form dan tabel profil bandwidth menjadi lebih ringkas dan konsisten dengan seluruh katalog paket ISP.
+- Memperbaiki bug data 10240 Mbps yang berasal dari data lama di database.
+- Tampilan UI dan label kecepatan konsisten dalam format TX / RX di seluruh aplikasi.
 - Skrip queue RouterOS lebih bersih dan mudah dibaca oleh Network Engineer pada Winbox / CLI MikroTik.

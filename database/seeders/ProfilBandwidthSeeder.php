@@ -23,8 +23,8 @@ class ProfilBandwidthSeeder extends Seeder
                 'burst_threshold_rx' => null,
                 'burst_time_tx' => null,
                 'burst_time_rx' => null,
-                'limit_rate_tx' => 2,
-                'limit_rate_rx' => 2,
+                'limit_rate_tx' => null,
+                'limit_rate_rx' => null,
                 'priority' => 8,
             ],
             [
@@ -71,7 +71,7 @@ class ProfilBandwidthSeeder extends Seeder
             ],
             [
                 'nama_bandwidth' => 'Profile-Biz-50M',
-                'max_limit_tx' => 50, // 50 Mbps Dedicated CIR 1:1
+                'max_limit_tx' => 50, // 50 Mbps
                 'max_limit_rx' => 50,
                 'burst_rate_tx' => null,
                 'burst_rate_rx' => null,
@@ -79,13 +79,13 @@ class ProfilBandwidthSeeder extends Seeder
                 'burst_threshold_rx' => null,
                 'burst_time_tx' => null,
                 'burst_time_rx' => null,
-                'limit_rate_tx' => 50,
-                'limit_rate_rx' => 50,
+                'limit_rate_tx' => null,
+                'limit_rate_rx' => null,
                 'priority' => 2,
             ],
             [
                 'nama_bandwidth' => 'Profile-Biz-100M',
-                'max_limit_tx' => 100, // 100 Mbps Dedicated CIR 1:1
+                'max_limit_tx' => 100, // 100 Mbps
                 'max_limit_rx' => 100,
                 'burst_rate_tx' => null,
                 'burst_rate_rx' => null,
@@ -93,8 +93,8 @@ class ProfilBandwidthSeeder extends Seeder
                 'burst_threshold_rx' => null,
                 'burst_time_tx' => null,
                 'burst_time_rx' => null,
-                'limit_rate_tx' => 100,
-                'limit_rate_rx' => 100,
+                'limit_rate_tx' => null,
+                'limit_rate_rx' => null,
                 'priority' => 1,
             ],
         ];
