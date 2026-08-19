@@ -182,6 +182,47 @@
         </div>
     </div>
 
+    <!-- Transaksi Payment Gateway (Xendit) -->
+    @if($invoice->transaksiPaymentGateways->isNotEmpty())
+        <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+            <div class="p-4 bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-700 font-semibold text-zinc-900 dark:text-white flex justify-between items-center">
+                <span>Transaksi Payment Gateway (Xendit)</span>
+                <span class="text-xs text-zinc-500 font-normal">Total: {{ $invoice->transaksiPaymentGateways->count() }} transaksi</span>
+            </div>
+            <div class="p-6">
+                <div class="space-y-3">
+                    @foreach($invoice->transaksiPaymentGateways as $trx)
+                        <div class="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono font-bold text-xs">{{ $trx->external_id }}</span>
+                                    <flux:badge size="xs" variant="pill" :color="$trx->status->color()">
+                                        {{ $trx->status->label() }}
+                                    </flux:badge>
+                                </div>
+                                <div class="text-xs text-zinc-500">
+                                    Kanal: <span class="font-semibold text-zinc-700 dark:text-zinc-300">{{ $trx->channel->label() }} ({{ strtoupper($trx->channel_detail ?? '-') }})</span>
+                                    @if($trx->nomor_pembayaran)
+                                        • No: <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">{{ $trx->nomor_pembayaran }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-bold text-zinc-900 dark:text-white">
+                                    {{ $trx->formattedTotalTagihan() }}
+                                </div>
+                                <a href="{{ route('pembayaran.transaksi-gateway.show', $trx) }}" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                                    Lihat Detail &rarr;
+                                </a>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    @endif
+
+
     <!-- Modal Catat Pembayaran -->
     <flux:modal :open="$showBayarModal" wire:model.self="showBayarModal" class="max-w-lg">
         <form wire:submit="prosesBayar" class="p-6 space-y-4">

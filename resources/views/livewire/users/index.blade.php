@@ -74,15 +74,30 @@
                         {{ $user->last_login_at?->diffForHumans() ?? '—' }}
                     </flux:table.cell>
                     <flux:table.cell>
-                        <flux:button
-                            :href="route('users.edit', $user)"
-                            wire:navigate
-                            size="sm"
-                            variant="ghost"
-                            icon="pencil-square"
-                        >
-                            Edit
-                        </flux:button>
+                        <div class="flex items-center justify-end gap-1">
+                            @canImpersonate
+                                @if ($user->canBeImpersonated())
+                                    <flux:button
+                                        :href="route('impersonate', $user->id)"
+                                        size="sm"
+                                        variant="subtle"
+                                        icon="arrow-right-end-on-rectangle"
+                                        title="Login sebagai {{ $user->name }}"
+                                    >
+                                        Impersonate
+                                    </flux:button>
+                                @endif
+                            @endCanImpersonate
+                            <flux:button
+                                :href="route('users.edit', $user)"
+                                wire:navigate
+                                size="sm"
+                                variant="ghost"
+                                icon="pencil-square"
+                            >
+                                Edit
+                            </flux:button>
+                        </div>
                     </flux:table.cell>
                 </flux:table.row>
             @empty

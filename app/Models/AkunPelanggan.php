@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Enums\StatusPelanggan;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Carbon;
+use Lab404\Impersonate\Models\Impersonate;
 
 /**
  * Model untuk akun portal pelanggan — guard terpisah diimplementasi di Fase 3.
@@ -21,7 +23,7 @@ use Illuminate\Support\Carbon;
 #[Fillable(['pelanggan_id', 'email', 'password', 'email_verified_at'])]
 class AkunPelanggan extends Authenticatable
 {
-    use HasFactory;
+    use HasFactory, Impersonate;
 
     protected $table = 'akun_pelanggan';
 
@@ -46,5 +48,29 @@ class AkunPelanggan extends Authenticatable
     public function pelanggan(): BelongsTo
     {
         return $this->belongsTo(Pelanggan::class, 'pelanggan_id');
+    }
+
+    /**
+     * Akun pelanggan tidak dapat mengimpersonasi akun lain.
+     */
+    public function canImpersonate(): bool
+    {
+        return false;
+    }
+
+    /**
+     * Tentukan apakah akun pelanggan ini dapat diimpersonasi.
+     */
+    public function canBeImpersonated(): bool
+    {
+        return $this->pelanggan?->status === StatusPelanggan::Aktif;
+    }
+
+    /**
+     * Ambil nama lengkap pelanggan.
+     */
+    public function getNamaLengkapAttribute(): string
+    {
+        return $this->pelanggan ? $this->pelanggan->namaLengkap() : $this->email;
     }
 }

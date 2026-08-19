@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('invoice:generate')->dailyAt('01:00');
 Schedule::command('invoice:cek-kadaluarsa')->dailyAt('02:00');
+Schedule::command('xendit:cek-va-expired')->hourly();

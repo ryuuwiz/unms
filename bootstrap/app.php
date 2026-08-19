@@ -15,6 +15,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: [
+            'webhook/*',
+            'webhook/xendit/*',
+        ]);
+
+        $middleware->redirectGuestsTo(function (Request $request) {
+            if ($request->is('portal') || $request->is('portal/*')) {
+                return route('portal.login');
+            }
+
+            return route('login');
+        });
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,

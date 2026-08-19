@@ -4,6 +4,7 @@
         @include('partials.head')
     </head>
     <body class="min-h-screen bg-white dark:bg-zinc-800">
+        <x-impersonation-banner />
         <flux:sidebar sticky collapsible class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
@@ -64,26 +65,10 @@
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 
-        @php
-            $activeGroup = null;
-            foreach (config('menu.groups', []) as $grp) {
-                if (collect($grp['items'] ?? [])->contains(fn ($item) => request()->routeIs($item['active'] ?? $item['route']))) {
-                    $activeGroup = $grp;
-                    break;
-                }
-            }
-
-            $secondaryNavItems = collect($activeGroup['items'] ?? [])->filter(function ($item) {
-                return !isset($item['permission']) || empty($item['permission']) || (auth()->check() && auth()->user()->can($item['permission']));
-            });
-
-            $hasSecondaryNav = isset($headerNav) || $secondaryNavItems->isNotEmpty();
-        @endphp
-
-        <!-- Secondary & Mobile Header -->
-        <flux:header class="{{ $hasSecondaryNav ? 'block! bg-white lg:bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700' : 'lg:hidden border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900' }}">
+        <!-- Mobile Header -->
+        <flux:header class="lg:hidden border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             <!-- Mobile User Menu -->
-            <flux:navbar class="lg:hidden w-full">
+            <flux:navbar class="w-full">
                 <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
                 <flux:spacer />
@@ -114,6 +99,12 @@
                         <flux:menu.separator />
 
                         <flux:menu.radio.group>
+                            @if (app('impersonate')->isImpersonating())
+                                <flux:menu.item :href="route('impersonate.leave')" icon="arrow-uturn-left" class="text-amber-600 dark:text-amber-400 font-semibold">
+                                    {{ __('Kembali ke Akun Asli') }}
+                                </flux:menu.item>
+                                <flux:menu.separator />
+                            @endif
                             <flux:menu.item :href="route('profile.edit')" icon="cog" wire:navigate>
                                 {{ __('Settings') }}
                             </flux:menu.item>
@@ -136,26 +127,6 @@
                     </flux:menu>
                 </flux:dropdown>
             </flux:navbar>
-
-            <!-- Secondary Navigation Navbar -->
-            @if ($hasSecondaryNav)
-                <flux:navbar scrollable>
-                    @if (isset($headerNav))
-                        {{ $headerNav }}
-                    @else
-                        @foreach ($secondaryNavItems as $item)
-                            <flux:navbar.item
-                                :icon="$item['icon'] ?? null"
-                                :href="route($item['route'])"
-                                :current="request()->routeIs($item['active'] ?? $item['route'])"
-                                wire:navigate
-                            >
-                                {{ __($item['title']) }}
-                            </flux:navbar.item>
-                        @endforeach
-                    @endif
-                </flux:navbar>
-            @endif
         </flux:header>
 
         {{ $slot }}

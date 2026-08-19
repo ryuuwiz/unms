@@ -4,27 +4,42 @@
             <flux:heading size="xl">Edit User</flux:heading>
             <flux:subheading>Ubah informasi dan role staff.</flux:subheading>
         </div>
-        {{-- Status toggle --}}
-        @if ($user->isActive())
-            <flux:button
-                wire:click="toggleStatus"
-                wire:confirm="Yakin ingin menonaktifkan akun ini?"
-                variant="danger"
-                size="sm"
-                icon="lock-closed"
-            >
-                Nonaktifkan
-            </flux:button>
-        @else
-            <flux:button
-                wire:click="toggleStatus"
-                variant="primary"
-                size="sm"
-                icon="lock-open"
-            >
-                Aktifkan
-            </flux:button>
-        @endif
+        <div class="flex items-center gap-2">
+            @canImpersonate
+                @if ($user->canBeImpersonated())
+                    <flux:button
+                        :href="route('impersonate', $user->id)"
+                        variant="subtle"
+                        size="sm"
+                        icon="arrow-right-end-on-rectangle"
+                    >
+                        Login sebagai User
+                    </flux:button>
+                @endif
+            @endCanImpersonate
+
+            {{-- Status toggle --}}
+            @if ($user->isActive())
+                <flux:button
+                    wire:click="toggleStatus"
+                    wire:confirm="Yakin ingin menonaktifkan akun ini?"
+                    variant="danger"
+                    size="sm"
+                    icon="lock-closed"
+                >
+                    Nonaktifkan
+                </flux:button>
+            @else
+                <flux:button
+                    wire:click="toggleStatus"
+                    variant="primary"
+                    size="sm"
+                    icon="lock-open"
+                >
+                    Aktifkan
+                </flux:button>
+            @endif
+        </div>
     </div>
 
     <flux:separator />

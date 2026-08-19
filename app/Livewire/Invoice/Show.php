@@ -35,7 +35,7 @@ class Show extends Component
     public function mount(Invoice $invoice): void
     {
         $this->authorize('view', $invoice);
-        $this->invoice = $invoice->load(['pelanggan', 'layananPelanggan.paketLayanan', 'layananPelanggan.router', 'promo', 'pembayarans.dicatatOleh', 'dibuatOleh']);
+        $this->invoice = $invoice->load(['pelanggan', 'layananPelanggan.paketLayanan', 'layananPelanggan.router', 'promo', 'pembayarans.dicatatOleh', 'dibuatOleh', 'transaksiPaymentGateways' => fn ($q) => $q->latest('id')]);
 
         $this->jumlah_dibayar = (float) $invoice->jumlah_setelah_promo;
         $this->dibayar_pada = Carbon::now()->format('Y-m-d\TH:i');

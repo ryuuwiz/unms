@@ -161,6 +161,24 @@ class Invoice extends Model
     }
 
     /**
+     * @return HasMany<TransaksiPaymentGateway, $this>
+     */
+    public function transaksiPaymentGateways(): HasMany
+    {
+        return $this->hasMany(TransaksiPaymentGateway::class, 'invoice_id');
+    }
+
+    /**
+     * Transaksi payment gateway terakhir/aktif.
+     */
+    public function transaksiPaymentGatewayAktif(): ?TransaksiPaymentGateway
+    {
+        return $this->transaksiPaymentGateways()
+            ->latest('id')
+            ->first();
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function dibuatOleh(): BelongsTo

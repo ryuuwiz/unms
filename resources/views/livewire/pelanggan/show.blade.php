@@ -16,14 +16,26 @@
             </div>
         </div>
 
-        @can('update', $pelanggan)
-            <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2">
+            @canImpersonate
+                @if ($pelanggan->akunPelanggan && $pelanggan->akunPelanggan->canBeImpersonated())
+                    <flux:button
+                        :href="route('impersonate', ['id' => $pelanggan->akunPelanggan->id, 'guardName' => 'pelanggan'])"
+                        variant="subtle"
+                        icon="arrow-right-end-on-rectangle"
+                    >
+                        Buka Portal (Login as)
+                    </flux:button>
+                @endif
+            @endCanImpersonate
+
+            @can('update', $pelanggan)
                 <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate variant="primary"
                     icon="pencil-square">
                     Edit Pelanggan
                 </flux:button>
-            </div>
-        @endcan
+            @endcan
+        </div>
     </div>
 
     {{-- Tabs Navigation --}}
@@ -189,7 +201,7 @@
                 <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div class="flex items-center gap-3">
                         <flux:heading size="base">Titik Koordinat Lokasi</flux:heading>
-                        @if ($pelanggan->latitude && $pelanggan->longitude)
+                        @if (is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude))
                             <flux:badge size="sm" color="emerald" class="font-mono text-xs">
                                 <flux:icon name="map-pin" class="mr-1 size-3" />
                                 Terpetakan
@@ -197,7 +209,7 @@
                         @endif
                     </div>
 
-                    @if ($pelanggan->latitude && $pelanggan->longitude)
+                    @if (is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude))
                         <div class="flex flex-wrap items-center gap-2">
                             <a href="https://www.google.com/maps?q={{ $pelanggan->latitude }},{{ $pelanggan->longitude }}"
                                 target="_blank" rel="noopener noreferrer"
@@ -221,7 +233,7 @@
                     @endif
                 </div>
 
-                @if ($pelanggan->latitude && $pelanggan->longitude)
+                @if (is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude))
                     <div class="space-y-4">
                         {{-- Peta Leaflet Berukuran Besar --}}
                         <x-map-view :lat="$pelanggan->latitude" :lng="$pelanggan->longitude" :popup-title="$pelanggan->namaLengkap()" :popup-subtitle="$pelanggan->alamat_lengkap"
@@ -253,10 +265,8 @@
                             class="flex size-14 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
                             <flux:icon name="map-pin" class="size-7 text-zinc-400 dark:text-zinc-500" />
                         </div>
-                        <span class="mt-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">Koordinat belum
-                            ditentukan</span>
-                        <span class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Tentukan titik koordinat untuk
-                            memudahkan teknisi instalasi di lapangan dan pemetaan jaringan.</span>
+                        <span class="mt-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">Koordinat belum ditentukan</span>
+                        <span class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Tentukan titik koordinat untuk memudahkan teknisi instalasi di lapangan dan pemetaan jaringan.</span>
                         @can('update', $pelanggan)
                             <div class="mt-4">
                                 <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate size="sm"

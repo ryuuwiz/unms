@@ -11,6 +11,11 @@ class PembayaranPolicy
         return $user->can('pembayaran.lihat');
     }
 
+    public function view(User $user): bool
+    {
+        return $user->can('pembayaran.lihat');
+    }
+
     public function create(User $user): bool
     {
         return $user->can('pembayaran.catat');

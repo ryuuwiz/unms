@@ -2,7 +2,12 @@
 
 namespace App\Providers;
 
+use App\Events\InvoicePaidEvent;
+use App\Listeners\CatatLogPembayaranListener;
+use App\Listeners\LogImpersonationActivity;
 use App\Listeners\RecordLastLoginAt;
+use App\Listeners\TriggerMikrotikAktivasiStubListener;
+use App\Listeners\TriggerWaNotifikasiStubListener;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Date;
@@ -38,6 +43,10 @@ class AppServiceProvider extends ServiceProvider
     protected function registerEventListeners(): void
     {
         Event::listen(Login::class, RecordLastLoginAt::class);
+        Event::listen(InvoicePaidEvent::class, CatatLogPembayaranListener::class);
+        Event::listen(InvoicePaidEvent::class, TriggerMikrotikAktivasiStubListener::class);
+        Event::listen(InvoicePaidEvent::class, TriggerWaNotifikasiStubListener::class);
+        Event::subscribe(LogImpersonationActivity::class);
     }
 
     /**

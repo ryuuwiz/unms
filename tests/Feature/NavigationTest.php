@@ -71,7 +71,7 @@ test('user with pengguna.lihat permission sees pengguna menu item', function () 
         ->assertDontSee('Peran (Role)');
 });
 
-test('secondary header displays contextual sub-navigation when visiting a module page', function () {
+test('super_admin sees contextual module navigation in sidebar when visiting a module page', function () {
     $superAdmin = User::factory()->create(['status' => UserStatus::Active]);
     $superAdmin->assignRole('super_admin');
 

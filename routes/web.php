@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
+use App\Http\Controllers\Webhook\XenditWebhookController;
 use App\Livewire\Invoice;
 use App\Livewire\IpPool;
 use App\Livewire\Laporan;
@@ -8,12 +10,21 @@ use App\Livewire\LayananPelanggan;
 use App\Livewire\PaketLayanan;
 use App\Livewire\Pelanggan;
 use App\Livewire\Pembayaran;
+use App\Livewire\Portal\Auth\GantiPassword;
+use App\Livewire\Portal\Auth\KlaimAkun;
+use App\Livewire\Portal\Auth\Login;
+use App\Livewire\Portal\Dashboard;
+use App\Livewire\Portal\Invoice\Bayar;
+use App\Livewire\Portal\Invoice\Index;
+use App\Livewire\Portal\Invoice\Show;
 use App\Livewire\ProfilBandwidth;
 use App\Livewire\Promo;
 use App\Livewire\Roles;
 use App\Livewire\Router;
+use App\Livewire\Settings\PengaturanGateway;
 use App\Livewire\Users;
 use App\Livewire\Wilayah;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
@@ -94,7 +105,14 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('pembayaran')->name('pembayaran.')->group(function () {
         Route::middleware('permission:pembayaran.lihat')->group(function () {
             Route::get('/', Pembayaran\Index::class)->name('index');
+            Route::get('/transaksi-gateway', Pembayaran\TransaksiGateway\Index::class)->name('transaksi-gateway.index');
+            Route::get('/transaksi-gateway/{transaksi}', Pembayaran\TransaksiGateway\Show::class)->name('transaksi-gateway.show');
         });
+    });
+
+    // ─── Pengaturan Gateway ───────────────────────────────────────
+    Route::middleware('permission:peran.lihat')->group(function () {
+        Route::get('/settings/gateway', PengaturanGateway::class)->name('settings.gateway');
     });
 
     // ─── Promo & Diskon ───────────────────────────────────────────
@@ -190,5 +208,40 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 });
+
+// ─── Webhook Xendit (Public & CSRF-Exempt) ──────────────────────
+Route::post('/webhook/xendit', [XenditWebhookController::class, 'handle'])->name('webhook.xendit');
+Route::post('/webhook/xendit/virtual-account', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.va');
+Route::post('/webhook/xendit/qris', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.qris');
+
+// ─── Portal Pelanggan (Guard: pelanggan) ─────────────────────────
+Route::prefix('portal')->name('portal.')->group(function () {
+    // Auth Routes
+    Route::get('/login', Login::class)->name('login');
+    Route::get('/klaim-akun', KlaimAkun::class)->name('klaim-akun');
+
+    Route::middleware('auth:pelanggan')->group(function () {
+        Route::post('/logout', function () {
+            Auth::guard('pelanggan')->logout();
+            request()->session()->invalidate();
+            request()->session()->regenerateToken();
+
+            return redirect()->route('portal.login');
+        })->name('logout');
+
+        Route::get('/dashboard', Dashboard::class)->name('dashboard');
+        Route::get('/tagihan', Index::class)->name('invoice.index');
+        Route::get('/tagihan/{invoice}', Show::class)->name('invoice.show');
+        Route::get('/tagihan/{invoice}/bayar', Bayar::class)->name('invoice.bayar');
+        Route::get('/profil', App\Livewire\Portal\Profil\Index::class)->name('profil');
+        Route::get('/ganti-password', GantiPassword::class)->middleware('impersonate.protect')->name('ganti-password');
+    });
+});
+
+// ─── Impersonasi (Super Admin Only) ──────────────────────────────
+Route::middleware(['auth'])->group(function () {
+    Route::get('/impersonate/take/{id}/{guardName?}', [ImpersonateController::class, 'take'])->name('impersonate');
+});
+Route::get('/impersonate/leave', [ImpersonateController::class, 'leave'])->name('impersonate.leave');
 
 require __DIR__.'/settings.php';

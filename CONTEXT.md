@@ -99,3 +99,24 @@ _Avoid_: Transaksi Kasar, Setoran
 **Promo**:
 Program diskon (nominal / persentase) atau bonus durasi yang dapat diaplikasikan pada penerbitan invoice.
 _Avoid_: Voucher Bebas, Potongan Informal
+
+**Portal Pelanggan**:
+Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time.
+_Avoid_: Client Area Bebas, Customer App Terpisah, Halaman Member
+
+**Akun Pelanggan**:
+Entitas kredensial autentikasi pengguna portal (guard `pelanggan`) yang terikat 1-to-1 dengan master data Pelanggan.
+_Avoid_: User Pelanggan, Akun Web Bebas
+
+**Transaksi Payment Gateway**:
+Catatan transaksi penerbitan tagihan digital (Virtual Account / QRIS) ke payment gateway (Xendit) dengan identitas `external_id` unik untuk penjaminan idempotensi.
+_Avoid_: Billing Gateway, Tagihan Xendit, Order ID Bebas
+
+**Log Webhook**:
+Catatan audit trail penerimaan callback HTTP dari payment gateway Xendit untuk mencatat event id, payload mentah, status verifikasi token, dan proses eksekusi database.
+_Avoid_: Callback History, Webhook Record
+
+**Impersonasi**:
+Aksi staf dengan peran `super_admin` untuk masuk sementara (*login as*) ke sesi pengguna staf lain atau akun portal pelanggan tanpa membutuhkan kata sandi untuk tujuan *troubleshooting*, audit hak akses, dan verifikasi tampilan portal secara *real-time*.
+_Avoid_: Ghost Login, Bypass Auth, Switch User Bebas
+

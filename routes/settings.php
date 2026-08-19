@@ -17,6 +17,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('settings/security', Security::class)
         ->middleware([
             'password.confirm',
+            'impersonate.protect',
         ])
         ->name('security.edit');
 });

@@ -19,6 +19,12 @@
         </div>
         <flux:menu.separator />
         <flux:menu.radio.group>
+            @if (app('impersonate')->isImpersonating())
+                <flux:menu.item :href="route('impersonate.leave')" icon="arrow-uturn-left" class="text-amber-600 dark:text-amber-400 font-semibold">
+                    {{ __('Kembali ke Akun Asli') }}
+                </flux:menu.item>
+                <flux:menu.separator />
+            @endif
             <flux:menu.item :href="route('profile.edit')" icon="cog" wire:navigate>
                 {{ __('Settings') }}
             </flux:menu.item>

@@ -12,6 +12,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Lab404\Impersonate\Models\Impersonate;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
@@ -37,7 +38,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable;
+    use HasFactory, HasRoles, Impersonate, Notifiable, PasskeyAuthenticatable;
 
     /**
      * Get the attributes that should be cast.
@@ -71,6 +72,22 @@ class User extends Authenticatable implements PasskeyUser
     public function isActive(): bool
     {
         return $this->status === UserStatus::Active;
+    }
+
+    /**
+     * Determine if the user can impersonate other users.
+     */
+    public function canImpersonate(): bool
+    {
+        return $this->isActive() && $this->hasRole('super_admin');
+    }
+
+    /**
+     * Determine if the user can be impersonated.
+     */
+    public function canBeImpersonated(): bool
+    {
+        return $this->isActive() && ! $this->hasRole('super_admin');
     }
 
     /**

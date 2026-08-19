@@ -104,6 +104,18 @@ class Pelanggan extends Model
                 $pelanggan->no_hp = static::normalizePhone($pelanggan->no_hp);
             }
         });
+
+        static::created(function (Pelanggan $pelanggan) {
+            if (! empty($pelanggan->email) && ! $pelanggan->akunPelanggan()->exists()) {
+                AkunPelanggan::firstOrCreate(
+                    ['email' => strtolower(trim($pelanggan->email))],
+                    [
+                        'pelanggan_id' => $pelanggan->id,
+                        'password' => '12345678',
+                    ]
+                );
+            }
+        });
     }
 
     /**
