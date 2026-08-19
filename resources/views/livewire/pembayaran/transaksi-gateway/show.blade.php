@@ -9,6 +9,12 @@
         </div>
 
         <div class="flex items-center gap-2">
+            @if(($transaksi->status === \App\Enums\StatusTransaksiGateway::Pending) && (\App\Models\PengaturanGateway::getXenditSetting()->sandbox_mode || app()->environment('local', 'testing')))
+                <flux:button wire:click="simulasikanPembayaran" size="sm" variant="primary" icon="bolt">
+                    Simulasikan Pembayaran (Sandbox)
+                </flux:button>
+            @endif
+
             <flux:button wire:click="rekonsiliasiStatus" size="sm" variant="ghost" icon="arrow-path">
                 Rekonsiliasi Status ke Xendit
             </flux:button>

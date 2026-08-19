@@ -4,13 +4,16 @@ namespace App\Services\Xendit;
 
 use App\Enums\GatewayChannel;
 use App\Enums\StatusTransaksiGateway;
+use App\Http\Controllers\Webhook\XenditWebhookController;
 use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use Exception;
 use GuzzleHttp\Client;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Xendit\BalanceAndTransaction\BalanceApi;
 use Xendit\Configuration;
 use Xendit\PaymentRequest\PaymentMethodParameters;
 use Xendit\PaymentRequest\PaymentMethodReusability;
@@ -279,6 +282,200 @@ class XenditPaymentService
 
             return ['error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Cek koneksi dan validitas API Key ke Xendit Sandbox/Production API.
+     *
+     * @return array<string, mixed>
+     */
+    public function cekKoneksiApi(): array
+    {
+        if (app()->environment('testing')) {
+            return [
+                'success' => true,
+                'message' => 'Koneksi ke Xendit API berhasil terhubung (Testing Mock).',
+                'balance' => 15000000.0,
+                'currency' => 'IDR',
+            ];
+        }
+
+        if (empty($this->apiKey)) {
+            return [
+                'success' => false,
+                'message' => 'XENDIT_SECRET_KEY belum dikonfigurasi di file .env',
+            ];
+        }
+
+        try {
+            $balanceApi = new BalanceApi(
+                client: new Client(['timeout' => 15]),
+                config: Configuration::getDefaultConfiguration()
+            );
+
+            $balance = $balanceApi->getBalance('CASH');
+            $balanceData = json_decode((string) json_encode($balance), true) ?: [];
+
+            return [
+                'success' => true,
+                'message' => 'Koneksi ke Xendit API berhasil terhubung.',
+                'balance' => $balanceData['balance'] ?? ($balance->getBalance() ?? null),
+                'currency' => 'IDR',
+            ];
+        } catch (XenditSdkException $e) {
+            Log::error('Gagal ping koneksi Xendit API: '.$e->getMessage(), [
+                'error' => $e->getFullError(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Autentikasi Xendit gagal atau API Key tidak valid: '.$e->getMessage(),
+                'error' => $e->getFullError(),
+            ];
+        } catch (Exception $e) {
+            Log::error('Error ping koneksi Xendit API: '.$e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Gagal menghubungi Xendit API: '.$e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Simulasikan pembayaran di server Xendit Sandbox via SDK.
+     *
+     * @return array<string, mixed>
+     */
+    public function simulasikanPembayaran(TransaksiPaymentGateway $transaksi): array
+    {
+        if (app()->environment('testing')) {
+            return [
+                'success' => true,
+                'message' => 'Simulasi pembayaran berhasil dikirim ke Xendit Sandbox API (Testing Mock).',
+                'data' => ['status' => 'SUCCEEDED', 'mock' => true],
+            ];
+        }
+
+        if (empty($this->apiKey)) {
+            return [
+                'success' => false,
+                'message' => 'XENDIT_SECRET_KEY belum dikonfigurasi di .env',
+            ];
+        }
+
+        if (empty($transaksi->xendit_reference_id)) {
+            return [
+                'success' => false,
+                'message' => 'Transaksi tidak memiliki referensi ID Xendit (xendit_reference_id).',
+            ];
+        }
+
+        try {
+            $response = $this->paymentRequestApi->simulatePaymentRequestPayment($transaksi->xendit_reference_id);
+            $result = json_decode((string) json_encode($response), true) ?: [];
+
+            return [
+                'success' => true,
+                'message' => 'Simulasi pembayaran berhasil dikirim ke Xendit Sandbox API. Xendit akan mengirim webhook ke URL terdaftar.',
+                'data' => $result,
+            ];
+        } catch (XenditSdkException $e) {
+            Log::error("Gagal simulasi pembayaran Xendit {$transaksi->external_id}: ".$e->getMessage(), [
+                'error' => $e->getFullError(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Gagal simulasi pembayaran Xendit: '.$e->getMessage(),
+                'error' => $e->getFullError(),
+            ];
+        } catch (Exception $e) {
+            Log::error("Error simulasi pembayaran Xendit {$transaksi->external_id}: ".$e->getMessage());
+
+            return [
+                'success' => false,
+                'message' => 'Error simulasi Xendit: '.$e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Simulasikan penerimaan Webhook lokal secara internal tanpa butuh tunnel publik.
+     *
+     * @return array<string, mixed>
+     */
+    public function simulasikanWebhookLokal(TransaksiPaymentGateway $transaksi): array
+    {
+        $token = (string) config('services.xendit.callback_token');
+
+        if (empty($token)) {
+            return [
+                'success' => false,
+                'message' => 'XENDIT_CALLBACK_TOKEN belum dikonfigurasi di file .env',
+            ];
+        }
+
+        $isQris = $transaksi->channel === GatewayChannel::Qris;
+
+        $payload = [
+            'event' => 'payment.succeeded',
+            'id' => 'sim_evt_'.uniqid(),
+            'created' => Carbon::now()->toIso8601String(),
+            'data' => [
+                'id' => $transaksi->xendit_reference_id ?: ('sim_pr_'.uniqid()),
+                'reference_id' => $transaksi->external_id,
+                'status' => 'SUCCEEDED',
+                'amount' => (float) $transaksi->total_tagihan,
+                'currency' => 'IDR',
+                'payment_method' => [
+                    'type' => $isQris ? 'QR_CODE' : 'VIRTUAL_ACCOUNT',
+                    'reference_id' => $transaksi->external_id,
+                    'virtual_account' => [
+                        'channel_code' => strtoupper($transaksi->channel_detail ?: 'BCA'),
+                        'channel_properties' => [
+                            'account_number' => $transaksi->nomor_pembayaran ?: '880812345678',
+                        ],
+                    ],
+                    'qr_code' => [
+                        'channel_code' => 'QRIS',
+                        'channel_properties' => [
+                            'qr_string' => $transaksi->qr_string ?: 'SIMULATED_QRIS_STRING',
+                        ],
+                    ],
+                ],
+                'updated' => Carbon::now()->toIso8601String(),
+            ],
+        ];
+
+        $rawJson = json_encode($payload);
+        $request = Request::create(
+            uri: '/webhook/xendit',
+            method: 'POST',
+            parameters: $payload,
+            cookies: [],
+            files: [],
+            server: [
+                'HTTP_X_CALLBACK_TOKEN' => $token,
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            content: $rawJson
+        );
+        $request->headers->set('x-callback-token', $token);
+
+        /** @var XenditWebhookController $controller */
+        $controller = app(XenditWebhookController::class);
+        $response = $controller->handle($request);
+        $responseData = json_decode((string) $response->getContent(), true) ?: [];
+
+        $isSuccess = $response->getStatusCode() === 200;
+
+        return [
+            'success' => $isSuccess,
+            'status_code' => $response->getStatusCode(),
+            'message' => $isSuccess ? 'Simulasi webhook lokal berhasil diproses.' : 'Webhook lokal gagal diproses.',
+            'response' => $responseData,
+        ];
     }
 
     /**
