@@ -49,12 +49,14 @@ class IpPoolSeeder extends Seeder
             );
         }
 
-        // Pool dummy untuk router lain
+        // Pool dummy untuk router lain jika belum memiliki pool
         $otherRouters = Router::where('ip_address', '!=', '192.168.88.1')->get();
         foreach ($otherRouters as $router) {
-            IpPool::factory()->count(2)->create([
-                'router_id' => $router->id,
-            ]);
+            if ($router->ipPools()->count() === 0) {
+                IpPool::factory()->count(2)->create([
+                    'router_id' => $router->id,
+                ]);
+            }
         }
     }
 }

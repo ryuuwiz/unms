@@ -151,6 +151,16 @@ class LayananPelanggan extends Model
     }
 
     /**
+     * Relasi ke seluruh tiket yang terkait dengan layanan ini.
+     *
+     * @return HasMany<Ticket, $this>
+     */
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class, 'layanan_pelanggan_id');
+    }
+
+    /**
      * Scope filter layanan yang berstatus aktif.
      *
      * @param  Builder<LayananPelanggan>  $query

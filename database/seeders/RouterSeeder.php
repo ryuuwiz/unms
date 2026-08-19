@@ -26,7 +26,9 @@ class RouterSeeder extends Seeder
             ]
         );
 
-        // Data dummy untuk testing
-        Router::factory(4)->create();
+        // Data dummy untuk testing jika belum ada
+        if (Router::count() <= 1) {
+            Router::factory(4)->create();
+        }
     }
 }

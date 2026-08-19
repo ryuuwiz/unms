@@ -86,7 +86,7 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['profil_bandwidth.lihat'],
             $p['wilayah.lihat'],
             $p['promo.lihat'], $p['promo.buat'], $p['promo.ubah'], $p['promo.hapus'],
-            $p['ticket.lihat'], $p['ticket.buat'], $p['ticket.ubah'], $p['ticket.hapus'],
+            $p['ticket.lihat'], $p['ticket.buat'], $p['ticket.ubah'], $p['ticket.hapus'], $p['ticket.assign'],
             $p['laporan.lihat'], $p['laporan.ekspor'],
             $p['pengguna.lihat'], $p['pengguna.buat'], $p['pengguna.ubah'],
         ]);
@@ -97,7 +97,7 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['layanan_pelanggan.lihat'],
             $p['paket_layanan.lihat'],
             $p['wilayah.lihat'],
-            $p['ticket.lihat'], $p['ticket.buat'],
+            $p['ticket.lihat'], $p['ticket.buat'], $p['ticket.ubah'],
         ]);
 
         // noc: jaringan, router, ODP, tiket gangguan

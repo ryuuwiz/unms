@@ -50,25 +50,27 @@ class PelangganSeeder extends Seeder
             $perumahan = $perumahans[$index % $perumahans->count()];
             $singkatanPerumahan = strtolower($perumahan->singkatan ?: 'perum');
 
-            // 1. Buat Master Pelanggan
-            $pelanggan = Pelanggan::create([
-                'tipe_pelanggan' => $item['tipe'],
-                'nik' => sprintf('3273%012d', 100000000000 + $index + 1),
-                'nama_depan' => $item['nama_depan'],
-                'nama_belakang' => $item['nama_belakang'],
-                'email' => $item['email'],
-                'no_hp' => $item['no_hp'],
-                'perumahan_id' => $perumahan->id,
-                'rt' => sprintf('%02d', ($index % 8) + 1),
-                'rw' => sprintf('%02d', ($index % 4) + 1),
-                'no_rumah' => 'No. '.(($index * 3) + 5),
-                'kode_pos' => '40287',
-                'alamat_lengkap' => $item['nama_depan'].' '.$item['nama_belakang'].', '.$perumahan->nama_perumahan.' No. '.(($index * 3) + 5),
-                'latitude' => $perumahan->kelurahan->kecamatan->kota->nama_kota === 'Kota Cimahi' ? -6.872 + ($index * 0.001) : -6.940 + ($index * 0.001),
-                'longitude' => 107.620 + ($index * 0.001),
-                'status' => $item['status_pelanggan'],
-                'dibuat_oleh' => $admin->id,
-            ]);
+            // 1. Buat Master Pelanggan (Idempotent)
+            $pelanggan = Pelanggan::firstOrCreate(
+                ['email' => $item['email']],
+                [
+                    'tipe_pelanggan' => $item['tipe'],
+                    'nik' => sprintf('3273%012d', 100000000000 + $index + 1),
+                    'nama_depan' => $item['nama_depan'],
+                    'nama_belakang' => $item['nama_belakang'],
+                    'no_hp' => $item['no_hp'],
+                    'perumahan_id' => $perumahan->id,
+                    'rt' => sprintf('%02d', ($index % 8) + 1),
+                    'rw' => sprintf('%02d', ($index % 4) + 1),
+                    'no_rumah' => 'No. '.(($index * 3) + 5),
+                    'kode_pos' => '40287',
+                    'alamat_lengkap' => $item['nama_depan'].' '.$item['nama_belakang'].', '.$perumahan->nama_perumahan.' No. '.(($index * 3) + 5),
+                    'latitude' => $perumahan->kelurahan->kecamatan->kota->nama_kota === 'Kota Cimahi' ? -6.872 + ($index * 0.001) : -6.940 + ($index * 0.001),
+                    'longitude' => 107.620 + ($index * 0.001),
+                    'status' => $item['status_pelanggan'],
+                    'dibuat_oleh' => $admin->id,
+                ]
+            );
 
             // Pelanggan Prospek & Tidak Aktif tidak memiliki akun/layanan aktif
             if ($item['status_pelanggan'] === StatusPelanggan::Prospek || $item['status_pelanggan'] === StatusPelanggan::TidakAktif) {
@@ -76,12 +78,14 @@ class PelangganSeeder extends Seeder
             }
 
             // 2. Buat Akun Portal Pelanggan
-            AkunPelanggan::create([
-                'pelanggan_id' => $pelanggan->id,
-                'email' => $pelanggan->email,
-                'password' => 'password', // Auto-hashed
-                'email_verified_at' => now(),
-            ]);
+            AkunPelanggan::firstOrCreate(
+                ['pelanggan_id' => $pelanggan->id],
+                [
+                    'email' => $pelanggan->email,
+                    'password' => 'password', // Auto-hashed
+                    'email_verified_at' => now(),
+                ]
+            );
 
             // 3. Alokasikan Port ODP
             $availablePort = OdpPort::whereHas('odp', function ($q) use ($perumahan) {
@@ -103,22 +107,24 @@ class PelangganSeeder extends Seeder
                 : Carbon::now()->endOfMonth();
 
             // 4. Buat Layanan Pelanggan
-            $layanan = LayananPelanggan::create([
-                'pelanggan_id' => $pelanggan->id,
-                'paket_layanan_id' => $paket->id,
-                'router_id' => $router->id,
-                'ppp_username' => $pppUsername,
-                'ppp_password_terenkripsi' => 'unms'.rand(1000, 9999),
-                'ip_static' => ($item['tipe'] === TipePelanggan::Bisnis) ? '10.0.1.'.(20 + $index) : null,
-                'odp_port_id' => $availablePort?->id,
-                'jenis_koneksi' => JenisKoneksi::Pppoe,
-                'status' => $item['status_layanan'],
-                'tanggal_mulai' => $mulaiTanggal,
-                'tanggal_expired' => $expiredTanggal,
-            ]);
+            $layanan = LayananPelanggan::firstOrCreate(
+                ['ppp_username' => $pppUsername],
+                [
+                    'pelanggan_id' => $pelanggan->id,
+                    'paket_layanan_id' => $paket->id,
+                    'router_id' => $router->id,
+                    'ppp_password_terenkripsi' => 'unms'.rand(1000, 9999),
+                    'ip_static' => ($item['tipe'] === TipePelanggan::Bisnis) ? '10.0.1.'.(20 + $index) : null,
+                    'odp_port_id' => $availablePort?->id,
+                    'jenis_koneksi' => JenisKoneksi::Pppoe,
+                    'status' => $item['status_layanan'],
+                    'tanggal_mulai' => $mulaiTanggal,
+                    'tanggal_expired' => $expiredTanggal,
+                ]
+            );
 
-            // Tandai port ODP terpakai
-            if ($availablePort) {
+            // Tandai port ODP terpakai jika baru
+            if ($availablePort && $layanan->wasRecentlyCreated) {
                 $availablePort->update([
                     'status' => StatusOdpPort::Terpakai,
                     'layanan_pelanggan_id' => $layanan->id,
@@ -202,6 +208,14 @@ class PelangganSeeder extends Seeder
         int $adminId,
         ?Promo $promo = null
     ): Invoice {
+        $existing = Invoice::where('pelanggan_id', $pelanggan->id)
+            ->where('tanggal_terbit', $tanggalTerbit->toDateString())
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
         $jumlahSetelahPromo = $harga;
 
         if ($promo) {
@@ -253,6 +267,11 @@ class PelangganSeeder extends Seeder
         Carbon $dibayarPada,
         int $adminId
     ): Pembayaran {
+        $existing = Pembayaran::where('invoice_id', $invoice->id)->first();
+        if ($existing) {
+            return $existing;
+        }
+
         return Pembayaran::create([
             'invoice_id' => $invoice->id,
             'metode' => $metode,

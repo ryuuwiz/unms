@@ -48,6 +48,21 @@ return [
             ],
         ],
         [
+            'heading' => 'Tiket & Operasional',
+            'icon' => 'ticket',
+            'expandable' => true,
+            'expanded' => true,
+            'items' => [
+                [
+                    'title' => 'Daftar Tiket',
+                    'icon' => 'ticket',
+                    'route' => 'ticket.index',
+                    'active' => 'ticket.*',
+                    'permission' => 'ticket.lihat',
+                ],
+            ],
+        ],
+        [
             'heading' => 'Keuangan & Billing',
             'icon' => 'banknotes',
             'expandable' => true,

@@ -120,3 +120,28 @@ _Avoid_: Callback History, Webhook Record
 Aksi staf dengan peran `super_admin` untuk masuk sementara (*login as*) ke sesi pengguna staf lain atau akun portal pelanggan tanpa membutuhkan kata sandi untuk tujuan *troubleshooting*, audit hak akses, dan verifikasi tampilan portal secara *real-time*.
 _Avoid_: Ghost Login, Bypass Auth, Switch User Bebas
 
+**Tiket & Operasional**:
+Kelompok navigasi untuk manajemen tiket layanan, penanganan aduan gangguan jaringan, dan pelacakan pekerjaan teknis lapangan.
+_Avoid_: Support Desk, Helpdesk Umum, Tugas Lapangan
+
+**Tiket**:
+Entitas berkas kerja permohonan layanan atau penanganan masalah teknis (Pemasangan, Gangguan, Pencabutan, Pindah Alamat) dengan status siklus hidup dan penomoran otomatis terpusat.
+_Avoid_: Issue, Aduan Bebas, Task, Case
+
+**Nomor Tiket**:
+Pengenal unik resmi untuk setiap tiket yang di-generate sistem secara terstandarisasi dengan format `TCK-YYYY-NNNNNN`.
+_Avoid_: Ticket ID Bebas, No Aduan, Kode Masalah
+
+**Histori Tiket**:
+Catatan log kronologis *immutable* (hanya-baca) yang merekam setiap transisi status, pergantian PIC, dan catatan penanganan teknis.
+_Avoid_: Riwayat Bebas, Log Tiket Manual, Catatan Lepas
+
+**PIC (Person in Charge)**:
+Staf pengguna internal (User) yang ditugaskan secara formal untuk bertanggung jawab menyelesaikan suatu tiket.
+_Avoid_: Assignee, Petugas Lapangan Bebas, Pelaksana
+
+**Target SLA**:
+Batas waktu tenggat penyelesaian tiket yang dihitung otomatis berdasarkan skala prioritas saat tiket pertama kali dibuat.
+_Avoid_: Deadline Bebas, Target Waktu, Estimasi Jam
+
+

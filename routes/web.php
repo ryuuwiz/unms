@@ -22,6 +22,7 @@ use App\Livewire\Promo;
 use App\Livewire\Roles;
 use App\Livewire\Router;
 use App\Livewire\Settings\PengaturanGateway;
+use App\Livewire\Ticket;
 use App\Livewire\Users;
 use App\Livewire\Wilayah;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +34,17 @@ Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');
 
     Route::view('dashboard', 'dashboard')->name('dashboard');
+
+    // ─── Tiket & Operasional ──────────────────────────────────────
+    Route::prefix('ticket')->name('ticket.')->group(function () {
+        Route::middleware('permission:ticket.buat')->group(function () {
+            Route::get('/create', Ticket\Create::class)->name('create');
+        });
+        Route::middleware('permission:ticket.lihat')->group(function () {
+            Route::get('/', Ticket\Index::class)->name('index');
+            Route::get('/{ticket}', Ticket\Show::class)->name('show');
+        });
+    });
 
     // ─── Pelanggan ───────────────────────────────────────────────
     Route::prefix('pelanggan')->name('pelanggan.')->group(function () {

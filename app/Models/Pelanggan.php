@@ -146,6 +146,16 @@ class Pelanggan extends Model
     }
 
     /**
+     * Alias relasi ke user pembuat data pelanggan (dibuat_oleh).
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function dibuatOleh(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dibuat_oleh');
+    }
+
+    /**
      * Relasi ke perumahan tempat tinggal pelanggan.
      *
      * @return BelongsTo<Perumahan, $this>
@@ -183,6 +193,16 @@ class Pelanggan extends Model
     public function akunPelanggan(): HasOne
     {
         return $this->hasOne(AkunPelanggan::class, 'pelanggan_id');
+    }
+
+    /**
+     * Relasi ke semua tiket permohonan/gangguan milik pelanggan.
+     *
+     * @return HasMany<Ticket, $this>
+     */
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class, 'pelanggan_id');
     }
 
     /**

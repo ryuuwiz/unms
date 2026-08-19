@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -88,6 +89,26 @@ class User extends Authenticatable implements PasskeyUser
     public function canBeImpersonated(): bool
     {
         return $this->isActive() && ! $this->hasRole('super_admin');
+    }
+
+    /**
+     * Relasi ke tiket yang ditugaskan kepada staf ini sebagai PIC.
+     *
+     * @return HasMany<Ticket, $this>
+     */
+    public function assignedTickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class, 'pic_id');
+    }
+
+    /**
+     * Relasi ke tiket yang dibuat oleh staf ini.
+     *
+     * @return HasMany<Ticket, $this>
+     */
+    public function createdTickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class, 'dibuat_oleh');
     }
 
     /**
