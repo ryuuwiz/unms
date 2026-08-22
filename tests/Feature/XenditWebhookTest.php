@@ -207,3 +207,28 @@ test('webhook aman terhadap invoice yang sudah lunas sebelumnya', function () {
     $response->assertStatus(200);
     expect(Pembayaran::where('invoice_id', $this->invoice->id)->count())->toBe(0);
 });
+
+test('webhook merespons sukses saat menerima data uji coba / test dummy dari dashboard Xendit', function () {
+    $payload = [
+        'id' => '579c8d61f23fa4ca35e52da4',
+        'external_id' => 'invoice_123124123',
+        'status' => 'PAID',
+        'amount' => 50000,
+        'paid_amount' => 50000,
+        'payer_email' => 'wildan@xendit.co',
+        'merchant_name' => 'Xendit',
+        'payment_method' => 'BANK_TRANSFER',
+        'payment_channel' => 'PERMATA',
+    ];
+
+    $response = $this->postJson('/webhook/xendit', $payload, [
+        'x-callback-token' => 'test_xendit_token_xyz',
+    ]);
+
+    $response->assertStatus(200);
+    $response->assertJson([
+        'status' => 'SUCCESS',
+        'is_test' => true,
+        'external_id' => 'invoice_123124123',
+    ]);
+});

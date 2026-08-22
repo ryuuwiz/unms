@@ -18,12 +18,19 @@ class Show extends Component
 {
     public Invoice $invoice;
 
-    public function mount(Invoice $invoice): void
+    public function mount(Invoice $invoice, XenditPaymentService $paymentService): void
     {
         $pelangganId = Auth::guard('pelanggan')->user()->pelanggan_id;
 
         if ($invoice->pelanggan_id !== $pelangganId) {
             abort(403, 'Anda tidak memiliki akses ke tagihan ini.');
+        }
+
+        // Sinkronisasi otomatis dengan Xendit jika masih menunggu pembayaran
+        // (Sangat berguna saat pelanggan kembali di-redirect dari halaman checkout Xendit)
+        if ($invoice->isMenungguPembayaran() && ! empty($invoice->xendit_invoice_id)) {
+            $paymentService->sinkronkanStatus($invoice);
+            $invoice->refresh();
         }
 
         $this->invoice = $invoice->load([
@@ -33,6 +40,25 @@ class Show extends Component
             'pembayarans',
             'transaksiPaymentGateways' => fn ($q) => $q->latest(),
         ]);
+    }
+
+    /**
+     * Cek dan sinkronisasikan status pembayaran terbaru dari gateway.
+     */
+    public function sinkronkanStatus(XenditPaymentService $paymentService): void
+    {
+        try {
+            $paymentService->sinkronkanStatus($this->invoice);
+            $this->invoice->refresh();
+
+            if ($this->invoice->isLunas()) {
+                Flux::toast(variant: 'success', text: 'Pembayaran berhasil terkonfirmasi! Tagihan telah lunas.');
+            } else {
+                Flux::toast(variant: 'info', text: 'Status tagihan: Menunggu pembayaran.');
+            }
+        } catch (Exception $e) {
+            Flux::toast(variant: 'danger', text: 'Gagal memperbarui status: '.$e->getMessage());
+        }
     }
 
     /**
@@ -46,6 +72,18 @@ class Show extends Component
             Flux::toast(variant: 'success', text: 'Tagihan ini telah lunas.');
 
             return null;
+        }
+
+        // Cek sinkronisasi terlebih dahulu jika sudah dibayar di tab/jendela lain
+        if (! empty($this->invoice->xendit_invoice_id)) {
+            $paymentService->sinkronkanStatus($this->invoice);
+            $this->invoice->refresh();
+
+            if ($this->invoice->isLunas()) {
+                Flux::toast(variant: 'success', text: 'Tagihan ini telah terkonfirmasi lunas!');
+
+                return null;
+            }
         }
 
         try {

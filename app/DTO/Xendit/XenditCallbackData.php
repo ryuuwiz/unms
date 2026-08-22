@@ -20,6 +20,11 @@ class XenditCallbackData
         public readonly array $rawPayload = []
     ) {}
 
+    public static function fromWebhookPayload(array $payload): self
+    {
+        return self::fromArray($payload);
+    }
+
     /**
      * Parse dari berbagai variasi payload webhook Xendit (Modern Payment Request vs Legacy VA/QR).
      *
@@ -145,5 +150,34 @@ class XenditCallbackData
             paidAt: now()->toIso8601String(),
             rawPayload: $payload
         );
+    }
+
+    /**
+     * Memeriksa apakah payload merupakan data uji coba / dummy dari fitur Test Callback Xendit Dashboard.
+     */
+    public function isTestDummy(): bool
+    {
+        $testIds = [
+            'invoice_123124123',
+            'fixed-va-1487156410',
+            'some-reference-id-001',
+            'sample-qr-001',
+            'sample-ewallet-001',
+            'sample-invoice-001',
+            'pm-497f6eca-6276-4993-bfeb-53cbbba6f08',
+        ];
+
+        $extLower = strtolower($this->externalId);
+        $evtLower = strtolower($this->eventId);
+
+        if (in_array($extLower, $testIds, true) || in_array($evtLower, $testIds, true)) {
+            return true;
+        }
+
+        if (str_starts_with($extLower, 'invoice_123') || str_starts_with($extLower, 'test_') || str_starts_with($extLower, 'demo_')) {
+            return true;
+        }
+
+        return false;
     }
 }

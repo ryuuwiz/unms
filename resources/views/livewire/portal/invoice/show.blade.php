@@ -10,6 +10,10 @@
                     Unduh Bukti Bayar (PDF)
                 </flux:button>
             @elseif($invoice->isMenungguPembayaran())
+                <flux:button wire:click="sinkronkanStatus" wire:loading.attr="disabled" size="sm" variant="subtle" icon="arrow-path">
+                    <span wire:loading.remove wire:target="sinkronkanStatus">Cek Status</span>
+                    <span wire:loading wire:target="sinkronkanStatus" class="animate-pulse">Mengecek...</span>
+                </flux:button>
                 <flux:button wire:click="bayar" wire:loading.attr="disabled" size="sm" variant="primary" class="bg-indigo-600 text-white">
                     <span wire:loading.remove wire:target="bayar" class="flex items-center gap-1.5">
                         <flux:icon icon="credit-card" class="size-4" />

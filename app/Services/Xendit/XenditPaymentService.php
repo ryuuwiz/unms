@@ -2,16 +2,26 @@
 
 namespace App\Services\Xendit;
 
+use App\DTO\Xendit\XenditCallbackData;
 use App\Enums\GatewayChannel;
+use App\Enums\MasaAktifSatuan;
+use App\Enums\MetodePembayaran;
+use App\Enums\StatusInvoice;
+use App\Enums\StatusLayanan;
 use App\Enums\StatusTransaksiGateway;
+use App\Enums\StatusWebhookLog;
+use App\Events\InvoicePaidEvent;
 use App\Http\Controllers\Webhook\XenditWebhookController;
 use App\Models\Invoice;
+use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
+use App\Models\WebhookLog;
 use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Xendit\BalanceAndTransaction\BalanceApi;
 use Xendit\Configuration;
@@ -64,9 +74,12 @@ class XenditPaymentService
         $invoiceDurationSeconds = $this->hitungDurasiDetik($invoice);
         $expiredAt = Carbon::now()->addSeconds($invoiceDurationSeconds);
 
-        $externalId = sprintf('INV-%s-%s', $invoice->no_invoice, now()->timestamp);
+        $externalId = sprintf('%s-%s', $invoice->no_invoice, now()->timestamp);
         $pelanggan = $invoice->pelanggan;
-        $mobileNumber = $pelanggan->no_hp ? '+'.$pelanggan->no_hp : null;
+        $mobileNumber = self::formatNomorHpE164($pelanggan->no_hp);
+        $payerEmail = (! empty($pelanggan->email) && filter_var($pelanggan->email, FILTER_VALIDATE_EMAIL))
+            ? $pelanggan->email
+            : null;
 
         // Line Items
         $items = [];
@@ -99,29 +112,36 @@ class XenditPaymentService
             ]);
         }
 
-        $customerObj = new CustomerObject([
-            'given_names' => $pelanggan->nama_depan,
-            'surname' => $pelanggan->nama_belakang ?? '',
-            'email' => $pelanggan->email,
-            'mobile_number' => $mobileNumber,
-            'customer_id' => (string) $pelanggan->no_reg,
-        ]);
+        $customerData = [
+            'given_names' => ! empty($pelanggan->nama_depan) ? trim($pelanggan->nama_depan) : 'Pelanggan',
+        ];
+
+        if (! empty($pelanggan->nama_belakang)) {
+            $customerData['surname'] = trim($pelanggan->nama_belakang);
+        }
+
+        if (! empty($payerEmail)) {
+            $customerData['email'] = $payerEmail;
+        }
+
+        if (! empty($mobileNumber)) {
+            $customerData['mobile_number'] = $mobileNumber;
+            $customerData['phone_number'] = $mobileNumber;
+        }
+
+        // Catatan: customer_id tidak disetel dengan ID lokal (seperti no_reg)
+        // karena Xendit menganggapnya referensi entitas Xendit Customers API yang dapat menggagalkan validasi e-wallet.
+        $customerObj = new CustomerObject($customerData);
 
         $redirectUrl = route('portal.invoice.show', $invoice->id);
 
         $payloadRequest = [
             'external_id' => $externalId,
             'amount' => $totalTagihan,
-            'payer_email' => $pelanggan->email,
+            'payer_email' => $payerEmail,
             'description' => "Tagihan Internet UNMS Invoice {$invoice->no_invoice}",
             'invoice_duration' => $invoiceDurationSeconds,
-            'customer' => [
-                'given_names' => $pelanggan->nama_depan,
-                'surname' => $pelanggan->nama_belakang ?? '',
-                'email' => $pelanggan->email,
-                'mobile_number' => $mobileNumber,
-                'customer_id' => (string) $pelanggan->no_reg,
-            ],
+            'customer' => $customerData,
             'success_redirect_url' => $redirectUrl,
             'failure_redirect_url' => $redirectUrl,
             'currency' => 'IDR',
@@ -132,7 +152,7 @@ class XenditPaymentService
                 $params = new CreateInvoiceRequest([
                     'external_id' => $externalId,
                     'amount' => $totalTagihan,
-                    'payer_email' => $pelanggan->email,
+                    'payer_email' => $payerEmail,
                     'description' => "Tagihan Internet UNMS Invoice {$invoice->no_invoice}",
                     'invoice_duration' => (float) $invoiceDurationSeconds,
                     'customer' => $customerObj,
@@ -197,6 +217,170 @@ class XenditPaymentService
             Log::error('Error pembuatan Hosted Invoice Xendit: '.$e->getMessage());
             throw $e;
         }
+    }
+
+    /**
+     * Sinkronisasikan status invoice langsung dengan Xendit API (self-healing / fallback saat redirect atau rekonsiliasi).
+     *
+     * @return array<string, mixed>
+     */
+    public function sinkronkanStatus(Invoice $invoice): array
+    {
+        $statusData = $this->cekStatusInvoice($invoice);
+        $statusStr = strtoupper((string) ($statusData['status'] ?? ''));
+
+        if (in_array($statusStr, ['PAID', 'SETTLED', 'SUCCEEDED'], true)) {
+            $this->prosesPelunasanDariXendit($invoice, $statusData);
+            $invoice->refresh();
+        } elseif ($statusStr === 'EXPIRED') {
+            if (! $invoice->isLunas()) {
+                $invoice->update([
+                    'xendit_invoice_url' => null,
+                    'xendit_status' => 'EXPIRED',
+                ]);
+                $transaksi = $invoice->transaksiPaymentGatewayAktif();
+                if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
+                    $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
+                }
+            }
+        }
+
+        return $statusData;
+    }
+
+    /**
+     * Eksekusi transaksi pelunasan invoice di database dengan row locking dan dispatch event post-commit.
+     *
+     * @param  array<string, mixed>|XenditCallbackData  $payloadOrData
+     */
+    public function prosesPelunasanDariXendit(
+        Invoice $invoice,
+        array|XenditCallbackData $payloadOrData,
+        ?TransaksiPaymentGateway $transaksi = null,
+        ?WebhookLog $webhookLog = null
+    ): bool {
+        $eventToDispatch = null;
+
+        if ($payloadOrData instanceof XenditCallbackData) {
+            $callbackData = $payloadOrData;
+            $rawPayload = $callbackData->rawPayload;
+            $amount = $callbackData->amount;
+            $paidAtStr = $callbackData->paidAt;
+            $channel = $callbackData->channel;
+            $channelDetail = $callbackData->channelDetail;
+            $paymentRef = $callbackData->paymentReference;
+        } else {
+            $rawPayload = $payloadOrData;
+            $callbackData = null;
+            $amount = (float) ($rawPayload['paid_amount'] ?? ($rawPayload['amount'] ?? $invoice->jumlah_setelah_promo));
+            $paidAtStr = (string) ($rawPayload['paid_at'] ?? ($rawPayload['updated'] ?? now()->toIso8601String()));
+            $pm = strtoupper((string) ($rawPayload['payment_method'] ?? ''));
+            $channel = match ($pm) {
+                'BANK_TRANSFER', 'VIRTUAL_ACCOUNT' => 'virtual_account',
+                'QR_CODE', 'QRIS' => 'qris',
+                'EWALLET', 'E_WALLET' => 'ewallet',
+                default => 'invoice',
+            };
+            $channelDetail = isset($rawPayload['payment_channel']) ? strtolower((string) $rawPayload['payment_channel']) : null;
+            $paymentRef = (string) ($rawPayload['payment_destination'] ?? ($rawPayload['payment_id'] ?? ($rawPayload['id'] ?? null)));
+        }
+
+        if (! $transaksi) {
+            $transaksi = $invoice->transaksiPaymentGatewayAktif();
+        }
+
+        DB::transaction(function () use ($invoice, $transaksi, $webhookLog, $rawPayload, $amount, $paidAtStr, $channel, $channelDetail, $paymentRef, &$eventToDispatch) {
+            /** @var Invoice $lockedInvoice */
+            $lockedInvoice = Invoice::where('id', $invoice->id)->lockForUpdate()->firstOrFail();
+
+            // Guard clause idempotensi: Jika invoice sudah lunas sebelumnya
+            if ($lockedInvoice->isLunas()) {
+                if ($transaksi) {
+                    $transaksi->update([
+                        'status' => StatusTransaksiGateway::Paid,
+                        'payload_response' => $rawPayload,
+                    ]);
+                }
+                $lockedInvoice->update(['xendit_status' => 'PAID']);
+                if ($webhookLog) {
+                    $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
+                }
+
+                return;
+            }
+
+            $dibayarPada = $paidAtStr ? Carbon::parse($paidAtStr) : Carbon::now();
+
+            // 1. Update Transaksi Payment Gateway
+            if ($transaksi) {
+                $transaksi->update([
+                    'status' => StatusTransaksiGateway::Paid,
+                    'payload_response' => $rawPayload,
+                ]);
+            }
+
+            // 2. Buat Record Pembayaran
+            $channelDetailText = $channelDetail ? strtoupper($channelDetail) : '';
+            $nominalBayar = $amount > 0 ? $amount : (float) ($transaksi?->total_tagihan ?? $lockedInvoice->jumlah_setelah_promo);
+
+            $pembayaran = Pembayaran::create([
+                'invoice_id' => $lockedInvoice->id,
+                'metode' => MetodePembayaran::PaymentGateway,
+                'referensi_transaksi' => $paymentRef ?: ($transaksi?->external_id ?? $lockedInvoice->no_invoice),
+                'jumlah_dibayar' => $nominalBayar,
+                'dibayar_pada' => $dibayarPada,
+                'catatan' => trim("Pembayaran otomatis Xendit {$channel} {$channelDetailText}"),
+            ]);
+
+            // 3. Update Status Invoice
+            $lockedInvoice->update([
+                'status' => StatusInvoice::Lunas,
+                'tanggal_lunas' => $dibayarPada->toDateString(),
+                'metode_pembayaran' => MetodePembayaran::PaymentGateway,
+                'xendit_status' => 'PAID',
+            ]);
+
+            // 4. Perpanjang Masa Aktif Layanan Pelanggan
+            $layanan = $lockedInvoice->layananPelanggan()->lockForUpdate()->first();
+            if ($layanan) {
+                $paket = $layanan->paketLayanan;
+                $masaNilai = $paket ? (int) $paket->masa_aktif_nilai : 1;
+                $masaSatuan = $paket ? $paket->masa_aktif_satuan : MasaAktifSatuan::Bulan;
+
+                $promo = $lockedInvoice->promo;
+                $bonusBulan = ($promo && $promo->bonus_bulan) ? (int) $promo->bonus_bulan : 0;
+
+                $currentExpired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
+                $baseDate = ($currentExpired && $currentExpired->isFuture())
+                    ? $currentExpired->copy()
+                    : $dibayarPada->copy()->startOfDay();
+
+                if ($masaSatuan === MasaAktifSatuan::Bulan) {
+                    $newExpired = $baseDate->addMonths($masaNilai + $bonusBulan);
+                } else {
+                    $newExpired = $baseDate->addDays($masaNilai);
+                }
+
+                $layanan->update([
+                    'tanggal_expired' => $newExpired->toDateString(),
+                    'status' => StatusLayanan::Aktif,
+                ]);
+            }
+
+            // 5. Update Status Log Webhook
+            if ($webhookLog) {
+                $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
+            }
+
+            // Siapkan event untuk dipancarkan setelah commit DB selesai
+            $eventToDispatch = new InvoicePaidEvent($lockedInvoice, $pembayaran);
+        });
+
+        if ($eventToDispatch) {
+            event($eventToDispatch);
+        }
+
+        return true;
     }
 
     /**
@@ -354,7 +538,7 @@ class XenditPaymentService
         }
 
         $xenditId = $invoice->xendit_invoice_id ?: ($transaksi?->xendit_reference_id ?: 'sim_inv_'.uniqid());
-        $externalId = $transaksi?->external_id ?: "INV-{$invoice->no_invoice}-".now()->timestamp;
+        $externalId = $transaksi?->external_id ?: "{$invoice->no_invoice}-".now()->timestamp;
         $amount = $transaksi ? (float) $transaksi->total_tagihan : (float) $invoice->jumlah_setelah_promo;
 
         $payload = [
@@ -419,5 +603,35 @@ class XenditPaymentService
         }
 
         return $due->diffInSeconds($now);
+    }
+
+    /**
+     * Format nomor HP ke standar E.164 Indonesia (+628xxxxxxxxxx) yang diterima oleh Xendit E-Wallet & Notification.
+     */
+    public static function formatNomorHpE164(?string $phone): ?string
+    {
+        if (empty($phone)) {
+            return null;
+        }
+
+        // Hapus semua karakter selain angka
+        $clean = preg_replace('/[^\d]/', '', $phone);
+        if (empty($clean)) {
+            return null;
+        }
+
+        // Ubah format 08xxx atau 8xxx menjadi 628xxx
+        if (str_starts_with($clean, '08')) {
+            $clean = '628'.substr($clean, 2);
+        } elseif (str_starts_with($clean, '8')) {
+            $clean = '628'.substr($clean, 1);
+        }
+
+        // Validasi panjang standar nomor seluler Indonesia (10-15 digit)
+        if (str_starts_with($clean, '62') && strlen($clean) >= 10 && strlen($clean) <= 15) {
+            return '+'.$clean;
+        }
+
+        return '+'.$clean;
     }
 }

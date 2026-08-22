@@ -1,23 +1,23 @@
 # Graph Report - unms  (2026-08-22)
 
 ## Corpus Check
-- 578 files · ~210,599 words
+- 578 files · ~211,399 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 3163 nodes · 5104 edges · 359 communities (292 shown, 67 thin omitted)
+- 3169 nodes · 5124 edges · 354 communities (297 shown, 57 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 18 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `48e711ec`
+- Built from commit: `d4a95562`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - TicketFactory
-- PelangganSeeder.php
-- Illuminate\Database\Eloquent\Relations\BelongsTo
+- StatusTransaksiGateway.php
+- TicketHistori
 - scripts
 - Issue tracker: GitHub
 - PasswordValidationRules.php
@@ -26,7 +26,7 @@
 - Triage
 - Triage
 - Triage
-- ProfilBandwidth
+- Illuminate\Database\Seeder
 - AGENTS.md
 - .agents/skills/teach/SKILL.md
 - .claude/skills/teach/SKILL.md
@@ -38,7 +38,7 @@
 - Illuminate\Database\Schema\Blueprint
 - Livewire Development
 - Codebase Design
-- Illuminate\Database\Eloquent\Factories\HasFactory
+- Illuminate\Database\Eloquent\Relations\BelongsTo
 - Codebase Design
 - Codebase Design
 - RolesAndPermissionsSeeder
@@ -58,7 +58,7 @@
 - Ask Matt
 - Ask Matt
 - Diagnosing Bugs
-- Illuminate\Support\Facades\Hash
+- Pembayaran
 - Diagnosing Bugs
 - Diagnosing Bugs
 - Tailwind CSS Development
@@ -109,7 +109,7 @@
 - HTTP Client Best Practices
 - Mail Best Practices
 - Routing & Controllers Best Practices
-- TransaksiPaymentGateway
+- Illuminate\Database\Eloquent\Builder
 - Conventions & Style
 - Validation & Forms Best Practices
 - Process
@@ -118,7 +118,7 @@
 - Router
 - Process
 - laravel-best-practices/SKILL.md
-- XenditWebhookController.php
+- Illuminate\Http\Request
 - security.blade.php
 - psr-4
 - laravel
@@ -132,14 +132,14 @@
 - .kilocode/skills/diagnosing-bugs/scripts/hitl-loop.template.sh
 - GLOSSARY.md Format
 - Administrasi
-- Illuminate\Database\Eloquent\Builder
+- StatusRouter.php
 - UNMS Domain Context
 - console.php
 - profile.blade.php
 - users/edit.blade.php
 - rules/graphify.md
 - workflows/graphify.md
-- JenisTicket.php
+- StatusTicket.php
 - deleteRole({{ $role->id }})
 - 0001-centralized-grouped-navigation-config.md
 - header.blade.php
@@ -150,47 +150,47 @@
 - InvoicePaidEvent
 - pelanggan/show.blade.php
 - appearance.blade.php
-- StatusTicket.php
+- JenisTicket.php
 - PRD Modul: Integrasi Payment Gateway Xendit
-- Perumahan
+- Edit
 - Panduan Implementasi Fase 4: Modul Ticket Lengkap dengan Histori
 - Ticket
 - Customer Master Identity, Soft Deletes, and Sales Ownership Policy
-- Odp
+- PelangganSeeder.php
 - Illuminate\Database\Eloquent\Factories\Factory
 - User
 - LogImpersonationActivity
-- Kota
+- Kecamatan
 - web.php
 - Package Bandwidth Modeling, Status Lifecycle, and Mikrotik Boundary Policy
-- XenditPaymentService.php
-- User.php
+- FortifyServiceProvider.php
+- AkunPelanggan
 - IpPool
 - setup
-- PaketLayanan
+- Laravel\Fortify\Features
 - Illuminate\Support\Facades\Schema
-- Illuminate\Database\Seeder
-- RecordLastLoginAt
-- bootstrap/app.php
+- ProfilBandwidth
+- AppServiceProvider.php
+- Security
 - Invoice
-- StatusTransaksiGateway.php
-- Illuminate\Support\Str
+- TicketDiassignNotification
+- Index
 - LaporanBillingExport
 - router/index.blade.php
 - Standardisasi Satuan Mbps pada Profil Bandwidth dan Sinkronisasi RouterOS
-- BillingService
+- AppServiceProvider
 - paket-layanan/index.blade.php
 - bayar.blade.php
 - test
-- Create
+- Kota
 - layanan-pelanggan/index.blade.php
 - ip-pool/index.blade.php
 - profil-bandwidth/index.blade.php
-- Edit
-- TicketHistori
+- Perumahan
+- ProfileValidationRules.php
 - Livewire\Component
 - Promo
-- Create
+- Index
 - layanan-pelanggan/create.blade.php
 - ip-pool/create.blade.php
 - ip-pool/edit.blade.php
@@ -204,65 +204,61 @@
 - invoice/index.blade.php
 - invoice/show.blade.php
 - ImpersonateController
-- Billing
+- Billing.php
 - exportExcel
-- Kota/Create.php
-- Index
+- bootstrap/app.php
+- StatusInvoice.php
 - ADR 0006: Pemodelan Hierarki Area & Wilayah, Geolokasi Perumahan, dan Proteksi Penghapusan (Guarded Deletion)
 - Create
-- Index
-- .run
+- Livewire\WithPagination
+- CustomerPolicy
 - PengaturanGateway
 - User and Customer Portal Impersonation Architecture
 - Index
-- Illuminate\Database\Eloquent\Relations\HasMany
-- StatusRouter.php
-- Ticket/Create.php
 - Index
-- Pembayaran
+- Logout.php
 - Create
-- Edit
+- UserFactory
+- RolesAndPermissionsSeeder.php
+- PaketLayanan
+- StatusPaket.php
 - Show
-- Bayar
-- Create
-- Create
 - Index
+- Create
+- UsersList
+- Edit
+- Edit
 - Create
 - transaksi-gateway/show.blade.php
 - portal.blade.php
 - portal/invoice/index.blade.php
-- bayar
-- XenditCallbackData
-- PelangganFactory
-- Index
+- portal/invoice/show.blade.php
+- XenditPaymentService.php
+- Edit
+- InvoicePdfController.php
 - TestCase
 - Create
-- UserFactory
-- GantiPassword.php
+- GantiPassword
 - post-create-project-cmd
-- Illuminate\Support\Carbon
-- Index
-- Index
-- Login
+- .getActivitylogOptions
+- LayananPelangganFactory.php
 - ticket/show.blade.php
 - Ticket Module Architecture and State Machine
 - Illuminate\Database\Migrations\Migration
-- Index
+- Login
 - ticket/index.blade.php
 - PengaturanGateway
-- MasaAktifSatuan.php
-- Index
 
 ## God Nodes (most connected - your core abstractions)
 1. `User` - 178 edges
-2. `Invoice` - 86 edges
+2. `Invoice` - 88 edges
 3. `Pelanggan` - 85 edges
 4. `LayananPelanggan` - 55 edges
 5. `Router` - 55 edges
 6. `Ticket` - 55 edges
 7. `PaketLayanan` - 46 edges
 8. `ProfilBandwidth` - 43 edges
-9. `TransaksiPaymentGateway` - 42 edges
+9. `TransaksiPaymentGateway` - 43 edges
 10. `Kota` - 40 edges
 
 ## Surprising Connections (you probably didn't know these)
@@ -280,11 +276,15 @@
 ## Import Cycles
 - None detected.
 
-## Communities (359 total, 67 thin omitted)
+## Communities (354 total, 57 thin omitted)
 
-### Community 1 - "PelangganSeeder.php"
-Cohesion: 0.08
-Nodes (3): LayananPelangganFactory, static, Illuminate\Support\Facades\Event
+### Community 1 - "StatusTransaksiGateway.php"
+Cohesion: 0.16
+Nodes (6): CekVirtualAccountExpiredCommand, CheckExpiredInvoicesCommand, GenerateInvoicesCommand, XenditSimulateCommand, Command, Illuminate\Console\Command
+
+### Community 2 - "TicketHistori"
+Cohesion: 0.24
+Nodes (4): TicketHistori, Illuminate\Auth\Access\AuthorizationException, Illuminate\Support\Facades\Gate, InvalidArgumentException
 
 ### Community 3 - "scripts"
 Cohesion: 0.11
@@ -295,8 +295,8 @@ Cohesion: 0.06
 Nodes (30): Before exploring, read these, Domain Docs, File structure, Flag ADR conflicts, Use the glossary's vocabulary, Conventions, Issue tracker: GitHub, Pull requests as a triage surface (+22 more)
 
 ### Community 5 - "PasswordValidationRules.php"
-Cohesion: 0.06
-Nodes (23): AuthenticateUser, CreateNewUser, ResetUserPassword, emailRules(), nameRules(), phoneRules(), profileRules(), Profile (+15 more)
+Cohesion: 0.20
+Nodes (7): CreateNewUser, ResetUserPassword, Illuminate\Contracts\Validation\ValidationRule, Illuminate\Support\Facades\Validator, Illuminate\Validation\Rules\Password, Laravel\Fortify\Contracts\CreatesNewUsers, Laravel\Fortify\Contracts\ResetsUserPasswords
 
 ### Community 6 - "Issue tracker: GitHub"
 Cohesion: 0.06
@@ -318,9 +318,9 @@ Nodes (29): Bad agent brief, Behavioral, not procedural, Complete acceptance cri
 Cohesion: 0.06
 Nodes (29): Bad agent brief, Behavioral, not procedural, Complete acceptance criteria, Durability over precision, Examples, Explicit scope boundaries, Good agent brief (bug), Good agent brief (enhancement) (+21 more)
 
-### Community 11 - "ProfilBandwidth"
-Cohesion: 0.10
-Nodes (4): Create, Edit, ProfilBandwidth, ProfilBandwidthPolicy
+### Community 11 - "Illuminate\Database\Seeder"
+Cohesion: 0.17
+Nodes (6): DatabaseSeeder, IpPoolSeeder, PaketLayananSeeder, ProfilBandwidthSeeder, PromoSeeder, Illuminate\Database\Seeder
 
 ### Community 12 - "AGENTS.md"
 Cohesion: 0.07
@@ -362,9 +362,9 @@ Nodes (24): Component-Scoped Interceptors, Intercept Messages, Intercept Request
 Cohesion: 0.09
 Nodes (21): 1. In-process, 2. Local-substitutable, 3. Remote but owned (Ports & Adapters), 4. True external (Mock), Deepening, Dependency categories, Seam discipline, Testing strategy: replace, don't layer (+13 more)
 
-### Community 23 - "Illuminate\Database\Eloquent\Factories\HasFactory"
-Cohesion: 0.24
-Nodes (6): WebhookLog, Illuminate\Database\Eloquent\Attributes\Fillable, Illuminate\Database\Eloquent\Collection, Illuminate\Database\Eloquent\Factories\HasFactory, Illuminate\Database\Eloquent\Model, Illuminate\Database\Eloquent\Relations\HasManyThrough
+### Community 23 - "Illuminate\Database\Eloquent\Relations\BelongsTo"
+Cohesion: 0.22
+Nodes (12): Illuminate\Database\Eloquent\Attributes\Fillable, Illuminate\Database\Eloquent\Collection, Illuminate\Database\Eloquent\Factories\HasFactory, Illuminate\Database\Eloquent\Model, Illuminate\Database\Eloquent\Relations\BelongsTo, Illuminate\Database\Eloquent\Relations\HasMany, Illuminate\Database\Eloquent\Relations\HasManyThrough, Illuminate\Database\Eloquent\SoftDeletes (+4 more)
 
 ### Community 24 - "Codebase Design"
 Cohesion: 0.09
@@ -375,8 +375,8 @@ Cohesion: 0.09
 Nodes (21): 1. In-process, 2. Local-substitutable, 3. Remote but owned (Ports & Adapters), 4. True external (Mock), Deepening, Dependency categories, Seam discipline, Testing strategy: replace, don't layer (+13 more)
 
 ### Community 26 - "RolesAndPermissionsSeeder"
-Cohesion: 0.16
-Nodes (8): RolesAndPermissionsSeeder, Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Support\Facades\Crypt, Livewire\Livewire, Spatie\Activitylog\Models\Activity, Spatie\Permission\DefaultTeamResolver, Spatie\Permission\Models\Permission, Spatie\Permission\PermissionRegistrar
+Cohesion: 0.18
+Nodes (6): RolesAndPermissionsSeeder, Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Support\Facades\Crypt, Illuminate\Support\Facades\Notification, Livewire\Livewire, Spatie\Activitylog\Models\Activity
 
 ### Community 27 - "During the session"
 Cohesion: 0.09
@@ -411,8 +411,8 @@ Cohesion: 0.22
 Nodes (16): ask(), ask_secret(), banner(), _clear(), finish(), note(), open_url(), pause() (+8 more)
 
 ### Community 35 - "LayananPelanggan"
-Cohesion: 0.12
-Nodes (3): Index, LayananPelanggan, LogOptions
+Cohesion: 0.11
+Nodes (4): LayananPelanggan, LogOptions, InvoiceFactory, static
 
 ### Community 36 - ".claude/skills/wizard/template.sh"
 Cohesion: 0.22
@@ -442,9 +442,9 @@ Nodes (14): Phase boundaries, Primary and secondary sources, The five options, T
 Cohesion: 0.13
 Nodes (14): Completion criterion — a tight loop that goes red, Diagnosing Bugs, Minimise, Non-deterministic bugs, Phase 1 — Build a feedback loop, Phase 2 — Reproduce + minimise, Phase 3 — Hypothesise, Phase 4 — Instrument (+6 more)
 
-### Community 43 - "Illuminate\Support\Facades\Hash"
-Cohesion: 0.20
-Nodes (3): Illuminate\Auth\Notifications\ResetPassword, Illuminate\Support\Facades\Hash, Laravel\Fortify\Features
+### Community 43 - "Pembayaran"
+Cohesion: 0.07
+Nodes (11): Show, Pembayaran, LogOptions, PromoPenggunaan, BillingService, Carbon, PembayaranFactory, PelangganSeeder (+3 more)
 
 ### Community 44 - "Diagnosing Bugs"
 Cohesion: 0.13
@@ -488,7 +488,7 @@ Nodes (28): 1. Ringkasan & Batasan Sistem, 2. Role & Hak Akses, 3.1 Wilayah & Lo
 
 ### Community 54 - "Pelanggan"
 Cohesion: 0.05
-Nodes (11): Edit, Index, Show, KlaimAkun, AkunPelanggan, Pelanggan, AkunPelangganFactory, InvoiceFactory (+3 more)
+Nodes (8): Edit, Index, Show, Pelanggan, LogOptions, PelangganPolicy, AkunPelangganFactory, Illuminate\Database\Eloquent\Relations\HasOne
 
 ### Community 55 - "Test-Driven Development"
 Cohesion: 0.15
@@ -646,10 +646,6 @@ Nodes (6): Implement `ShouldQueue` on the Mailable Class, Mail Best Practices, S
 Cohesion: 0.29
 Nodes (6): Keep Controllers Thin, Routing & Controllers Best Practices, Type-Hint Form Requests, Use Implicit Route Model Binding, Use Resource Controllers, Use Scoped Bindings for Nested Resources
 
-### Community 94 - "TransaksiPaymentGateway"
-Cohesion: 0.09
-Nodes (5): XenditPingCommand, Show, LogOptions, TransaksiPaymentGateway, XenditPaymentService
-
 ### Community 95 - "Conventions & Style"
 Cohesion: 0.29
 Nodes (6): Conventions & Style, Follow Laravel Naming Conventions, No Inline JS/CSS in Blade, No Unnecessary Comments, Prefer Shorter Readable Syntax, Use Laravel String & Array Helpers
@@ -671,8 +667,8 @@ Cohesion: 0.29
 Nodes (7): pestphp/pest-plugin, php-http/discovery, config, allow-plugins, optimize-autoloader, preferred-install, sort-packages
 
 ### Community 100 - "Router"
-Cohesion: 0.11
-Nodes (5): Edit, LogOptions, Router, RouterPolicy, IpPoolFactory
+Cohesion: 0.10
+Nodes (5): Index, LogOptions, Router, RouterPolicy, IpPoolFactory
 
 ### Community 101 - "Process"
 Cohesion: 0.29
@@ -682,9 +678,9 @@ Nodes (6): 1. Scope the procedure, 2. Map each stage's journey, 3. Author the wi
 Cohesion: 0.17
 Nodes (10): Configuration Best Practices, `env()` Only in Config Files, Use `App::environment()` for Environment Checks, Use Constants and Language Files, Use Encrypted Env or External Secrets, Consistency First, Decision Rules, How to Apply (+2 more)
 
-### Community 103 - "XenditWebhookController.php"
-Cohesion: 0.14
-Nodes (9): Controller, XenditWebhookController, Response, ValidateXenditCallbackToken, XenditWebhookVerifier, Closure, Illuminate\Http\JsonResponse, Illuminate\Http\Request (+1 more)
+### Community 103 - "Illuminate\Http\Request"
+Cohesion: 0.24
+Nodes (7): XenditPingCommand, Response, ValidateXenditCallbackToken, XenditWebhookVerifier, Closure, Illuminate\Http\Request, Symfony\Component\HttpFoundation\Response
 
 ### Community 104 - "security.blade.php"
 Cohesion: 0.40
@@ -738,17 +734,21 @@ Nodes (3): GLOSSARY.md Format, Rules, Structure
 Cohesion: 0.06
 Nodes (34): Administrasi, Alamat, Antrian Blast SysBlast, Billing, Daftar Bandwith, Dashboard, Detail Pelanggan, Detail Pembayaran Payment Gateway (+26 more)
 
+### Community 117 - "StatusRouter.php"
+Cohesion: 0.18
+Nodes (3): static, RouterFactory, RouterSeeder
+
 ### Community 119 - "console.php"
 Cohesion: 0.50
 Nodes (3): Illuminate\Foundation\Inspiring, Illuminate\Support\Facades\Artisan, Illuminate\Support\Facades\Schedule
 
-### Community 132 - "InvoicePaidEvent"
+### Community 124 - "StatusTicket.php"
 Cohesion: 0.19
-Nodes (11): InvoicePaidEvent, CatatLogPembayaranListener, TriggerMikrotikAktivasiStubListener, TriggerWaNotifikasiStubListener, Carbon\CarbonImmutable, Illuminate\Broadcasting\InteractsWithSockets, Illuminate\Contracts\Queue\ShouldQueue, Illuminate\Foundation\Events\Dispatchable (+3 more)
-
-### Community 158 - "StatusTicket.php"
-Cohesion: 0.18
 Nodes (3): StatusTicket, UbahStatusTicketAction, TransisiStatusTidakValidException
+
+### Community 132 - "InvoicePaidEvent"
+Cohesion: 0.20
+Nodes (9): InvoicePaidEvent, CatatLogPembayaranListener, TriggerMikrotikAktivasiStubListener, TriggerWaNotifikasiStubListener, Illuminate\Broadcasting\InteractsWithSockets, Illuminate\Contracts\Queue\ShouldQueue, Illuminate\Foundation\Events\Dispatchable, Illuminate\Queue\SerializesModels (+1 more)
 
 ### Community 192 - "PRD Modul: Integrasi Payment Gateway Xendit"
 Cohesion: 0.13
@@ -759,80 +759,80 @@ Cohesion: 0.11
 Nodes (17): 3.1 Diagram status, 3.2 Matrix siapa boleh transisi apa, 4.1 Enum native PHP 8.4 (backed enum, bukan string constant), 4.2 Model `Ticket`, 4.3 Model `TicketHistori`, `App\Actions\Ticket\UbahStatusTicketAction`, Bagian 10 — Yang Sengaja Ditunda, Bagian 1 — Urutan Kerja (+9 more)
 
 ### Community 206 - "Ticket"
-Cohesion: 0.14
+Cohesion: 0.11
 Nodes (5): LogOptions, StatusTicket, Ticket, StatusTicket, TicketPolicy
 
 ### Community 207 - "Customer Master Identity, Soft Deletes, and Sales Ownership Policy"
 Cohesion: 0.50
 Nodes (3): Context, Customer Master Identity, Soft Deletes, and Sales Ownership Policy, Decisions
 
-### Community 208 - "Odp"
-Cohesion: 0.14
-Nodes (4): Odp, OdpPort, OdpPortFactory, OdpSeeder
+### Community 208 - "PelangganSeeder.php"
+Cohesion: 0.08
+Nodes (6): Odp, OdpPort, OdpPortFactory, PelangganFactory, static, OdpSeeder
 
 ### Community 209 - "Illuminate\Database\Eloquent\Factories\Factory"
-Cohesion: 0.17
-Nodes (6): KotaFactory, PembayaranFactory, PerumahanFactory, ProfilBandwidthFactory, PromoFactory, Illuminate\Database\Eloquent\Factories\Factory
+Cohesion: 0.07
+Nodes (11): Create, KecamatanFactory, KelurahanFactory, KotaFactory, OdpFactory, PerumahanFactory, ProfilBandwidthFactory, PromoFactory (+3 more)
 
 ### Community 210 - "User"
-Cohesion: 0.06
-Nodes (9): Edit, UsersList, App\Models\Customer, User, CustomerPolicy, LayananPelangganPolicy, PelangganPolicy, PembayaranPolicy (+1 more)
+Cohesion: 0.07
+Nodes (12): Edit, User, InvoicePolicy, LayananPelangganPolicy, PembayaranPolicy, WilayahPolicy, Illuminate\Database\Eloquent\Attributes\Hidden, Illuminate\Notifications\Notifiable (+4 more)
 
 ### Community 211 - "LogImpersonationActivity"
 Cohesion: 0.28
 Nodes (5): LogImpersonationActivity, Lab404\Impersonate\Events\LeaveImpersonation, Lab404\Impersonate\Events\TakeImpersonation, LeaveImpersonation, TakeImpersonation
 
-### Community 212 - "Kota"
-Cohesion: 0.06
-Nodes (11): Edit, Create, Edit, Index, Edit, Kecamatan, Kelurahan, Kota (+3 more)
+### Community 212 - "Kecamatan"
+Cohesion: 0.05
+Nodes (9): Create, Edit, Index, Create, Edit, Index, Kecamatan, Kelurahan (+1 more)
 
 ### Community 213 - "web.php"
-Cohesion: 0.11
-Nodes (17): InvoicePdfController, App\Livewire\Invoice, App\Livewire\IpPool, App\Livewire\Laporan, App\Livewire\LayananPelanggan, App\Livewire\PaketLayanan, App\Livewire\Pelanggan, App\Livewire\Pembayaran (+9 more)
+Cohesion: 0.13
+Nodes (14): App\Livewire\Invoice, App\Livewire\IpPool, App\Livewire\Laporan, App\Livewire\LayananPelanggan, App\Livewire\PaketLayanan, App\Livewire\Pelanggan, App\Livewire\Pembayaran, App\Livewire\ProfilBandwidth (+6 more)
 
 ### Community 214 - "Package Bandwidth Modeling, Status Lifecycle, and Mikrotik Boundary Policy"
 Cohesion: 0.50
 Nodes (3): Context, Decisions, Package Bandwidth Modeling, Status Lifecycle, and Mikrotik Boundary Policy
 
-### Community 215 - "XenditPaymentService.php"
-Cohesion: 0.20
-Nodes (9): GuzzleHttp\Client, Xendit\BalanceAndTransaction\BalanceApi, Xendit\Configuration, Xendit\Invoice\CreateInvoiceRequest, Xendit\Invoice\CustomerObject, Xendit\Invoice\InvoiceApi, Xendit\Invoice\InvoiceFee, Xendit\Invoice\InvoiceItem (+1 more)
+### Community 215 - "FortifyServiceProvider.php"
+Cohesion: 0.21
+Nodes (6): AuthenticateUser, FortifyServiceProvider, Illuminate\Cache\RateLimiting\Limit, Illuminate\Support\Facades\RateLimiter, Illuminate\Support\ServiceProvider, Laravel\Fortify\Fortify
 
-### Community 216 - "User.php"
-Cohesion: 0.29
-Nodes (6): Illuminate\Database\Eloquent\Attributes\Hidden, Illuminate\Notifications\Notifiable, Lab404\Impersonate\Models\Impersonate, Laravel\Fortify\Contracts\PasskeyUser, Laravel\Fortify\PasskeyAuthenticatable, Spatie\Permission\Traits\HasRoles
+### Community 216 - "AkunPelanggan"
+Cohesion: 0.17
+Nodes (3): KlaimAkun, AkunPelanggan, Illuminate\Foundation\Auth\User
 
 ### Community 217 - "IpPool"
-Cohesion: 0.19
-Nodes (3): IpPool, IpPoolPolicy, IpPoolSeeder
+Cohesion: 0.15
+Nodes (3): Index, IpPool, IpPoolPolicy
 
 ### Community 218 - "setup"
 Cohesion: 0.25
 Nodes (8): post-root-package-install, setup, composer install, npm install, npm run build, @php artisan key:generate, @php artisan migrate --force, @php -r \"file_exists('.env') || copy('.env.example', '.env');\
 
-### Community 219 - "PaketLayanan"
-Cohesion: 0.07
-Nodes (6): Edit, Edit, Index, PaketLayanan, LogOptions, PaketLayananPolicy
-
-### Community 221 - "Illuminate\Database\Seeder"
+### Community 221 - "ProfilBandwidth"
 Cohesion: 0.13
-Nodes (6): DatabaseSeeder, PaketLayananSeeder, ProfilBandwidthSeeder, PromoSeeder, RouterSeeder, Illuminate\Database\Seeder
+Nodes (4): Edit, LogOptions, ProfilBandwidth, ProfilBandwidthPolicy
 
-### Community 223 - "bootstrap/app.php"
-Cohesion: 0.25
-Nodes (6): Illuminate\Foundation\Application, Illuminate\Foundation\Configuration\Exceptions, Illuminate\Foundation\Configuration\Middleware, Spatie\Permission\Middleware\PermissionMiddleware, Spatie\Permission\Middleware\RoleMiddleware, Spatie\Permission\Middleware\RoleOrPermissionMiddleware
+### Community 222 - "AppServiceProvider.php"
+Cohesion: 0.38
+Nodes (4): RecordLastLoginAt, Carbon\CarbonImmutable, Illuminate\Auth\Events\Login, Illuminate\Support\Facades\Date
+
+### Community 223 - "Security"
+Cohesion: 0.31
+Nodes (3): Security, Laravel\Fortify\Actions\DisableTwoFactorAuthentication, Laravel\Passkeys\Actions\DeletePasskey
 
 ### Community 224 - "Invoice"
-Cohesion: 0.09
-Nodes (4): Show, Invoice, LogOptions, InvoicePolicy
+Cohesion: 0.05
+Nodes (8): Show, Bayar, Show, Invoice, LogOptions, LogOptions, TransaksiPaymentGateway, XenditPaymentService
 
-### Community 225 - "StatusTransaksiGateway.php"
-Cohesion: 0.16
-Nodes (6): CekVirtualAccountExpiredCommand, CheckExpiredInvoicesCommand, GenerateInvoicesCommand, XenditSimulateCommand, Command, Illuminate\Console\Command
+### Community 225 - "TicketDiassignNotification"
+Cohesion: 0.24
+Nodes (4): TicketDiassignNotification, TicketStatusBerubahNotification, Illuminate\Bus\Queueable, Illuminate\Notifications\Notification
 
-### Community 226 - "Illuminate\Support\Str"
-Cohesion: 0.06
-Nodes (11): Create, Create, Edit, Index, Create, Index, Illuminate\Support\Str, Livewire\Attributes\Validate (+3 more)
+### Community 226 - "Index"
+Cohesion: 0.10
+Nodes (6): Create, Edit, Index, Create, Index, Role
 
 ### Community 227 - "LaporanBillingExport"
 Cohesion: 0.27
@@ -846,10 +846,6 @@ Nodes (4): confirmDelete({{ $router->id }}), deleteRouter, $set(, toggleStatus({
 Cohesion: 0.33
 Nodes (5): Consequences, Context, Decisions, Standardisasi Satuan Mbps pada Profil Bandwidth dan Sinkronisasi RouterOS, Status
 
-### Community 230 - "BillingService"
-Cohesion: 0.22
-Nodes (3): Show, BillingService, Carbon
-
 ### Community 231 - "paket-layanan/index.blade.php"
 Cohesion: 0.40
 Nodes (4): confirmDelete({{ $paket->id }}), deletePaket, $set(, toggleStatus({{ $paket->id }})
@@ -861,6 +857,10 @@ Nodes (4): cekStatus, gantiMetode, generatePembayaran, $set(
 ### Community 233 - "test"
 Cohesion: 0.40
 Nodes (5): test, @lint:check, @php artisan config:clear --ansi, @php artisan test, @types:check
+
+### Community 234 - "Kota"
+Cohesion: 0.08
+Nodes (5): Create, Edit, Index, Create, Kota
 
 ### Community 235 - "layanan-pelanggan/index.blade.php"
 Cohesion: 0.50
@@ -874,21 +874,25 @@ Nodes (3): confirmDelete({{ $pool->id }}), deleteIpPool, $set(
 Cohesion: 0.50
 Nodes (3): confirmDelete({{ $profil->id }}), deleteProfilBandwidth, $set(
 
-### Community 239 - "TicketHistori"
-Cohesion: 0.21
-Nodes (7): AssignPicAction, TicketHistori, Illuminate\Auth\Access\AuthorizationException, Illuminate\Support\Facades\DB, Illuminate\Support\Facades\Gate, Illuminate\Support\Facades\Notification, InvalidArgumentException
+### Community 238 - "Perumahan"
+Cohesion: 0.07
+Nodes (4): Create, Edit, Index, Perumahan
+
+### Community 239 - "ProfileValidationRules.php"
+Cohesion: 0.27
+Nodes (6): emailRules(), nameRules(), phoneRules(), profileRules(), Profile, Illuminate\Support\Facades\Route
 
 ### Community 240 - "Livewire\Component"
-Cohesion: 0.12
-Nodes (18): Dashboard, Index, Appearance, DeleteUserForm, Exception, Flux\Flux, Illuminate\Contracts\Pagination\LengthAwarePaginator, Illuminate\Support\Facades\Auth (+10 more)
+Cohesion: 0.13
+Nodes (16): Dashboard, Index, Appearance, DeleteUserForm, Exception, Flux\Flux, Illuminate\Support\Facades\Auth, Illuminate\Validation\Rule (+8 more)
 
 ### Community 241 - "Promo"
-Cohesion: 0.08
+Cohesion: 0.09
 Nodes (6): Create, Edit, Index, LogOptions, Promo, PromoPolicy
 
-### Community 242 - "Create"
-Cohesion: 0.31
-Nodes (3): Create, DivisiTicket, JenisTicket
+### Community 242 - "Index"
+Cohesion: 0.16
+Nodes (4): Create, Index, DivisiTicket, JenisTicket
 
 ### Community 257 - "kecamatan/index.blade.php"
 Cohesion: 0.50
@@ -923,16 +927,24 @@ Cohesion: 0.50
 Nodes (3): confirmDelete({{ $inv->id }}), deleteInvoice, $set(
 
 ### Community 273 - "ImpersonateController"
-Cohesion: 0.23
-Nodes (6): ImpersonateController, Logout, Illuminate\Http\RedirectResponse, Illuminate\Support\Facades\Session, Lab404\Impersonate\Services\ImpersonateManager, Livewire\Features\SupportRedirects\Redirector
+Cohesion: 0.48
+Nodes (3): ImpersonateController, Illuminate\Http\RedirectResponse, Lab404\Impersonate\Services\ImpersonateManager
+
+### Community 274 - "Billing.php"
+Cohesion: 0.33
+Nodes (3): Billing, Maatwebsite\Excel\Facades\Excel, Symfony\Component\HttpFoundation\BinaryFileResponse
+
+### Community 281 - "bootstrap/app.php"
+Cohesion: 0.25
+Nodes (6): Illuminate\Foundation\Application, Illuminate\Foundation\Configuration\Exceptions, Illuminate\Foundation\Configuration\Middleware, Spatie\Permission\Middleware\PermissionMiddleware, Spatie\Permission\Middleware\RoleMiddleware, Spatie\Permission\Middleware\RoleOrPermissionMiddleware
 
 ### Community 283 - "ADR 0006: Pemodelan Hierarki Area & Wilayah, Geolokasi Perumahan, dan Proteksi Penghapusan (Guarded Deletion)"
 Cohesion: 0.33
 Nodes (5): ADR 0006: Pemodelan Hierarki Area & Wilayah, Geolokasi Perumahan, dan Proteksi Penghapusan (Guarded Deletion), Keputusan, Konsekuensi, Konteks, Status
 
-### Community 286 - ".run"
-Cohesion: 0.20
-Nodes (5): Index, PelangganSeeder, Carbon, MetodePembayaran, StatusInvoice
+### Community 285 - "Livewire\WithPagination"
+Cohesion: 0.10
+Nodes (7): Index, Index, Index, Index, Illuminate\Contracts\Pagination\LengthAwarePaginator, Livewire\Attributes\Url, Livewire\WithPagination
 
 ### Community 287 - "PengaturanGateway"
 Cohesion: 0.29
@@ -942,17 +954,25 @@ Nodes (3): PengaturanGateway, LogOptions, self
 Cohesion: 0.50
 Nodes (3): Context, Decisions, User and Customer Portal Impersonation Architecture
 
-### Community 292 - "Ticket/Create.php"
-Cohesion: 0.24
-Nodes (4): TicketDiassignNotification, TicketStatusBerubahNotification, Illuminate\Bus\Queueable, Illuminate\Notifications\Notification
+### Community 291 - "Logout.php"
+Cohesion: 0.40
+Nodes (3): Logout, Illuminate\Support\Facades\Session, Livewire\Features\SupportRedirects\Redirector
+
+### Community 297 - "RolesAndPermissionsSeeder.php"
+Cohesion: 0.40
+Nodes (3): Spatie\Permission\DefaultTeamResolver, Spatie\Permission\Models\Permission, Spatie\Permission\PermissionRegistrar
+
+### Community 331 - "XenditPaymentService.php"
+Cohesion: 0.09
+Nodes (15): self, XenditCallbackData, Controller, XenditWebhookController, WebhookLog, GuzzleHttp\Client, Illuminate\Http\JsonResponse, Xendit\BalanceAndTransaction\BalanceApi (+7 more)
+
+### Community 333 - "InvoicePdfController.php"
+Cohesion: 0.50
+Nodes (3): InvoicePdfController, Barryvdh\DomPDF\Facade\Pdf, Illuminate\Http\Response
 
 ### Community 338 - "post-create-project-cmd"
 Cohesion: 0.50
 Nodes (4): post-create-project-cmd, @php artisan key:generate --ansi, @php artisan migrate --graceful --ansi, @php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\
-
-### Community 339 - "Illuminate\Support\Carbon"
-Cohesion: 0.26
-Nodes (6): LogOptions, LogOptions, Illuminate\Database\Eloquent\SoftDeletes, Illuminate\Support\Carbon, Spatie\Activitylog\Models\Concerns\LogsActivity, Spatie\Activitylog\Support\LogOptions
 
 ### Community 344 - "ticket/show.blade.php"
 Cohesion: 0.40
@@ -963,24 +983,24 @@ Cohesion: 0.50
 Nodes (3): Context, Decisions, Ticket Module Architecture and State Machine
 
 ## Knowledge Gaps
-- **1158 isolated node(s):** `$schema`, `name`, `type`, `description`, `laravel` (+1153 more)
+- **1159 isolated node(s):** `$schema`, `name`, `type`, `description`, `laravel` (+1154 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **67 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **57 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `User` connect `User` to `PelangganSeeder.php`, `PasswordValidationRules.php`, `ProfilBandwidth`, `Illuminate\Database\Eloquent\Factories\HasFactory`, `RolesAndPermissionsSeeder`, `StatusTicket.php`, `.run`, `Illuminate\Database\Eloquent\Relations\HasMany`, `Ticket/Create.php`, `Illuminate\Support\Facades\Hash`, `Show`, `Pelanggan`, `PelangganFactory`, `Ticket`, `User.php`, `IpPool`, `PaketLayanan`, `Invoice`, `Illuminate\Support\Str`, `Router`, `BillingService`, `XenditWebhookController.php`, `TicketHistori`, `Livewire\Component`, `Promo`, `Create`, `Illuminate\Database\Eloquent\Builder`, `JenisTicket.php`?**
-  _High betweenness centrality (0.046) - this node is a cross-community bridge._
-- **Why does `Invoice` connect `Invoice` to `PelangganSeeder.php`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `InvoicePaidEvent`, `Billing`, `Illuminate\Database\Eloquent\Factories\HasFactory`, `RolesAndPermissionsSeeder`, `.run`, `Pembayaran`, `Bayar`, `Pelanggan`, `Illuminate\Database\Eloquent\Factories\Factory`, `Illuminate\Support\Carbon`, `web.php`, `XenditPaymentService.php`, `TransaksiPaymentGateway`, `StatusTransaksiGateway.php`, `LaporanBillingExport`, `Index`, `BillingService`, `XenditWebhookController.php`, `Livewire\Component`, `Illuminate\Database\Eloquent\Builder`?**
-  _High betweenness centrality (0.024) - this node is a cross-community bridge._
-- **Why does `Pelanggan` connect `Pelanggan` to `PelangganSeeder.php`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `Illuminate\Database\Eloquent\Relations\HasMany`, `Ticket/Create.php`, `Create`, `TicketHistori`, `Livewire\Component`, `Promo`, `Create`, `Illuminate\Support\Carbon`, `User`, `Illuminate\Database\Eloquent\Builder`, `Illuminate\Database\Eloquent\Factories\HasFactory`, `Create`, `RolesAndPermissionsSeeder`, `StatusTicket.php`, `JenisTicket.php`, `.run`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+- **Why does `User` connect `User` to `TicketFactory`, `TicketHistori`, `PasswordValidationRules.php`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `StatusInvoice.php`, `RolesAndPermissionsSeeder`, `Livewire\WithPagination`, `CustomerPolicy`, `JenisTicket.php`, `UserFactory`, `RolesAndPermissionsSeeder.php`, `PaketLayanan`, `Pembayaran`, `Show`, `Pelanggan`, `UsersList`, `Ticket`, `PelangganSeeder.php`, `Kecamatan`, `FortifyServiceProvider.php`, `AkunPelanggan`, `IpPool`, `Laravel\Fortify\Features`, `ProfilBandwidth`, `Illuminate\Database\Eloquent\Builder`, `TicketDiassignNotification`, `Index`, `Router`, `ProfileValidationRules.php`, `Livewire\Component`, `Promo`, `Index`, `StatusTicket.php`?**
+  _High betweenness centrality (0.052) - this node is a cross-community bridge._
+- **Why does `Invoice` connect `Invoice` to `StatusTransaksiGateway.php`, `LaporanBillingExport`, `InvoicePaidEvent`, `LayananPelanggan`, `XenditPaymentService.php`, `Pembayaran`, `InvoicePdfController.php`, `StatusInvoice.php`, `Livewire\Component`, `PelangganSeeder.php`, `Billing.php`, `User`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `RolesAndPermissionsSeeder`, `Livewire\WithPagination`, `Illuminate\Database\Eloquent\Builder`?**
+  _High betweenness centrality (0.028) - this node is a cross-community bridge._
+- **Why does `Router` connect `Router` to `Create`, `Illuminate\Database\Seeder`, `Edit`, `Edit`, `Pembayaran`, `StatusInvoice.php`, `Livewire\Component`, `PelangganSeeder.php`, `StatusRouter.php`, `LayananPelangganFactory.php`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `IpPool`, `RolesAndPermissionsSeeder`, `Edit`, `Create`, `Create`, `Illuminate\Database\Eloquent\Builder`?**
+  _High betweenness centrality (0.010) - this node is a cross-community bridge._
 - **What connects `$schema`, `name`, `type` to the rest of the system?**
-  _1158 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `PelangganSeeder.php` be split into smaller, more focused modules?**
-  _Cohesion score 0.07563025210084033 - nodes in this community are weakly interconnected._
-- **Should `Illuminate\Database\Eloquent\Relations\BelongsTo` be split into smaller, more focused modules?**
-  _Cohesion score 0.09881422924901186 - nodes in this community are weakly interconnected._
+  _1159 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `scripts` be split into smaller, more focused modules?**
   _Cohesion score 0.10526315789473684 - nodes in this community are weakly interconnected._
+- **Should `Issue tracker: GitHub` be split into smaller, more focused modules?**
+  _Cohesion score 0.05555555555555555 - nodes in this community are weakly interconnected._
+- **Should `Issue tracker: GitHub` be split into smaller, more focused modules?**
+  _Cohesion score 0.05555555555555555 - nodes in this community are weakly interconnected._

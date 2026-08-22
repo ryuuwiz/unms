@@ -113,3 +113,10 @@ test('pelanggan otomatis mendapatkan link baru jika link lama sudah expired', fu
     expect($this->invoice->xendit_invoice_id)->not->toBe('inv_old_123')
         ->and($this->invoice->xendit_status)->toBe('PENDING');
 });
+
+test('pelanggan dapat memicu sinkronkanStatus secara manual pada portal', function () {
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('sinkronkanStatus')
+        ->assertHasNoErrors();
+});
