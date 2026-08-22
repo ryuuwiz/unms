@@ -32,7 +32,7 @@ Route::redirect('/', 'login')->name('home');
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');
 
-    Route::view('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', App\Livewire\Dashboard::class)->name('dashboard');
 
     // ─── Tiket & Operasional ──────────────────────────────────────
     Route::prefix('ticket')->name('ticket.')->group(function () {

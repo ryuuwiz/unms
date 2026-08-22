@@ -160,4 +160,12 @@ _Avoid_: Hardcoded Single Company, Multi Database Terpisah Tanpa Pola
 Pengelolaan berkas digital (logo instansi, foto identitas/KTP, foto dokumentasi teknis tiket, dan bukti transfer pembayaran) yang terpusat melalui relasi polimorfik Spatie MediaLibrary dengan penanganan otomatis konversi gambar, mime checking, dan siklus hidup berkas.
 _Avoid_: File Path Manual Bebas, Upload Lepas Tanpa Relasi
 
+**Kartu Metrik (Stat Card)**:
+Komponen visual modular (`<x-stat-card>`) untuk menampilkan ringkasan indikator performa utama (KPI) yang dilengkapi dengan tren perbandingan persentase periode, badge status, ikon bernuansa tematik, dan tautan navigasi kontekstual.
+_Avoid_: Box Angka Bebas, Card Mentah, Stat Lepas
+
+**Grafik Analitik (Chart Component)**:
+Komponen visualisasi data interaktif berbasis ApexCharts yang terintegrasi dengan Alpine.js dan Livewire 4, mendukung tema dark-mode otomatis untuk menampilkan tren pendapatan 12-bulan, proporsi paket layanan, dan beban tiket operasional.
+_Avoid_: Gambar Grafik Statis, Chart Canvas Tanpa Reaktivitas
+
 
