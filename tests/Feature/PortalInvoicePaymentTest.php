@@ -3,7 +3,6 @@
 use App\Enums\GatewayChannel;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
-use App\Livewire\Portal\Invoice\Bayar;
 use App\Livewire\Portal\Invoice\Index;
 use App\Livewire\Portal\Invoice\Show;
 use App\Models\Invoice;
@@ -14,6 +13,7 @@ use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 
@@ -80,29 +80,36 @@ test('pelanggan tidak dapat melihat tagihan milik pelanggan lain (403)', functio
         ->assertForbidden();
 });
 
-test('pelanggan dapat membuat tagihan Virtual Account BCA di portal bayar', function () {
+test('pelanggan dapat menekan tombol bayar dan di-redirect ke xendit_invoice_url', function () {
     Livewire::actingAs($this->akun, 'pelanggan')
-        ->test(Bayar::class, ['invoice' => $this->invoice])
-        ->set('channelTipe', 'va')
-        ->set('bankCode', 'BCA')
-        ->call('generatePembayaran')
-        ->assertHasNoErrors();
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('bayar')
+        ->assertRedirect();
 
-    $transaksi = $this->invoice->fresh()->transaksiPaymentGateways()->latest()->first();
+    $this->invoice->refresh();
+    expect($this->invoice->xendit_invoice_url)->not->toBeNull()
+        ->and($this->invoice->xendit_invoice_id)->not->toBeNull()
+        ->and($this->invoice->xendit_status)->toBe('PENDING');
+
+    $transaksi = $this->invoice->transaksiPaymentGateways()->latest()->first();
     expect($transaksi)->not->toBeNull()
-        ->and($transaksi->channel)->toBe(GatewayChannel::VirtualAccount)
-        ->and($transaksi->channel_detail)->toBe('bca');
+        ->and($transaksi->channel)->toBe(GatewayChannel::Invoice);
 });
 
-test('pelanggan dapat membuat tagihan QRIS di portal bayar', function () {
-    Livewire::actingAs($this->akun, 'pelanggan')
-        ->test(Bayar::class, ['invoice' => $this->invoice])
-        ->set('channelTipe', 'qris')
-        ->call('generatePembayaran')
-        ->assertHasNoErrors();
+test('pelanggan otomatis mendapatkan link baru jika link lama sudah expired', function () {
+    $this->invoice->update([
+        'xendit_invoice_id' => 'inv_old_123',
+        'xendit_invoice_url' => 'https://checkout-staging.xendit.co/v2/inv_old_123',
+        'xendit_status' => 'EXPIRED',
+        'xendit_expired_at' => Carbon::now()->subDay(),
+    ]);
 
-    $transaksi = $this->invoice->fresh()->transaksiPaymentGateways()->latest()->first();
-    expect($transaksi)->not->toBeNull()
-        ->and($transaksi->channel)->toBe(GatewayChannel::Qris)
-        ->and($transaksi->qr_string)->not->toBeNull();
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('bayar')
+        ->assertRedirect();
+
+    $this->invoice->refresh();
+    expect($this->invoice->xendit_invoice_id)->not->toBe('inv_old_123')
+        ->and($this->invoice->xendit_status)->toBe('PENDING');
 });

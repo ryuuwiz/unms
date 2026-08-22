@@ -14,7 +14,6 @@ use App\Livewire\Portal\Auth\GantiPassword;
 use App\Livewire\Portal\Auth\KlaimAkun;
 use App\Livewire\Portal\Auth\Login;
 use App\Livewire\Portal\Dashboard;
-use App\Livewire\Portal\Invoice\Bayar;
 use App\Livewire\Portal\Invoice\Index;
 use App\Livewire\Portal\Invoice\Show;
 use App\Livewire\ProfilBandwidth;
@@ -28,7 +27,7 @@ use App\Livewire\Wilayah;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+Route::redirect('/', 'login')->name('home');
 
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');
@@ -221,10 +220,12 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
-// ─── Webhook Xendit (Public & CSRF-Exempt) ──────────────────────
-Route::post('/webhook/xendit', [XenditWebhookController::class, 'handle'])->name('webhook.xendit');
-Route::post('/webhook/xendit/virtual-account', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.va');
-Route::post('/webhook/xendit/qris', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.qris');
+// ─── Webhook Xendit (Public & CSRF-Exempt, Protected with xendit.token) ──
+Route::middleware('xendit.token')->group(function () {
+    Route::post('/webhook/xendit', [XenditWebhookController::class, 'handle'])->name('webhook.xendit');
+    Route::post('/webhook/xendit/virtual-account', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.va');
+    Route::post('/webhook/xendit/qris', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.qris');
+});
 
 // ─── Portal Pelanggan (Guard: pelanggan) ─────────────────────────
 Route::prefix('portal')->name('portal.')->group(function () {
@@ -233,6 +234,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/klaim-akun', KlaimAkun::class)->name('klaim-akun');
 
     Route::middleware('auth:pelanggan')->group(function () {
+        Route::get('/', function () {
+            return redirect()->route('portal.dashboard');
+        })->name('index');
+
         Route::post('/logout', function () {
             Auth::guard('pelanggan')->logout();
             request()->session()->invalidate();
@@ -244,7 +249,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/dashboard', Dashboard::class)->name('dashboard');
         Route::get('/tagihan', Index::class)->name('invoice.index');
         Route::get('/tagihan/{invoice}', Show::class)->name('invoice.show');
-        Route::get('/tagihan/{invoice}/bayar', Bayar::class)->name('invoice.bayar');
+        Route::get('/tagihan/{invoice}/bayar', fn (App\Models\Invoice $invoice) => redirect()->route('portal.invoice.show', $invoice))->name('invoice.bayar');
         Route::get('/profil', App\Livewire\Portal\Profil\Index::class)->name('profil');
         Route::get('/ganti-password', GantiPassword::class)->middleware('impersonate.protect')->name('ganti-password');
     });

@@ -36,6 +36,10 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property string|null $xendit_invoice_id
+ * @property string|null $xendit_invoice_url
+ * @property string|null $xendit_status
+ * @property Carbon|null $xendit_expired_at
  * @property-read Pelanggan $pelanggan
  * @property-read LayananPelanggan $layananPelanggan
  * @property-read Promo|null $promo
@@ -54,6 +58,10 @@ use Spatie\Activitylog\Support\LogOptions;
     'tanggal_jatuh_tempo',
     'tanggal_lunas',
     'metode_pembayaran',
+    'xendit_invoice_id',
+    'xendit_invoice_url',
+    'xendit_status',
+    'xendit_expired_at',
     'dibuat_oleh',
     'dihapus_oleh',
     'keterangan_hapus',
@@ -101,6 +109,7 @@ class Invoice extends Model
             'tanggal_terbit' => 'date',
             'tanggal_jatuh_tempo' => 'date',
             'tanggal_lunas' => 'date',
+            'xendit_expired_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
     }
@@ -207,6 +216,38 @@ class Invoice extends Model
     public function isKadaluarsa(): bool
     {
         return $this->status === StatusInvoice::Kadaluarsa;
+    }
+
+    /**
+     * Cek apakah invoice memiliki tautan pembayaran Xendit yang aktif dan belum kedaluwarsa.
+     */
+    public function hasActiveXenditInvoice(): bool
+    {
+        if (empty($this->xendit_invoice_url)) {
+            return false;
+        }
+
+        if ($this->xendit_status === 'EXPIRED' || $this->xendit_status === 'PAID') {
+            return false;
+        }
+
+        if ($this->xendit_expired_at && $this->xendit_expired_at->isPast()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Cek apakah sesi Xendit invoice telah kedaluwarsa.
+     */
+    public function isXenditInvoiceExpired(): bool
+    {
+        if ($this->xendit_status === 'EXPIRED') {
+            return true;
+        }
+
+        return $this->xendit_expired_at ? $this->xendit_expired_at->isPast() : false;
     }
 
     public function formattedJumlah(): string

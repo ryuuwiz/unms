@@ -62,6 +62,17 @@ test('tamu tidak dapat mengakses dashboard portal', function () {
     $response->assertRedirect(route('portal.login'));
 });
 
+test('tamu yang mengakses prefix portal diarahkan ke login portal', function () {
+    $this->get('/portal')->assertRedirect(route('portal.login'));
+    $this->get(route('portal.index'))->assertRedirect(route('portal.login'));
+});
+
+test('pelanggan yang login mengakses prefix portal diarahkan ke dashboard portal', function () {
+    $this->actingAs($this->akun, 'pelanggan')
+        ->get(route('portal.index'))
+        ->assertRedirect(route('portal.dashboard'));
+});
+
 test('pelanggan dapat mengganti password dari portal', function () {
     Livewire::actingAs($this->akun, 'pelanggan')
         ->test(GantiPassword::class)

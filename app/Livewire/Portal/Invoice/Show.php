@@ -3,6 +3,9 @@
 namespace App\Livewire\Portal\Invoice;
 
 use App\Models\Invoice;
+use App\Services\Xendit\XenditPaymentService;
+use Exception;
+use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -30,6 +33,38 @@ class Show extends Component
             'pembayarans',
             'transaksiPaymentGateways' => fn ($q) => $q->latest(),
         ]);
+    }
+
+    /**
+     * Arahkan pelanggan ke link hosted payment page Xendit.
+     */
+    public function bayar(XenditPaymentService $paymentService): mixed
+    {
+        $this->invoice->refresh();
+
+        if ($this->invoice->isLunas()) {
+            Flux::toast(variant: 'success', text: 'Tagihan ini telah lunas.');
+
+            return null;
+        }
+
+        try {
+            // Jika belum memiliki link Xendit aktif atau sudah expired, generate baru
+            if (! $this->invoice->hasActiveXenditInvoice()) {
+                $paymentService->buatInvoice($this->invoice, forceRegenerate: true);
+                $this->invoice->refresh();
+            }
+
+            if (! empty($this->invoice->xendit_invoice_url)) {
+                return redirect()->away($this->invoice->xendit_invoice_url);
+            }
+
+            Flux::toast(variant: 'danger', text: 'Gagal memuat link pembayaran Xendit.');
+        } catch (Exception $e) {
+            Flux::toast(variant: 'danger', text: 'Gagal memproses pembayaran: '.$e->getMessage());
+        }
+
+        return null;
     }
 
     public function render(): View

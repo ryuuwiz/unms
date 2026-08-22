@@ -49,18 +49,22 @@ beforeEach(function () {
         'jumlah' => 250000,
         'jumlah_setelah_promo' => 250000,
         'status' => StatusInvoice::MenungguPembayaran,
+        'xendit_invoice_id' => 'inv_xendit_test_123',
+        'xendit_invoice_url' => 'https://checkout-staging.xendit.co/v2/inv_xendit_test_123',
+        'xendit_status' => 'PENDING',
+        'xendit_expired_at' => Carbon::now()->addDays(3),
     ]);
 
-    $this->externalId = "INV-{$this->invoice->no_invoice}-VA-BCA-123456";
+    $this->externalId = "INV-{$this->invoice->no_invoice}-1755848800";
 
     $this->transaksi = TransaksiPaymentGateway::create([
         'invoice_id' => $this->invoice->id,
         'gateway' => 'xendit',
         'external_id' => $this->externalId,
-        'xendit_reference_id' => 'pr_test_123',
-        'channel' => GatewayChannel::VirtualAccount,
-        'channel_detail' => 'bca',
-        'nomor_pembayaran' => '880812345678',
+        'xendit_reference_id' => 'inv_xendit_test_123',
+        'channel' => GatewayChannel::Invoice,
+        'channel_detail' => 'hosted_invoice',
+        'nomor_pembayaran' => 'https://checkout-staging.xendit.co/v2/inv_xendit_test_123',
         'total_tagihan' => 250000,
         'fee_gateway' => 0,
         'status' => StatusTransaksiGateway::Pending,
@@ -79,28 +83,31 @@ test('webhook menolak request jika token tidak valid dengan HTTP 401', function 
     expect($this->invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran);
 });
 
-test('webhook memproses callback valid, melunaskan invoice, dan memperpanjang masa aktif', function () {
+test('webhook menolak request tanpa header token dengan HTTP 401', function () {
+    $response = $this->postJson('/webhook/xendit', [
+        'id' => 'evt_123',
+    ]);
+
+    $response->assertStatus(401);
+});
+
+test('webhook memproses callback format Xendit Hosted Invoice PAID, melunaskan invoice, dan memperpanjang masa aktif', function () {
     Event::fake([InvoicePaidEvent::class]);
 
     $payload = [
-        'event' => 'payment.succeeded',
-        'id' => 'evt_valid_123',
-        'data' => [
-            'id' => 'pr_test_123',
-            'reference_id' => $this->externalId,
-            'status' => 'SUCCEEDED',
-            'amount' => 250000,
-            'payment_method' => [
-                'type' => 'VIRTUAL_ACCOUNT',
-                'virtual_account' => [
-                    'channel_code' => 'BCA',
-                    'channel_properties' => [
-                        'account_number' => '880812345678',
-                    ],
-                ],
-            ],
-            'updated' => now()->toIso8601String(),
-        ],
+        'id' => 'inv_xendit_test_123',
+        'external_id' => $this->externalId,
+        'user_id' => 'user_123',
+        'status' => 'PAID',
+        'merchant_name' => 'UNMS ISP',
+        'amount' => 250000,
+        'paid_amount' => 250000,
+        'payer_email' => $this->pelanggan->email,
+        'description' => "Tagihan Internet UNMS {$this->invoice->no_invoice}",
+        'payment_method' => 'BANK_TRANSFER',
+        'payment_channel' => 'BCA',
+        'payment_destination' => '880812345678',
+        'paid_at' => now()->toIso8601String(),
     ];
 
     $response = $this->postJson('/webhook/xendit', $payload, [
@@ -111,6 +118,7 @@ test('webhook memproses callback valid, melunaskan invoice, dan memperpanjang ma
 
     // 1. Cek status invoice & transaksi
     expect($this->invoice->fresh()->isLunas())->toBeTrue()
+        ->and($this->invoice->fresh()->xendit_status)->toBe('PAID')
         ->and($this->transaksi->fresh()->status)->toBe(StatusTransaksiGateway::Paid);
 
     // 2. Cek record pembayaran
@@ -121,28 +129,50 @@ test('webhook memproses callback valid, melunaskan invoice, dan memperpanjang ma
     expect($expiredBaru->greaterThan(Carbon::today()->addDays(25)))->toBeTrue();
 
     // 4. Cek audit webhook log
-    expect(WebhookLog::where('xendit_event_id', 'evt_valid_123')->first()->status_proses)->toBe(StatusWebhookLog::Diproses);
+    expect(WebhookLog::where('xendit_event_id', 'inv_xendit_test_123')->first()->status_proses)->toBe(StatusWebhookLog::Diproses);
 
     // 5. Cek Event dipancarkan
     Event::assertDispatched(InvoicePaidEvent::class);
 });
 
+test('webhook memproses callback EXPIRED dengan me-reset link invoice lokal dan menandai transaksi expired', function () {
+    $payload = [
+        'id' => 'inv_xendit_test_123',
+        'external_id' => $this->externalId,
+        'status' => 'EXPIRED',
+        'amount' => 250000,
+        'payer_email' => $this->pelanggan->email,
+    ];
+
+    $response = $this->postJson('/webhook/xendit', $payload, [
+        'x-callback-token' => 'test_xendit_token_xyz',
+    ]);
+
+    $response->assertStatus(200);
+
+    // Invoice tetap menunggu_pembayaran tapi xendit_invoice_url di-reset menjadi null
+    $freshInvoice = $this->invoice->fresh();
+    expect($freshInvoice->status)->toBe(StatusInvoice::MenungguPembayaran)
+        ->and($freshInvoice->xendit_invoice_url)->toBeNull()
+        ->and($freshInvoice->xendit_status)->toBe('EXPIRED')
+        ->and($this->transaksi->fresh()->status)->toBe(StatusTransaksiGateway::Expired);
+});
+
 test('webhook bersifat idempoten terhadap retry event ID yang sama', function () {
     WebhookLog::create([
-        'event_type' => 'payment.succeeded',
-        'xendit_event_id' => 'evt_duplicate_999',
+        'event_type' => 'invoice.paid',
+        'xendit_event_id' => 'inv_duplicate_999',
         'payload' => [],
         'status_proses' => StatusWebhookLog::Diproses,
         'diterima_pada' => now(),
     ]);
 
     $payload = [
-        'event' => 'payment.succeeded',
-        'id' => 'evt_duplicate_999',
-        'data' => [
-            'reference_id' => $this->externalId,
-            'amount' => 250000,
-        ],
+        'id' => 'inv_duplicate_999',
+        'external_id' => $this->externalId,
+        'status' => 'PAID',
+        'amount' => 250000,
+        'paid_amount' => 250000,
     ];
 
     $response = $this->postJson('/webhook/xendit', $payload, [
@@ -163,12 +193,11 @@ test('webhook aman terhadap invoice yang sudah lunas sebelumnya', function () {
     ]);
 
     $payload = [
-        'event' => 'payment.succeeded',
-        'id' => 'evt_already_paid_123',
-        'data' => [
-            'reference_id' => $this->externalId,
-            'amount' => 250000,
-        ],
+        'id' => 'inv_already_paid_123',
+        'external_id' => $this->externalId,
+        'status' => 'PAID',
+        'amount' => 250000,
+        'paid_amount' => 250000,
     ];
 
     $response = $this->postJson('/webhook/xendit', $payload, [

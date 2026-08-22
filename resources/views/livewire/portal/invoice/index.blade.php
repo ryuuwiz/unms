@@ -73,7 +73,7 @@
                                 Rincian
                             </flux:button>
                             @if($invoice->isMenungguPembayaran())
-                                <flux:button :href="route('portal.invoice.bayar', $invoice)" size="sm" variant="primary" class="bg-indigo-600 text-white font-semibold" wire:navigate>
+                                <flux:button :href="route('portal.invoice.show', $invoice)" size="sm" variant="primary" class="bg-indigo-600 text-white font-semibold" wire:navigate>
                                     Bayar Sekarang &rarr;
                                 </flux:button>
                             @elseif($invoice->isLunas())

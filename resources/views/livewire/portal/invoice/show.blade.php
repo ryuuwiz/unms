@@ -10,9 +10,15 @@
                     Unduh Bukti Bayar (PDF)
                 </flux:button>
             @elseif($invoice->isMenungguPembayaran())
-                <flux:button :href="route('portal.invoice.bayar', $invoice)" size="sm" variant="primary" class="bg-indigo-600 text-white" wire:navigate>
-                    <flux:icon icon="credit-card" class="size-4 mr-1.5" />
-                    Bayar Sekarang
+                <flux:button wire:click="bayar" wire:loading.attr="disabled" size="sm" variant="primary" class="bg-indigo-600 text-white">
+                    <span wire:loading.remove wire:target="bayar" class="flex items-center gap-1.5">
+                        <flux:icon icon="credit-card" class="size-4" />
+                        Bayar Sekarang
+                    </span>
+                    <span wire:loading wire:target="bayar" class="flex items-center gap-1.5">
+                        <flux:icon icon="arrow-path" class="size-4 animate-spin" />
+                        Membuka Halaman Pembayaran...
+                    </span>
                 </flux:button>
             @endif
         </div>

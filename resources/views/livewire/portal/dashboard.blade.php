@@ -17,7 +17,7 @@
             </div>
             @if($unpaidInvoices->isNotEmpty())
                 <div class="flex items-center">
-                    <flux:button :href="route('portal.invoice.bayar', $unpaidInvoices->first())" variant="primary" class="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold border-0 shadow-lg shadow-amber-500/25" wire:navigate>
+                    <flux:button :href="route('portal.invoice.show', $unpaidInvoices->first())" variant="primary" class="bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold border-0 shadow-lg shadow-amber-500/25" wire:navigate>
                         <flux:icon icon="credit-card" class="size-4 mr-1.5" />
                         Bayar Tagihan Aktif ({{ $unpaidInvoices->count() }})
                     </flux:button>
@@ -65,7 +65,7 @@
                                 <flux:button :href="route('portal.invoice.show', $inv)" size="sm" variant="ghost" wire:navigate>
                                     Rincian
                                 </flux:button>
-                                <flux:button :href="route('portal.invoice.bayar', $inv)" size="sm" variant="primary" wire:navigate>
+                                <flux:button :href="route('portal.invoice.show', $inv)" size="sm" variant="primary" wire:navigate>
                                     Bayar Sekarang &rarr;
                                 </flux:button>
                             </div>

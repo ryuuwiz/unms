@@ -109,8 +109,12 @@ Entitas kredensial autentikasi pengguna portal (guard `pelanggan`) yang terikat 
 _Avoid_: User Pelanggan, Akun Web Bebas
 
 **Transaksi Payment Gateway**:
-Catatan transaksi penerbitan tagihan digital (Virtual Account / QRIS) ke payment gateway (Xendit) dengan identitas `external_id` unik untuk penjaminan idempotensi.
+Catatan transaksi penerbitan tagihan digital (Xendit Hosted Invoice) ke payment gateway dengan identitas `external_id` unik untuk penjaminan idempotensi dan riwayat sesi pembayaran.
 _Avoid_: Billing Gateway, Tagihan Xendit, Order ID Bebas
+
+**Link Pembayaran Gateway**:
+Tautan resmi sesi pembayaran terkelola Xendit (`xendit_invoice_url`) yang memuat pilihan metode bayar (VA, QRIS, e-wallet, dsb) secara langsung di halaman hosted Xendit.
+_Avoid_: Custom Checkout URL, Link Bayar Bebas
 
 **Log Webhook**:
 Catatan audit trail penerimaan callback HTTP dari payment gateway Xendit untuk mencatat event id, payload mentah, status verifikasi token, dan proses eksekusi database.

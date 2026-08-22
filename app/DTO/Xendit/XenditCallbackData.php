@@ -27,7 +27,38 @@ class XenditCallbackData
      */
     public static function fromArray(array $payload): self
     {
-        // 1. Format Modern Payment Request (event: payment.succeeded / data wrapper)
+        // 1. Format Xendit Hosted Invoice Callback (status: PAID / EXPIRED, payment_method, paid_amount, external_id)
+        if (isset($payload['status']) && (isset($payload['payment_method']) || isset($payload['paid_amount']) || isset($payload['merchant_name']) || (isset($payload['id']) && isset($payload['external_id']) && ! isset($payload['event'])))) {
+            $status = strtoupper((string) ($payload['status'] ?? 'PAID'));
+            $pm = strtoupper((string) ($payload['payment_method'] ?? ''));
+
+            $channel = match ($pm) {
+                'BANK_TRANSFER', 'VIRTUAL_ACCOUNT' => 'virtual_account',
+                'QR_CODE', 'QRIS' => 'qris',
+                'EWALLET', 'E_WALLET' => 'ewallet',
+                'RETAIL_OUTLET', 'OVER_THE_COUNTER' => 'retail_outlet',
+                'CREDIT_CARD', 'CARD' => 'credit_card',
+                default => 'invoice',
+            };
+
+            $channelDetail = isset($payload['payment_channel']) ? strtolower((string) $payload['payment_channel']) : null;
+            $paymentReference = (string) ($payload['payment_destination'] ?? ($payload['payment_id'] ?? ($payload['id'] ?? null)));
+
+            return new self(
+                eventId: (string) ($payload['id'] ?? uniqid('inv_evt_', true)),
+                externalId: (string) ($payload['external_id'] ?? ''),
+                eventType: 'invoice.'.strtolower($status),
+                status: $status,
+                amount: (float) ($payload['paid_amount'] ?? ($payload['amount'] ?? 0)),
+                channel: $channel,
+                channelDetail: $channelDetail,
+                paymentReference: $paymentReference,
+                paidAt: (string) ($payload['paid_at'] ?? ($payload['updated'] ?? now()->toIso8601String())),
+                rawPayload: $payload
+            );
+        }
+
+        // 2. Format Modern Payment Request (event: payment.succeeded / data wrapper)
         if (isset($payload['event']) && isset($payload['data'])) {
             $data = (array) $payload['data'];
             $paymentMethod = (array) ($data['payment_method'] ?? []);

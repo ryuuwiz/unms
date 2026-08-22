@@ -34,7 +34,7 @@ class XenditWebhookController extends Controller
      */
     public function handle(Request $request): JsonResponse
     {
-        // 1. Verifikasi Signature / Header Token
+        // 1. Verifikasi Signature / Header Token (backup check selain middleware)
         if (! $this->verifier->verifikasi($request)) {
             Log::warning('Webhook Xendit ditolak: Callback Token tidak valid.', [
                 'ip' => $request->ip(),
@@ -70,103 +70,164 @@ class XenditWebhookController extends Controller
             'diterima_pada' => Carbon::now(),
         ]);
 
-        // 4. Cari Transaksi Payment Gateway berdasarkan external_id
+        // 4. Cari Transaksi Payment Gateway / Invoice terkait
         /** @var TransaksiPaymentGateway|null $transaksi */
-        $transaksi = TransaksiPaymentGateway::where('external_id', $callbackData->externalId)->first();
+        $transaksi = null;
+        if (! empty($callbackData->externalId)) {
+            $transaksi = TransaksiPaymentGateway::where('external_id', $callbackData->externalId)->first();
+        }
 
-        if (! $transaksi) {
+        if (! $transaksi && ! empty($callbackData->eventId)) {
+            $transaksi = TransaksiPaymentGateway::where('xendit_reference_id', $callbackData->eventId)->first();
+        }
+
+        /** @var Invoice|null $invoice */
+        $invoice = $transaksi ? $transaksi->invoice : null;
+
+        if (! $invoice && ! empty($callbackData->eventId)) {
+            $invoice = Invoice::where('xendit_invoice_id', $callbackData->eventId)->first();
+        }
+
+        if (! $invoice && ! empty($callbackData->externalId)) {
+            // Cek jika externalId mengandung nomor invoice (misal: INV-INV-202608-000001-...)
+            $invoice = Invoice::where('no_invoice', $callbackData->externalId)->first();
+        }
+
+        if (! $invoice) {
             $webhookLog->update([
                 'status_proses' => StatusWebhookLog::Diabaikan,
-                'catatan_error' => "Transaksi dengan external_id [{$callbackData->externalId}] tidak ditemukan.",
+                'catatan_error' => "Tagihan/Transaksi dengan identifier [{$callbackData->externalId} / {$callbackData->eventId}] tidak ditemukan.",
             ]);
 
-            Log::warning("Webhook Xendit diabaikan: Transaksi [{$callbackData->externalId}] tidak ditemukan.");
+            Log::warning("Webhook Xendit diabaikan: Target [{$callbackData->externalId}] tidak ditemukan.");
 
             return response()->json([
-                'message' => 'Transaction not found, ignored',
+                'message' => 'Target invoice or transaction not found, ignored',
                 'external_id' => $callbackData->externalId,
             ], 200);
         }
 
-        $webhookLog->update(['transaksi_payment_gateway_id' => $transaksi->id]);
+        if ($transaksi) {
+            $webhookLog->update(['transaksi_payment_gateway_id' => $transaksi->id]);
+        }
+
+        $isPaidStatus = in_array(strtoupper($callbackData->status), ['PAID', 'SETTLED', 'SUCCEEDED'], true);
+        $isExpiredStatus = strtoupper($callbackData->status) === 'EXPIRED';
 
         // 5. Eksekusi Transaksi Database Terisolasi dengan Row Locking
         try {
             $eventToDispatch = null;
 
-            DB::transaction(function () use ($transaksi, $callbackData, $webhookLog, &$eventToDispatch) {
+            DB::transaction(function () use ($invoice, $transaksi, $callbackData, $webhookLog, $isPaidStatus, $isExpiredStatus, &$eventToDispatch) {
                 /** @var Invoice $lockedInvoice */
-                $lockedInvoice = Invoice::where('id', $transaksi->invoice_id)->lockForUpdate()->firstOrFail();
+                $lockedInvoice = Invoice::where('id', $invoice->id)->lockForUpdate()->firstOrFail();
 
-                // Guard Clause Idempotensi: Jika invoice sudah lunas sebelumnya
-                if ($lockedInvoice->isLunas()) {
-                    $transaksi->update([
-                        'status' => StatusTransaksiGateway::Paid,
-                        'payload_response' => $callbackData->rawPayload,
+                // ─── Kasus A: Pembayaran Lunas (PAID / SETTLED) ─────────────
+                if ($isPaidStatus) {
+                    // Guard Clause Idempotensi: Jika invoice sudah lunas sebelumnya
+                    if ($lockedInvoice->isLunas()) {
+                        if ($transaksi) {
+                            $transaksi->update([
+                                'status' => StatusTransaksiGateway::Paid,
+                                'payload_response' => $callbackData->rawPayload,
+                            ]);
+                        }
+                        $lockedInvoice->update(['xendit_status' => 'PAID']);
+                        $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
+
+                        return;
+                    }
+
+                    $dibayarPada = $callbackData->paidAt ? Carbon::parse($callbackData->paidAt) : Carbon::now();
+
+                    // A. Update Transaksi Payment Gateway
+                    if ($transaksi) {
+                        $transaksi->update([
+                            'status' => StatusTransaksiGateway::Paid,
+                            'payload_response' => $callbackData->rawPayload,
+                        ]);
+                    }
+
+                    // B. Buat Record Pembayaran
+                    $channelDetailText = $callbackData->channelDetail ? strtoupper($callbackData->channelDetail) : '';
+                    $nominalBayar = $callbackData->amount > 0 ? $callbackData->amount : (float) ($transaksi?->total_tagihan ?? $lockedInvoice->jumlah_setelah_promo);
+
+                    $pembayaran = Pembayaran::create([
+                        'invoice_id' => $lockedInvoice->id,
+                        'metode' => MetodePembayaran::PaymentGateway,
+                        'referensi_transaksi' => $callbackData->paymentReference ?: ($transaksi?->external_id ?? $callbackData->externalId),
+                        'jumlah_dibayar' => $nominalBayar,
+                        'dibayar_pada' => $dibayarPada,
+                        'catatan' => trim("Pembayaran otomatis Xendit {$callbackData->channel} {$channelDetailText}"),
                     ]);
+
+                    // C. Update Status Invoice
+                    $lockedInvoice->update([
+                        'status' => StatusInvoice::Lunas,
+                        'tanggal_lunas' => $dibayarPada->toDateString(),
+                        'metode_pembayaran' => MetodePembayaran::PaymentGateway,
+                        'xendit_status' => 'PAID',
+                    ]);
+
+                    // D. Perpanjang Masa Aktif Layanan Pelanggan
+                    $layanan = $lockedInvoice->layananPelanggan()->lockForUpdate()->first();
+                    if ($layanan) {
+                        $paket = $layanan->paketLayanan;
+                        $masaNilai = $paket ? (int) $paket->masa_aktif_nilai : 1;
+                        $masaSatuan = $paket ? $paket->masa_aktif_satuan : MasaAktifSatuan::Bulan;
+
+                        $promo = $lockedInvoice->promo;
+                        $bonusBulan = ($promo && $promo->bonus_bulan) ? (int) $promo->bonus_bulan : 0;
+
+                        $currentExpired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
+                        $baseDate = ($currentExpired && $currentExpired->isFuture())
+                            ? $currentExpired->copy()
+                            : $dibayarPada->copy()->startOfDay();
+
+                        if ($masaSatuan === MasaAktifSatuan::Bulan) {
+                            $newExpired = $baseDate->addMonths($masaNilai + $bonusBulan);
+                        } else {
+                            $newExpired = $baseDate->addDays($masaNilai);
+                        }
+
+                        $layanan->update([
+                            'tanggal_expired' => $newExpired->toDateString(),
+                            'status' => StatusLayanan::Aktif,
+                        ]);
+                    }
+
+                    // E. Update Status Log Webhook
+                    $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
+
+                    // Siapkan event untuk dipancarkan setelah DB commit
+                    $eventToDispatch = new InvoicePaidEvent($lockedInvoice, $pembayaran);
+
+                    return;
+                }
+
+                // ─── Kasus B: Link Kedaluwarsa (EXPIRED) ────────────────────
+                if ($isExpiredStatus) {
+                    if ($transaksi) {
+                        $transaksi->update([
+                            'status' => StatusTransaksiGateway::Expired,
+                            'payload_response' => $callbackData->rawPayload,
+                        ]);
+                    }
+
+                    if (! $lockedInvoice->isLunas()) {
+                        $lockedInvoice->update([
+                            'xendit_invoice_url' => null,
+                            'xendit_status' => 'EXPIRED',
+                        ]);
+                    }
+
                     $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
 
                     return;
                 }
 
-                $dibayarPada = $callbackData->paidAt ? Carbon::parse($callbackData->paidAt) : Carbon::now();
-
-                // A. Update Transaksi Payment Gateway
-                $transaksi->update([
-                    'status' => StatusTransaksiGateway::Paid,
-                    'payload_response' => $callbackData->rawPayload,
-                ]);
-
-                // B. Buat Record Pembayaran
-                $channelDetailText = $transaksi->channel_detail ? strtoupper($transaksi->channel_detail) : '';
-                $pembayaran = Pembayaran::create([
-                    'invoice_id' => $lockedInvoice->id,
-                    'metode' => MetodePembayaran::PaymentGateway,
-                    'referensi_transaksi' => $callbackData->paymentReference ?: $transaksi->external_id,
-                    'jumlah_dibayar' => $callbackData->amount > 0 ? $callbackData->amount : (float) $transaksi->total_tagihan,
-                    'dibayar_pada' => $dibayarPada,
-                    'catatan' => "Pembayaran otomatis Xendit {$transaksi->channel->label()} {$channelDetailText}",
-                ]);
-
-                // C. Update Status Invoice
-                $lockedInvoice->update([
-                    'status' => StatusInvoice::Lunas,
-                    'tanggal_lunas' => $dibayarPada->toDateString(),
-                    'metode_pembayaran' => MetodePembayaran::PaymentGateway,
-                ]);
-
-                // D. Perpanjang Masa Aktif Layanan Pelanggan (ADR 0004 & PRD 4.2)
-                $layanan = $lockedInvoice->layananPelanggan()->lockForUpdate()->first();
-                if ($layanan) {
-                    $paket = $layanan->paketLayanan;
-                    $masaNilai = (int) $paket->masa_aktif_nilai;
-                    $masaSatuan = $paket->masa_aktif_satuan;
-
-                    $promo = $lockedInvoice->promo;
-                    $bonusBulan = ($promo && $promo->bonus_bulan) ? (int) $promo->bonus_bulan : 0;
-
-                    $currentExpired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
-                    $baseDate = ($currentExpired && $currentExpired->isFuture())
-                        ? $currentExpired->copy()
-                        : $dibayarPada->copy()->startOfDay();
-
-                    if ($masaSatuan === MasaAktifSatuan::Bulan) {
-                        $newExpired = $baseDate->addMonths($masaNilai + $bonusBulan);
-                    } else {
-                        $newExpired = $baseDate->addDays($masaNilai);
-                    }
-
-                    $layanan->update([
-                        'tanggal_expired' => $newExpired->toDateString(),
-                        'status' => StatusLayanan::Aktif,
-                    ]);
-                }
-
-                // E. Update Status Log Webhook
+                // Status lainnya (misal: PENDING, FAILED)
                 $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
-
-                // Siapkan event untuk dipancarkan setelah DB commit
-                $eventToDispatch = new InvoicePaidEvent($lockedInvoice, $pembayaran);
             });
 
             // 6. Pancarkan Event Post-Commit
@@ -175,7 +236,7 @@ class XenditWebhookController extends Controller
             }
 
             return response()->json([
-                'message' => 'Payment processed successfully',
+                'message' => 'Webhook processed successfully',
                 'external_id' => $callbackData->externalId,
             ], 200);
         } catch (Exception $e) {
