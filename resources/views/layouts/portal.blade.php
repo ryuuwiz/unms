@@ -14,7 +14,7 @@
                     </div>
                     <div>
                         <div class="font-bold text-sm leading-tight tracking-wide flex items-center gap-1.5">
-                            UNMS <span class="text-xs px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-200/50 dark:border-indigo-800/50">PORTAL</span>
+                            {{ config('app.name', 'GOBILLING') }} <span class="text-xs px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-200/50 dark:border-indigo-800/50">PORTAL</span>
                         </div>
                         <div class="text-[11px] text-zinc-500 dark:text-zinc-400">Area Pelanggan</div>
                     </div>
@@ -132,7 +132,7 @@
         </main>
 
         <footer class="border-t border-zinc-200 dark:border-zinc-800 py-6 text-center text-xs text-zinc-500 dark:text-zinc-400 mt-auto">
-            &copy; {{ date('Y') }} UNMS Customer Portal &bull; Layanan Internet Cepat & Stabil
+            &copy; {{ date('Y') }} {{ config('app.name', 'GOBILLING') }} Customer Portal &bull; Layanan Internet Cepat & Stabil
         </footer>
 
         @persist('toast')

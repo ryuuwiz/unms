@@ -1,6 +1,6 @@
-# UNMS Domain Context
+# GOBILLING Domain Context
 
-Ubiquiti & ISP Network Management System (UNMS) staff application context and ubiquitous language.
+GOBILLING (formerly UNMS) ISP Network & Billing Management System staff application context and ubiquitous language.
 
 ## Language
 
@@ -147,5 +147,17 @@ _Avoid_: Assignee, Petugas Lapangan Bebas, Pelaksana
 **Target SLA**:
 Batas waktu tenggat penyelesaian tiket yang dihitung otomatis berdasarkan skala prioritas saat tiket pertama kali dibuat.
 _Avoid_: Deadline Bebas, Target Waktu, Estimasi Jam
+
+**Profil Perusahaan**:
+Entitas identitas legal, brand bisnis, alamat operasional, kontak bantuan, nomor NPWP, rekening bank penerima, dan catatan resmi yang dikonfigurasi untuk kop tagihan (invoice header), kuitansi digital, dan antarmuka portal pelanggan.
+_Avoid_: Company Setting Bebas, Header Manual, Info PT Lepas
+
+**Kesiapan Multi-Tenant (Multi-Tenant Readiness)**:
+Arsitektur pemisahan entitas data organisasi/perusahaan yang dirancang dengan skema relasional `perusahaan_id` (record default `is_default=true` untuk mode internal) sehingga dapat dinaikkan menjadi platform SaaS multi-penyewa di masa depan tanpa mengubah model domain inti.
+_Avoid_: Hardcoded Single Company, Multi Database Terpisah Tanpa Pola
+
+**Berkas Media (Media Library)**:
+Pengelolaan berkas digital (logo instansi, foto identitas/KTP, foto dokumentasi teknis tiket, dan bukti transfer pembayaran) yang terpusat melalui relasi polimorfik Spatie MediaLibrary dengan penanganan otomatis konversi gambar, mime checking, dan siklus hidup berkas.
+_Avoid_: File Path Manual Bebas, Upload Lepas Tanpa Relasi
 
 

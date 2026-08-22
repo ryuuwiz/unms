@@ -184,6 +184,13 @@ return [
                     'permission' => 'peran.lihat',
                 ],
                 [
+                    'title' => 'Profil Perusahaan',
+                    'icon' => 'building-office',
+                    'route' => 'settings.perusahaan',
+                    'active' => 'settings.perusahaan',
+                    'permission' => 'peran.lihat',
+                ],
+                [
                     'title' => 'Pengaturan Gateway',
                     'icon' => 'cog',
                     'route' => 'settings.gateway',

@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             PromoSeeder::class,
             PelangganSeeder::class,
             TicketSeeder::class,
+            PerusahaanSeeder::class,
         ]);
     }
 }

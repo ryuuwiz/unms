@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Settings\Appearance;
+use App\Livewire\Settings\Perusahaan;
 use App\Livewire\Settings\Profile;
 use App\Livewire\Settings\Security;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'impersonate.protect',
         ])
         ->name('security.edit');
+
+    Route::middleware(['role:super_admin'])->group(function () {
+        Route::livewire('settings/perusahaan', Perusahaan::class)->name('settings.perusahaan');
+    });
 });
 
 Route::get('.well-known/passkey-endpoints', function () {

@@ -12,7 +12,7 @@
                 </div>
                 <h1 class="text-2xl font-bold">Halo, {{ $pelanggan->namaLengkap() }}!</h1>
                 <p class="text-xs text-indigo-200/90 mt-1 max-w-xl">
-                    Selamat datang di Portal Pelanggan UNMS. Pantau status langganan internet dan lakukan pembayaran tagihan dengan mudah dan aman.
+                    Selamat datang di Portal Pelanggan {{ config('app.name', 'GOBILLING') }}. Pantau status langganan internet dan lakukan pembayaran tagihan dengan mudah dan aman.
                 </p>
             </div>
             @if($unpaidInvoices->isNotEmpty())

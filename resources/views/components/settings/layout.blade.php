@@ -4,6 +4,10 @@
             <flux:navlist.item :href="route('profile.edit')" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
             <flux:navlist.item :href="route('security.edit')" wire:navigate>{{ __('Security') }}</flux:navlist.item>
             <flux:navlist.item :href="route('appearance.edit')" wire:navigate>{{ __('Appearance') }}</flux:navlist.item>
+            @if(auth()->user()?->hasRole('super_admin'))
+                <flux:navlist.item :href="route('settings.perusahaan')" wire:navigate>{{ __('Perusahaan') }}</flux:navlist.item>
+                <flux:navlist.item :href="route('settings.gateway')" wire:navigate>{{ __('Payment Gateway') }}</flux:navlist.item>
+            @endif
         </flux:navlist>
     </div>
 
@@ -13,7 +17,7 @@
         <flux:heading>{{ $heading ?? '' }}</flux:heading>
         <flux:subheading>{{ $subheading ?? '' }}</flux:subheading>
 
-        <div class="mt-5 w-full max-w-lg">
+        <div class="mt-5 w-full max-w-4xl">
             {{ $slot }}
         </div>
     </div>
