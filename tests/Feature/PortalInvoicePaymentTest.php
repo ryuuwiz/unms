@@ -3,6 +3,7 @@
 use App\Enums\GatewayChannel;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
+use App\Livewire\Portal\Invoice\Bayar;
 use App\Livewire\Portal\Invoice\Index;
 use App\Livewire\Portal\Invoice\Show;
 use App\Models\Invoice;
@@ -67,9 +68,14 @@ test('pelanggan dapat melihat rincian tagihan miliknya', function () {
 
 test('pelanggan tidak dapat melihat tagihan milik pelanggan lain (403)', function () {
     $pelangganLain = Pelanggan::factory()->create(['email' => 'other@test.com']);
+    $layananLain = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $pelangganLain->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+    ]);
     $invoiceLain = Invoice::factory()->create([
         'pelanggan_id' => $pelangganLain->id,
-        'layanan_pelanggan_id' => $this->layanan->id,
+        'layanan_pelanggan_id' => $layananLain->id,
         'jumlah' => 100000,
         'jumlah_setelah_promo' => 100000,
         'status' => StatusInvoice::MenungguPembayaran,
@@ -131,9 +137,14 @@ test('pelanggan dapat mencetak invoice PDF miliknya sendiri', function () {
 
 test('pelanggan tidak dapat mencetak invoice PDF milik pelanggan lain (403)', function () {
     $pelangganLain = Pelanggan::factory()->create(['email' => 'other_print@test.com']);
+    $layananLain = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $pelangganLain->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+    ]);
     $invoiceLain = Invoice::factory()->create([
         'pelanggan_id' => $pelangganLain->id,
-        'layanan_pelanggan_id' => $this->layanan->id,
+        'layanan_pelanggan_id' => $layananLain->id,
     ]);
 
     $response = $this->actingAs($this->akun, 'pelanggan')
@@ -148,4 +159,22 @@ test('tamu tidak dapat mencetak invoice tanpa otentikasi', function () {
 
     $this->get(route('portal.invoice.cetak', $this->invoice))
         ->assertRedirect(route('portal.login'));
+});
+
+test('pelanggan tidak dapat membuka sesi pembayaran untuk invoice yang dibatalkan', function () {
+    $this->invoice->update([
+        'status' => StatusInvoice::Dibatalkan,
+        'keterangan_hapus' => 'Dibatalkan karena koreksi tagihan ganda',
+    ]);
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Bayar::class, ['invoice' => $this->invoice])
+        ->assertRedirect(route('portal.invoice.show', $this->invoice));
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->assertOk()
+        ->assertSee('Tagihan Ini Telah Dibatalkan')
+        ->assertSee('Dibatalkan karena koreksi tagihan ganda')
+        ->assertDontSee('Bayar Sekarang');
 });

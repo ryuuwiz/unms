@@ -47,7 +47,19 @@ class GenerateInvoicesCommand extends Command
         $count = 0;
 
         foreach ($layanans as $layanan) {
-            // Cek apakah sudah ada invoice aktif yang belum lunas untuk layanan ini
+            $targetPeriode = $layanan->getNextPeriodeTagihan();
+
+            // 1. Cek apakah sudah ada invoice aktif/lunas/kadaluarsa untuk target periode ini
+            $hasExistingForPeriod = $layanan->invoices()
+                ->where('periode_tagihan', $targetPeriode)
+                ->where('status', '!=', StatusInvoice::Dibatalkan)
+                ->exists();
+
+            if ($hasExistingForPeriod) {
+                continue;
+            }
+
+            // 2. Cek apakah masih ada invoice berstatus menunggu pembayaran dari periode sebelumnya
             $hasPendingInvoice = $layanan->invoices()
                 ->where('status', StatusInvoice::MenungguPembayaran)
                 ->exists();
@@ -56,7 +68,10 @@ class GenerateInvoicesCommand extends Command
                 continue;
             }
 
-            $billingService->generateInvoice($layanan);
+            $billingService->generateInvoice(
+                layanan: $layanan,
+                periodeTagihan: $targetPeriode
+            );
             $count++;
         }
 

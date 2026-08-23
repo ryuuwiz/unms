@@ -231,6 +231,7 @@ class PelangganSeeder extends Seeder
         $metode = ($status === StatusInvoice::Lunas) ? MetodePembayaran::Transfer : null;
 
         $invoice = Invoice::create([
+            'periode_tagihan' => $tanggalTerbit->format('Y-m'),
             'pelanggan_id' => $pelanggan->id,
             'layanan_pelanggan_id' => $layanan->id,
             'jumlah' => $harga,

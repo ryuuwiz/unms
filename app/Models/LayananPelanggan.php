@@ -191,6 +191,25 @@ class LayananPelanggan extends Model
     }
 
     /**
+     * Dapatkan periode tagihan target berikutnya (format YYYY-MM) berdasarkan tanggal expired.
+     */
+    public function getNextPeriodeTagihan(): string
+    {
+        if (! $this->tanggal_expired) {
+            return Carbon::today()->format('Y-m');
+        }
+
+        $expired = Carbon::parse($this->tanggal_expired);
+
+        // Jika tanggal expired di akhir bulan (>= tgl 25), siklus tagihan berikutnya mencakup bulan depan (H-7)
+        if ($expired->day >= 25) {
+            return $expired->copy()->addDays(7)->format('Y-m');
+        }
+
+        return $expired->format('Y-m');
+    }
+
+    /**
      * Generate site_id unik (format: SITE-XXXXXXXX).
      */
     public static function generateSiteId(): string

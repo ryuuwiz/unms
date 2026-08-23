@@ -39,7 +39,17 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+                <div>
+                    <flux:input type="text" wire:model="periode_tagihan" label="Periode Tagihan (YYYY-MM) *" placeholder="2026-08" />
+                    <flux:error name="periode_tagihan" />
+                </div>
+
+                <div>
+                    <flux:input type="date" wire:model="tanggal_jatuh_tempo" label="Tanggal Jatuh Tempo *" />
+                    <flux:error name="tanggal_jatuh_tempo" />
+                </div>
+
                 <div>
                     <flux:select wire:model.live="promo_id" label="Gunakan Kupon Promo (Opsional)" placeholder="-- Tanpa Promo --" :disabled="!$layanan_pelanggan_id">
                         <flux:select.option value="">-- Tanpa Promo --</flux:select.option>
@@ -50,19 +60,23 @@
                         @endforeach
                     </flux:select>
                 </div>
-
-                <div>
-                    <flux:input type="date" wire:model="tanggal_jatuh_tempo" label="Tanggal Jatuh Tempo *" />
-                    <flux:error name="tanggal_jatuh_tempo" />
-                </div>
             </div>
+
+            @if($existingInvoiceWarning)
+                <div class="p-4 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-start gap-3">
+                    <flux:icon name="exclamation-triangle" class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div class="text-sm text-amber-800 dark:text-amber-200">
+                        <span class="font-semibold">Peringatan Tagihan Ganda:</span> {{ $existingInvoiceWarning }}
+                    </div>
+                </div>
+            @endif
         </div>
 
         <!-- Ringkasan Perhitungan Biaya -->
         @if($layanan_pelanggan_id)
             <div class="bg-blue-50 dark:bg-blue-950/40 p-6 rounded-xl border border-blue-200 dark:border-blue-800 space-y-3">
                 <h4 class="font-semibold text-blue-900 dark:text-blue-200 text-sm uppercase tracking-wide">
-                    Ringkasan Tagihan
+                    Ringkasan Tagihan (Periode: {{ $periode_tagihan }})
                 </h4>
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between text-zinc-700 dark:text-zinc-300">
@@ -87,7 +101,7 @@
             <flux:button href="{{ route('invoice.index') }}" variant="subtle" wire:navigate>
                 Batal
             </flux:button>
-            <flux:button type="submit" variant="primary" icon="document-check" :disabled="!$layanan_pelanggan_id">
+            <flux:button type="submit" variant="primary" icon="document-check" :disabled="!$layanan_pelanggan_id || (bool)$existingInvoiceWarning">
                 Terbitkan Invoice
             </flux:button>
         </div>

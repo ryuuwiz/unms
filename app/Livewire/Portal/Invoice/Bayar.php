@@ -38,7 +38,11 @@ class Bayar extends Component
             abort(403, 'Anda tidak memiliki akses ke tagihan ini.');
         }
 
-        if ($invoice->isLunas()) {
+        if ($invoice->isLunas() || $invoice->isDibatalkan()) {
+            if ($invoice->isDibatalkan()) {
+                Flux::toast(variant: 'warning', text: 'Tagihan ini telah dibatalkan dan tidak dapat dibayar.');
+            }
+
             $this->redirectRoute('portal.invoice.show', $invoice, navigate: true);
 
             return;

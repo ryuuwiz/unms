@@ -92,6 +92,14 @@ _Avoid_: Residential, Cluster, Komplek
 Dokumen tagihan pembayaran resmi atas layanan internet pelanggan dengan format penomoran `INV-YYYYMM-NNNNNN`.
 _Avoid_: Tagihan Bebas, Kuitansi (sebelum dibayar), Bill
 
+**Periode Tagihan**:
+Identitas siklus bulan penagihan layanan (format `YYYY-MM`) yang memetakan kewajiban bayar langganan untuk satu siklus masa aktif dan menjamin batas 1 tagihan per layanan per siklus.
+_Avoid_: Bulan Tagih Bebas, Periode Manual, Cycle ID
+
+**Pembatalan Invoice**:
+Tindakan perubahan status invoice menjadi `dibatalkan` oleh sistem atau staf berwenang yang menggugurkan kewajiban bayar tanpa menghapus riwayat audit trail (misal akibat koreksi tagihan ganda atau perubahan paket).
+_Avoid_: Hapus Tagihan Manual, Void Bebas, Delete Invoice
+
 **Pembayaran**:
 Catatan transaksi penerimaan dana atas sebuah invoice yang memicu perpanjangan masa aktif layanan secara otomatis.
 _Avoid_: Transaksi Kasar, Setoran

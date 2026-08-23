@@ -33,6 +33,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $dibuat_oleh
  * @property int|null $dihapus_oleh
  * @property string|null $keterangan_hapus
+ * @property string|null $periode_tagihan
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -48,6 +49,7 @@ use Spatie\Activitylog\Support\LogOptions;
  */
 #[Fillable([
     'no_invoice',
+    'periode_tagihan',
     'pelanggan_id',
     'layanan_pelanggan_id',
     'jumlah',
@@ -88,7 +90,7 @@ class Invoice extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['no_invoice', 'status', 'jumlah_setelah_promo', 'metode_pembayaran', 'tanggal_lunas'])
+            ->logOnly(['no_invoice', 'periode_tagihan', 'status', 'jumlah_setelah_promo', 'metode_pembayaran', 'tanggal_lunas'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('invoice');
@@ -218,6 +220,11 @@ class Invoice extends Model
         return $this->status === StatusInvoice::Kadaluarsa;
     }
 
+    public function isDibatalkan(): bool
+    {
+        return $this->status === StatusInvoice::Dibatalkan;
+    }
+
     /**
      * Cek apakah invoice memiliki tautan pembayaran Xendit yang aktif dan belum kedaluwarsa.
      */
@@ -258,6 +265,33 @@ class Invoice extends Model
     public function formattedJumlahSetelahPromo(): string
     {
         return 'Rp '.number_format((float) $this->jumlah_setelah_promo, 0, ',', '.');
+    }
+
+    /**
+     * Format tampilan nama bulan periode tagihan (contoh: 'Agustus 2026').
+     */
+    public function formattedPeriodeTagihan(): string
+    {
+        if (empty($this->periode_tagihan)) {
+            return '-';
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m', $this->periode_tagihan)->translatedFormat('F Y');
+        } catch (\Throwable) {
+            return $this->periode_tagihan;
+        }
+    }
+
+    /**
+     * Scope filter invoice berdasarkan periode tagihan (YYYY-MM).
+     *
+     * @param  Builder<Invoice>  $query
+     * @return Builder<Invoice>
+     */
+    public function scopePeriode(Builder $query, string $periode): Builder
+    {
+        return $query->where('periode_tagihan', $periode);
     }
 
     /**

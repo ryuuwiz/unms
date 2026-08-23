@@ -28,6 +28,18 @@
         </div>
     </div>
 
+    @if($invoice->isDibatalkan())
+        <div class="p-4 bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs space-y-1">
+            <div class="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                <flux:icon icon="x-circle" class="size-4 text-zinc-500" />
+                Tagihan Ini Telah Dibatalkan
+            </div>
+            <p class="text-zinc-600 dark:text-zinc-400">
+                {{ $invoice->keterangan_hapus ?: 'Tagihan ini telah dibatalkan oleh sistem/administrator dan tidak memerlukan pembayaran.' }}
+            </p>
+        </div>
+    @endif
+
     <!-- Invoice Header Card -->
     <flux:card class="p-6 space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 dark:border-zinc-800 pb-5">

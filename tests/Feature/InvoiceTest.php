@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\StatusInvoice;
+use App\Enums\StatusLayanan;
 use App\Enums\UserStatus;
 use App\Livewire\Invoice\Create;
 use App\Livewire\Invoice\Index;
@@ -13,7 +14,9 @@ use App\Models\ProfilBandwidth;
 use App\Models\Promo;
 use App\Models\Router;
 use App\Models\User;
+use App\Services\Billing\BillingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
@@ -130,4 +133,115 @@ test('user with invoice.cetak permission can download pdf', function () {
     $response = $this->actingAs($this->adminUser)->get(route('invoice.cetak', $invoice));
     $response->assertOk()
         ->assertHeader('content-type', 'application/pdf');
+});
+
+test('scheduler invoice:generate does not create duplicate invoices for the same billing period', function () {
+    $this->layanan->update([
+        'status' => StatusLayanan::Aktif,
+        'tanggal_expired' => now()->addDays(3)->toDateString(),
+    ]);
+
+    // Run 1: Should create 1 invoice
+    $this->artisan('invoice:generate')->assertSuccessful();
+    expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->count())->toBe(1);
+
+    // Run 2: Should not create another invoice
+    $this->artisan('invoice:generate')->assertSuccessful();
+    expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->count())->toBe(1);
+});
+
+test('scheduler does not regenerate invoice when existing invoice is expired (kadaluarsa)', function () {
+    $this->layanan->update([
+        'status' => StatusLayanan::Aktif,
+        'tanggal_expired' => now()->addDays(2)->toDateString(),
+    ]);
+
+    $targetPeriod = $this->layanan->getNextPeriodeTagihan();
+
+    // Create an expired invoice for this target period
+    Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'periode_tagihan' => $targetPeriod,
+        'status' => StatusInvoice::Kadaluarsa,
+        'tanggal_terbit' => now()->subDays(10),
+        'tanggal_jatuh_tempo' => now()->subDays(3),
+    ]);
+
+    // Scheduler should skip creating new invoice because one already exists for this period
+    $this->artisan('invoice:generate')->assertSuccessful();
+    expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->count())->toBe(1);
+});
+
+test('BillingService::generateInvoice is idempotent and returns existing invoice for same period', function () {
+    /** @var BillingService $billingService */
+    $billingService = app(BillingService::class);
+
+    $inv1 = $billingService->generateInvoice($this->layanan);
+    $inv2 = $billingService->generateInvoice($this->layanan);
+
+    expect($inv1->id)->toBe($inv2->id);
+    expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->count())->toBe(1);
+});
+
+test('Livewire Create prevents creating duplicate invoice for service with existing invoice in same period', function () {
+    $targetPeriod = $this->layanan->getNextPeriodeTagihan();
+
+    Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'periode_tagihan' => $targetPeriod,
+        'status' => StatusInvoice::MenungguPembayaran,
+    ]);
+
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('layanan_pelanggan_id', $this->layanan->id)
+        ->set('periode_tagihan', $targetPeriod)
+        ->set('tanggal_jatuh_tempo', now()->addDays(7)->toDateString())
+        ->call('save')
+        ->assertHasErrors(['layanan_pelanggan_id']);
+
+    expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->count())->toBe(1);
+});
+
+test('database unique constraint prevents creating multiple active invoices for same service and period', function () {
+    $period = '2026-11';
+
+    Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'periode_tagihan' => $period,
+        'status' => StatusInvoice::MenungguPembayaran,
+    ]);
+
+    expect(fn () => Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'periode_tagihan' => $period,
+        'status' => StatusInvoice::MenungguPembayaran,
+    ]))->toThrow(QueryException::class);
+});
+
+test('database allows creating new invoice for same period if previous invoice was dibatalkan', function () {
+    $period = '2026-12';
+
+    $cancelled = Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'periode_tagihan' => $period,
+        'status' => StatusInvoice::Dibatalkan,
+    ]);
+
+    $active = Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'periode_tagihan' => $period,
+        'status' => StatusInvoice::MenungguPembayaran,
+    ]);
+
+    expect($cancelled->isDibatalkan())->toBeTrue();
+    expect($active->isMenungguPembayaran())->toBeTrue();
+    expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->where('periode_tagihan', $period)->count())->toBe(2);
 });

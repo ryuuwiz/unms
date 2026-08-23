@@ -25,9 +25,24 @@ class BillingService
         LayananPelanggan $layanan,
         ?int $dibuatOleh = null,
         ?Promo $promo = null,
-        ?Carbon $tanggalJatuhTempo = null
+        ?Carbon $tanggalJatuhTempo = null,
+        ?string $periodeTagihan = null
     ): Invoice {
-        return DB::transaction(function () use ($layanan, $dibuatOleh, $promo, $tanggalJatuhTempo) {
+        return DB::transaction(function () use ($layanan, $dibuatOleh, $promo, $tanggalJatuhTempo, $periodeTagihan) {
+            $periode = $periodeTagihan ?? $layanan->getNextPeriodeTagihan();
+
+            // Guard clause idempotensi: jika invoice non-batal sudah ada untuk layanan & periode ini, return existing
+            /** @var Invoice|null $existingInvoice */
+            $existingInvoice = Invoice::where('layanan_pelanggan_id', $layanan->id)
+                ->where('periode_tagihan', $periode)
+                ->where('status', '!=', StatusInvoice::Dibatalkan)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingInvoice) {
+                return $existingInvoice;
+            }
+
             $paket = $layanan->paketLayanan;
             $harga = (float) $paket->harga;
 
@@ -42,6 +57,7 @@ class BillingService
             $jatuhTempo = $tanggalJatuhTempo ?? $terbit->copy()->addDays(7);
 
             $invoice = Invoice::create([
+                'periode_tagihan' => $periode,
                 'pelanggan_id' => $layanan->pelanggan_id,
                 'layanan_pelanggan_id' => $layanan->id,
                 'jumlah' => $harga,
