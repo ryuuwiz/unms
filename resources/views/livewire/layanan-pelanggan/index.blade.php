@@ -1,14 +1,19 @@
-<div class="space-y-6">
+<div class="space-y-6" wire:poll.5s>
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <flux:heading size="xl">Layanan Pelanggan</flux:heading>
             <flux:subheading>Kelola layanan internet aktif, kredensial PPPoE, router, dan masa aktif pelanggan.</flux:subheading>
         </div>
-        @can('create', App\Models\LayananPelanggan::class)
-            <flux:button :href="route('layanan-pelanggan.create')" wire:navigate variant="primary" icon="plus">
-                Tambah Layanan
-            </flux:button>
-        @endcan
+        <div class="flex items-center gap-2">
+            @can('create', App\Models\LayananPelanggan::class)
+                <flux:button wire:click="provisionAllPending" wire:loading.attr="disabled" variant="subtle" icon="arrow-up-tray" title="Provisi semua akun PPPoE yang berstatus pending ke router">
+                    Provisi Massal
+                </flux:button>
+                <flux:button :href="route('layanan-pelanggan.create')" wire:navigate variant="primary" icon="plus">
+                    Tambah Layanan
+                </flux:button>
+            @endcan
+        </div>
     </div>
 
     {{-- Filter & Search Bar --}}

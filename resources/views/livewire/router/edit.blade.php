@@ -5,9 +5,13 @@
             <flux:subheading>Perbarui konfigurasi koneksi router {{ $nama_router }}.</flux:subheading>
         </div>
         <div class="flex items-center gap-2">
+            <flux:button wire:click="autoRecoverPpp" wire:loading.attr="disabled" variant="subtle" icon="arrow-path" title="Periksa dan pulihkan seluruh PPP secret di RouterOS yang belum lengkap">
+                <span wire:loading.remove wire:target="autoRecoverPpp">Auto-Recover PPP</span>
+                <span wire:loading wire:target="autoRecoverPpp">Memulihkan PPP...</span>
+            </flux:button>
             <flux:button wire:click="testConnection" wire:loading.attr="disabled" variant="subtle" icon="bolt">
-                <span wire:loading.remove wire:target="testConnection">Uji Koneksi RouterOS</span>
-                <span wire:loading wire:target="testConnection">Menguji Koneksi...</span>
+                <span wire:loading.remove wire:target="testConnection">Uji Koneksi</span>
+                <span wire:loading wire:target="testConnection">Menguji...</span>
             </flux:button>
             <flux:badge size="md" :color="$router->status_koneksi->color()">
                 {{ $router->status_koneksi->label() }}

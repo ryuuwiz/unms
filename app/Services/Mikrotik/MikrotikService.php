@@ -5,12 +5,14 @@ namespace App\Services\Mikrotik;
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\ProvisioningStatus;
+use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
 use App\Exceptions\MikrotikConnectionException;
 use App\Exceptions\MikrotikException;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
+use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use Illuminate\Support\Carbon;
 use RouterOS\Client;
@@ -152,6 +154,53 @@ class MikrotikService
     }
 
     /**
+     * Pastikan PPP Profile untuk profil bandwidth tertentu telah tersedia di RouterOS.
+     *
+     * @throws MikrotikException
+     */
+    public function ensurePppProfile(Router $router, ProfilBandwidth $profil): string
+    {
+        if (empty($profil->nama_bandwidth)) {
+            throw new MikrotikException('Nama profil bandwidth di UNMS kosong. Sinkronisasi PPP Profile dibatalkan.');
+        }
+
+        $profileName = $profil->nama_bandwidth;
+        $rateLimit = $profil->routerOsRateLimit();
+        $comment = "UNMS: {$profil->nama_bandwidth} ({$profil->labelKecepatan()})";
+
+        try {
+            $client = $this->getClient($router);
+            $findQuery = (new Query('/ppp/profile/print'))->where('name', $profileName);
+            $existing = $client->query($findQuery)->read();
+
+            if (! empty($existing) && isset($existing[0]['.id'])) {
+                $setQuery = (new Query('/ppp/profile/set'))
+                    ->equal('.id', $existing[0]['.id'])
+                    ->equal('rate-limit', $rateLimit)
+                    ->equal('comment', $comment);
+                $client->query($setQuery)->read();
+            } else {
+                $addQuery = (new Query('/ppp/profile/add'))
+                    ->equal('name', $profileName)
+                    ->equal('rate-limit', $rateLimit)
+                    ->equal('comment', $comment);
+                $res = $client->query($addQuery)->read();
+                if (isset($res['after']['message'])) {
+                    throw new MikrotikException($res['after']['message']);
+                }
+            }
+
+            return $profileName;
+        } catch (Throwable $e) {
+            throw new MikrotikException(
+                "Gagal sinkronisasi PPP Profile {$profileName} di router {$router->nama_router}: {$e->getMessage()}",
+                (int) $e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
      * Buat atau perbarui akun PPPoE Secret di RouterOS secara idempoten.
      *
      * @return array<string, mixed>
@@ -161,15 +210,33 @@ class MikrotikService
     public function createOrUpdatePppoeSecret(Router $router, LayananPelanggan $layanan): array
     {
         try {
-            $client = $this->getClient($router);
-            $username = $layanan->ppp_username;
-            $password = $layanan->ppp_password_terenkripsi;
+            $username = trim((string) $layanan->ppp_username);
+            $password = (string) $layanan->ppp_password_terenkripsi;
 
-            $rateLimit = $layanan->paketLayanan?->profilBandwidth?->routerOsRateLimit();
+            // 1. Validasi Format Username PPPoE (kompatibilitas MikroTik & UNMS)
+            if (! preg_match('/^[a-zA-Z0-9._-]+$/', $username) || strlen($username) < 3 || strlen($username) > 64) {
+                throw new MikrotikException("Format username PPPoE '{$username}' tidak valid. Hanya karakter alfanumerik, titik, strip, dan underscore (3-64 karakter) yang diperbolehkan.");
+            }
+
+            if (empty($password)) {
+                throw new MikrotikException("Password PPPoE untuk '{$username}' tidak boleh kosong.");
+            }
+
+            // 2. Strict Guard: Pastikan Paket Layanan & Profil Bandwidth terdefinisi valid di UNMS
+            $paket = $layanan->paketLayanan;
+            $profil = $paket?->profilBandwidth;
+
+            if (! $paket || ! $profil || empty($profil->nama_bandwidth)) {
+                throw new MikrotikException("Layanan {$username} tidak memiliki paket layanan atau profil bandwidth yang valid di UNMS. Provisi dibatalkan.");
+            }
+
+            $client = $this->getClient($router);
+            $profileName = $this->ensurePppProfile($router, $profil);
+
             $pelangganNama = $layanan->pelanggan ? $layanan->pelanggan->nama_depan.' '.$layanan->pelanggan->nama_belakang : 'Pelanggan';
             $comment = "UNMS: {$layanan->site_id} - {$pelangganNama}";
 
-            // 1. Cek apakah secret sudah ada
+            // 3. Cek apakah secret sudah ada di RouterOS
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
             $existing = $client->query($findQuery)->read();
 
@@ -180,12 +247,9 @@ class MikrotikService
                     ->equal('.id', $secretId)
                     ->equal('password', $password)
                     ->equal('service', 'pppoe')
+                    ->equal('profile', $profileName)
                     ->equal('comment', $comment)
                     ->equal('disabled', 'no');
-
-                if ($rateLimit) {
-                    $setQuery->equal('rate-limit', $rateLimit);
-                }
 
                 if (! empty($layanan->ip_static)) {
                     $setQuery->equal('remote-address', $layanan->ip_static);
@@ -199,13 +263,9 @@ class MikrotikService
                     ->equal('name', $username)
                     ->equal('password', $password)
                     ->equal('service', 'pppoe')
-                    ->equal('profile', 'default')
+                    ->equal('profile', $profileName)
                     ->equal('comment', $comment)
                     ->equal('disabled', 'no');
-
-                if ($rateLimit) {
-                    $addQuery->equal('rate-limit', $rateLimit);
-                }
 
                 if (! empty($layanan->ip_static)) {
                     $addQuery->equal('remote-address', $layanan->ip_static);
@@ -432,5 +492,120 @@ class MikrotikService
                 $e
             );
         }
+    }
+
+    /**
+     * Rekonsiliasi & Auto-Recovery data PPP Secret dan Profile di RouterOS.
+     * Memeriksa seluruh layanan aktif di UNMS yang terhubung ke router ini.
+     * Jika akun belum ada atau hilang di RouterOS, otomatis diprovisi ulang (auto-recover).
+     *
+     * @return array{
+     *     total_checked: int,
+     *     recovered: int,
+     *     already_synced: int,
+     *     disabled: int,
+     *     errors: array<string>
+     * }
+     *
+     * @throws MikrotikException
+     */
+    public function autoRecoverPppSecrets(Router $router): array
+    {
+        $client = $this->getClient($router);
+
+        // 1. Ambil seluruh PPP secrets yang ada di RouterOS saat ini
+        try {
+            $remoteSecretsRaw = $client->query(new Query('/ppp/secret/print'))->read();
+        } catch (Throwable $e) {
+            throw new MikrotikException("Gagal membaca data PPP Secret dari router {$router->nama_router}: {$e->getMessage()}", (int) $e->getCode(), $e);
+        }
+
+        // Petakan username => data secret di RouterOS
+        $remoteSecrets = [];
+        foreach ($remoteSecretsRaw as $s) {
+            if (isset($s['name'])) {
+                $remoteSecrets[$s['name']] = $s;
+            }
+        }
+
+        // 2. Ambil seluruh layanan pelanggan UNMS yang terhubung ke router ini
+        $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan'])
+            ->where('router_id', $router->id)
+            ->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Suspend, StatusLayanan::Proses])
+            ->get();
+
+        $recovered = 0;
+        $alreadySynced = 0;
+        $disabledCount = 0;
+        $errors = [];
+
+        foreach ($layanans as $layanan) {
+            $username = trim((string) $layanan->ppp_username);
+            if (empty($username)) {
+                continue;
+            }
+
+            $profil = $layanan->paketLayanan?->profilBandwidth;
+            if (! $profil || empty($profil->nama_bandwidth)) {
+                continue; // Lewati jika tidak ada profil bandwidth yang valid di UNMS
+            }
+
+            $expectedProfile = $profil->nama_bandwidth;
+            $remote = $remoteSecrets[$username] ?? null;
+
+            // Periksa apakah secret hilang, atau profile berbeda
+            $needsRecovery = false;
+
+            if ($remote === null) {
+                // Secret hilang dari RouterOS
+                $needsRecovery = true;
+            } elseif (($remote['profile'] ?? '') !== $expectedProfile) {
+                // Profile di RouterOS tidak sesuai
+                $needsRecovery = true;
+            }
+
+            if ($needsRecovery) {
+                try {
+                    $this->createOrUpdatePppoeSecret($router, $layanan);
+
+                    if ($layanan->status === StatusLayanan::Suspend) {
+                        $this->disablePppoeSecret($router, $layanan, false);
+                        $disabledCount++;
+                    }
+
+                    $recovered++;
+                } catch (Throwable $e) {
+                    $errors[] = "Gagal recover {$username}: {$e->getMessage()}";
+                }
+            } else {
+                // Secret sudah ada di router, pastikan status disabled sesuai dengan status layanan UNMS (misal suspend)
+                $isCurrentlyDisabled = ($remote['disabled'] ?? 'false') === 'true' || ($remote['disabled'] ?? 'false') === 'yes';
+                $shouldBeDisabled = ($layanan->status === StatusLayanan::Suspend);
+
+                if ($isCurrentlyDisabled !== $shouldBeDisabled) {
+                    try {
+                        if ($shouldBeDisabled) {
+                            $this->disablePppoeSecret($router, $layanan, true);
+                            $disabledCount++;
+                        } else {
+                            $this->enablePppoeSecret($router, $layanan);
+                        }
+                        $recovered++;
+                    } catch (Throwable $e) {
+                        $errors[] = "Gagal sinkron status disabled {$username}: {$e->getMessage()}";
+                    }
+                } else {
+                    $alreadySynced++;
+                }
+            }
+        }
+
+        return [
+            'total_checked' => $layanans->count(),
+            'recovered' => $recovered,
+            'already_synced' => $alreadySynced,
+            'disabled' => $disabledCount,
+            'errors' => $errors,
+        ];
     }
 }

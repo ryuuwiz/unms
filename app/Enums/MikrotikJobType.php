@@ -10,6 +10,7 @@ enum MikrotikJobType: string
     case SyncIpPool = 'sync_ip_pool';
     case Ping = 'ping';
     case TestConnection = 'test_connection';
+    case ReconcilePppoe = 'reconcile_pppoe';
 
     /**
      * Mendapatkan label tampilan Bahasa Indonesia.
@@ -23,6 +24,7 @@ enum MikrotikJobType: string
             self::SyncIpPool => 'Sinkronisasi IP Pool',
             self::Ping => 'Ping Router',
             self::TestConnection => 'Uji Koneksi',
+            self::ReconcilePppoe => 'Auto-Recover PPPoE',
         };
     }
 }

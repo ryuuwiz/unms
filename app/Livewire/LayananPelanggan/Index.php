@@ -3,9 +3,13 @@
 namespace App\Livewire\LayananPelanggan;
 
 use App\Actions\LayananPelanggan\UbahStatusLayananAction;
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
-use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Models\LayananPelanggan;
+use App\Models\MikrotikJobLog;
+use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -57,14 +61,112 @@ class Index extends Component
         Flux::toast(variant: 'success', text: 'Layanan berhasil dihapus.');
     }
 
-    public function provisionLayanan(int $id): void
+    public function provisionLayanan(int $id, MikrotikService $mikrotikService): void
     {
-        $layanan = LayananPelanggan::findOrFail($id);
+        $layanan = LayananPelanggan::with(['router', 'paketLayanan.profilBandwidth', 'pelanggan'])->findOrFail($id);
         $this->authorize('update', $layanan);
 
-        ProvisionPppoeAccountJob::dispatch($layanan);
+        if (! $layanan->router) {
+            Flux::toast(variant: 'danger', text: "Layanan {$layanan->ppp_username} belum terhubung ke router manapun.");
 
-        Flux::toast(variant: 'success', text: "Job provisi PPPoE untuk {$layanan->ppp_username} telah dikirim ke antrean.");
+            return;
+        }
+
+        try {
+            $result = $mikrotikService->createOrUpdatePppoeSecret($layanan->router, $layanan);
+            $action = $result['action'] ?? 'terprovisi';
+
+            MikrotikJobLog::create([
+                'router_id' => $layanan->router_id,
+                'layanan_pelanggan_id' => $layanan->id,
+                'job_type' => MikrotikJobType::ProvisionPppoe,
+                'status' => MikrotikJobStatus::Success,
+                'attempt_count' => 1,
+                'payload' => $result,
+                'finished_at' => now(),
+            ]);
+
+            Flux::toast(
+                variant: 'success',
+                text: "Berhasil provisi akun PPPoE {$layanan->ppp_username} ({$action}) di router {$layanan->router->nama_router}."
+            );
+        } catch (\Throwable $e) {
+            MikrotikJobLog::create([
+                'router_id' => $layanan->router_id,
+                'layanan_pelanggan_id' => $layanan->id,
+                'job_type' => MikrotikJobType::ProvisionPppoe,
+                'status' => MikrotikJobStatus::Failed,
+                'attempt_count' => 1,
+                'error_message' => $e->getMessage(),
+                'finished_at' => now(),
+            ]);
+
+            Flux::toast(
+                variant: 'danger',
+                text: "Gagal provisi {$layanan->ppp_username}: {$e->getMessage()}"
+            );
+        }
+    }
+
+    public function provisionAllPending(MikrotikService $mikrotikService): void
+    {
+        $this->authorize('viewAny', LayananPelanggan::class);
+
+        $pendingLayanans = LayananPelanggan::with(['router', 'paketLayanan.profilBandwidth', 'pelanggan'])
+            ->where('provisioning_status', '!=', ProvisioningStatus::Success)
+            ->whereNotNull('router_id')
+            ->get();
+
+        if ($pendingLayanans->isEmpty()) {
+            Flux::toast(variant: 'info', text: 'Semua layanan pelanggan sudah terprovisi.');
+
+            return;
+        }
+
+        $successCount = 0;
+        $failedCount = 0;
+
+        foreach ($pendingLayanans as $layanan) {
+            try {
+                $result = $mikrotikService->createOrUpdatePppoeSecret($layanan->router, $layanan);
+
+                MikrotikJobLog::create([
+                    'router_id' => $layanan->router_id,
+                    'layanan_pelanggan_id' => $layanan->id,
+                    'job_type' => MikrotikJobType::ProvisionPppoe,
+                    'status' => MikrotikJobStatus::Success,
+                    'attempt_count' => 1,
+                    'payload' => $result,
+                    'finished_at' => now(),
+                ]);
+
+                $successCount++;
+            } catch (\Throwable $e) {
+                MikrotikJobLog::create([
+                    'router_id' => $layanan->router_id,
+                    'layanan_pelanggan_id' => $layanan->id,
+                    'job_type' => MikrotikJobType::ProvisionPppoe,
+                    'status' => MikrotikJobStatus::Failed,
+                    'attempt_count' => 1,
+                    'error_message' => $e->getMessage(),
+                    'finished_at' => now(),
+                ]);
+
+                $failedCount++;
+            }
+        }
+
+        if ($failedCount > 0) {
+            Flux::toast(
+                variant: 'warning',
+                text: "Provisi massal: {$successCount} berhasil, {$failedCount} gagal."
+            );
+        } else {
+            Flux::toast(
+                variant: 'success',
+                text: "Berhasil memprovisi {$successCount} layanan pelanggan ke router."
+            );
+        }
     }
 
     public function toggleIsolir(int $id, UbahStatusLayananAction $ubahStatusAction): void

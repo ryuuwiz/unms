@@ -60,8 +60,15 @@ class Edit extends Component
         return [
             'paket_layanan_id' => ['required', 'integer', 'exists:paket_layanan,id'],
             'router_id' => ['required', 'integer', 'exists:router,id'],
-            'ppp_username' => ['required', 'string', 'max:64', "unique:layanan_pelanggan,ppp_username,{$this->layananId}"],
-            'ppp_password' => ['nullable', 'string', 'min:6', 'max:64'],
+            'ppp_username' => [
+                'required',
+                'string',
+                'min:3',
+                'max:64',
+                'regex:/^[a-zA-Z0-9._-]+$/',
+                "unique:layanan_pelanggan,ppp_username,{$this->layananId}",
+            ],
+            'ppp_password' => ['nullable', 'string', 'min:4', 'max:64'],
             'jenis_koneksi' => ['required', 'string', 'in:pppoe,ip_static'],
             'status' => ['required', 'string'],
             'tanggal_mulai' => ['required', 'date'],
@@ -73,7 +80,11 @@ class Edit extends Component
     {
         $layanan = LayananPelanggan::findOrFail($this->layananId);
         $this->authorize('update', $layanan);
-        $this->validate();
+        $this->validate($this->rules(), [
+            'ppp_username.regex' => 'Username PPP hanya boleh berisi huruf, angka, titik (.), strip (-), dan underscore (_).',
+            'ppp_username.min' => 'Username PPP minimal 3 karakter.',
+            'ppp_password.min' => 'Password PPP minimal 4 karakter.',
+        ]);
 
         $data = [
             'paket_layanan_id' => $this->paket_layanan_id,

@@ -3,6 +3,10 @@
 use App\Enums\StatusRouter;
 use App\Exceptions\MikrotikConnectionException;
 use App\Exceptions\MikrotikException;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
+use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -43,4 +47,46 @@ test('getClient throws MikrotikConnectionException on invalid credentials / conn
 
     expect(fn () => $this->service->getClient($router, 1))
         ->toThrow(MikrotikConnectionException::class);
+});
+
+test('createOrUpdatePppoeSecret throws MikrotikException on invalid ppp_username format', function () {
+    $router = Router::factory()->online()->create();
+    $pelanggan = Pelanggan::factory()->create();
+    $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Home-10M']);
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'router_id' => $router->id,
+        'pelanggan_id' => $pelanggan->id,
+        'paket_layanan_id' => $paket->id,
+        'ppp_username' => 'user with space!@#',
+        'ppp_password_terenkripsi' => 'secret123',
+    ]);
+
+    expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan))
+        ->toThrow(MikrotikException::class, 'Format username PPPoE');
+});
+
+test('createOrUpdatePppoeSecret throws MikrotikException if paket or profil is missing', function () {
+    $router = Router::factory()->online()->create();
+    $pelanggan = Pelanggan::factory()->create();
+
+    $layanan = new LayananPelanggan([
+        'router_id' => $router->id,
+        'pelanggan_id' => $pelanggan->id,
+        'ppp_username' => 'valid-user-123',
+        'ppp_password_terenkripsi' => 'secret123',
+    ]);
+
+    expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan))
+        ->toThrow(MikrotikException::class, 'tidak memiliki paket layanan atau profil bandwidth');
+});
+
+test('ensurePppProfile throws MikrotikException if nama_bandwidth is empty', function () {
+    $router = Router::factory()->online()->create();
+    $profil = new ProfilBandwidth;
+    $profil->nama_bandwidth = '';
+
+    expect(fn () => $this->service->ensurePppProfile($router, $profil))
+        ->toThrow(MikrotikException::class, 'Nama profil bandwidth di UNMS kosong');
 });

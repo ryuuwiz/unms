@@ -3,13 +3,17 @@
 namespace App\Livewire\LayananPelanggan;
 
 use App\Enums\JenisKoneksi;
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
 use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Models\LayananPelanggan;
+use App\Models\MikrotikJobLog;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\Router;
+use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -65,8 +69,8 @@ class Create extends Component
     {
         return [
             'router_id' => ['required', 'integer', 'exists:router,id'],
-            'ppp_username' => ['required', 'string', 'max:64', 'unique:layanan_pelanggan,ppp_username'],
-            'ppp_password' => ['required', 'string', 'min:6', 'max:64'],
+            'ppp_username' => ['required', 'string', 'min:3', 'max:64', 'regex:/^[a-zA-Z0-9._-]+$/', 'unique:layanan_pelanggan,ppp_username'],
+            'ppp_password' => ['required', 'string', 'min:4', 'max:64'],
             'jenis_koneksi' => ['required', 'string', 'in:pppoe,ip_static'],
             'tanggal_mulai' => ['required', 'date'],
             'auto_provision' => ['boolean'],
@@ -94,8 +98,12 @@ class Create extends Component
         $this->validate($this->rulesStep2(), [
             'router_id.required' => 'Router wajib dipilih.',
             'ppp_username.required' => 'Username PPP wajib diisi.',
+            'ppp_username.min' => 'Username PPP minimal 3 karakter.',
+            'ppp_username.max' => 'Username PPP maksimal 64 karakter.',
+            'ppp_username.regex' => 'Username PPP hanya boleh berisi huruf, angka, titik (.), strip (-), dan underscore (_).',
             'ppp_username.unique' => 'Username PPP sudah digunakan.',
             'ppp_password.required' => 'Password PPP wajib diisi.',
+            'ppp_password.min' => 'Password PPP minimal 4 karakter.',
             'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
         ]);
 
@@ -122,10 +130,44 @@ class Create extends Component
         ]);
 
         if ($this->auto_provision) {
-            ProvisionPppoeAccountJob::dispatch($layanan);
+            try {
+                $mikrotikService = app(MikrotikService::class);
+                $router = Router::findOrFail($this->router_id);
+                $mikrotikService->createOrUpdatePppoeSecret($router, $layanan);
+
+                $layanan->update([
+                    'status' => StatusLayanan::Aktif,
+                ]);
+
+                MikrotikJobLog::create([
+                    'router_id' => $this->router_id,
+                    'layanan_pelanggan_id' => $layanan->id,
+                    'job_type' => MikrotikJobType::ProvisionPppoe,
+                    'status' => MikrotikJobStatus::Success,
+                    'attempt_count' => 1,
+                    'finished_at' => now(),
+                ]);
+
+                Flux::toast(variant: 'success', text: "Layanan {$layanan->ppp_username} berhasil didaftarkan dan langsung terprovisi aktif di {$router->nama_router}.");
+            } catch (\Throwable $e) {
+                ProvisionPppoeAccountJob::dispatch($layanan);
+
+                MikrotikJobLog::create([
+                    'router_id' => $this->router_id,
+                    'layanan_pelanggan_id' => $layanan->id,
+                    'job_type' => MikrotikJobType::ProvisionPppoe,
+                    'status' => MikrotikJobStatus::Failed,
+                    'attempt_count' => 1,
+                    'error_message' => $e->getMessage(),
+                    'finished_at' => now(),
+                ]);
+
+                Flux::toast(variant: 'warning', text: "Layanan didaftarkan. Provisi ke router tertunda: {$e->getMessage()}");
+            }
+        } else {
+            Flux::toast(variant: 'success', text: 'Layanan pelanggan berhasil didaftarkan.');
         }
 
-        Flux::toast(variant: 'success', text: 'Layanan pelanggan berhasil didaftarkan.');
         $this->redirectRoute('layanan-pelanggan.index', navigate: true);
     }
 

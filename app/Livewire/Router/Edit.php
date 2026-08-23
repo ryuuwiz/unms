@@ -102,6 +102,51 @@ class Edit extends Component
         }
     }
 
+    public function autoRecoverPpp(MikrotikService $mikrotikService): void
+    {
+        $router = Router::findOrFail($this->routerId);
+        $this->authorize('update', $router);
+
+        try {
+            $stats = $mikrotikService->autoRecoverPppSecrets($router);
+
+            MikrotikJobLog::create([
+                'router_id' => $router->id,
+                'job_type' => MikrotikJobType::ReconcilePppoe,
+                'status' => MikrotikJobStatus::Success,
+                'attempt_count' => 1,
+                'payload' => $stats,
+                'finished_at' => now(),
+            ]);
+
+            if (($stats['recovered'] ?? 0) > 0) {
+                Flux::toast(
+                    variant: 'success',
+                    text: "Auto-Recovery berhasil: {$stats['recovered']} akun dipulihkan/disinkronkan, {$stats['already_synced']} sudah sesuai."
+                );
+            } else {
+                Flux::toast(
+                    variant: 'info',
+                    text: "Seluruh {$stats['total_checked']} akun PPPoE di router sudah lengkap dan sinkron."
+                );
+            }
+        } catch (\Throwable $e) {
+            MikrotikJobLog::create([
+                'router_id' => $router->id,
+                'job_type' => MikrotikJobType::ReconcilePppoe,
+                'status' => MikrotikJobStatus::Failed,
+                'attempt_count' => 1,
+                'error_message' => $e->getMessage(),
+                'finished_at' => now(),
+            ]);
+
+            Flux::toast(
+                variant: 'danger',
+                text: "Gagal auto-recover PPP: {$e->getMessage()}"
+            );
+        }
+    }
+
     public function render(): View
     {
         $router = Router::with(['jobLogs' => fn ($q) => $q->latest()->limit(5)])
