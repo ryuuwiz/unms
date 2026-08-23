@@ -513,7 +513,14 @@ class MikrotikService
     {
         $client = $this->getClient($router);
 
-        // 1. Ambil seluruh PPP secrets yang ada di RouterOS saat ini
+        // 1. Pastikan seluruh profil bandwidth up-to-date di RouterOS
+        try {
+            $this->syncAllBandwidthProfiles($router);
+        } catch (Throwable $e) {
+            // Lanjutkan jika ada kegagalan minor profil
+        }
+
+        // 2. Ambil seluruh PPP secrets yang ada di RouterOS saat ini
         try {
             $remoteSecretsRaw = $client->query(new Query('/ppp/secret/print'))->read();
         } catch (Throwable $e) {
@@ -605,6 +612,35 @@ class MikrotikService
             'recovered' => $recovered,
             'already_synced' => $alreadySynced,
             'disabled' => $disabledCount,
+            'errors' => $errors,
+        ];
+    }
+
+    /**
+     * Sinkronisasikan seluruh profil bandwidth yang ada di UNMS ke RouterOS.
+     *
+     * @return array{total: int, synced: int, errors: array<string>}
+     *
+     * @throws MikrotikException
+     */
+    public function syncAllBandwidthProfiles(Router $router): array
+    {
+        $profils = ProfilBandwidth::all();
+        $synced = 0;
+        $errors = [];
+
+        foreach ($profils as $profil) {
+            try {
+                $this->ensurePppProfile($router, $profil);
+                $synced++;
+            } catch (Throwable $e) {
+                $errors[] = "Gagal sinkron profil {$profil->nama_bandwidth}: {$e->getMessage()}";
+            }
+        }
+
+        return [
+            'total' => $profils->count(),
+            'synced' => $synced,
             'errors' => $errors,
         ];
     }

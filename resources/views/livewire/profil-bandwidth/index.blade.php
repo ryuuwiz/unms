@@ -4,11 +4,17 @@
             <flux:heading size="xl">Profil Bandwidth</flux:heading>
             <flux:subheading>Atur limit kecepatan upstream/downstream dan parameter burst MikroTik RouterOS.</flux:subheading>
         </div>
-        @can('create', App\Models\ProfilBandwidth::class)
-            <flux:button :href="route('profil-bandwidth.create')" wire:navigate variant="primary" icon="plus">
-                Tambah Profil
+        <div class="flex items-center gap-2">
+            <flux:button wire:click="syncAllToRouters" wire:loading.attr="disabled" variant="subtle" icon="arrow-path">
+                <span wire:loading.remove wire:target="syncAllToRouters">Sinkronisasi ke Router</span>
+                <span wire:loading wire:target="syncAllToRouters">Menyinkronkan...</span>
             </flux:button>
-        @endcan
+            @can('create', App\Models\ProfilBandwidth::class)
+                <flux:button :href="route('profil-bandwidth.create')" wire:navigate variant="primary" icon="plus">
+                    Tambah Profil
+                </flux:button>
+            @endcan
+        </div>
     </div>
 
     {{-- Filter & Search Bar --}}

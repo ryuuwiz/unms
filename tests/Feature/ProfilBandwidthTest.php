@@ -48,8 +48,8 @@ test('noc user can create profil bandwidth with burst configuration', function (
         ->and($profil->hasBurst())->toBeTrue()
         ->and($profil->burst_rate_tx)->toBe(75)
         ->and($profil->labelKecepatan())->toBe('50 Mbps (1:1)')
-        ->and($profil->routerOsMaxLimit())->toBe('50M/50M')
-        ->and($profil->routerOsRateLimit())->toBe('50M/50M 75M/75M 40M/40M 16/16 6 10M/10M');
+        ->and($profil->routerOsMaxLimit())->toBe('53477376/53477376')
+        ->and($profil->routerOsRateLimit())->toBe('53477376/53477376 80216064/80216064 42781901/42781901 16/16 6 10695475/10695475');
 });
 
 test('noc user can create standard profile without burst', function () {
@@ -68,7 +68,7 @@ test('noc user can create standard profile without burst', function () {
     expect($profil)->not->toBeNull()
         ->and($profil->hasBurst())->toBeFalse()
         ->and($profil->priority)->toBe(2)
-        ->and($profil->routerOsRateLimit())->toBe('50M/50M');
+        ->and($profil->routerOsRateLimit())->toBe('53477376/53477376');
 });
 
 test('burst validation fails when burst rate is lower than max limit', function () {
@@ -116,8 +116,8 @@ test('model helper methods return correct string for asymmetrical standard profi
     ]);
 
     expect($profil->labelKecepatan())->toBe('10/20 Mbps')
-        ->and($profil->routerOsMaxLimit())->toBe('10M/20M')
-        ->and($profil->routerOsRateLimit())->toBe('10M/20M');
+        ->and($profil->routerOsMaxLimit())->toBe('10695475/21390950')
+        ->and($profil->routerOsRateLimit())->toBe('10695475/21390950');
 });
 
 test('model helper methods return correct string for symmetrical profile', function () {
@@ -129,8 +129,8 @@ test('model helper methods return correct string for symmetrical profile', funct
     ]);
 
     expect($profil->labelKecepatan())->toBe('50 Mbps (1:1)')
-        ->and($profil->routerOsMaxLimit())->toBe('50M/50M')
-        ->and($profil->routerOsRateLimit())->toBe('50M/50M');
+        ->and($profil->routerOsMaxLimit())->toBe('53477376/53477376')
+        ->and($profil->routerOsRateLimit())->toBe('53477376/53477376');
 });
 
 test('noc user can edit profil bandwidth and update burst configuration', function () {
@@ -164,7 +164,7 @@ test('noc user can edit profil bandwidth and update burst configuration', functi
         ->and($fresh->burst_rate_tx)->toBe(30)
         ->and($fresh->limit_rate_tx)->toBe(5)
         ->and($fresh->priority)->toBe(3)
-        ->and($fresh->routerOsRateLimit())->toBe('20M/20M 30M/30M 15M/15M 16/16 3 5M/5M');
+        ->and($fresh->routerOsRateLimit())->toBe('21390950/21390950 32086426/32086426 16043213/16043213 16/16 3 5347738/5347738');
 });
 
 test('can list and delete unused profil bandwidth', function () {
@@ -178,4 +178,19 @@ test('can list and delete unused profil bandwidth', function () {
         ->assertHasNoErrors();
 
     expect(ProfilBandwidth::find($profil->id))->toBeNull();
+});
+
+test('syncAllToRouters shows warning when no router is online', function () {
+    Livewire::actingAs($this->nocUser)
+        ->test(Index::class)
+        ->call('syncAllToRouters')
+        ->assertHasNoErrors();
+});
+
+test('mikrotik:sync-profil command executes successfully', function () {
+    ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Test-10M', 'max_limit_tx' => 10, 'max_limit_rx' => 10]);
+
+    $this->artisan('mikrotik:sync-profil')
+        ->expectsOutputToContain('SINKRONISASI PROFIL BANDWIDTH MIKROTIK')
+        ->assertExitCode(0);
 });

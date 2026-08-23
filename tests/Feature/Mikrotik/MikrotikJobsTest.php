@@ -7,6 +7,7 @@ use App\Jobs\Mikrotik\DisablePppoeAccountJob;
 use App\Jobs\Mikrotik\EnablePppoeAccountJob;
 use App\Jobs\Mikrotik\PingRouterJob;
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
+use App\Jobs\Mikrotik\SyncBandwidthProfileToRoutersJob;
 use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
@@ -179,4 +180,25 @@ test('job failure sends database notification to super_admin and noc users', fun
     $job->failed(new Exception('Connection timeout'));
 
     Notification::assertSentTo([$superAdmin, $nocUser], MikrotikJobFailedNotification::class);
+});
+
+test('SyncBandwidthProfileToRoutersJob ensures profile on all online routers', function () {
+    $mockService = Mockery::mock(MikrotikService::class);
+    $mockService->shouldReceive('ensurePppProfile')
+        ->once()
+        ->with(
+            Mockery::on(fn ($r) => $r->id === $this->router->id),
+            Mockery::on(fn ($p) => $p->id === $this->profil->id)
+        )
+        ->andReturn($this->profil->nama_bandwidth);
+
+    $job = new SyncBandwidthProfileToRoutersJob($this->profil);
+    $job->handle($mockService);
+
+    $log = MikrotikJobLog::where('router_id', $this->router->id)
+        ->where('job_type', MikrotikJobType::SyncProfilBandwidth)
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->status)->toBe(MikrotikJobStatus::Success);
 });

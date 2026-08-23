@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Jobs\Mikrotik\SyncBandwidthProfileToRoutersJob;
+use App\Support\BandwidthConverter;
 use Database\Factories\ProfilBandwidthFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -45,6 +47,18 @@ class ProfilBandwidth extends Model
     use HasFactory, LogsActivity;
 
     protected $table = 'profil_bandwidth';
+
+    /**
+     * Boot model events: otomatis dispatch job sinkronisasi profil bandwidth ke router saat disimpan.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (self $profil) {
+            if (! app()->runningUnitTests()) {
+                SyncBandwidthProfileToRoutersJob::dispatch($profil);
+            }
+        });
+    }
 
     /**
      * Konfigurasi logging aktivitas.
@@ -103,34 +117,43 @@ class ProfilBandwidth extends Model
     }
 
     /**
-     * Format RouterOS rate string untuk max-limit (misal: "20M/10M").
+     * Format RouterOS rate string numerik bps untuk max-limit (misal: "10485760/20971520").
      */
     public function routerOsMaxLimit(): string
     {
-        return "{$this->max_limit_tx}M/{$this->max_limit_rx}M";
+        $txBps = BandwidthConverter::mbpsToBps($this->max_limit_tx);
+        $rxBps = BandwidthConverter::mbpsToBps($this->max_limit_rx);
+
+        return "{$txBps}/{$rxBps}";
     }
 
     /**
-     * Format string rate-limit lengkap untuk RouterOS queue/profile sesuai data_unms.md.
+     * Format string rate-limit numerik bps lengkap untuk RouterOS queue/profile sesuai ADR 0016.
      */
     public function routerOsRateLimit(): string
     {
-        $maxLimit = "{$this->max_limit_tx}M/{$this->max_limit_rx}M";
+        $maxLimit = $this->routerOsMaxLimit();
 
         if (! $this->hasBurst()) {
             return $maxLimit;
         }
 
-        $burstRate = "{$this->burst_rate_tx}M/{$this->burst_rate_rx}M";
+        $burstTxBps = BandwidthConverter::mbpsToBps((int) $this->burst_rate_tx);
+        $burstRxBps = BandwidthConverter::mbpsToBps((int) $this->burst_rate_rx);
+        $burstRate = "{$burstTxBps}/{$burstRxBps}";
+
         $burstThreshold = ($this->burst_threshold_tx !== null && $this->burst_threshold_rx !== null)
-            ? "{$this->burst_threshold_tx}M/{$this->burst_threshold_rx}M"
+            ? BandwidthConverter::mbpsToBps((int) $this->burst_threshold_tx).'/'.BandwidthConverter::mbpsToBps((int) $this->burst_threshold_rx)
             : '0/0';
+
         $burstTime = ($this->burst_time_tx !== null && $this->burst_time_rx !== null)
             ? "{$this->burst_time_tx}/{$this->burst_time_rx}"
             : '0/0';
+
         $priority = (string) $this->priority;
+
         $limitRate = ($this->limit_rate_tx !== null && $this->limit_rate_rx !== null)
-            ? "{$this->limit_rate_tx}M/{$this->limit_rate_rx}M"
+            ? BandwidthConverter::mbpsToBps((int) $this->limit_rate_tx).'/'.BandwidthConverter::mbpsToBps((int) $this->limit_rate_rx)
             : '0/0';
 
         return "{$maxLimit} {$burstRate} {$burstThreshold} {$burstTime} {$priority} {$limitRate}";

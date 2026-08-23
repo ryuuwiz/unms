@@ -65,8 +65,12 @@ Entitas katalog paket internet ISP yang menentukan profil bandwidth, tarif, dan 
 _Avoid_: Package, Product, Paket Data
 
 **Profil Bandwidth**:
-Konfigurasi limit kecepatan transfer data (max limit upload/download, burst rate, priority) dalam satuan standar Mbps untuk di-provision ke MikroTik RouterOS.
+Konfigurasi limit kecepatan transfer data (max limit upload/download, burst rate, priority) yang diinput dan disimpan dalam satuan standar Mbps, lalu otomatis dikonversi ke format numerik bits per second (bps) saat di-provision ke MikroTik RouterOS.
 _Avoid_: Speed Profile, Paket Bandwidth, Konfigurasi Kbps (Gunakan Mbps)
+
+**Konversi Bandwidth Biner (Mbps ke bps)**:
+Mekanisme konversi otomatis kecepatan data dari satuan input Mbps ke nilai numerik bits per second (bps) menggunakan formula biner ($1\text{ Mbps} = 1024 \times 1024 = 1.048.576\text{ bps}$) guna memberikan buffer kompensasi overhead paket (PPPoE/TCP/IP) agar pengujian kecepatan riil pelanggan tepat sasaran.
+_Avoid_: Konversi Desimal Mentah (1.000.000 bps Tanpa Buffer Overhead), Input Manual bps di Form
 
 **Router**:
 Entitas perangkat MikroTik RouterOS sebagai pengendali layanan dan bandwidth, diakses melalui RouterOS API (port 8728).

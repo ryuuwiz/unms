@@ -11,6 +11,7 @@ enum MikrotikJobType: string
     case Ping = 'ping';
     case TestConnection = 'test_connection';
     case ReconcilePppoe = 'reconcile_pppoe';
+    case SyncProfilBandwidth = 'sync_profil_bandwidth';
 
     /**
      * Mendapatkan label tampilan Bahasa Indonesia.
@@ -25,6 +26,7 @@ enum MikrotikJobType: string
             self::Ping => 'Ping Router',
             self::TestConnection => 'Uji Koneksi',
             self::ReconcilePppoe => 'Auto-Recover PPPoE',
+            self::SyncProfilBandwidth => 'Sinkronisasi Profil Bandwidth',
         };
     }
 }

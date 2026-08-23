@@ -2,7 +2,10 @@
 
 namespace App\Livewire\ProfilBandwidth;
 
+use App\Enums\StatusRouter;
 use App\Models\ProfilBandwidth;
+use App\Models\Router;
+use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -49,6 +52,48 @@ class Index extends Component
         $profil->delete();
         $this->deletingId = null;
         Flux::toast(variant: 'success', text: 'Profil bandwidth berhasil dihapus.');
+    }
+
+    public function syncAllToRouters(MikrotikService $service): void
+    {
+        $this->authorize('viewAny', ProfilBandwidth::class);
+
+        $routers = Router::where('status_koneksi', StatusRouter::Online)->get();
+
+        if ($routers->isEmpty()) {
+            Flux::toast(variant: 'warning', text: 'Tidak ada router dengan status Online untuk disinkronisasikan.');
+
+            return;
+        }
+
+        $successRouters = 0;
+        $totalSynced = 0;
+        $errors = [];
+
+        foreach ($routers as $router) {
+            try {
+                $res = $service->syncAllBandwidthProfiles($router);
+                $successRouters++;
+                $totalSynced += $res['synced'];
+                if (! empty($res['errors'])) {
+                    $errors = array_merge($errors, $res['errors']);
+                }
+            } catch (\Throwable $e) {
+                $errors[] = "{$router->nama_router}: {$e->getMessage()}";
+            }
+        }
+
+        if (empty($errors)) {
+            Flux::toast(
+                variant: 'success',
+                text: "Berhasil sinkronisasi {$totalSynced} profil bandwidth (bps biner) ke {$successRouters} router online."
+            );
+        } else {
+            Flux::toast(
+                variant: 'warning',
+                text: 'Sinkronisasi selesai dengan beberapa catatan pada router. Periksa log integrasi.'
+            );
+        }
     }
 
     public function render(): View
