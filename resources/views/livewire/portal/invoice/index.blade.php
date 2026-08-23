@@ -77,7 +77,7 @@
                                     Bayar Sekarang &rarr;
                                 </flux:button>
                             @elseif($invoice->isLunas())
-                                <flux:button :href="route('invoice.cetak', $invoice)" size="sm" variant="ghost" target="_blank" icon="arrow-down-tray">
+                                <flux:button :href="route('portal.invoice.cetak', $invoice)" size="sm" variant="ghost" target="_blank" icon="arrow-down-tray">
                                     PDF
                                 </flux:button>
                             @endif

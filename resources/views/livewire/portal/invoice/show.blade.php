@@ -6,7 +6,7 @@
 
         <div class="flex items-center gap-2">
             @if($invoice->isLunas())
-                <flux:button :href="route('invoice.cetak', $invoice)" size="sm" variant="ghost" target="_blank" icon="arrow-down-tray">
+                <flux:button :href="route('portal.invoice.cetak', $invoice)" size="sm" variant="ghost" target="_blank" icon="arrow-down-tray">
                     Unduh Bukti Bayar (PDF)
                 </flux:button>
             @elseif($invoice->isMenungguPembayaran())

@@ -2,7 +2,15 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Invoice {{ $invoice->no_invoice }}</title>
+    <title>Invoice {{ $invoice->no_invoice }} - {{ $perusahaan->nama_brand ?: config('app.name', 'GOBILLING') }}</title>
+    @if ($perusahaan->logo_url)
+        <link rel="icon" href="{{ $perusahaan->logo_url }}">
+        <link rel="apple-touch-icon" href="{{ $perusahaan->logo_url }}">
+    @else
+        <link rel="icon" href="/favicon.ico" sizes="any">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    @endif
     <style>
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;

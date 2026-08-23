@@ -120,3 +120,32 @@ test('pelanggan dapat memicu sinkronkanStatus secara manual pada portal', functi
         ->call('sinkronkanStatus')
         ->assertHasNoErrors();
 });
+
+test('pelanggan dapat mencetak invoice PDF miliknya sendiri', function () {
+    $response = $this->actingAs($this->akun, 'pelanggan')
+        ->get(route('portal.invoice.cetak', $this->invoice));
+
+    $response->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
+test('pelanggan tidak dapat mencetak invoice PDF milik pelanggan lain (403)', function () {
+    $pelangganLain = Pelanggan::factory()->create(['email' => 'other_print@test.com']);
+    $invoiceLain = Invoice::factory()->create([
+        'pelanggan_id' => $pelangganLain->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+    ]);
+
+    $response = $this->actingAs($this->akun, 'pelanggan')
+        ->get(route('portal.invoice.cetak', $invoiceLain));
+
+    $response->assertForbidden();
+});
+
+test('tamu tidak dapat mencetak invoice tanpa otentikasi', function () {
+    $this->get(route('invoice.cetak', $this->invoice))
+        ->assertRedirect(route('login'));
+
+    $this->get(route('portal.invoice.cetak', $this->invoice))
+        ->assertRedirect(route('portal.login'));
+});

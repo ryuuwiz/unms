@@ -24,8 +24,55 @@ use App\Livewire\Settings\PengaturanGateway;
 use App\Livewire\Ticket;
 use App\Livewire\Users;
 use App\Livewire\Wilayah;
+use App\Models\Perusahaan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+
+// ─── Dynamic Favicon Routes (Company Logo) ────────────────────────
+Route::get('/favicon.ico', function () {
+    $perusahaan = Perusahaan::default();
+    $media = $perusahaan->getFirstMedia('logo');
+    if ($media && file_exists($media->getPath())) {
+        return response()->file($media->getPath(), [
+            'Content-Type' => $media->mime_type ?: 'image/x-icon',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
+    return response(Perusahaan::defaultGobillingSvg(), 200, [
+        'Content-Type' => 'image/svg+xml',
+    ]);
+});
+
+Route::get('/favicon.svg', function () {
+    $perusahaan = Perusahaan::default();
+    $media = $perusahaan->getFirstMedia('logo');
+    if ($media && file_exists($media->getPath())) {
+        return response()->file($media->getPath(), [
+            'Content-Type' => $media->mime_type ?: 'image/svg+xml',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
+    return response(Perusahaan::defaultGobillingSvg(), 200, [
+        'Content-Type' => 'image/svg+xml',
+    ]);
+});
+
+Route::get('/apple-touch-icon.png', function () {
+    $perusahaan = Perusahaan::default();
+    $media = $perusahaan->getFirstMedia('logo');
+    if ($media && file_exists($media->getPath())) {
+        return response()->file($media->getPath(), [
+            'Content-Type' => $media->mime_type ?: 'image/png',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
+    return response(Perusahaan::defaultGobillingSvg(), 200, [
+        'Content-Type' => 'image/svg+xml',
+    ]);
+});
 
 Route::redirect('/', 'login')->name('home');
 
@@ -103,9 +150,7 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('permission:invoice.buat')->group(function () {
             Route::get('/create', Invoice\Create::class)->name('create');
         });
-        Route::middleware('permission:invoice.cetak')->group(function () {
-            Route::get('/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('cetak');
-        });
+        Route::get('/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('cetak');
         Route::middleware('permission:invoice.lihat')->group(function () {
             Route::get('/', Invoice\Index::class)->name('index');
             Route::get('/{invoice}', Invoice\Show::class)->name('show');
@@ -249,6 +294,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/dashboard', Dashboard::class)->name('dashboard');
         Route::get('/tagihan', Index::class)->name('invoice.index');
         Route::get('/tagihan/{invoice}', Show::class)->name('invoice.show');
+        Route::get('/tagihan/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('invoice.cetak');
         Route::get('/tagihan/{invoice}/bayar', fn (App\Models\Invoice $invoice) => redirect()->route('portal.invoice.show', $invoice))->name('invoice.bayar');
         Route::get('/profil', App\Livewire\Portal\Profil\Index::class)->name('profil');
         Route::get('/ganti-password', GantiPassword::class)->middleware('impersonate.protect')->name('ganti-password');

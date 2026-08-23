@@ -89,6 +89,7 @@ class Perusahaan extends Component
 
         if ($perusahaan->exists) {
             $perusahaan->clearMediaCollection('logo');
+            $perusahaan->syncFaviconFiles();
         }
 
         $this->logo = null;
@@ -157,6 +158,7 @@ class Perusahaan extends Component
             $perusahaan->addMedia($this->logo->getRealPath())
                 ->usingFileName($this->logo->getClientOriginalName())
                 ->toMediaCollection('logo');
+            $perusahaan->syncFaviconFiles();
         }
 
         Cache::forget(PerusahaanModel::CACHE_KEY);

@@ -201,4 +201,51 @@ class Perusahaan extends Model implements HasMedia
 
         return null;
     }
+
+    /**
+     * Synchronize public favicon files with company logo or GOBILLING default brand icon.
+     */
+    public function syncFaviconFiles(): void
+    {
+        $publicDir = public_path();
+        $media = $this->getFirstMedia('logo');
+
+        if ($media && file_exists($media->getPath())) {
+            $logoContent = file_get_contents($media->getPath());
+            $mime = $media->mime_type;
+
+            @file_put_contents($publicDir.DIRECTORY_SEPARATOR.'favicon.ico', $logoContent);
+            @file_put_contents($publicDir.DIRECTORY_SEPARATOR.'apple-touch-icon.png', $logoContent);
+
+            if (str_contains((string) $mime, 'svg')) {
+                @file_put_contents($publicDir.DIRECTORY_SEPARATOR.'favicon.svg', $logoContent);
+            } else {
+                @unlink($publicDir.DIRECTORY_SEPARATOR.'favicon.svg');
+            }
+        } else {
+            $defaultSvg = self::defaultGobillingSvg();
+            @file_put_contents($publicDir.DIRECTORY_SEPARATOR.'favicon.svg', $defaultSvg);
+            @file_put_contents($publicDir.DIRECTORY_SEPARATOR.'favicon.ico', $defaultSvg);
+            @file_put_contents($publicDir.DIRECTORY_SEPARATOR.'apple-touch-icon.png', $defaultSvg);
+        }
+    }
+
+    /**
+     * Default GOBILLING SVG icon markup for brand favicon fallback.
+     */
+    public static function defaultGobillingSvg(): string
+    {
+        return <<<'SVG'
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" rx="16" fill="url(#gobilling_grad)"/>
+  <path d="M36 12L20 34H32L28 52L44 30H32L36 12Z" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <linearGradient id="gobilling_grad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#9333EA"/>
+    </linearGradient>
+  </defs>
+</svg>
+SVG;
+    }
 }
