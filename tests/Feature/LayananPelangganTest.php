@@ -42,6 +42,8 @@ beforeEach(function () {
 test('admin can create layanan pelanggan through 2-step wizard', function () {
     Queue::fake([ProvisionPppoeAccountJob::class]);
 
+    $validUsername = "{$this->pelanggan->no_reg}_00001";
+
     Livewire::actingAs($this->admin)
         ->test(Create::class)
         // Step 1
@@ -52,7 +54,7 @@ test('admin can create layanan pelanggan through 2-step wizard', function () {
         ->assertSet('step', 2)
         // Step 2
         ->set('router_id', $this->router->id)
-        ->set('ppp_username', 'user_test_pppoe')
+        ->set('ppp_username', $validUsername)
         ->set('ppp_password', 'secret_ppp_pass')
         ->set('jenis_koneksi', 'pppoe')
         ->set('tanggal_mulai', now()->toDateString())
@@ -62,7 +64,7 @@ test('admin can create layanan pelanggan through 2-step wizard', function () {
 
     Queue::assertPushed(ProvisionPppoeAccountJob::class);
 
-    $layanan = LayananPelanggan::where('ppp_username', 'user_test_pppoe')->first();
+    $layanan = LayananPelanggan::where('ppp_username', $validUsername)->first();
     expect($layanan)->not->toBeNull()
         ->and($layanan->pelanggan_id)->toBe($this->pelanggan->id)
         ->and($layanan->paket_layanan_id)->toBe($this->paket->id)
@@ -74,6 +76,41 @@ test('admin can create layanan pelanggan through 2-step wizard', function () {
     $rawPass = DB::table('layanan_pelanggan')->where('id', $layanan->id)->value('ppp_password_terenkripsi');
     expect($rawPass)->not->toBe('secret_ppp_pass')
         ->and(Crypt::decryptString($rawPass))->toBe('secret_ppp_pass');
+});
+
+test('memilih pelanggan di step 1 auto-fill ppp_username dengan format baru', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Create::class)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->assertSet('ppp_username', "{$this->pelanggan->no_reg}_00001");
+});
+
+test('ppp_username dengan format lama (bebas) ditolak validasi', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Create::class)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('paket_layanan_id', $this->paket->id)
+        ->call('nextStep')
+        ->set('router_id', $this->router->id)
+        ->set('ppp_username', 'user_budi_01')  // format lama — harus ditolak
+        ->set('ppp_password', 'secret123')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->call('save')
+        ->assertHasErrors(['ppp_username' => 'regex']);
+});
+
+test('ppp_username format benar tapi prefix no_reg salah ditolak', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Create::class)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('paket_layanan_id', $this->paket->id)
+        ->call('nextStep')
+        ->set('router_id', $this->router->id)
+        ->set('ppp_username', 'WRONGREG_00001')  // prefix tidak cocok no_reg
+        ->set('ppp_password', 'secret123')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->call('save')
+        ->assertHasErrors(['ppp_username' => 'regex']);
 });
 
 test('can list and filter layanans by status', function () {

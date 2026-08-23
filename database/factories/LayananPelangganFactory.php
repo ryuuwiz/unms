@@ -31,7 +31,17 @@ class LayananPelangganFactory extends Factory
             'pelanggan_id' => Pelanggan::factory(),
             'paket_layanan_id' => PaketLayanan::factory(),
             'router_id' => Router::factory(),
-            'ppp_username' => 'ppp-'.fake()->unique()->numerify('######'),
+            'ppp_username' => function (array $attributes) {
+                $pelangganId = $attributes['pelanggan_id'] ?? null;
+                if ($pelangganId && is_numeric($pelangganId)) {
+                    $pelanggan = Pelanggan::find($pelangganId);
+                    if ($pelanggan) {
+                        return LayananPelanggan::generatePppUsername($pelanggan);
+                    }
+                }
+
+                return sprintf('BF%s01_%05d', now()->format('dmY'), fake()->unique()->numberBetween(1, 99999));
+            },
             'ppp_password_terenkripsi' => fake()->password(8, 16),
             'jenis_koneksi' => JenisKoneksi::Pppoe,
             'status' => StatusLayanan::Aktif,

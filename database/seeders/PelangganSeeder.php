@@ -103,7 +103,7 @@ class PelangganSeeder extends Seeder
             }
 
             $paket = $paketList[$index % $paketList->count()];
-            $pppUsername = sprintf('%s-%s%02d', $singkatanPerumahan, strtolower($item['nama_depan']), $index + 1);
+            $pppUsername = LayananPelanggan::generatePppUsername($pelanggan);
 
             $isSuspend = ($item['status_layanan'] === StatusLayanan::Suspend);
             $mulaiTanggal = Carbon::now()->subMonths(2)->startOfMonth()->addDays(2);
@@ -113,11 +113,11 @@ class PelangganSeeder extends Seeder
 
             // 4. Buat Layanan Pelanggan
             $layanan = LayananPelanggan::firstOrCreate(
-                ['ppp_username' => $pppUsername],
+                ['pelanggan_id' => $pelanggan->id],
                 [
-                    'pelanggan_id' => $pelanggan->id,
                     'paket_layanan_id' => $paket->id,
                     'router_id' => $router->id,
+                    'ppp_username' => $pppUsername,
                     'ppp_password_terenkripsi' => 'unms'.rand(1000, 9999),
                     'ip_static' => ($item['tipe'] === TipePelanggan::Bisnis) ? '10.0.1.'.(20 + $index) : null,
                     'odp_port_id' => $availablePort?->id,

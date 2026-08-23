@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -238,5 +239,48 @@ class LayananPelanggan extends Model
         } while (static::where('site_id', $siteId)->exists());
 
         return $siteId;
+    }
+
+    /**
+     * Generate ppp_username unik untuk pelanggan dengan format {no_reg}_{NNNNN}.
+     *
+     * Counter di-increment dari nilai tertinggi yang sudah ada per pelanggan.
+     * Operasi dilindungi DB transaction + lockForUpdate untuk mencegah race condition.
+     */
+    public static function generatePppUsername(Pelanggan $pelanggan): string
+    {
+        return DB::transaction(function () use ($pelanggan) {
+            $prefix = $pelanggan->no_reg;
+            $pattern = $prefix.'_%';
+
+            $existing = static::withTrashed()
+                ->lockForUpdate()
+                ->where('pelanggan_id', $pelanggan->id)
+                ->where('ppp_username', 'like', $pattern)
+                ->get(['ppp_username']);
+
+            $maxCounter = $existing
+                ->map(fn (self $l) => static::extractCounter($l->ppp_username))
+                ->filter(fn (?int $c) => $c !== null)
+                ->max() ?? 0;
+
+            $next = $maxCounter + 1;
+
+            return sprintf('%s_%05d', $prefix, $next);
+        });
+    }
+
+    /**
+     * Parse suffix 5-digit angka dari ppp_username berformat {no_reg}_{NNNNN}.
+     *
+     * Mengembalikan integer counter, atau null jika format tidak sesuai.
+     */
+    public static function extractCounter(string $pppUsername): ?int
+    {
+        if (preg_match('/_([0-9]{5})$/', $pppUsername, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return null;
     }
 }

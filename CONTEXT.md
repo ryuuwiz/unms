@@ -56,6 +56,10 @@ _Avoid_: Nama Saja Tanpa No Reg, No Reg Tanpa Nama, Format Strip Tak Beraturan (
 Entitas langganan aktif yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu, router gateway, kredensial PPP, dan masa aktif.
 _Avoid_: Subscription, Akun Internet, Koneksi
 
+**PPP Username Credential**:
+Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_00001`) — prefix adalah No.Reg pelanggan, suffix adalah counter 5 digit zero-padded unik per pelanggan (sequential: `max(counter) + 1`). Di-generate otomatis oleh sistem saat layanan dibuat; staff dapat override asal format dipatuhi. Disimpan di kolom `ppp_username` tabel `layanan_pelanggan`.
+_Avoid_: Username Bebas, PPP User Manual, Format Lama (`user_budi_01`)
+
 **Site ID**:
 Pengenal unik titik instalasi layanan pelanggan (format `SITE-XXXXXXXX`).
 _Avoid_: Service ID, Lokasi ID

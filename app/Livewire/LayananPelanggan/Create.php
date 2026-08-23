@@ -67,9 +67,19 @@ class Create extends Component
      */
     protected function rulesStep2(): array
     {
+        $pelanggan = $this->pelanggan_id ? Pelanggan::find($this->pelanggan_id) : null;
+        $noReg = $pelanggan?->no_reg ?? '';
+        $escapedNoReg = preg_quote($noReg, '/');
+
         return [
             'router_id' => ['required', 'integer', 'exists:router,id'],
-            'ppp_username' => ['required', 'string', 'min:3', 'max:64', 'regex:/^[a-zA-Z0-9._-]+$/', 'unique:layanan_pelanggan,ppp_username'],
+            'ppp_username' => [
+                'required',
+                'string',
+                'max:64',
+                'regex:/^'.$escapedNoReg.'_[0-9]{5}$/',
+                'unique:layanan_pelanggan,ppp_username',
+            ],
             'ppp_password' => ['required', 'string', 'min:4', 'max:64'],
             'jenis_koneksi' => ['required', 'string', 'in:pppoe,ip_static'],
             'tanggal_mulai' => ['required', 'date'],
@@ -87,6 +97,23 @@ class Create extends Component
         $this->step = 2;
     }
 
+    /**
+     * Auto-fill ppp_username saat pelanggan dipilih di Step 1.
+     *
+     * Dipanggil otomatis oleh Livewire saat properti pelanggan_id berubah.
+     */
+    public function updatedPelangganId(): void
+    {
+        if ($this->pelanggan_id) {
+            $pelanggan = Pelanggan::find($this->pelanggan_id);
+            if ($pelanggan) {
+                $this->ppp_username = LayananPelanggan::generatePppUsername($pelanggan);
+            }
+        } else {
+            $this->ppp_username = '';
+        }
+    }
+
     public function prevStep(): void
     {
         $this->step = 1;
@@ -98,9 +125,8 @@ class Create extends Component
         $this->validate($this->rulesStep2(), [
             'router_id.required' => 'Router wajib dipilih.',
             'ppp_username.required' => 'Username PPP wajib diisi.',
-            'ppp_username.min' => 'Username PPP minimal 3 karakter.',
             'ppp_username.max' => 'Username PPP maksimal 64 karakter.',
-            'ppp_username.regex' => 'Username PPP hanya boleh berisi huruf, angka, titik (.), strip (-), dan underscore (_).',
+            'ppp_username.regex' => 'Format username PPP tidak valid. Harus berupa No.Reg pelanggan diikuti underscore dan 5 digit angka (contoh: BF2308202601_00001).',
             'ppp_username.unique' => 'Username PPP sudah digunakan.',
             'ppp_password.required' => 'Password PPP wajib diisi.',
             'ppp_password.min' => 'Password PPP minimal 4 karakter.',

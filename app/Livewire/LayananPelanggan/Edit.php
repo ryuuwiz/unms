@@ -21,6 +21,9 @@ class Edit extends Component
     #[Locked]
     public int $layananId;
 
+    #[Locked]
+    public string $pelangganNoReg = '';
+
     public ?int $paket_layanan_id = null;
 
     public ?int $router_id = null;
@@ -42,6 +45,7 @@ class Edit extends Component
         $this->authorize('update', $layananPelanggan);
 
         $this->layananId = $layananPelanggan->id;
+        $this->pelangganNoReg = $layananPelanggan->pelanggan->no_reg;
         $this->paket_layanan_id = $layananPelanggan->paket_layanan_id;
         $this->router_id = $layananPelanggan->router_id;
         $this->ppp_username = $layananPelanggan->ppp_username;
@@ -57,15 +61,16 @@ class Edit extends Component
      */
     protected function rules(): array
     {
+        $escapedNoReg = preg_quote($this->pelangganNoReg, '/');
+
         return [
             'paket_layanan_id' => ['required', 'integer', 'exists:paket_layanan,id'],
             'router_id' => ['required', 'integer', 'exists:router,id'],
             'ppp_username' => [
                 'required',
                 'string',
-                'min:3',
                 'max:64',
-                'regex:/^[a-zA-Z0-9._-]+$/',
+                'regex:/^'.$escapedNoReg.'_[0-9]{5}$/',
                 "unique:layanan_pelanggan,ppp_username,{$this->layananId}",
             ],
             'ppp_password' => ['nullable', 'string', 'min:4', 'max:64'],
@@ -81,8 +86,8 @@ class Edit extends Component
         $layanan = LayananPelanggan::findOrFail($this->layananId);
         $this->authorize('update', $layanan);
         $this->validate($this->rules(), [
-            'ppp_username.regex' => 'Username PPP hanya boleh berisi huruf, angka, titik (.), strip (-), dan underscore (_).',
-            'ppp_username.min' => 'Username PPP minimal 3 karakter.',
+            'ppp_username.regex' => 'Format username PPP tidak valid. Harus berupa No.Reg pelanggan diikuti underscore dan 5 digit angka (contoh: BF2308202601_00001).',
+            'ppp_username.max' => 'Username PPP maksimal 64 karakter.',
             'ppp_password.min' => 'Password PPP minimal 4 karakter.',
         ]);
 

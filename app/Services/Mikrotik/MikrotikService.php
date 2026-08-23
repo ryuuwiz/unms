@@ -415,6 +415,39 @@ class MikrotikService
     }
 
     /**
+     * Hapus PPPoE Secret dari RouterOS berdasarkan nama username.
+     *
+     * Operasi ini idempoten: mengembalikan false jika secret tidak ditemukan,
+     * true jika berhasil dihapus. Digunakan untuk cleanup username lama
+     * sebelum provisioning username baru saat migrasi format ppp_username.
+     *
+     * @throws MikrotikException
+     */
+    public function deletePppoeSecret(Router $router, string $username): bool
+    {
+        try {
+            $client = $this->getClient($router);
+            $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
+            $existing = $client->query($findQuery)->read();
+
+            if (empty($existing) || ! isset($existing[0]['.id'])) {
+                return false;
+            }
+
+            $removeQuery = (new Query('/ppp/secret/remove'))->equal('.id', $existing[0]['.id']);
+            $client->query($removeQuery)->read();
+
+            return true;
+        } catch (Throwable $e) {
+            throw new MikrotikException(
+                "Gagal menghapus PPPoE secret '{$username}' pada router {$router->nama_router}: {$e->getMessage()}",
+                (int) $e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
      * Sinkronisasikan konfigurasi IP Pool & Simple Queue ke RouterOS.
      *
      * @return array<string, mixed>
