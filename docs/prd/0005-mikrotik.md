@@ -1,6 +1,6 @@
 # PRD: Fase Integrasi Mikrotik (RouterOS API)
 
-**Modul:** Integrasi Mikrotik — koneksi API sungguhan (WireGuard + RouterOS API)
+**Modul:** Integrasi Mikrotik — koneksi API sungguhan (RouterOS API)
 **Fase:** Fase 2 sesuai roadmap `ubiquiti-nms-design.md` §10
 **Status:** Draft
 **Depends on:** PRD #4 (Mikrotik Routers & IP Pool), PRD #5 (Subscriptions & Billing)
@@ -9,7 +9,7 @@
 
 ## 1. Ringkasan
 
-Sejauh ini, modul Router & IP Pool (PRD #4) dan Subscriptions (PRD #5) baru menyimpan **data master** — belum ada koneksi sungguhan ke perangkat Mikrotik. PRD ini membangun jembatan API-nya: koneksi via WireGuard, wrapper RouterOS API, dan otomatisasi provisioning PPPoE + penerapan IP Pool/Queue, sehingga aksi di aplikasi (aktivasi pelanggan, isolir, dsb.) benar-benar tercermin di perangkat Mikrotik — bukan cuma di database.
+Sejauh ini, modul Router & IP Pool (PRD #4) dan Subscriptions (PRD #5) baru menyimpan **data master** — belum ada koneksi sungguhan ke perangkat Mikrotik. PRD ini membangun jembatan API-nya: koneksi, wrapper RouterOS API, dan otomatisasi provisioning PPPoE + penerapan IP Pool/Queue, sehingga aksi di aplikasi (aktivasi pelanggan, isolir, dsb.) benar-benar tercermin di perangkat Mikrotik — bukan cuma di database.
 
 ## 2. Tujuan
 
@@ -41,10 +41,9 @@ Sejauh ini, modul Router & IP Pool (PRD #4) dan Subscriptions (PRD #5) baru meny
 ### Infrastruktur & Service Layer
 | ID | Requirement |
 |---|---|
-| FR-M.1 | Setiap router Mikrotik terhubung ke WireGuard concentrator server (prasyarat infrastruktur, di luar kode aplikasi — lihat §9) |
-| FR-M.2 | Dibuat `MikrotikService` sebagai wrapper `evilfreelancer/routeros-api-php`, dengan method: `testConnection()`, `createPppoeSecret()`, `enablePppoeSecret()`, `disablePppoeSecret()`, `createIpPool()`, `createSimpleQueue()`, `getSystemResource()` (untuk ping/health check) |
-| FR-M.3 | Semua pemanggilan `MikrotikService` **wajib** lewat Queue Job — tidak pernah dipanggil sinkron langsung dari HTTP request/controller |
-| FR-M.4 | Job Mikrotik berjalan di **queue connection terpisah** (`mikrotik`), bukan default, sesuai rekomendasi tech stack sebelumnya (worker lambat tidak boleh menyumbat job lain) |
+| FR-M.1 | Dibuat `MikrotikService` sebagai wrapper `evilfreelancer/routeros-api-php`, dengan method: `testConnection()`, `createPppoeSecret()`, `enablePppoeSecret()`, `disablePppoeSecret()`, `createIpPool()`, `createSimpleQueue()`, `getSystemResource()` (untuk ping/health check) |
+| FR-M.2 | Semua pemanggilan `MikrotikService` **wajib** lewat Queue Job — tidak pernah dipanggil sinkron langsung dari HTTP request/controller |
+| FR-M.3 | Job Mikrotik berjalan di **queue connection terpisah** (`mikrotik`), bukan default, sesuai rekomendasi tech stack sebelumnya (worker lambat tidak boleh menyumbat job lain) |
 
 ### Provisioning PPPoE (terhubung ke Subscriptions)
 | ID | Requirement |
@@ -125,7 +124,6 @@ Sejauh ini, modul Router & IP Pool (PRD #4) dan Subscriptions (PRD #5) baru meny
 
 ## 9. Out of Scope
 
-- Setup WireGuard tunnel itu sendiri di sisi server/router (infrastruktur, dilakukan manual oleh tim infra sebelum router didaftarkan ke sistem).
 - Monitoring traffic/bandwidth pemakaian real-time per pelanggan (beda dari sekadar status online/offline router).
 - Backup/restore konfigurasi RouterOS otomatis.
 - Manajemen upgrade firmware/RouterOS dari aplikasi.
@@ -136,7 +134,6 @@ Sejauh ini, modul Router & IP Pool (PRD #4) dan Subscriptions (PRD #5) baru meny
 - PRD #4 (Mikrotik Routers & IP Pool) — data master router & IP Pool harus sudah ada.
 - PRD #5 (Subscriptions & Billing) — status subscription jadi pemicu provisioning.
 - Tech stack: Redis + Horizon (queue terpisah), `evilfreelancer/routeros-api-php`.
-- Infrastruktur WireGuard sudah terpasang & tiap router sudah terhubung sebelum fase ini mulai dites.
 
 ## 11. Acceptance Criteria
 
