@@ -2,7 +2,9 @@
 
 namespace App\Livewire\LayananPelanggan;
 
+use App\Actions\LayananPelanggan\UbahStatusLayananAction;
 use App\Enums\StatusLayanan;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Models\LayananPelanggan;
 use Flux\Flux;
 use Illuminate\View\View;
@@ -53,6 +55,42 @@ class Index extends Component
         $this->deletingId = null;
 
         Flux::toast(variant: 'success', text: 'Layanan berhasil dihapus.');
+    }
+
+    public function provisionLayanan(int $id): void
+    {
+        $layanan = LayananPelanggan::findOrFail($id);
+        $this->authorize('update', $layanan);
+
+        ProvisionPppoeAccountJob::dispatch($layanan);
+
+        Flux::toast(variant: 'success', text: "Job provisi PPPoE untuk {$layanan->ppp_username} telah dikirim ke antrean.");
+    }
+
+    public function toggleIsolir(int $id, UbahStatusLayananAction $ubahStatusAction): void
+    {
+        $layanan = LayananPelanggan::findOrFail($id);
+        $this->authorize('update', $layanan);
+
+        $statusBaru = $layanan->status === StatusLayanan::Suspend
+            ? StatusLayanan::Aktif
+            : StatusLayanan::Suspend;
+
+        $catatan = $statusBaru === StatusLayanan::Suspend
+            ? 'Isolir manual oleh admin'
+            : 'Un-isolir / aktivasi manual oleh admin';
+
+        $ubahStatusAction->execute(
+            layanan: $layanan,
+            statusBaru: $statusBaru,
+            actor: auth()->user(),
+            catatan: $catatan
+        );
+
+        Flux::toast(
+            variant: 'success',
+            text: "Status layanan {$layanan->ppp_username} berhasil diubah menjadi {$statusBaru->label()}."
+        );
     }
 
     public function render(): View

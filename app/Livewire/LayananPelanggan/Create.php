@@ -3,7 +3,9 @@
 namespace App\Livewire\LayananPelanggan;
 
 use App\Enums\JenisKoneksi;
+use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
@@ -37,6 +39,8 @@ class Create extends Component
 
     public string $tanggal_mulai = '';
 
+    public bool $auto_provision = true;
+
     public function mount(): void
     {
         $this->authorize('create', LayananPelanggan::class);
@@ -65,6 +69,7 @@ class Create extends Component
             'ppp_password' => ['required', 'string', 'min:6', 'max:64'],
             'jenis_koneksi' => ['required', 'string', 'in:pppoe,ip_static'],
             'tanggal_mulai' => ['required', 'date'],
+            'auto_provision' => ['boolean'],
         ];
     }
 
@@ -103,7 +108,7 @@ class Create extends Component
             ? $mulai->copy()->addMonths($paket->masa_aktif_nilai)
             : $mulai->copy()->addDays($paket->masa_aktif_nilai);
 
-        LayananPelanggan::create([
+        $layanan = LayananPelanggan::create([
             'pelanggan_id' => $this->pelanggan_id,
             'paket_layanan_id' => $this->paket_layanan_id,
             'router_id' => $this->router_id,
@@ -111,9 +116,14 @@ class Create extends Component
             'ppp_password_terenkripsi' => $this->ppp_password,
             'jenis_koneksi' => $this->jenis_koneksi,
             'status' => StatusLayanan::Proses,
+            'provisioning_status' => ProvisioningStatus::Pending,
             'tanggal_mulai' => $this->tanggal_mulai,
             'tanggal_expired' => $expired->toDateString(),
         ]);
+
+        if ($this->auto_provision) {
+            ProvisionPppoeAccountJob::dispatch($layanan);
+        }
 
         Flux::toast(variant: 'success', text: 'Layanan pelanggan berhasil didaftarkan.');
         $this->redirectRoute('layanan-pelanggan.index', navigate: true);

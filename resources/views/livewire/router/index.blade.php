@@ -62,14 +62,40 @@
                     </flux:table.cell>
 
                     <flux:table.cell>
-                        <flux:badge size="sm" :color="$router->status_koneksi->color()">
-                            {{ $router->status_koneksi->label() }}
-                        </flux:badge>
+                        <div class="flex flex-col gap-1">
+                            <flux:badge size="sm" :color="$router->status_koneksi->color()">
+                                {{ $router->status_koneksi->label() }}
+                            </flux:badge>
+                            @if ($router->routeros_version || $router->cpu_load !== null)
+                                <div class="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500">
+                                    @if ($router->routeros_version)
+                                        <span>v{{ $router->routeros_version }}</span>
+                                    @endif
+                                    @if ($router->cpu_load !== null)
+                                        <span>• CPU: {{ $router->cpu_load }}%</span>
+                                    @endif
+                                </div>
+                            @elseif ($router->last_ping_at)
+                                <span class="text-[11px] text-zinc-400">
+                                    Ping: {{ $router->last_ping_at->diffForHumans() }}
+                                </span>
+                            @endif
+                        </div>
                     </flux:table.cell>
 
                     <flux:table.cell align="end">
                         <div class="flex items-center justify-end gap-1">
                             @can('update', $router)
+                                <flux:button
+                                    wire:click="testConnection({{ $router->id }})"
+                                    wire:loading.attr="disabled"
+                                    size="sm"
+                                    variant="ghost"
+                                    icon="bolt"
+                                    class="text-amber-600 hover:text-amber-700 dark:text-amber-400"
+                                    title="Uji Koneksi RouterOS API"
+                                />
+
                                 <flux:button
                                     :href="route('router.edit', $router)"
                                     wire:navigate

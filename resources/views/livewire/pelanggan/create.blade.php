@@ -13,9 +13,10 @@
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <flux:field>
-                    <flux:label>No. Registrasi</flux:label>
-                    <flux:input value="REG-YYYY-NNNNNN (Otomatis)" disabled class="bg-zinc-100 dark:bg-zinc-800" />
-                    <flux:description>Nomor registrasi unik akan digenerate otomatis oleh sistem.</flux:description>
+                    <flux:label>No. Registrasi <span class="text-zinc-400 font-normal">(opsional)</span></flux:label>
+                    <flux:input wire:model="no_reg" placeholder="Otomatis (contoh: BF2308202601) atau isi custom" />
+                    <flux:description>Kosongkan untuk generate otomatis berbasis tanggal dan urutan unik.</flux:description>
+                    <flux:error name="no_reg" />
                 </flux:field>
 
                 <flux:field>

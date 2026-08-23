@@ -5,6 +5,8 @@ use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
 use App\Enums\StatusTransaksiGateway;
 use App\Enums\UserStatus;
+use App\Jobs\Mikrotik\EnablePppoeAccountJob;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Livewire\Pembayaran\TransaksiGateway\Show;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
@@ -13,6 +15,7 @@ use App\Models\TransaksiPaymentGateway;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -26,6 +29,11 @@ beforeEach(function () {
     config([
         'services.xendit.secret_key' => 'xnd_development_test_key_12345',
         'services.xendit.callback_token' => 'test_callback_token_valid_123',
+    ]);
+
+    Queue::fake([
+        ProvisionPppoeAccountJob::class,
+        EnablePppoeAccountJob::class,
     ]);
 });
 

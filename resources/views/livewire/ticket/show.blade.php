@@ -176,9 +176,8 @@
                 @if($ticket->pelanggan)
                     <div class="space-y-2.5 text-xs divide-y divide-zinc-100 dark:divide-zinc-700/50">
                         <div>
-                            <span class="text-zinc-500">Nama Pelanggan:</span>
-                            <div class="font-semibold text-zinc-900 dark:text-white text-sm">{{ $ticket->pelanggan->namaLengkap() }}</div>
-                            <div class="text-zinc-500 font-mono">{{ $ticket->pelanggan->no_reg }}</div>
+                            <span class="text-zinc-500">Identitas Pelanggan:</span>
+                            <div class="font-semibold text-zinc-900 dark:text-white text-sm">{{ $ticket->pelanggan->identitasLengkap() }}</div>
                         </div>
                         <div class="pt-2">
                             <span class="text-zinc-500">Kontak:</span>

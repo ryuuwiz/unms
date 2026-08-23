@@ -17,6 +17,8 @@ use Livewire\Component;
 #[Title('Tambah Pelanggan')]
 class Create extends Component
 {
+    public string $no_reg = '';
+
     public string $tipe_pelanggan = 'rumah';
 
     public string $nik = '';
@@ -60,6 +62,7 @@ class Create extends Component
     protected function rules(): array
     {
         return [
+            'no_reg' => ['nullable', 'string', 'max:50', 'unique:pelanggan,no_reg'],
             'tipe_pelanggan' => ['required', 'string', 'in:rumah,bisnis'],
             'nik' => ['nullable', 'string', 'digits:16'],
             'nama_depan' => ['required', 'string', 'max:100'],
@@ -85,6 +88,7 @@ class Create extends Component
     protected function messages(): array
     {
         return [
+            'no_reg.unique' => 'Nomor Registrasi sudah digunakan oleh pelanggan lain.',
             'nama_depan.required' => 'Nama depan pelanggan wajib diisi.',
             'no_hp.required' => 'Nomor WhatsApp / HP wajib diisi.',
             'no_hp.regex' => 'Format nomor HP tidak valid. Gunakan awalan 08 atau +628 (contoh: 08123456789).',
@@ -98,7 +102,7 @@ class Create extends Component
         $this->authorize('create', Pelanggan::class);
         $this->validate();
 
-        $pelanggan = Pelanggan::create([
+        $data = [
             'tipe_pelanggan' => $this->tipe_pelanggan,
             'nik' => $this->nik ?: null,
             'nama_depan' => $this->nama_depan,
@@ -116,9 +120,15 @@ class Create extends Component
             'longitude' => $this->longitude,
             'status' => $this->status,
             'dibuat_oleh' => Auth::id(),
-        ]);
+        ];
 
-        Flux::toast(variant: 'success', text: "Pelanggan {$pelanggan->namaLengkap()} ({$pelanggan->no_reg}) berhasil didaftarkan.");
+        if (! empty(trim($this->no_reg))) {
+            $data['no_reg'] = strtoupper(trim($this->no_reg));
+        }
+
+        $pelanggan = Pelanggan::create($data);
+
+        Flux::toast(variant: 'success', text: "Pelanggan {$pelanggan->identitasLengkap()} berhasil didaftarkan.");
 
         $this->redirectRoute('pelanggan.index', navigate: true);
     }

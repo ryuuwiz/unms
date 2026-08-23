@@ -3,6 +3,7 @@
 namespace App\Livewire\Router;
 
 use App\Models\Router;
+use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -81,10 +82,33 @@ class Edit extends Component
         $this->redirectRoute('router.index', navigate: true);
     }
 
+    public function testConnection(MikrotikService $mikrotikService): void
+    {
+        $router = Router::findOrFail($this->routerId);
+        $this->authorize('update', $router);
+
+        try {
+            $mikrotikService->testConnection($router, 4);
+            $rosVersion = $router->routeros_version ? " (v{$router->routeros_version})" : '';
+            Flux::toast(
+                variant: 'success',
+                text: "Koneksi ke {$router->nama_router} berhasil{$rosVersion}."
+            );
+        } catch (\Throwable $e) {
+            Flux::toast(
+                variant: 'danger',
+                text: "Gagal terhubung ke {$router->nama_router}: {$e->getMessage()}"
+            );
+        }
+    }
+
     public function render(): View
     {
+        $router = Router::with(['jobLogs' => fn ($q) => $q->latest()->limit(5)])
+            ->findOrFail($this->routerId);
+
         return view('livewire.router.edit', [
-            'router' => Router::findOrFail($this->routerId),
+            'router' => $router,
         ]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\IpPool;
 
+use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
 use App\Models\IpPool;
 use App\Models\Router;
 use Flux\Flux;
@@ -51,6 +52,19 @@ class Index extends Component
         $this->deletingId = null;
 
         Flux::toast(variant: 'success', text: 'IP Pool berhasil dihapus.');
+    }
+
+    public function syncToRouter(int $poolId): void
+    {
+        $pool = IpPool::findOrFail($poolId);
+        $this->authorize('update', $pool);
+
+        SyncIpPoolToRouterJob::dispatch($pool);
+
+        Flux::toast(
+            variant: 'success',
+            text: "Job sinkronisasi IP Pool {$pool->nama_pool} ke router telah dimasukkan ke antrean."
+        );
     }
 
     public function render(): View

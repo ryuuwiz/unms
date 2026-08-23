@@ -26,7 +26,7 @@
                 <flux:select wire:model="pelanggan_id" placeholder="Pilih pelanggan aktif...">
                     @foreach ($pelanggans as $p)
                         <flux:select.option value="{{ $p->id }}">
-                            {{ $p->namaLengkap() }} ({{ $p->no_reg }} - {{ $p->no_hp }})
+                            {{ $p->labelSelector() }}
                         </flux:select.option>
                     @endforeach
                 </flux:select>
@@ -94,6 +94,14 @@
                     <flux:input wire:model="tanggal_mulai" type="date" />
                     <flux:error name="tanggal_mulai" />
                 </flux:field>
+            </div>
+
+            <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+                <flux:checkbox
+                    wire:model="auto_provision"
+                    label="Langsung buat akun PPPoE Secret di router MikroTik"
+                    description="Jika dicentang, job provisioning akan langsung dikirim ke router yang dipilih saat pendaftaran disimpan."
+                />
             </div>
 
             <div class="flex items-center justify-between pt-2">

@@ -64,7 +64,7 @@
                                         {{ $trx->invoice->no_invoice }}
                                     </a>
                                     <div class="text-[11px] text-zinc-500">
-                                        {{ $trx->invoice->pelanggan?->namaLengkap() }} ({{ $trx->invoice->pelanggan?->no_reg }})
+                                        {{ $trx->invoice->pelanggan?->identitasLengkap() ?? '-' }}
                                     </div>
                                 @else
                                     <span class="text-zinc-400">-</span>

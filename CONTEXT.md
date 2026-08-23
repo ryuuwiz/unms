@@ -45,8 +45,12 @@ Entitas master data konsumen/klien ISP yang mencakup identitas kontak dan lokasi
 _Avoid_: Client, Customer Account, Member
 
 **No. Registrasi**:
-Pengenal unik terstandarisasi sistem untuk setiap pelanggan (format `REG-YYYY-NNNNNN`).
-_Avoid_: Customer ID, Nomor Pelanggan, No Langganan, CUST-XXXXXX
+Pengenal unik untuk setiap pelanggan dengan format default `[Prefix][DDMMYYYY][Counter]` (contoh: `BF2309202601`, `ARS2309202601`, `WG2309202601`), dapat di-custom saat pendaftaran pelanggan, dan dijamin unik di seluruh sistem.
+_Avoid_: Customer ID, Nomor Pelanggan, No Langganan, CUST-XXXXXX, No Reg Duplikat
+
+**Format Identitas Pelanggan**:
+Format standar representasi identitas pelanggan untuk antarmuka staf backoffice dan selector sistem dengan susunan `[No. Reg]_[Nama Pelanggan]` (contoh: `WG2309202601_Budi Santoso`). Pada dropdown selector dilengkapi informasi sekunder di dalam kurung: `WG2309202601_Budi Santoso (0812xxxx • Cluster Melati)`.
+_Avoid_: Nama Saja Tanpa No Reg, No Reg Tanpa Nama, Format Strip Tak Beraturan (Gunakan Format Baku `No. Reg_Nama`)
 
 **Layanan Pelanggan**:
 Entitas langganan aktif yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu, router gateway, kredensial PPP, dan masa aktif.

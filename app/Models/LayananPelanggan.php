@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\JenisKoneksi;
+use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
 use Database\Factories\LayananPelangganFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -31,6 +32,9 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property StatusLayanan $status
  * @property Carbon $tanggal_mulai
  * @property Carbon|null $tanggal_expired
+ * @property Carbon|null $terprovisi_pada
+ * @property ProvisioningStatus $provisioning_status
+ * @property string|null $last_provisioning_error
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -51,6 +55,9 @@ use Spatie\Activitylog\Support\LogOptions;
     'status',
     'tanggal_mulai',
     'tanggal_expired',
+    'terprovisi_pada',
+    'provisioning_status',
+    'last_provisioning_error',
 ])]
 class LayananPelanggan extends Model
 {
@@ -93,9 +100,11 @@ class LayananPelanggan extends Model
         return [
             'jenis_koneksi' => JenisKoneksi::class,
             'status' => StatusLayanan::class,
+            'provisioning_status' => ProvisioningStatus::class,
             'ppp_password_terenkripsi' => 'encrypted',
             'tanggal_mulai' => 'date',
             'tanggal_expired' => 'date',
+            'terprovisi_pada' => 'datetime',
             'deleted_at' => 'datetime',
         ];
     }
@@ -138,6 +147,16 @@ class LayananPelanggan extends Model
     public function odpPort(): BelongsTo
     {
         return $this->belongsTo(OdpPort::class, 'odp_port_id');
+    }
+
+    /**
+     * Relasi ke seluruh riwayat job MikroTik layanan ini.
+     *
+     * @return HasMany<MikrotikJobLog, $this>
+     */
+    public function jobLogs(): HasMany
+    {
+        return $this->hasMany(MikrotikJobLog::class, 'layanan_pelanggan_id');
     }
 
     /**

@@ -129,7 +129,7 @@
                         <div class="min-w-0 space-y-0.5">
                             <div
                                 class="font-semibold text-zinc-900 dark:text-zinc-100 truncate flex items-center gap-2">
-                                <span>{{ $bayar->invoice?->pelanggan?->namaLengkap() ?? 'Pelanggan #' . $bayar->invoice_id }}</span>
+                                <span>{{ $bayar->invoice?->pelanggan?->identitasLengkap() ?? 'Pelanggan #' . $bayar->invoice_id }}</span>
                                 <span
                                     class="text-[10px] font-mono text-zinc-400">({{ $bayar->invoice?->no_invoice }})</span>
                             </div>
@@ -203,9 +203,9 @@
                         <div class="flex items-center justify-between gap-2">
                             <div
                                 class="font-semibold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 flex items-center gap-2">
-                                <span>{{ $layanan->pelanggan?->namaLengkap() ?? 'Pelanggan #' . $layanan->pelanggan_id }}</span>
+                                <span>{{ $layanan->pelanggan?->identitasLengkap() ?? 'Pelanggan #' . $layanan->pelanggan_id }}</span>
                                 <span
-                                    class="text-[10px] font-mono text-zinc-400">({{ $layanan->pelanggan?->no_reg ?? $layanan->site_id }})</span>
+                                    class="text-[10px] font-mono text-zinc-400">({{ $layanan->site_id }})</span>
                             </div>
                             @if ($isOverdue)
                                 <span

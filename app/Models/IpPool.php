@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -18,6 +20,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $rentang_ip_akhir
  * @property int $priority_tx
  * @property int $priority_rx
+ * @property Carbon|null $applied_to_router_at
+ * @property string|null $sync_status
+ * @property string|null $last_sync_error
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read Router $router
  */
 #[Fillable([
@@ -29,6 +36,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'rentang_ip_akhir',
     'priority_tx',
     'priority_rx',
+    'applied_to_router_at',
+    'sync_status',
+    'last_sync_error',
 ])]
 class IpPool extends Model
 {
@@ -48,6 +58,7 @@ class IpPool extends Model
             'cidr' => 'integer',
             'priority_tx' => 'integer',
             'priority_rx' => 'integer',
+            'applied_to_router_at' => 'datetime',
         ];
     }
 
@@ -59,6 +70,16 @@ class IpPool extends Model
     public function router(): BelongsTo
     {
         return $this->belongsTo(Router::class, 'router_id');
+    }
+
+    /**
+     * Relasi ke seluruh riwayat job MikroTik IP Pool ini.
+     *
+     * @return HasMany<MikrotikJobLog, $this>
+     */
+    public function jobLogs(): HasMany
+    {
+        return $this->hasMany(MikrotikJobLog::class, 'ip_pool_id');
     }
 
     /**

@@ -188,10 +188,10 @@
                             <!-- Pelanggan -->
                             <td class="px-4 py-3">
                                 <div class="font-medium text-zinc-900 dark:text-white">
-                                    {{ $tck->pelanggan?->namaLengkap() ?? '-' }}
+                                    {{ $tck->pelanggan?->identitasLengkap() ?? '-' }}
                                 </div>
                                 <div class="text-xs text-zinc-500">
-                                    {{ $tck->pelanggan?->no_reg }} • {{ $tck->pelanggan?->no_hp }}
+                                    {{ $tck->pelanggan?->no_hp }}
                                 </div>
                             </td>
 

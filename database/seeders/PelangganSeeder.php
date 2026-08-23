@@ -50,10 +50,15 @@ class PelangganSeeder extends Seeder
             $perumahan = $perumahans[$index % $perumahans->count()];
             $singkatanPerumahan = strtolower($perumahan->singkatan ?: 'perum');
 
+            $customPrefixes = ['BF', 'WG', 'ARS', 'BF', 'WG'];
+            $prefix = $customPrefixes[$index % count($customPrefixes)];
+            $noReg = sprintf('%s%s%02d', $prefix, now()->format('dmY'), $index + 1);
+
             // 1. Buat Master Pelanggan (Idempotent)
             $pelanggan = Pelanggan::firstOrCreate(
                 ['email' => $item['email']],
                 [
+                    'no_reg' => $noReg,
                     'tipe_pelanggan' => $item['tipe'],
                     'nik' => sprintf('3273%012d', 100000000000 + $index + 1),
                     'nama_depan' => $item['nama_depan'],

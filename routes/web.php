@@ -7,6 +7,7 @@ use App\Livewire\Invoice;
 use App\Livewire\IpPool;
 use App\Livewire\Laporan;
 use App\Livewire\LayananPelanggan;
+use App\Livewire\Mikrotik\LogIndex;
 use App\Livewire\PaketLayanan;
 use App\Livewire\Pelanggan;
 use App\Livewire\Pembayaran;
@@ -201,6 +202,13 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::middleware('permission:router.lihat')->group(function () {
             Route::get('/', Router\Index::class)->name('index');
+        });
+    });
+
+    // ─── Log Integrasi MikroTik ────────────────────────────────────
+    Route::prefix('mikrotik')->name('mikrotik.')->group(function () {
+        Route::middleware('permission:router.lihat')->group(function () {
+            Route::get('/logs', LogIndex::class)->name('logs.index');
         });
     });
 

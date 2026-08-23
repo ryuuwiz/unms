@@ -20,7 +20,7 @@
                     <flux:select wire:model.live="pelanggan_id" label="Pilih Pelanggan *" placeholder="-- Pilih Pelanggan --">
                         <flux:select.option value="">-- Pilih Pelanggan --</flux:select.option>
                         @foreach($pelanggans as $p)
-                            <flux:select.option value="{{ $p->id }}">{{ $p->no_reg }} - {{ $p->nama_lengkap }} ({{ $p->no_hp }})</flux:select.option>
+                            <flux:select.option value="{{ $p->id }}">{{ $p->labelSelector() }}</flux:select.option>
                         @endforeach
                     </flux:select>
                     <flux:error name="pelanggan_id" />

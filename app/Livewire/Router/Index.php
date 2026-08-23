@@ -4,6 +4,7 @@ namespace App\Livewire\Router;
 
 use App\Enums\StatusRouter;
 use App\Models\Router;
+use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -71,6 +72,26 @@ class Index extends Component
         $router->update(['status_koneksi' => $newStatus]);
 
         Flux::toast(variant: 'success', text: 'Status router berhasil diubah.');
+    }
+
+    public function testConnection(int $routerId, MikrotikService $mikrotikService): void
+    {
+        $router = Router::findOrFail($routerId);
+        $this->authorize('update', $router);
+
+        try {
+            $result = $mikrotikService->testConnection($router, 4);
+            $rosVersion = $router->routeros_version ? " (v{$router->routeros_version})" : '';
+            Flux::toast(
+                variant: 'success',
+                text: "Koneksi ke {$router->nama_router} berhasil{$rosVersion}."
+            );
+        } catch (\Throwable $e) {
+            Flux::toast(
+                variant: 'danger',
+                text: "Gagal terhubung ke {$router->nama_router}: {$e->getMessage()}"
+            );
+        }
     }
 
     public function render(): View

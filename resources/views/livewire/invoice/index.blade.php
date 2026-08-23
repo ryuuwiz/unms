@@ -57,8 +57,8 @@
                                 </a>
                             </td>
                             <td class="px-4 py-3">
-                                <div class="font-medium text-zinc-900 dark:text-white">{{ $inv->pelanggan?->nama_lengkap ?? '-' }}</div>
-                                <div class="text-xs text-zinc-500">{{ $inv->pelanggan?->no_reg }} • {{ $inv->pelanggan?->no_hp }}</div>
+                                <div class="font-medium text-zinc-900 dark:text-white">{{ $inv->pelanggan?->identitasLengkap() ?? '-' }}</div>
+                                <div class="text-xs text-zinc-500">{{ $inv->pelanggan?->no_hp }}</div>
                             </td>
                             <td class="px-4 py-3">
                                 <div class="text-zinc-900 dark:text-white font-medium">{{ $inv->layananPelanggan?->paketLayanan?->nama_paket ?? '-' }}</div>

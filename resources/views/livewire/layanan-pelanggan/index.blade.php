@@ -46,8 +46,8 @@
                     {{-- Pelanggan --}}
                     <flux:table.cell>
                         <div class="flex flex-col">
-                            <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $layanan->pelanggan->namaLengkap() }}</span>
-                            <span class="font-mono text-xs text-zinc-500">{{ $layanan->site_id }} ({{ $layanan->pelanggan->no_reg }})</span>
+                            <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $layanan->pelanggan?->identitasLengkap() ?? '-' }}</span>
+                            <span class="font-mono text-xs text-zinc-500">{{ $layanan->site_id }}</span>
                         </div>
                     </flux:table.cell>
 
@@ -77,17 +77,53 @@
                         </div>
                     </flux:table.cell>
 
-                    {{-- Status --}}
+                    {{-- Status & Provisioning --}}
                     <flux:table.cell>
-                        <flux:badge size="sm" :color="$layanan->status->color()">
-                            {{ $layanan->status->label() }}
-                        </flux:badge>
+                        <div class="flex flex-col gap-1">
+                            <flux:badge size="sm" :color="$layanan->status->color()">
+                                {{ $layanan->status->label() }}
+                            </flux:badge>
+                            @if ($layanan->provisioning_status === \App\Enums\ProvisioningStatus::Success)
+                                <span class="text-[11px] text-emerald-600 dark:text-emerald-400" title="Terprovisi: {{ $layanan->terprovisi_pada?->format('d/m/Y H:i') }}">
+                                    ✓ PPPoE Terprovisi
+                                </span>
+                            @elseif ($layanan->provisioning_status === \App\Enums\ProvisioningStatus::Failed)
+                                <span class="text-[11px] text-red-500" title="{{ $layanan->last_provisioning_error }}">
+                                    ✗ Gagal Provisi
+                                </span>
+                            @else
+                                <span class="text-[11px] text-amber-500">
+                                    ⏳ Menunggu Provisi
+                                </span>
+                            @endif
+                        </div>
                     </flux:table.cell>
 
                     {{-- Aksi --}}
                     <flux:table.cell align="end">
                         <div class="flex items-center justify-end gap-1">
                             @can('update', $layanan)
+                                @if ($layanan->provisioning_status !== \App\Enums\ProvisioningStatus::Success)
+                                    <flux:button
+                                        wire:click="provisionLayanan({{ $layanan->id }})"
+                                        wire:loading.attr="disabled"
+                                        size="sm"
+                                        variant="ghost"
+                                        icon="arrow-up-tray"
+                                        class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                                        title="Provisi PPPoE ke MikroTik"
+                                    />
+                                @endif
+
+                                <flux:button
+                                    wire:click="toggleIsolir({{ $layanan->id }})"
+                                    size="sm"
+                                    variant="ghost"
+                                    :icon="$layanan->status === \App\Enums\StatusLayanan::Suspend ? 'check-circle' : 'no-symbol'"
+                                    :class="$layanan->status === \App\Enums\StatusLayanan::Suspend ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'"
+                                    :title="$layanan->status === \App\Enums\StatusLayanan::Suspend ? 'Buka Isolir (Aktifkan)' : 'Isolir Layanan (Suspend)'"
+                                />
+
                                 <flux:button
                                     :href="route('layanan-pelanggan.edit', $layanan)"
                                     wire:navigate

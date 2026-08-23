@@ -50,7 +50,7 @@
                         <flux:select.option value="">-- Pilih Pelanggan --</flux:select.option>
                         @foreach($pelanggans as $p)
                             <flux:select.option value="{{ $p->id }}">
-                                {{ $p->namaLengkap() }} ({{ $p->no_reg }}) - {{ $p->perumahan?->nama_perumahan ?? 'Umum' }}
+                                {{ $p->labelSelector() }}
                             </flux:select.option>
                         @endforeach
                     </flux:select>
@@ -171,9 +171,8 @@
 
                     <div class="space-y-2 divide-y divide-zinc-100 dark:divide-zinc-700/50">
                         <div class="pt-2">
-                            <div class="text-zinc-500">Nama Pelanggan</div>
-                            <div class="font-semibold text-zinc-900 dark:text-white text-sm">{{ $selectedPelanggan->namaLengkap() }}</div>
-                            <div class="text-zinc-500 font-mono">{{ $selectedPelanggan->no_reg }}</div>
+                            <div class="text-zinc-500">Pelanggan</div>
+                            <div class="font-semibold text-zinc-900 dark:text-white text-sm">{{ $selectedPelanggan->identitasLengkap() }}</div>
                         </div>
 
                         <div class="pt-2">

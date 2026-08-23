@@ -7,6 +7,7 @@ use App\Enums\TipePelanggan;
 use App\Models\Pelanggan;
 use App\Models\Perumahan;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -20,7 +21,6 @@ class Edit extends Component
     #[Locked]
     public int $pelangganId;
 
-    #[Locked]
     public string $no_reg = '';
 
     public string $tipe_pelanggan = 'rumah';
@@ -85,6 +85,7 @@ class Edit extends Component
     protected function rules(): array
     {
         return [
+            'no_reg' => ['required', 'string', 'max:50', Rule::unique('pelanggan', 'no_reg')->ignore($this->pelangganId)],
             'tipe_pelanggan' => ['required', 'string', 'in:rumah,bisnis'],
             'nik' => ['nullable', 'string', 'digits:16'],
             'nama_depan' => ['required', 'string', 'max:100'],
@@ -104,6 +105,22 @@ class Edit extends Component
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    protected function messages(): array
+    {
+        return [
+            'no_reg.required' => 'Nomor Registrasi wajib diisi.',
+            'no_reg.unique' => 'Nomor Registrasi sudah digunakan oleh pelanggan lain.',
+            'nama_depan.required' => 'Nama depan pelanggan wajib diisi.',
+            'no_hp.required' => 'Nomor WhatsApp / HP wajib diisi.',
+            'no_hp.regex' => 'Format nomor HP tidak valid. Gunakan awalan 08 atau +628 (contoh: 08123456789).',
+            'email.email' => 'Format alamat email tidak valid.',
+            'alamat_lengkap.required' => 'Alamat lengkap pemasangan wajib diisi.',
+        ];
+    }
+
     public function save(): void
     {
         $pelanggan = Pelanggan::findOrFail($this->pelangganId);
@@ -111,6 +128,7 @@ class Edit extends Component
         $this->validate();
 
         $pelanggan->update([
+            'no_reg' => strtoupper(trim($this->no_reg)),
             'tipe_pelanggan' => $this->tipe_pelanggan,
             'nik' => $this->nik ?: null,
             'nama_depan' => $this->nama_depan,
@@ -129,7 +147,7 @@ class Edit extends Component
             'status' => $this->status,
         ]);
 
-        Flux::toast(variant: 'success', text: "Data pelanggan {$pelanggan->namaLengkap()} berhasil diperbarui.");
+        Flux::toast(variant: 'success', text: "Data pelanggan {$pelanggan->identitasLengkap()} berhasil diperbarui.");
 
         $this->redirectRoute('pelanggan.index', navigate: true);
     }

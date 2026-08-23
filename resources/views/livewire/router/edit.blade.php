@@ -1,8 +1,41 @@
-<div class="mx-auto max-w-2xl space-y-6">
-    <div>
-        <flux:heading size="xl">Edit Router</flux:heading>
-        <flux:subheading>Perbarui konfigurasi koneksi router {{ $nama_router }}.</flux:subheading>
+<div class="mx-auto max-w-4xl space-y-6" wire:poll.5s>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <flux:heading size="xl">Edit Router</flux:heading>
+            <flux:subheading>Perbarui konfigurasi koneksi router {{ $nama_router }}.</flux:subheading>
+        </div>
+        <div class="flex items-center gap-2">
+            <flux:button wire:click="testConnection" wire:loading.attr="disabled" variant="subtle" icon="bolt">
+                <span wire:loading.remove wire:target="testConnection">Uji Koneksi RouterOS</span>
+                <span wire:loading wire:target="testConnection">Menguji Koneksi...</span>
+            </flux:button>
+            <flux:badge size="md" :color="$router->status_koneksi->color()">
+                {{ $router->status_koneksi->label() }}
+            </flux:badge>
+        </div>
     </div>
+
+    {{-- Kartu Status & Metrik RouterOS --}}
+    @if ($router->last_ping_at || $router->routeros_version)
+        <div class="grid grid-cols-2 gap-4 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 sm:grid-cols-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+            <div>
+                <span class="text-xs text-zinc-500">Versi RouterOS</span>
+                <p class="font-medium text-zinc-800 dark:text-zinc-200">{{ $router->routeros_version ?: '-' }} ({{ $router->board_name ?: 'Unknown' }})</p>
+            </div>
+            <div>
+                <span class="text-xs text-zinc-500">Beban CPU</span>
+                <p class="font-medium text-zinc-800 dark:text-zinc-200">{{ $router->cpu_load !== null ? $router->cpu_load.'%' : '-' }}</p>
+            </div>
+            <div>
+                <span class="text-xs text-zinc-500">Uptime</span>
+                <p class="font-medium text-zinc-800 dark:text-zinc-200">{{ $router->uptime ?: '-' }}</p>
+            </div>
+            <div>
+                <span class="text-xs text-zinc-500">Terakhir Diperiksa</span>
+                <p class="font-medium text-zinc-800 dark:text-zinc-200">{{ $router->last_ping_at ? $router->last_ping_at->diffForHumans() : '-' }}</p>
+            </div>
+        </div>
+    @endif
 
     <flux:separator />
 
@@ -52,4 +85,40 @@
             <flux:button type="submit" variant="primary" icon="check">Perbarui Router</flux:button>
         </div>
     </form>
+
+    {{-- Riwayat Job Integrasi Router Ini --}}
+    @if ($router->jobLogs->isNotEmpty())
+        <div class="space-y-3 pt-6">
+            <div class="flex items-center justify-between">
+                <flux:heading size="lg">Riwayat Log Router Ini</flux:heading>
+                <flux:link :href="route('mikrotik.logs.index', ['filterRouter' => $router->id])" wire:navigate class="text-xs text-indigo-600 dark:text-indigo-400">
+                    Lihat Semua Log Router &rarr;
+                </flux:link>
+            </div>
+            <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <table class="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
+                    <thead class="bg-zinc-50 dark:bg-zinc-900">
+                        <tr>
+                            <th class="px-4 py-2 text-left font-medium text-zinc-500">Waktu</th>
+                            <th class="px-4 py-2 text-left font-medium text-zinc-500">Job</th>
+                            <th class="px-4 py-2 text-left font-medium text-zinc-500">Status</th>
+                            <th class="px-4 py-2 text-left font-medium text-zinc-500">Detail / Pesan</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                        @foreach ($router->jobLogs as $log)
+                            <tr>
+                                <td class="px-4 py-2 text-zinc-500 whitespace-nowrap">{{ $log->created_at->diffForHumans() }}</td>
+                                <td class="px-4 py-2 font-medium">{{ $log->job_type->label() }}</td>
+                                <td class="px-4 py-2">
+                                    <flux:badge size="sm" :color="$log->status->color()">{{ $log->status->label() }}</flux:badge>
+                                </td>
+                                <td class="px-4 py-2 text-zinc-600 dark:text-zinc-400 truncate max-w-xs">{{ $log->error_message ?: 'Sukses' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
 </div>

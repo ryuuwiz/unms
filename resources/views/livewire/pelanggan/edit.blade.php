@@ -2,7 +2,7 @@
     <div class="flex items-center justify-between">
         <div>
             <flux:heading size="xl">Edit Pelanggan</flux:heading>
-            <flux:subheading>Perbarui data pelanggan {{ $pelanggan->namaLengkap() }} ({{ $pelanggan->no_reg }}).</flux:subheading>
+            <flux:subheading>Perbarui data pelanggan {{ $pelanggan->identitasLengkap() }}.</flux:subheading>
         </div>
         <flux:badge size="sm" :color="$pelanggan->status->color()">
             {{ $pelanggan->status->label() }}
@@ -19,7 +19,8 @@
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <flux:field>
                     <flux:label>No. Registrasi</flux:label>
-                    <flux:input :value="$no_reg" disabled class="bg-zinc-100 dark:bg-zinc-800" />
+                    <flux:input wire:model="no_reg" placeholder="Contoh: BF2308202601" />
+                    <flux:error name="no_reg" />
                 </flux:field>
 
                 <flux:field>

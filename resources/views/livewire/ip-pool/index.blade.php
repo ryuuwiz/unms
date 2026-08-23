@@ -62,14 +62,39 @@
                     </flux:table.cell>
 
                     <flux:table.cell>
-                        <flux:badge size="sm" color="zinc">
-                            {{ $pool->priority_tx }} / {{ $pool->priority_rx }}
-                        </flux:badge>
+                        <div class="flex flex-col gap-1">
+                            <flux:badge size="sm" color="zinc">
+                                {{ $pool->priority_tx }} / {{ $pool->priority_rx }}
+                            </flux:badge>
+                            @if ($pool->applied_to_router_at)
+                                <span class="text-[11px] text-emerald-600 dark:text-emerald-400" title="Diterapkan: {{ $pool->applied_to_router_at->format('d/m/Y H:i') }}">
+                                    ✓ Tersinkron
+                                </span>
+                            @elseif ($pool->sync_status === 'failed')
+                                <span class="text-[11px] text-red-500" title="{{ $pool->last_sync_error }}">
+                                    ✗ Gagal Sinkron
+                                </span>
+                            @else
+                                <span class="text-[11px] text-zinc-400">
+                                    Belum diterapkan
+                                </span>
+                            @endif
+                        </div>
                     </flux:table.cell>
 
                     <flux:table.cell align="end">
                         <div class="flex items-center justify-end gap-1">
                             @can('update', $pool)
+                                <flux:button
+                                    wire:click="syncToRouter({{ $pool->id }})"
+                                    wire:loading.attr="disabled"
+                                    size="sm"
+                                    variant="ghost"
+                                    icon="arrow-path"
+                                    class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                                    title="Terapkan ke Router MikroTik"
+                                />
+
                                 <flux:button
                                     :href="route('ip-pool.edit', $pool)"
                                     wire:navigate

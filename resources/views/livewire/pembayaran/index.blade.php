@@ -53,8 +53,7 @@
                                 </a>
                             </td>
                             <td class="px-4 py-3">
-                                <div class="font-medium text-zinc-900 dark:text-white">{{ $bayar->invoice?->pelanggan?->nama_lengkap ?? '-' }}</div>
-                                <div class="text-xs text-zinc-500">{{ $bayar->invoice?->pelanggan?->no_reg }}</div>
+                                <div class="font-medium text-zinc-900 dark:text-white">{{ $bayar->invoice?->pelanggan?->identitasLengkap() ?? '-' }}</div>
                             </td>
                             <td class="px-4 py-3">
                                 <flux:badge size="sm" :color="$bayar->metode->color()">

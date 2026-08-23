@@ -2,6 +2,7 @@
 
 use App\Enums\StatusLayanan;
 use App\Enums\UserStatus;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Livewire\LayananPelanggan\Create;
 use App\Livewire\LayananPelanggan\Index;
 use App\Models\LayananPelanggan;
@@ -14,6 +15,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -38,6 +40,8 @@ beforeEach(function () {
 });
 
 test('admin can create layanan pelanggan through 2-step wizard', function () {
+    Queue::fake([ProvisionPppoeAccountJob::class]);
+
     Livewire::actingAs($this->admin)
         ->test(Create::class)
         // Step 1
@@ -55,6 +59,8 @@ test('admin can create layanan pelanggan through 2-step wizard', function () {
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));
+
+    Queue::assertPushed(ProvisionPppoeAccountJob::class);
 
     $layanan = LayananPelanggan::where('ppp_username', 'user_test_pppoe')->first();
     expect($layanan)->not->toBeNull()

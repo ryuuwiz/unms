@@ -48,6 +48,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property-read Perumahan|null $perumahan
  */
 #[Fillable([
+    'no_reg',
     'tipe_pelanggan',
     'nik',
     'nama_depan',
@@ -255,6 +256,53 @@ class Pelanggan extends Model
     }
 
     /**
+     * Format identitas lengkap pelanggan terpadu (No. Reg_Nama Pelanggan).
+     */
+    public function identitasLengkap(): string
+    {
+        return "{$this->no_reg}_{$this->namaLengkap()}";
+    }
+
+    /**
+     * Accessor atribut identitas_lengkap.
+     */
+    public function getIdentitasLengkapAttribute(): string
+    {
+        return $this->identitasLengkap();
+    }
+
+    /**
+     * Format label untuk dropdown selector dengan informasi sekunder (No. HP & Perumahan).
+     */
+    public function labelSelector(): string
+    {
+        $info = [];
+        if (! empty($this->no_hp)) {
+            $info[] = $this->no_hp;
+        }
+
+        $namaPerumahan = $this->relationLoaded('perumahan')
+            ? $this->perumahan?->nama_perumahan
+            : ($this->perumahan_id ? $this->perumahan?->nama_perumahan : null);
+
+        if (! empty($namaPerumahan)) {
+            $info[] = $namaPerumahan;
+        }
+
+        $suffix = ! empty($info) ? ' ('.implode(' • ', $info).')' : '';
+
+        return "{$this->no_reg}_{$this->namaLengkap()}{$suffix}";
+    }
+
+    /**
+     * Accessor atribut label_selector.
+     */
+    public function getLabelSelectorAttribute(): string
+    {
+        return $this->labelSelector();
+    }
+
+    /**
      * Cek apakah pelanggan berstatus aktif.
      */
     public function isAktif(): bool
@@ -289,27 +337,30 @@ class Pelanggan extends Model
     }
 
     /**
-     * Generate no_reg unik dengan format REG-YYYY-NNNNNN (global sequence).
-     * MariaDB: CAST(... AS UNSIGNED INTEGER).
+     * Generate no_reg unik dengan format [Prefix][DDMMYYYY][Sequence 2-Digit] (contoh: BF2308202601).
      */
-    public static function generateNoReg(): string
+    public static function generateNoReg(?string $prefix = null): string
     {
-        return DB::transaction(function () {
-            $year = now()->year;
+        $cleanPrefix = $prefix ? strtoupper(trim($prefix)) : 'BF';
+        $dateStr = now()->format('dmY');
+
+        return DB::transaction(function () use ($cleanPrefix, $dateStr) {
+            $prefixDate = $cleanPrefix.$dateStr;
+            $pattern = $prefixDate.'%';
 
             $latest = static::withTrashed()
                 ->lockForUpdate()
-                ->where('no_reg', 'like', 'REG-%')
-                ->orderByRaw('CAST(SUBSTRING(no_reg, 12) AS UNSIGNED INTEGER) DESC')
+                ->where('no_reg', 'like', $pattern)
+                ->orderBy('no_reg', 'desc')
                 ->first();
 
             $nextNumber = 1;
 
-            if ($latest && preg_match('/^REG-\d{4}-(\d+)$/', $latest->no_reg, $matches)) {
+            if ($latest && preg_match('/^'.preg_quote($prefixDate, '/').'(\d+)$/', $latest->no_reg, $matches)) {
                 $nextNumber = ((int) $matches[1]) + 1;
             }
 
-            return sprintf('REG-%d-%06d', $year, $nextNumber);
+            return sprintf('%s%02d', $prefixDate, $nextNumber);
         });
     }
 
