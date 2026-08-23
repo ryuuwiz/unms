@@ -3,9 +3,6 @@
 use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusPelanggan;
-use App\Enums\StatusRouter;
-use App\Enums\Ticket\PrioritasTicket;
-use App\Enums\Ticket\StatusTicket;
 use App\Livewire\Dashboard as DashboardComponent;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
@@ -13,7 +10,6 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\Pembayaran;
 use App\Models\Router;
-use App\Models\Ticket;
 use App\Models\User;
 use Database\Seeders\PerusahaanSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -37,15 +33,18 @@ test('tamu diarahkan ke halaman login saat mengakses dashboard', function () {
         ->assertRedirect(route('login'));
 });
 
-test('pengguna terotentikasi dapat melihat dashboard operasional dan metrik', function () {
+test('pengguna terotentikasi dapat melihat dashboard operasional dan metrik baru', function () {
     $this->actingAs($this->user)
         ->get(route('dashboard'))
         ->assertOk()
         ->assertSee('Dashboard Operasional & Billing')
-        ->assertSee('Pendapatan Terkumpul')
-        ->assertSee('Pelanggan Aktif')
-        ->assertSee('Tagihan Menunggu')
-        ->assertSee('Tiket Terbuka & Jaringan');
+        ->assertSee('Total Pelanggan')
+        ->assertSee('Pendapatan Hari Ini')
+        ->assertSee('Pendapatan Bulan Ini')
+        ->assertSee('Tagihan Bulan Ini')
+        ->assertSee('Tren Pendapatan & Transaksi Harian', false)
+        ->assertSee('Transaksi Pembayaran Terbaru')
+        ->assertSee('Pelanggan Expired & Jatuh Tempo', false);
 });
 
 test('komponen dashboard dapat memfilter periode waktu', function () {
@@ -61,41 +60,50 @@ test('komponen dashboard dapat memfilter periode waktu', function () {
         ->assertSet('period', 'all');
 });
 
-test('komponen dashboard menghitung kpi dan data grafik secara akurat', function () {
-    $pelanggan = Pelanggan::factory()->create(['status' => StatusPelanggan::Aktif]);
-    $router = Router::factory()->create(['status_koneksi' => StatusRouter::Online]);
+test('komponen dashboard menghitung kpi, tren harian, dan expired services secara akurat', function () {
+    $pelangganAktif = Pelanggan::factory()->create([
+        'nama_depan' => 'Budi',
+        'nama_belakang' => 'Santoso',
+        'status' => StatusPelanggan::Aktif,
+    ]);
+    $pelangganNonaktif = Pelanggan::factory()->create([
+        'nama_depan' => 'Joko',
+        'nama_belakang' => 'Susilo',
+        'status' => StatusPelanggan::TidakAktif,
+    ]);
+
+    $router = Router::factory()->create();
     $paket = PaketLayanan::factory()->create(['nama_paket' => 'Paket Ultra 50M']);
 
-    $layanan = LayananPelanggan::factory()->create([
-        'pelanggan_id' => $pelanggan->id,
+    // Layanan aktif & expired kemarin
+    $layananExpired = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $pelangganAktif->id,
         'paket_layanan_id' => $paket->id,
         'router_id' => $router->id,
+        'tanggal_expired' => now()->subDay()->toDateString(),
     ]);
 
     $invoice = Invoice::factory()->create([
-        'pelanggan_id' => $pelanggan->id,
-        'layanan_pelanggan_id' => $layanan->id,
-        'jumlah' => 300000,
-        'jumlah_setelah_promo' => 300000,
+        'pelanggan_id' => $pelangganAktif->id,
+        'layanan_pelanggan_id' => $layananExpired->id,
+        'jumlah' => 350000,
+        'jumlah_setelah_promo' => 350000,
+        'tanggal_terbit' => now(),
         'status' => StatusInvoice::Lunas,
     ]);
 
     Pembayaran::factory()->create([
         'invoice_id' => $invoice->id,
-        'jumlah_dibayar' => 300000,
+        'jumlah_dibayar' => 350000,
         'metode' => MetodePembayaran::ManualAdmin,
         'dibayar_pada' => now(),
-    ]);
-
-    Ticket::factory()->create([
-        'pelanggan_id' => $pelanggan->id,
-        'status' => StatusTicket::Baru,
-        'prioritas' => PrioritasTicket::Tinggi,
     ]);
 
     Livewire::actingAs($this->user)
         ->test(DashboardComponent::class)
         ->assertOk()
-        ->assertSee('300.000')
-        ->assertSee('Paket Ultra 50M');
+        ->assertSee('350.000')
+        ->assertSee('Paket Ultra 50M')
+        ->assertSee('Budi Santoso')
+        ->assertSee('Expired');
 });

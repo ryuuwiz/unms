@@ -4,15 +4,10 @@ namespace App\Livewire;
 
 use App\Enums\StatusInvoice;
 use App\Enums\StatusPelanggan;
-use App\Enums\StatusRouter;
-use App\Enums\Ticket\PrioritasTicket;
-use App\Enums\Ticket\StatusTicket;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\Pelanggan;
 use App\Models\Pembayaran;
-use App\Models\Router;
-use App\Models\Ticket;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -76,94 +71,135 @@ class Dashboard extends Component
      */
     public function getKpisProperty(): array
     {
-        [$startDate, $endDate, $prevStartDate, $prevEndDate] = $this->getDateRange();
+        $now = now();
 
-        // 1. Revenue
-        $revenue = (float) Pembayaran::whereBetween('dibayar_pada', [$startDate, $endDate])->sum('jumlah_dibayar');
-        $prevRevenue = (float) Pembayaran::whereBetween('dibayar_pada', [$prevStartDate, $prevEndDate])->sum('jumlah_dibayar');
-
-        $revenueGrowth = 0.0;
-        if ($prevRevenue > 0) {
-            $revenueGrowth = round((($revenue - $prevRevenue) / $prevRevenue) * 100, 1);
-        } elseif ($revenue > 0) {
-            $revenueGrowth = 100.0;
-        }
-
-        // 2. Invoices & Unpaid
-        $unpaidInvoices = Invoice::where('status', StatusInvoice::MenungguPembayaran);
-        $unpaidAmount = (float) $unpaidInvoices->sum('jumlah_setelah_promo');
-        $unpaidCount = $unpaidInvoices->count();
-        $overdueCount = Invoice::where('status', StatusInvoice::MenungguPembayaran)
-            ->where('tanggal_jatuh_tempo', '<', now()->startOfDay())
-            ->count();
-
-        // 3. Customers
+        // 1. Total Pelanggan & Breakdown
         $totalCustomers = Pelanggan::count();
         $activeCustomers = Pelanggan::where('status', StatusPelanggan::Aktif)->count();
+        $inactiveCustomers = Pelanggan::where('status', StatusPelanggan::TidakAktif)->count();
         $prospectCustomers = Pelanggan::where('status', StatusPelanggan::Prospek)->count();
-        $newCustomers = Pelanggan::whereBetween('created_at', [$startDate, $endDate])->count();
 
-        // 4. Tickets & Infrastructure
-        $openTickets = Ticket::whereIn('status', [
-            StatusTicket::Baru,
-            StatusTicket::Diproses,
-            StatusTicket::MenungguKonfirmasi,
+        // 2. Pendapatan Hari Ini vs Kemarin
+        $todayStart = $now->copy()->startOfDay();
+        $todayEnd = $now->copy()->endOfDay();
+        $yesterdayStart = $now->copy()->subDay()->startOfDay();
+        $yesterdayEnd = $now->copy()->subDay()->endOfDay();
+
+        $todayRevenue = (float) Pembayaran::whereBetween('dibayar_pada', [$todayStart, $todayEnd])->sum('jumlah_dibayar');
+        $yesterdayRevenue = (float) Pembayaran::whereBetween('dibayar_pada', [$yesterdayStart, $yesterdayEnd])->sum('jumlah_dibayar');
+
+        $todayGrowth = 0.0;
+        if ($yesterdayRevenue > 0) {
+            $todayGrowth = round((($todayRevenue - $yesterdayRevenue) / $yesterdayRevenue) * 100, 1);
+        } elseif ($todayRevenue > 0) {
+            $todayGrowth = 100.0;
+        }
+
+        // 3. Pendapatan Bulan Ini vs Bulan Lalu
+        $monthStart = $now->copy()->startOfMonth();
+        $monthEnd = $now->copy()->endOfMonth();
+        $prevMonthStart = $now->copy()->subMonth()->startOfMonth();
+        $prevMonthEnd = $now->copy()->subMonth()->endOfMonth();
+
+        $monthRevenue = (float) Pembayaran::whereBetween('dibayar_pada', [$monthStart, $monthEnd])->sum('jumlah_dibayar');
+        $prevMonthRevenue = (float) Pembayaran::whereBetween('dibayar_pada', [$prevMonthStart, $prevMonthEnd])->sum('jumlah_dibayar');
+
+        $monthGrowth = 0.0;
+        if ($prevMonthRevenue > 0) {
+            $monthGrowth = round((($monthRevenue - $prevMonthRevenue) / $prevMonthRevenue) * 100, 1);
+        } elseif ($monthRevenue > 0) {
+            $monthGrowth = 100.0;
+        }
+
+        // 4. Ringkasan Tagihan Bulan Ini
+        $thisMonthInvoices = Invoice::whereBetween('tanggal_terbit', [$monthStart, $monthEnd]);
+        $thisMonthBilled = (float) (clone $thisMonthInvoices)->sum('jumlah_setelah_promo');
+        $thisMonthPaid = (float) (clone $thisMonthInvoices)->where('status', StatusInvoice::Lunas)->sum('jumlah_setelah_promo');
+        $thisMonthUnpaid = (float) (clone $thisMonthInvoices)->where('status', StatusInvoice::MenungguPembayaran)->sum('jumlah_setelah_promo');
+        $thisMonthPaidCount = (int) (clone $thisMonthInvoices)->where('status', StatusInvoice::Lunas)->count();
+        $thisMonthUnpaidCount = (int) (clone $thisMonthInvoices)->where('status', StatusInvoice::MenungguPembayaran)->count();
+
+        $collectionRate = $thisMonthBilled > 0
+            ? round(($thisMonthPaid / $thisMonthBilled) * 100, 1)
+            : 0.0;
+
+        // 5. Layanan Expired & Mendekati Jatuh Tempo
+        $expiredCount = LayananPelanggan::where('tanggal_expired', '<=', $now->copy()->endOfDay())->count();
+        $expiringSoonCount = LayananPelanggan::whereBetween('tanggal_expired', [
+            $now->copy()->addDay()->startOfDay(),
+            $now->copy()->addDays(7)->endOfDay(),
         ])->count();
 
-        $criticalTickets = Ticket::whereIn('status', [StatusTicket::Baru, StatusTicket::Diproses])
-            ->whereIn('prioritas', [PrioritasTicket::Tinggi, PrioritasTicket::Darurat])
-            ->count();
-
-        $totalRouters = Router::count();
-        $onlineRouters = Router::where('status_koneksi', StatusRouter::Online)->count();
-
         return [
-            'revenue' => $revenue,
-            'prev_revenue' => $prevRevenue,
-            'revenue_growth' => $revenueGrowth,
-            'unpaid_amount' => $unpaidAmount,
-            'unpaid_count' => $unpaidCount,
-            'overdue_count' => $overdueCount,
             'total_customers' => $totalCustomers,
             'active_customers' => $activeCustomers,
+            'inactive_customers' => $inactiveCustomers,
             'prospect_customers' => $prospectCustomers,
-            'new_customers' => $newCustomers,
-            'open_tickets' => $openTickets,
-            'critical_tickets' => $criticalTickets,
-            'total_routers' => $totalRouters,
-            'online_routers' => $onlineRouters,
+
+            'today_revenue' => $todayRevenue,
+            'yesterday_revenue' => $yesterdayRevenue,
+            'today_growth' => $todayGrowth,
+
+            'month_revenue' => $monthRevenue,
+            'prev_month_revenue' => $prevMonthRevenue,
+            'month_growth' => $monthGrowth,
+
+            'this_month_billed' => $thisMonthBilled,
+            'this_month_paid' => $thisMonthPaid,
+            'this_month_unpaid' => $thisMonthUnpaid,
+            'this_month_paid_count' => $thisMonthPaidCount,
+            'this_month_unpaid_count' => $thisMonthUnpaidCount,
+            'collection_rate' => $collectionRate,
+
+            'expired_count' => $expiredCount,
+            'expiring_soon_count' => $expiringSoonCount,
         ];
     }
 
     /**
-     * 12-Month Revenue & Billed Trend.
+     * Daily Revenue & Transaction Count Trend (Dual-Axis Chart for this month or selected period).
      *
-     * @return array{categories: array<string>, revenue: array<float>, billed: array<float>}
+     * @return array{categories: array<string>, revenue: array<float>, transactions: array<int>}
      */
-    public function getRevenueChartDataProperty(): array
+    public function getDailyTrendChartDataProperty(): array
     {
         $categories = [];
         $revenueData = [];
-        $billedData = [];
+        $transactionData = [];
 
-        for ($i = 11; $i >= 0; $i--) {
-            $month = now()->subMonths($i);
-            $start = $month->copy()->startOfMonth();
-            $end = $month->copy()->endOfMonth();
+        // Generate daily data points for the current month
+        $start = now()->startOfMonth();
+        $end = now()->endOfMonth();
+        $current = $start;
 
-            $categories[] = $month->translatedFormat('M Y');
+        $payments = Pembayaran::query()
+            ->whereBetween('dibayar_pada', [$start->startOfDay(), now()->endOfDay()])
+            ->selectRaw('DATE(dibayar_pada) as payment_date, SUM(jumlah_dibayar) as total_revenue, COUNT(*) as total_trx')
+            ->groupByRaw('DATE(dibayar_pada)')
+            ->get()
+            ->keyBy(fn ($item) => Carbon::parse($item->payment_date)->format('Y-m-d'));
 
-            $rev = (float) Pembayaran::whereBetween('dibayar_pada', [$start, $end])->sum('jumlah_dibayar');
-            $billed = (float) Invoice::whereBetween('tanggal_terbit', [$start, $end])->sum('jumlah_setelah_promo');
+        while ($current->lte($end)) {
+            $categories[] = $current->translatedFormat('d M');
+            $dateKey = $current->format('Y-m-d');
 
-            $revenueData[] = $rev;
-            $billedData[] = $billed;
+            // If day is in the future, don't query future data, leave 0 or actual
+            if ($current->isFuture() && ! $current->isToday()) {
+                $revenueData[] = 0.0;
+                $transactionData[] = 0;
+            } else {
+                $dayPayment = $payments->get($dateKey);
+                $revenueData[] = (float) ($dayPayment->total_revenue ?? 0.0);
+                $transactionData[] = (int) ($dayPayment->total_trx ?? 0);
+            }
+
+            $current = $current->addDay();
         }
 
         return [
             'categories' => $categories,
             'revenue' => $revenueData,
-            'billed' => $billedData,
+            'transactions' => $transactionData,
         ];
     }
 
@@ -196,33 +232,6 @@ class Dashboard extends Component
     }
 
     /**
-     * Ticket volume breakdown by type (Bar chart).
-     *
-     * @return array{categories: array<string>, series: array<int>}
-     */
-    public function getTicketChartDataProperty(): array
-    {
-        $types = [
-            'pemasangan' => 'Pemasangan',
-            'gangguan' => 'Gangguan',
-            'pindah_alamat' => 'Pindah Alamat',
-            'pencabutan' => 'Pencabutan',
-        ];
-
-        $categories = array_values($types);
-        $series = [];
-
-        foreach (array_keys($types) as $type) {
-            $series[] = Ticket::where('jenis', $type)->count();
-        }
-
-        return [
-            'categories' => $categories,
-            'series' => $series,
-        ];
-    }
-
-    /**
      * Recent payments (5 latest).
      */
     public function getRecentPaymentsProperty(): Collection
@@ -234,19 +243,14 @@ class Dashboard extends Component
     }
 
     /**
-     * Urgent tickets requiring attention.
+     * Expired & Expiring Soon Services (within 7 days).
      */
-    public function getUrgentTicketsProperty(): Collection
+    public function getExpiredServicesProperty(): Collection
     {
-        return Ticket::with(['pelanggan', 'pic'])
-            ->whereIn('status', [StatusTicket::Baru, StatusTicket::Diproses])
-            ->orderByRaw("CASE 
-                WHEN prioritas = 'darurat' THEN 1 
-                WHEN prioritas = 'tinggi' THEN 2 
-                WHEN prioritas = 'sedang' THEN 3 
-                ELSE 4 END")
-            ->latest()
-            ->take(5)
+        return LayananPelanggan::with(['pelanggan', 'paketLayanan', 'router'])
+            ->where('tanggal_expired', '<=', now()->addDays(7)->endOfDay())
+            ->orderBy('tanggal_expired', 'asc')
+            ->take(6)
             ->get();
     }
 
@@ -254,11 +258,10 @@ class Dashboard extends Component
     {
         return view('livewire.dashboard', [
             'kpis' => $this->kpis,
-            'revenueChart' => $this->revenueChartData,
+            'dailyTrendChart' => $this->dailyTrendChartData,
             'paketChart' => $this->paketChartData,
-            'ticketChart' => $this->ticketChartData,
             'recentPayments' => $this->recentPayments,
-            'urgentTickets' => $this->urgentTickets,
+            'expiredServices' => $this->expiredServices,
         ]);
     }
 }

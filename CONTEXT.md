@@ -168,4 +168,16 @@ _Avoid_: Box Angka Bebas, Card Mentah, Stat Lepas
 Komponen visualisasi data interaktif berbasis ApexCharts yang terintegrasi dengan Alpine.js dan Livewire 4, mendukung tema dark-mode otomatis untuk menampilkan tren pendapatan 12-bulan, proporsi paket layanan, dan beban tiket operasional.
 _Avoid_: Gambar Grafik Statis, Chart Canvas Tanpa Reaktivitas
 
+**Collection Rate**:
+Rasio efektivitas penagihan dalam persentase yang dihitung dari perbandingan nominal tagihan lunas terhadap total nominal tagihan yang diterbitkan pada periode tertentu.
+_Avoid_: Persen Bayar Bebas, Efektivitas Kas
+
+**Layanan Expired**:
+Layanan pelanggan yang telah melewati tanggal jatuh tempo masa aktif paket (`tanggal_expired <= now()`) atau berada dalam masa tenggang menjelang jatuh tempo (H-7) dan belum dilakukan pelunasan tagihan perpanjangan.
+_Avoid_: Member Hangus, Langganan Mati, Akun Basi
+
+**Tren Pendapatan Harian**:
+Visualisasi grafik sumbu-ganda (*dual-axis*) harian selama bulan berjalan yang memadukan kurva nominal pendapatan (Rp) pada sumbu primer dan jumlah volume transaksi berhasil pada sumbu sekunder.
+_Avoid_: Grafik Omzet Harian Lepas, Chart Transaksi Terpisah
+
 
