@@ -257,6 +257,8 @@ class MikrotikService
                 ? (string) $layanan->ip_static
                 : null;
 
+            $isDisabled = ($layanan->status === StatusLayanan::Suspend) ? 'yes' : 'no';
+
             // 4. Cek apakah secret sudah ada di RouterOS
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
             $existing = $client->query($findQuery)->read();
@@ -270,7 +272,7 @@ class MikrotikService
                     ->equal('service', 'pppoe')
                     ->equal('profile', $profileName)
                     ->equal('comment', $comment)
-                    ->equal('disabled', 'no');
+                    ->equal('disabled', $isDisabled);
 
                 if ($staticIp !== null) {
                     $setQuery->equal('remote-address', $staticIp);
@@ -312,7 +314,7 @@ class MikrotikService
                     ->equal('service', 'pppoe')
                     ->equal('profile', $profileName)
                     ->equal('comment', $comment)
-                    ->equal('disabled', 'no');
+                    ->equal('disabled', $isDisabled);
 
                 if ($staticIp !== null) {
                     $addQuery->equal('remote-address', $staticIp);
@@ -423,7 +425,7 @@ class MikrotikService
             return true;
         } catch (Throwable $e) {
             throw new MikrotikException(
-                "Gagal menonaktifkan PPPoE {$layanan->ppp_username} pada router {$router->nama_router}: {$e->getMessage()}",
+                "Gagal memutuskan sesi aktif PPPoE {$username} pada router {$router->nama_router}: {$e->getMessage()}",
                 (int) $e->getCode(),
                 $e
             );
@@ -462,22 +464,69 @@ class MikrotikService
     }
 
     /**
-     * Hapus PPPoE Secret dari RouterOS berdasarkan nama username.
+     * Putus seluruh sesi aktif PPPoE pada router.
      *
-     * Operasi ini idempoten: mengembalikan false jika secret tidak ditemukan,
-     * true jika berhasil dihapus. Digunakan untuk cleanup username lama
-     * sebelum provisioning username baru saat migrasi format ppp_username.
+     * @return int Jumlah sesi yang berhasil diputus
      *
      * @throws MikrotikException
      */
-    public function deletePppoeSecret(Router $router, string $username): bool
+    public function removeAllActiveSessions(Router $router): int
     {
         try {
             $client = $this->getClient($router);
+            $actives = $client->query(new Query('/ppp/active/print'))->read();
+
+            if (empty($actives)) {
+                return 0;
+            }
+
+            $count = 0;
+            foreach ($actives as $active) {
+                if (isset($active['.id'])) {
+                    $removeQuery = (new Query('/ppp/active/remove'))->equal('.id', $active['.id']);
+                    $client->query($removeQuery)->read();
+                    $count++;
+                }
+            }
+
+            return $count;
+        } catch (Throwable $e) {
+            throw new MikrotikException(
+                "Gagal memutuskan seluruh sesi aktif PPPoE pada router {$router->nama_router}: {$e->getMessage()}",
+                (int) $e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
+     * Hapus PPPoE Secret dari RouterOS berdasarkan nama username atau model LayananPelanggan.
+     *
+     * Operasi ini idempoten: mengembalikan false jika secret tidak ditemukan,
+     * true jika berhasil dihapus. Digunakan untuk cleanup username lama
+     * sebelum provisioning username baru saat migrasi format ppp_username,
+     * atau saat layanan dihapus.
+     *
+     * @throws MikrotikException
+     */
+    public function deletePppoeSecret(Router $router, LayananPelanggan|string $target): bool
+    {
+        try {
+            $username = $target instanceof LayananPelanggan ? $target->ppp_username : $target;
+            $client = $this->getClient($router);
+
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
             $existing = $client->query($findQuery)->read();
 
             if (empty($existing) || ! isset($existing[0]['.id'])) {
+                if ($target instanceof LayananPelanggan) {
+                    $target->update([
+                        'terprovisi_pada' => null,
+                        'provisioning_status' => ProvisioningStatus::Pending,
+                        'last_provisioning_error' => null,
+                    ]);
+                }
+
                 return false;
             }
 
@@ -488,8 +537,21 @@ class MikrotikService
                 }
             }
 
+            // Putus sesi aktif jika ada
+            $this->removeActiveSession($router, $username);
+
+            if ($target instanceof LayananPelanggan) {
+                $target->update([
+                    'terprovisi_pada' => null,
+                    'provisioning_status' => ProvisioningStatus::Pending,
+                    'last_provisioning_error' => null,
+                ]);
+            }
+
             return true;
         } catch (Throwable $e) {
+            $username = $target instanceof LayananPelanggan ? $target->ppp_username : $target;
+
             throw new MikrotikException(
                 "Gagal menghapus PPPoE secret '{$username}' pada router {$router->nama_router}: {$e->getMessage()}",
                 (int) $e->getCode(),
@@ -591,15 +653,29 @@ class MikrotikService
     }
 
     /**
-     * Rekonsiliasi & Auto-Recovery data PPP Secret dan Profile di RouterOS.
-     * Memeriksa seluruh layanan aktif di UNMS yang terhubung ke router ini.
-     * Jika akun belum ada atau hilang di RouterOS, otomatis diprovisi ulang (auto-recover).
+     * Auto-Recover & Reconcile Seluruh Profil Bandwidth (PPP Profile) & PPP Secret di RouterOS dari UNMS.
+     *
+     * Pipeline Pemulihan Otomatis:
+     * 1. Auto-Recover Profil Bandwidth (PPP Profile) jika hilang atau konfigurasi berubah di RouterOS.
+     * 2. Auto-Recover PPP Secret jika hilang/terhapus, salah profil, salah IP statis, atau salah password.
+     * 3. Sinkronisasikan status isolir (disabled).
+     * 4. Hapus entri duplikat di RouterOS.
      *
      * @return array{
+     *     profiles: array{total: int, synced: int, errors: array<string>},
+     *     secrets: array{
+     *         total_checked: int,
+     *         recovered: int,
+     *         already_synced: int,
+     *         disabled: int,
+     *         duplicates_removed: int,
+     *         errors: array<string>
+     *     },
      *     total_checked: int,
      *     recovered: int,
      *     already_synced: int,
      *     disabled: int,
+     *     duplicates_removed: int,
      *     errors: array<string>
      * }
      *
@@ -609,11 +685,17 @@ class MikrotikService
     {
         $client = $this->getClient($router);
 
-        // 1. Pastikan seluruh profil bandwidth up-to-date di RouterOS
+        // 1. Auto-recover seluruh profil bandwidth (PPP Profile) di RouterOS
+        $profileStats = [
+            'total' => 0,
+            'synced' => 0,
+            'errors' => [],
+        ];
+
         try {
-            $this->syncAllBandwidthProfiles($router);
+            $profileStats = $this->syncAllBandwidthProfiles($router);
         } catch (Throwable $e) {
-            // Lanjutkan jika ada kegagalan minor profil
+            $profileStats['errors'][] = $e->getMessage();
         }
 
         // 2. Ambil seluruh PPP secrets yang ada di RouterOS saat ini
@@ -648,7 +730,7 @@ class MikrotikService
             }
         }
 
-        // 2. Ambil seluruh layanan pelanggan UNMS yang terhubung ke router ini
+        // 3. Ambil seluruh layanan pelanggan UNMS yang terhubung ke router ini
         $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan', 'ipPool'])
             ->where('router_id', $router->id)
             ->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Suspend, StatusLayanan::Proses])
@@ -671,12 +753,13 @@ class MikrotikService
             }
 
             $expectedProfile = $profil->nama_bandwidth;
+            $expectedPassword = (string) $layanan->ppp_password_terenkripsi;
             $expectedStaticIp = ! empty($layanan->ip_static) && filter_var($layanan->ip_static, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
                 ? (string) $layanan->ip_static
                 : '';
             $remote = $remoteSecrets[$username] ?? null;
 
-            // Periksa apakah secret hilang, profile berbeda, atau remote-address (IP statis) tidak sesuai
+            // Periksa apakah secret hilang, profile berbeda, password berbeda, atau remote-address (IP statis) tidak sesuai
             $needsRecovery = false;
 
             if ($remote === null) {
@@ -687,6 +770,9 @@ class MikrotikService
                 $needsRecovery = true;
             } elseif (($remote['remote-address'] ?? '') !== $expectedStaticIp) {
                 // Remote-address di RouterOS tidak sesuai dengan konfigurasi IP Statis UNMS
+                $needsRecovery = true;
+            } elseif (isset($remote['password']) && $remote['password'] !== $expectedPassword) {
+                // Password di RouterOS tidak sesuai dengan UNMS
                 $needsRecovery = true;
             }
 
@@ -727,12 +813,21 @@ class MikrotikService
         }
 
         return [
+            'profiles' => $profileStats,
+            'secrets' => [
+                'total_checked' => $layanans->count(),
+                'recovered' => $recovered,
+                'already_synced' => $alreadySynced,
+                'disabled' => $disabledCount,
+                'duplicates_removed' => $duplicatesRemoved,
+                'errors' => $errors,
+            ],
             'total_checked' => $layanans->count(),
             'recovered' => $recovered,
             'already_synced' => $alreadySynced,
             'disabled' => $disabledCount,
             'duplicates_removed' => $duplicatesRemoved,
-            'errors' => $errors,
+            'errors' => array_merge($profileStats['errors'], $errors),
         ];
     }
 

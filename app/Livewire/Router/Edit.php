@@ -122,15 +122,19 @@ class Edit extends Component
                 'finished_at' => now(),
             ]);
 
+            $profileStats = $stats['profiles'] ?? [];
+            $profileSynced = $profileStats['synced'] ?? 0;
+            $profileTotal = $profileStats['total'] ?? 0;
+
             if (($stats['recovered'] ?? 0) > 0) {
                 Flux::toast(
                     variant: 'success',
-                    text: "Auto-Recovery berhasil: {$stats['recovered']} akun dipulihkan/disinkronkan, {$stats['already_synced']} sudah sesuai."
+                    text: "Auto-Recovery berhasil: {$profileSynced}/{$profileTotal} profil disinkronkan, {$stats['recovered']} akun dipulihkan/disinkronkan, {$stats['already_synced']} sudah sesuai."
                 );
             } else {
                 Flux::toast(
                     variant: 'info',
-                    text: "Seluruh {$stats['total_checked']} akun PPPoE di router sudah lengkap dan sinkron."
+                    text: "Auto-Recovery selesai: {$profileSynced}/{$profileTotal} profil & seluruh {$stats['total_checked']} akun PPPoE di router sudah lengkap dan sinkron."
                 );
             }
         } catch (\Throwable $e) {
