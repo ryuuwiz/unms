@@ -56,25 +56,26 @@ test('provisionRouterFull executes complete pipeline and logs success', function
 
     $mockService->shouldReceive('testConnection')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), 5)
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any(), Mockery::any())
         ->andReturn(['status' => 'success']);
 
     $mockService->shouldReceive('syncIpPool')
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            Mockery::on(fn ($p) => $p->id === $pool->id)
+            Mockery::on(fn ($p) => $p->id === $pool->id),
+            Mockery::any()
         )
         ->andReturn(['status' => 'success']);
 
     $mockService->shouldReceive('syncAllBandwidthProfiles')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id))
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any())
         ->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
 
     $mockService->shouldReceive('autoRecoverPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id))
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any())
         ->andReturn([
             'total_checked' => 1,
             'recovered' => 1,
@@ -85,7 +86,7 @@ test('provisionRouterFull executes complete pipeline and logs success', function
 
     $mockService->shouldReceive('cleanOrphanedPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), false)
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), false, Mockery::any())
         ->andReturn([
             'total_checked' => 1,
             'orphans_count' => 0,

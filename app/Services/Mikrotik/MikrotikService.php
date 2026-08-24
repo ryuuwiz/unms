@@ -28,7 +28,7 @@ class MikrotikService
      *
      * @throws MikrotikConnectionException
      */
-    public function getClient(Router $router, int $timeout = 5): Client
+    public function getClient(Router $router, int $timeout = 10): Client
     {
         try {
             $config = new Config([
@@ -57,10 +57,10 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function testConnection(Router $router, int $timeout = 4): array
+    public function testConnection(Router $router, int $timeout = 6, ?Client $client = null): array
     {
         try {
-            $client = $this->getClient($router, $timeout);
+            $client = $client ?? $this->getClient($router, $timeout);
             $query = new Query('/system/resource/print');
             $response = $client->query($query)->read();
 
@@ -141,9 +141,9 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function getSystemResource(Router $router): array
+    public function getSystemResource(Router $router, ?Client $client = null): array
     {
-        $client = $this->getClient($router);
+        $client = $client ?? $this->getClient($router);
         $query = new Query('/system/resource/print');
         $response = $client->query($query)->read();
 
@@ -159,7 +159,7 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function ensurePppProfile(Router $router, ProfilBandwidth $profil): string
+    public function ensurePppProfile(Router $router, ProfilBandwidth $profil, ?Client $client = null): string
     {
         if (empty($profil->nama_bandwidth)) {
             throw new MikrotikException('Nama profil bandwidth di UNMS kosong. Sinkronisasi PPP Profile dibatalkan.');
@@ -170,7 +170,7 @@ class MikrotikService
         $comment = "UNMS: {$profil->nama_bandwidth} ({$profil->labelKecepatan()})";
 
         try {
-            $client = $this->getClient($router);
+            $client = $client ?? $this->getClient($router);
             $findQuery = (new Query('/ppp/profile/print'))->where('name', $profileName);
             $existing = $client->query($findQuery)->read();
 
@@ -221,7 +221,7 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function createOrUpdatePppoeSecret(Router $router, LayananPelanggan $layanan): array
+    public function createOrUpdatePppoeSecret(Router $router, LayananPelanggan $layanan, ?Client $client = null): array
     {
         try {
             $username = trim((string) $layanan->ppp_username);
@@ -244,8 +244,8 @@ class MikrotikService
                 throw new MikrotikException("Layanan {$username} tidak memiliki paket layanan atau profil bandwidth yang valid di UNMS. Provisi dibatalkan.");
             }
 
-            $client = $this->getClient($router);
-            $profileName = $this->ensurePppProfile($router, $profil);
+            $client = $client ?? $this->getClient($router);
+            $profileName = $this->ensurePppProfile($router, $profil, $client);
 
             $pelangganNama = $layanan->pelanggan ? $layanan->pelanggan->nama_depan.' '.$layanan->pelanggan->nama_belakang : 'Pelanggan';
             $comment = "UNMS: {$layanan->site_id} - {$pelangganNama}";
@@ -375,10 +375,10 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function enablePppoeSecret(Router $router, LayananPelanggan $layanan): bool
+    public function enablePppoeSecret(Router $router, LayananPelanggan $layanan, ?Client $client = null): bool
     {
         try {
-            $client = $this->getClient($router);
+            $client = $client ?? $this->getClient($router);
             $username = $layanan->ppp_username;
 
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
@@ -386,7 +386,7 @@ class MikrotikService
 
             if (empty($existing) || ! isset($existing[0]['.id'])) {
                 // Jika secret belum ada, lakukan provisi penuh
-                $this->createOrUpdatePppoeSecret($router, $layanan);
+                $this->createOrUpdatePppoeSecret($router, $layanan, $client);
 
                 return true;
             }
@@ -417,10 +417,10 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function disablePppoeSecret(Router $router, LayananPelanggan $layanan, bool $disconnectActive = true): bool
+    public function disablePppoeSecret(Router $router, LayananPelanggan $layanan, bool $disconnectActive = true, ?Client $client = null): bool
     {
         try {
-            $client = $this->getClient($router);
+            $client = $client ?? $this->getClient($router);
             $username = $layanan->ppp_username;
 
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
@@ -436,7 +436,7 @@ class MikrotikService
             }
 
             if ($disconnectActive) {
-                $this->removeActiveSession($router, $username);
+                $this->removeActiveSession($router, $username, $client);
             }
 
             return true;
@@ -454,10 +454,10 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function removeActiveSession(Router $router, string $username): bool
+    public function removeActiveSession(Router $router, string $username, ?Client $client = null): bool
     {
         try {
-            $client = $this->getClient($router);
+            $client = $client ?? $this->getClient($router);
             $findQuery = (new Query('/ppp/active/print'))->where('name', $username);
             $actives = $client->query($findQuery)->read();
 
@@ -487,10 +487,10 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function removeAllActiveSessions(Router $router): int
+    public function removeAllActiveSessions(Router $router, ?Client $client = null): int
     {
         try {
-            $client = $this->getClient($router);
+            $client = $client ?? $this->getClient($router);
             $actives = $client->query(new Query('/ppp/active/print'))->read();
 
             if (empty($actives)) {
@@ -526,11 +526,11 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function deletePppoeSecret(Router $router, LayananPelanggan|string $target): bool
+    public function deletePppoeSecret(Router $router, LayananPelanggan|string $target, ?Client $client = null): bool
     {
         try {
             $username = $target instanceof LayananPelanggan ? $target->ppp_username : $target;
-            $client = $this->getClient($router);
+            $client = $client ?? $this->getClient($router);
 
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
             $existing = $client->query($findQuery)->read();
@@ -555,7 +555,7 @@ class MikrotikService
             }
 
             // Putus sesi aktif jika ada
-            $this->removeActiveSession($router, $username);
+            $this->removeActiveSession($router, $username, $client);
 
             if ($target instanceof LayananPelanggan) {
                 $target->update([
@@ -584,10 +584,10 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function syncIpPool(Router $router, IpPool $ipPool): array
+    public function syncIpPool(Router $router, IpPool $ipPool, ?Client $client = null): array
     {
         try {
-            $client = $this->getClient($router);
+            $client = $client ?? $this->getClient($router);
             $poolName = $ipPool->nama_pool;
             $poolRanges = "{$ipPool->rentang_ip_awal}-{$ipPool->rentang_ip_akhir}";
             $queueName = "POOL-{$poolName}";
@@ -698,14 +698,14 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function autoRecoverPppSecrets(Router $router): array
+    public function autoRecoverPppSecrets(Router $router, ?Client $client = null): array
     {
-        $client = $this->getClient($router);
+        $client = $client ?? $this->getClient($router);
 
         // 1. Auto-recover seluruh IP Pool milik router ini di RouterOS
         foreach ($router->ipPools as $pool) {
             try {
-                $this->syncIpPool($router, $pool);
+                $this->syncIpPool($router, $pool, $client);
             } catch (Throwable $e) {
                 // Lanjutkan jika sinkronisasi pool terhambat
             }
@@ -719,7 +719,7 @@ class MikrotikService
         ];
 
         try {
-            $profileStats = $this->syncAllBandwidthProfiles($router);
+            $profileStats = $this->syncAllBandwidthProfiles($router, $client);
         } catch (Throwable $e) {
             $profileStats['errors'][] = $e->getMessage();
         }
@@ -806,10 +806,10 @@ class MikrotikService
 
             if ($needsRecovery) {
                 try {
-                    $this->createOrUpdatePppoeSecret($router, $layanan);
+                    $this->createOrUpdatePppoeSecret($router, $layanan, $client);
 
                     if ($layanan->status === StatusLayanan::Suspend) {
-                        $this->disablePppoeSecret($router, $layanan, false);
+                        $this->disablePppoeSecret($router, $layanan, false, $client);
                         $disabledCount++;
                     }
 
@@ -825,10 +825,10 @@ class MikrotikService
                 if ($isCurrentlyDisabled !== $shouldBeDisabled) {
                     try {
                         if ($shouldBeDisabled) {
-                            $this->disablePppoeSecret($router, $layanan, true);
+                            $this->disablePppoeSecret($router, $layanan, true, $client);
                             $disabledCount++;
                         } else {
-                            $this->enablePppoeSecret($router, $layanan);
+                            $this->enablePppoeSecret($router, $layanan, $client);
                         }
                         $recovered++;
                     } catch (Throwable $e) {
@@ -866,7 +866,7 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function syncAllBandwidthProfiles(Router $router): array
+    public function syncAllBandwidthProfiles(Router $router, ?Client $client = null): array
     {
         $profils = ProfilBandwidth::all();
         $synced = 0;
@@ -874,7 +874,7 @@ class MikrotikService
 
         foreach ($profils as $profil) {
             try {
-                $this->ensurePppProfile($router, $profil);
+                $this->ensurePppProfile($router, $profil, $client);
                 $synced++;
             } catch (Throwable $e) {
                 $errors[] = "Gagal sinkron profil {$profil->nama_bandwidth}: {$e->getMessage()}";
@@ -903,10 +903,10 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function cleanOrphanedPppSecrets(Router $router, bool $executeDelete = false): array
+    public function cleanOrphanedPppSecrets(Router $router, bool $executeDelete = false, ?Client $client = null): array
     {
         try {
-            $client = $this->getClient($router);
+            $client = $client ?? $this->getClient($router);
             $remoteSecrets = $client->query(new Query('/ppp/secret/print'))->read();
 
             if (empty($remoteSecrets)) {
@@ -964,7 +964,7 @@ class MikrotikService
                             $client->query($removeQuery)->read();
 
                             // Putus sesi aktif jika ada
-                            $this->removeActiveSession($router, $name);
+                            $this->removeActiveSession($router, $name, $client);
                             $deletedCount++;
                         } catch (Throwable $e) {
                             $errors[] = "Gagal menghapus orphaned secret {$name}: {$e->getMessage()}";
@@ -1006,8 +1006,15 @@ class MikrotikService
     public function provisionRouterFull(Router $router, bool $force = false, bool $cleanOrphans = false): array
     {
         try {
+            $client = null;
+            try {
+                $client = $this->getClient($router);
+            } catch (Throwable) {
+                // Fallback for mocked environments or unreachable router
+            }
+
             // 1. Health & Resource Check
-            $resourceResult = $this->testConnection($router, 5);
+            $resourceResult = $this->testConnection($router, 6, $client);
 
             // 2. Sinkronisasi IP Pool milik router ini
             $ipPools = $router->ipPools;
@@ -1015,7 +1022,7 @@ class MikrotikService
             $poolErrors = [];
             foreach ($ipPools as $pool) {
                 try {
-                    $this->syncIpPool($router, $pool);
+                    $this->syncIpPool($router, $pool, $client);
                     $poolSynced++;
                 } catch (Throwable $e) {
                     $poolErrors[] = "Pool {$pool->nama_pool}: {$e->getMessage()}";
@@ -1029,7 +1036,7 @@ class MikrotikService
             ];
 
             // 3. Sinkronisasi Seluruh Profil Bandwidth (binary bps)
-            $profileResult = $this->syncAllBandwidthProfiles($router);
+            $profileResult = $this->syncAllBandwidthProfiles($router, $client);
 
             // 4. Sinkronisasi PPP Secrets & Status Layanan Pelanggan
             if ($force) {
@@ -1042,9 +1049,9 @@ class MikrotikService
 
                 foreach ($layanans as $layanan) {
                     try {
-                        $this->createOrUpdatePppoeSecret($router, $layanan);
+                        $this->createOrUpdatePppoeSecret($router, $layanan, $client);
                         if ($layanan->status === StatusLayanan::Suspend) {
-                            $this->disablePppoeSecret($router, $layanan, false);
+                            $this->disablePppoeSecret($router, $layanan, false, $client);
                         }
                         $secretSynced++;
                     } catch (Throwable $e) {
@@ -1060,11 +1067,11 @@ class MikrotikService
                     'errors' => $secretErrors,
                 ];
             } else {
-                $secretResult = $this->autoRecoverPppSecrets($router);
+                $secretResult = $this->autoRecoverPppSecrets($router, $client);
             }
 
             // 5. Audit / Pembersihan Orphaned Secrets
-            $orphanResult = $this->cleanOrphanedPppSecrets($router, $cleanOrphans);
+            $orphanResult = $this->cleanOrphanedPppSecrets($router, $cleanOrphans, $client);
 
             // Update last_sync_at pada router
             $router->update([

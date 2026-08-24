@@ -156,7 +156,8 @@ test('autoRecoverPppSecrets in MikrotikService restores missing secret and syncs
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            Mockery::on(fn ($l) => $l->id === $this->layanan->id)
+            Mockery::on(fn ($l) => $l->id === $this->layanan->id),
+            Mockery::any()
         )
         ->andReturn(['status' => 'success', 'action' => 'created', 'username' => $this->layanan->ppp_username]);
 

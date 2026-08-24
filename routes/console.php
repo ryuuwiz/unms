@@ -12,9 +12,9 @@ Schedule::command('mikrotik:provisi-router --clean-orphans')
     ->withoutOverlapping(60)
     ->runInBackground();
 
-// Fast Sub-Minute Auto-Recovery (Pemulihan Instan Secret & Profil Tanpa Menghapus Orphan)
+// Fast Auto-Recovery (Pemulihan Instan Secret & Profil Tanpa Menghapus Orphan)
 Schedule::command('mikrotik:recover-ppp')
-    ->everyFiveSeconds()
+    ->everyThirtySeconds()
     ->withoutOverlapping(10)
     ->runInBackground();
 

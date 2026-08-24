@@ -115,14 +115,22 @@ class MikrotikRecoverPppCommand extends Command
                         $orphanText = ($orphanStats['deleted'] ?? 0).' dihapus';
                     }
 
-                    MikrotikJobLog::create([
-                        'router_id' => $router->id,
-                        'job_type' => MikrotikJobType::ReconcilePppoe,
-                        'status' => MikrotikJobStatus::Success,
-                        'attempt_count' => 1,
-                        'payload' => $stats,
-                        'finished_at' => Carbon::now(),
-                    ]);
+                    $shouldLog = $force || $cleanOrphans || $routerId !== null
+                        || ($recoveredCount > 0)
+                        || ($disabledCount > 0)
+                        || ($duplicatesRemoved > 0)
+                        || (! empty($stats['errors'] ?? []));
+
+                    if ($shouldLog) {
+                        MikrotikJobLog::create([
+                            'router_id' => $router->id,
+                            'job_type' => MikrotikJobType::ReconcilePppoe,
+                            'status' => MikrotikJobStatus::Success,
+                            'attempt_count' => 1,
+                            'payload' => $stats,
+                            'finished_at' => Carbon::now(),
+                        ]);
+                    }
                 }
 
                 $results[] = [

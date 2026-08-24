@@ -134,20 +134,9 @@ test('PingRouterJob tests connection and logs success', function () {
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            5
+            6
         )
         ->andReturn(['status' => 'success']);
-
-    $mockService->shouldReceive('autoRecoverPppSecrets')
-        ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id))
-        ->andReturn([
-            'total_checked' => 1,
-            'recovered' => 0,
-            'already_synced' => 1,
-            'disabled' => 0,
-            'errors' => [],
-        ]);
 
     $job = new PingRouterJob($this->router);
     $job->handle($mockService);

@@ -42,32 +42,13 @@ class PingRouterJob implements ShouldQueue
         ]);
 
         try {
-            $result = $mikrotikService->testConnection($this->router, 5);
-
-            // Auto-recover data PPP jika ada akun yang hilang/tidak sinkron di RouterOS
-            $recoveryStats = $mikrotikService->autoRecoverPppSecrets($this->router);
-
-            $payload = array_merge($result, [
-                'auto_recovery' => $recoveryStats,
-            ]);
+            $result = $mikrotikService->testConnection($this->router, 6);
 
             $log->update([
                 'status' => MikrotikJobStatus::Success,
                 'finished_at' => Carbon::now(),
-                'payload' => $payload,
+                'payload' => $result,
             ]);
-
-            // Catat log khusus jika ada akun yang berhasil di-recover
-            if (($recoveryStats['recovered'] ?? 0) > 0) {
-                MikrotikJobLog::create([
-                    'router_id' => $this->router->id,
-                    'job_type' => MikrotikJobType::ReconcilePppoe,
-                    'status' => MikrotikJobStatus::Success,
-                    'attempt_count' => 1,
-                    'payload' => $recoveryStats,
-                    'finished_at' => Carbon::now(),
-                ]);
-            }
         } catch (Throwable $e) {
             $log->update([
                 'status' => MikrotikJobStatus::Failed,
