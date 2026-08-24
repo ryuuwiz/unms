@@ -358,3 +358,67 @@ test('pelanggan dapat memiliki banyak layanan jika router atau paket berbeda (mu
 
     expect(LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->count())->toBe(2);
 });
+
+test('layanan dengan masa aktif expired menampilkan status EXPIRED bukan Suspend', function () {
+    $expiredLayanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+        'status' => StatusLayanan::Suspend,
+        'tanggal_expired' => now()->subDay()->toDateString(),
+        'ppp_username' => "{$this->pelanggan->no_reg}_00001",
+    ]);
+
+    expect($expiredLayanan->isExpired())->toBeTrue()
+        ->and($expiredLayanan->statusBadgeLabel())->toBe('EXPIRED')
+        ->and($expiredLayanan->statusBadgeColor())->toBe('red')
+        ->and($expiredLayanan->isAktif())->toBeFalse();
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->assertOk()
+        ->assertSee('EXPIRED');
+});
+
+test('layanan dengan masa aktif di masa depan menampilkan status aslinya', function () {
+    $activeLayanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+        'status' => StatusLayanan::Aktif,
+        'tanggal_expired' => now()->addMonth()->toDateString(),
+        'ppp_username' => "{$this->pelanggan->no_reg}_00001",
+    ]);
+
+    expect($activeLayanan->isExpired())->toBeFalse()
+        ->and($activeLayanan->statusBadgeLabel())->toBe('Aktif')
+        ->and($activeLayanan->statusBadgeColor())->toBe('green')
+        ->and($activeLayanan->isAktif())->toBeTrue();
+});
+
+test('admin dapat memfilter layanan berdasarkan status EXPIRED di Data Registrasi Billing', function () {
+    $expiredLayanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+        'status' => StatusLayanan::Suspend,
+        'tanggal_expired' => now()->subDays(3)->toDateString(),
+        'ppp_username' => "{$this->pelanggan->no_reg}_00001",
+    ]);
+
+    $pelangganAktif = Pelanggan::factory()->create(['nama_depan' => 'PelangganAktif']);
+    $activeLayanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $pelangganAktif->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+        'status' => StatusLayanan::Aktif,
+        'tanggal_expired' => now()->addDays(20)->toDateString(),
+        'ppp_username' => "{$pelangganAktif->no_reg}_00001",
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->set('filterStatus', 'expired')
+        ->assertSee($this->pelanggan->nama_depan)
+        ->assertDontSee($pelangganAktif->nama_depan);
+});

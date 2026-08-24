@@ -200,7 +200,13 @@ class Index extends Component
         $layanans = LayananPelanggan::query()
             ->with(['pelanggan', 'paketLayanan', 'router'])
             ->when($this->search, fn ($q) => $q->whereHas('pelanggan', fn ($pq) => $pq->search($this->search)))
-            ->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
+            ->when($this->filterStatus, function ($q) {
+                if ($this->filterStatus === 'expired') {
+                    $q->whereNotNull('tanggal_expired')->where('tanggal_expired', '<', now());
+                } else {
+                    $q->where('status', $this->filterStatus);
+                }
+            })
             ->latest()
             ->paginate(15);
 

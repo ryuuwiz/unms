@@ -75,8 +75,8 @@
                                 {{ $layanan->paketLayanan?->profilBandwidth?->nama_bandwidth }}
                             </div>
                         </div>
-                        <flux:badge size="sm" variant="pill" :color="$layanan->status->color()">
-                            {{ $layanan->status->label() }}
+                        <flux:badge size="sm" variant="pill" :color="$layanan->statusBadgeColor()">
+                            {{ $layanan->statusBadgeLabel() }}
                         </flux:badge>
                     </div>
 

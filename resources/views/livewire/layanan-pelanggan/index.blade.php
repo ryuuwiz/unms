@@ -30,6 +30,7 @@
             @foreach ($statuses as $status)
                 <flux:select.option value="{{ $status->value }}">{{ $status->label() }}</flux:select.option>
             @endforeach
+            <flux:select.option value="expired">EXPIRED</flux:select.option>
         </flux:select>
     </div>
 
@@ -89,8 +90,8 @@
                     {{-- Status & Provisioning --}}
                     <flux:table.cell>
                         <div class="flex flex-col gap-1">
-                            <flux:badge size="sm" :color="$layanan->status->color()">
-                                {{ $layanan->status->label() }}
+                            <flux:badge size="sm" :color="$layanan->statusBadgeColor()">
+                                {{ $layanan->statusBadgeLabel() }}
                             </flux:badge>
                         </div>
                     </flux:table.cell>

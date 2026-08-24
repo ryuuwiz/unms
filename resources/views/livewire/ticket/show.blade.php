@@ -217,8 +217,8 @@
                         </div>
                         <div class="pt-2 flex justify-between items-center">
                             <span class="text-zinc-500">Status Layanan:</span>
-                            <flux:badge size="xs" :color="$ticket->layananPelanggan->status->color()">
-                                {{ $ticket->layananPelanggan->status->label() }}
+                            <flux:badge size="xs" :color="$ticket->layananPelanggan->statusBadgeColor()">
+                                {{ $ticket->layananPelanggan->statusBadgeLabel() }}
                             </flux:badge>
                         </div>
                     </div>

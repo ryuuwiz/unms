@@ -362,8 +362,8 @@
                                 </div>
 
                                 <div class="flex items-center gap-2">
-                                    <flux:badge size="sm" :color="$layanan->status->color()">
-                                        {{ $layanan->status->label() }}
+                                    <flux:badge size="sm" :color="$layanan->statusBadgeColor()">
+                                        {{ $layanan->statusBadgeLabel() }}
                                     </flux:badge>
                                 </div>
                             </div>
@@ -419,8 +419,8 @@
                                 <div class="space-y-1">
                                     <span class="text-xs font-medium text-zinc-400">Status Billing & Jatuh Tempo</span>
                                     <div>
-                                        <flux:badge size="sm" :color="$layanan->status->color()">
-                                            {{ $layanan->status->label() }}
+                                        <flux:badge size="sm" :color="$layanan->statusBadgeColor()">
+                                            {{ $layanan->statusBadgeLabel() }}
                                         </flux:badge>
                                     </div>
                                     <div class="text-[11px] text-zinc-500">

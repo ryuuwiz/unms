@@ -97,8 +97,8 @@
                     <flux:card class="p-5 flex flex-col justify-between">
                         <div>
                             <div class="flex items-center justify-between mb-3">
-                                <flux:badge variant="pill" :color="$layanan->status->color()">
-                                    {{ $layanan->status->label() }}
+                                <flux:badge variant="pill" :color="$layanan->statusBadgeColor()">
+                                    {{ $layanan->statusBadgeLabel() }}
                                 </flux:badge>
                                 <span class="font-mono text-xs text-zinc-400">{{ $layanan->site_id }}</span>
                             </div>

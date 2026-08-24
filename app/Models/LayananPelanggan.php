@@ -256,11 +256,48 @@ class LayananPelanggan extends Model
     }
 
     /**
+     * Cek apakah masa aktif layanan sudah kedaluwarsa (expired).
+     */
+    public function isExpired(): bool
+    {
+        if ($this->tanggal_expired === null) {
+            return false;
+        }
+
+        return $this->tanggal_expired->isPast();
+    }
+
+    /**
+     * Dapatkan label status untuk tampilan antarmuka.
+     * Jika masa aktif (tanggal_expired) telah kedaluwarsa, status menampilkan 'EXPIRED'.
+     */
+    public function statusBadgeLabel(): string
+    {
+        if ($this->isExpired() && $this->status !== StatusLayanan::Berhenti && $this->status !== StatusLayanan::Proses) {
+            return 'EXPIRED';
+        }
+
+        return $this->status->label();
+    }
+
+    /**
+     * Dapatkan warna badge untuk status layanan.
+     */
+    public function statusBadgeColor(): string
+    {
+        if ($this->isExpired() && $this->status !== StatusLayanan::Berhenti && $this->status !== StatusLayanan::Proses) {
+            return 'red';
+        }
+
+        return $this->status->color();
+    }
+
+    /**
      * Apakah layanan sedang aktif dan online.
      */
     public function isAktif(): bool
     {
-        return $this->status === StatusLayanan::Aktif;
+        return $this->status === StatusLayanan::Aktif && ! $this->isExpired();
     }
 
     /**
