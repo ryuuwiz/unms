@@ -228,6 +228,13 @@ _Avoid_: Biarkan Secret Lama, Hapus Manual, Duplikat Dibiarkan Sampai Rekonsilia
 Dukungan di mana satu pelanggan (entitas `Pelanggan`) dapat memiliki banyak layanan internet aktif (entitas `LayananPelanggan` 1:N). Setiap layanan memiliki `site_id` dan `ppp_username` berurutan unik (`{no_reg}_00001`, `{no_reg}_00002`), paket layanan independen, serta siklus invoice tersendiri (`Invoice` 1:1 per periode per layanan). Jika salah satu layanan menunggak (Suspend), isolir dilakukan secara parsial hanya pada PPP Secret layanan yang bersangkutan tanpa mengganggu layanan lain milik pelanggan yang sama.
 _Avoid_: Akumulasi Invoice Tanpa Rincian Site, Isolir Global Seluruh Layanan Pelanggan, Duplikasi Pelanggan untuk Multi-Lokasi
 
+**Segmentasi Jalur IP Pool (Up To vs Dedicated)**:
+Pemisahan jalur alokasi IP, gateway, dan hierarki prioritas antrean jaringan MikroTik (QoS) menjadi 3 tingkatan segmen:
+1. **Residensial Up To (Broadband / Shared)**: Terikat ke `Pool-Rumah` (`10.0.0.0/24`, gateway `10.0.0.1`, queue priority 7–8) dengan burst rate & rasio contention.
+2. **Residensial 1:1 (Dedicated Home / Gamer / Streamer)**: Terikat ke `Pool-Rumah` (`10.0.0.0/24`, gateway `10.0.0.1`, queue priority 3–5) dengan flat 1:1 CIR tanpa pembagian bandwidth.
+3. **Bisnis / Enterprise 1:1 (Corporate Dedicated)**: Terikat ke `Pool-Bisnis` (`10.0.1.0/24`, gateway `10.0.1.1`, queue priority 1–2) atau IP Statis dedicated (`10.0.1.X`) dengan SLA tinggi.
+_Avoid_: Pencampuran Subnet Up To dan Dedicated, Single Pool untuk Semua Kelas Layanan, Gateway Ambigu, Pengabaian Segmen Residensial 1:1
 
-
-
+**Manajemen Local & Remote Address PPP Secret**:
+Penetapan eksplisit parameter `local-address` (IP gateway sisi router) dan `remote-address` (nama pool IP untuk PPPoE dinamis atau IP literal untuk IP Statis) pada setiap akun PPP Secret di RouterOS oleh UNMS. Menjamin setiap sesi PPP client terhubung ke gateway yang tepat dan menerima alokasi IP yang terisolasi sesuai kelas layanannya tanpa mengandalkan profil default global router.
+_Avoid_: Local Address Kosong di Secret, Remote Address Kosong untuk Dynamic Client, Ketergantungan Profile Default RouterOS

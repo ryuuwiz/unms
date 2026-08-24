@@ -250,12 +250,9 @@ class MikrotikService
             $pelangganNama = $layanan->pelanggan ? $layanan->pelanggan->nama_depan.' '.$layanan->pelanggan->nama_belakang : 'Pelanggan';
             $comment = "UNMS: {$layanan->site_id} - {$pelangganNama}";
 
-            // 3. Tentukan remote-address untuk IP Statis (IPv4 valid).
-            // Catatan: RouterOS /ppp/secret hanya menerima IP address literal untuk remote-address.
-            // Alokasi dinamis via IP Pool dikelola melalui PPP Profile di RouterOS.
-            $staticIp = ! empty($layanan->ip_static) && filter_var($layanan->ip_static, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
-                ? (string) $layanan->ip_static
-                : null;
+            // 3. Tentukan local-address (Gateway) dan remote-address (IP Pool / IP Statis)
+            $remoteAddress = $layanan->resolveRemoteAddress();
+            $localAddress = $layanan->resolveLocalAddress();
 
             $isDisabled = ($layanan->status === StatusLayanan::Suspend) ? 'yes' : 'no';
 
@@ -274,15 +271,19 @@ class MikrotikService
                     ->equal('comment', $comment)
                     ->equal('disabled', $isDisabled);
 
-                if ($staticIp !== null) {
-                    $setQuery->equal('remote-address', $staticIp);
+                if ($remoteAddress !== null) {
+                    $setQuery->equal('remote-address', $remoteAddress);
+                }
+
+                if ($localAddress !== null) {
+                    $setQuery->equal('local-address', $localAddress);
                 }
 
                 $result = $client->query($setQuery)->read();
                 $action = 'updated';
 
-                // Jika layanan beralih ke dynamic pool dan sebelumnya memiliki remote-address statis di RouterOS, unset remote-address
-                if ($staticIp === null && ! empty($existing[0]['remote-address'])) {
+                // Jika layanan tidak lagi memiliki remote-address namun di RouterOS masih ada, unset
+                if ($remoteAddress === null && ! empty($existing[0]['remote-address'])) {
                     try {
                         $unsetQuery = (new Query('/ppp/secret/unset'))
                             ->equal('.id', $secretId)
@@ -290,6 +291,18 @@ class MikrotikService
                         $client->query($unsetQuery)->read();
                     } catch (Throwable $e) {
                         // Lanjutkan jika remote-address sudah tidak ada
+                    }
+                }
+
+                // Jika layanan tidak lagi memiliki local-address namun di RouterOS masih ada, unset
+                if ($localAddress === null && ! empty($existing[0]['local-address'])) {
+                    try {
+                        $unsetQuery = (new Query('/ppp/secret/unset'))
+                            ->equal('.id', $secretId)
+                            ->equal('value-name', 'local-address');
+                        $client->query($unsetQuery)->read();
+                    } catch (Throwable $e) {
+                        // Lanjutkan jika local-address sudah tidak ada
                     }
                 }
 
@@ -316,8 +329,12 @@ class MikrotikService
                     ->equal('comment', $comment)
                     ->equal('disabled', $isDisabled);
 
-                if ($staticIp !== null) {
-                    $addQuery->equal('remote-address', $staticIp);
+                if ($remoteAddress !== null) {
+                    $addQuery->equal('remote-address', $remoteAddress);
+                }
+
+                if ($localAddress !== null) {
+                    $addQuery->equal('local-address', $localAddress);
                 }
 
                 $result = $client->query($addQuery)->read();
@@ -685,7 +702,16 @@ class MikrotikService
     {
         $client = $this->getClient($router);
 
-        // 1. Auto-recover seluruh profil bandwidth (PPP Profile) di RouterOS
+        // 1. Auto-recover seluruh IP Pool milik router ini di RouterOS
+        foreach ($router->ipPools as $pool) {
+            try {
+                $this->syncIpPool($router, $pool);
+            } catch (Throwable $e) {
+                // Lanjutkan jika sinkronisasi pool terhambat
+            }
+        }
+
+        // 2. Auto-recover seluruh profil bandwidth (PPP Profile) di RouterOS
         $profileStats = [
             'total' => 0,
             'synced' => 0,
@@ -698,7 +724,7 @@ class MikrotikService
             $profileStats['errors'][] = $e->getMessage();
         }
 
-        // 2. Ambil seluruh PPP secrets yang ada di RouterOS saat ini
+        // 3. Ambil seluruh PPP secrets yang ada di RouterOS saat ini
         try {
             $remoteSecretsRaw = $client->query(new Query('/ppp/secret/print'))->read();
         } catch (Throwable $e) {
@@ -754,12 +780,11 @@ class MikrotikService
 
             $expectedProfile = $profil->nama_bandwidth;
             $expectedPassword = (string) $layanan->ppp_password_terenkripsi;
-            $expectedStaticIp = ! empty($layanan->ip_static) && filter_var($layanan->ip_static, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
-                ? (string) $layanan->ip_static
-                : '';
+            $expectedRemoteAddress = (string) ($layanan->resolveRemoteAddress() ?? '');
+            $expectedLocalAddress = (string) ($layanan->resolveLocalAddress() ?? '');
             $remote = $remoteSecrets[$username] ?? null;
 
-            // Periksa apakah secret hilang, profile berbeda, password berbeda, atau remote-address (IP statis) tidak sesuai
+            // Periksa apakah secret hilang, profile berbeda, password berbeda, remote-address, atau local-address tidak sesuai
             $needsRecovery = false;
 
             if ($remote === null) {
@@ -768,8 +793,11 @@ class MikrotikService
             } elseif (($remote['profile'] ?? '') !== $expectedProfile) {
                 // Profile di RouterOS tidak sesuai
                 $needsRecovery = true;
-            } elseif (($remote['remote-address'] ?? '') !== $expectedStaticIp) {
-                // Remote-address di RouterOS tidak sesuai dengan konfigurasi IP Statis UNMS
+            } elseif (($remote['remote-address'] ?? '') !== $expectedRemoteAddress) {
+                // Remote-address di RouterOS tidak sesuai dengan alokasi UNMS (IP Pool / IP Statis)
+                $needsRecovery = true;
+            } elseif (($remote['local-address'] ?? '') !== $expectedLocalAddress) {
+                // Local-address di RouterOS tidak sesuai dengan gateway UNMS
                 $needsRecovery = true;
             } elseif (isset($remote['password']) && $remote['password'] !== $expectedPassword) {
                 // Password di RouterOS tidak sesuai dengan UNMS
@@ -1005,7 +1033,7 @@ class MikrotikService
 
             // 4. Sinkronisasi PPP Secrets & Status Layanan Pelanggan
             if ($force) {
-                $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan'])
+                $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan', 'ipPool'])
                     ->where('router_id', $router->id)
                     ->get();
 
@@ -1083,6 +1111,86 @@ class MikrotikService
                 (int) $e->getCode(),
                 $e
             );
+        }
+    }
+
+    /**
+     * Ambil status realtime PPP Secret & sesi aktif untuk suatu akun username di router.
+     *
+     * @return array{
+     *     is_connected: bool,
+     *     status_label: string,
+     *     profile: ?string,
+     *     service: ?string,
+     *     ip_address: ?string,
+     *     local_address: ?string,
+     *     uptime: ?string,
+     *     caller_id: ?string,
+     *     last_logged_out: ?string,
+     *     is_disabled: bool,
+     *     router_online: bool,
+     *     error_message: ?string,
+     * }
+     */
+    public function getPppStatus(Router $router, string $username): array
+    {
+        try {
+            $client = $this->getClient($router, 3);
+
+            // 1. Ambil data Secret
+            $secretQuery = (new Query('/ppp/secret/print'))->where('name', $username);
+            $secretData = $client->query($secretQuery)->read();
+            $secret = ! empty($secretData) && isset($secretData[0]) ? $secretData[0] : null;
+
+            // 2. Ambil data Active Session
+            $activeQuery = (new Query('/ppp/active/print'))->where('name', $username);
+            $activeData = $client->query($activeQuery)->read();
+            $active = ! empty($activeData) && isset($activeData[0]) ? $activeData[0] : null;
+
+            $isConnected = $active !== null;
+            $isDisabled = $secret ? (($secret['disabled'] ?? 'false') === 'true') : false;
+
+            $ipAddress = null;
+            if ($active && ! empty($active['address'])) {
+                $ipAddress = $active['address'];
+            } elseif ($secret && ! empty($secret['remote-address'])) {
+                $ipAddress = $secret['remote-address'];
+            }
+
+            $lastLoggedOut = $secret['last-logged-out'] ?? null;
+            if ($lastLoggedOut === 'jan/01/1970 00:00:00') {
+                $lastLoggedOut = 'Belum ada sesi';
+            }
+
+            return [
+                'is_connected' => $isConnected,
+                'status_label' => $isConnected ? 'Connected' : 'Disconnected',
+                'profile' => $active['profile'] ?? $secret['profile'] ?? null,
+                'service' => $active['service'] ?? $secret['service'] ?? 'pppoe',
+                'ip_address' => $ipAddress,
+                'local_address' => $secret['local-address'] ?? null,
+                'uptime' => $active['uptime'] ?? null,
+                'caller_id' => $active['caller-id'] ?? ($secret['caller-id'] ?? null),
+                'last_logged_out' => $lastLoggedOut,
+                'is_disabled' => $isDisabled,
+                'router_online' => true,
+                'error_message' => null,
+            ];
+        } catch (Throwable $e) {
+            return [
+                'is_connected' => false,
+                'status_label' => 'Unknown',
+                'profile' => null,
+                'service' => null,
+                'ip_address' => null,
+                'local_address' => null,
+                'uptime' => null,
+                'caller_id' => null,
+                'last_logged_out' => null,
+                'is_disabled' => false,
+                'router_online' => false,
+                'error_message' => $e->getMessage(),
+            ];
         }
     }
 }

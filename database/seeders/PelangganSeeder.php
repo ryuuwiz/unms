@@ -12,6 +12,7 @@ use App\Enums\StatusPelanggan;
 use App\Enums\TipePelanggan;
 use App\Models\AkunPelanggan;
 use App\Models\Invoice;
+use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\OdpPort;
 use App\Models\PaketLayanan;
@@ -34,14 +35,50 @@ class PelangganSeeder extends Seeder
     public function run(): void
     {
         $admin = User::first() ?? User::factory()->create();
-        $router = Router::first() ?? Router::factory()->create();
+        $router = Router::where('ip_address', '192.168.80.92')->first() ?? Router::first() ?? Router::factory()->create();
         $perumahans = Perumahan::all();
         $paketList = PaketLayanan::where('status', 'aktif')->get();
         $promoDiskon = Promo::where('kode_promo', 'DISKON20')->first();
         $promoHemat = Promo::where('kode_promo', 'HEMAT50RB')->first();
 
+        // Pastikan pool router tersedia secara idempoten
+        $poolRumah = IpPool::where('router_id', $router->id)->where('nama_pool', 'Pool-Rumah')->first();
+        $poolBisnis = IpPool::where('router_id', $router->id)->where('nama_pool', 'Pool-Bisnis')->first();
+
+        if (! $poolRumah || ! $poolBisnis) {
+            $this->call(IpPoolSeeder::class);
+            $poolRumah = IpPool::where('router_id', $router->id)->where('nama_pool', 'Pool-Rumah')->first();
+            $poolBisnis = IpPool::where('router_id', $router->id)->where('nama_pool', 'Pool-Bisnis')->first();
+        }
+
         if ($perumahans->isEmpty() || $paketList->isEmpty()) {
             return;
+        }
+
+        // Pisahkan katalog paket: Residensial Up To, Residensial 1:1 Dedicated, dan Bisnis Dedicated
+        $paketRumahUpTo = PaketLayanan::where('status', 'aktif')
+            ->where('nama_paket', 'like', '%Up To%')
+            ->get();
+        $paketRumahDed = PaketLayanan::where('status', 'aktif')
+            ->where('nama_paket', 'like', '%Dedicated%')
+            ->where('nama_paket', 'not like', '%SOHO%')
+            ->where('nama_paket', 'not like', '%Corporate%')
+            ->get();
+        $paketBisnis = PaketLayanan::where('status', 'aktif')
+            ->where(function ($q) {
+                $q->where('nama_paket', 'like', '%SOHO%')
+                    ->orWhere('nama_paket', 'like', '%Corporate%');
+            })
+            ->get();
+
+        if ($paketRumahUpTo->isEmpty()) {
+            $paketRumahUpTo = $paketList;
+        }
+        if ($paketRumahDed->isEmpty()) {
+            $paketRumahDed = $paketList;
+        }
+        if ($paketBisnis->isEmpty()) {
+            $paketBisnis = $paketList;
         }
 
         $pelangganData = $this->daftarPelanggan();
@@ -102,7 +139,34 @@ class PelangganSeeder extends Seeder
                 $availablePort = OdpPort::where('status', StatusOdpPort::Kosong)->first();
             }
 
-            $paket = $paketList[$index % $paketList->count()];
+            // Tentukan paket layanan, jenis koneksi, dan alokasi IP Pool / IP Statis
+            if ($item['tipe'] === TipePelanggan::Rumah) {
+                // Distribusi Residensial: ~60% Up To, ~40% Residensial 1:1 Dedicated
+                if ($index % 5 === 1 || $index % 5 === 3) {
+                    $paket = $paketRumahDed[$index % $paketRumahDed->count()];
+                } else {
+                    $paket = $paketRumahUpTo[$index % $paketRumahUpTo->count()];
+                }
+
+                $jenisKoneksi = JenisKoneksi::Pppoe;
+                $ipPoolId = $poolRumah?->id;
+                $ipStatic = null;
+            } else {
+                // Jalur Dedicated: Paket Bisnis / Corporate
+                $paket = $paketBisnis[$index % $paketBisnis->count()];
+
+                // Simulasi: Pelanggan index 4 dan 7 menggunakan IP Statis Dedicated, sisanya PPPoE Pool-Bisnis
+                if ($index === 4 || $index === 7) {
+                    $jenisKoneksi = JenisKoneksi::IpStatic;
+                    $ipPoolId = null;
+                    $ipStatic = '10.0.1.'.(20 + $index);
+                } else {
+                    $jenisKoneksi = JenisKoneksi::Pppoe;
+                    $ipPoolId = $poolBisnis?->id;
+                    $ipStatic = null;
+                }
+            }
+
             $pppUsername = LayananPelanggan::generatePppUsername($pelanggan);
 
             $isSuspend = ($item['status_layanan'] === StatusLayanan::Suspend);
@@ -111,17 +175,18 @@ class PelangganSeeder extends Seeder
                 ? Carbon::now()->subDays(5)
                 : Carbon::now()->endOfMonth();
 
-            // 4. Buat Layanan Pelanggan
-            $layanan = LayananPelanggan::firstOrCreate(
+            // 4. Buat / Perbarui Layanan Pelanggan (Idempotent)
+            $layanan = LayananPelanggan::updateOrCreate(
                 ['pelanggan_id' => $pelanggan->id],
                 [
                     'paket_layanan_id' => $paket->id,
                     'router_id' => $router->id,
+                    'ip_pool_id' => $ipPoolId,
                     'ppp_username' => $pppUsername,
                     'ppp_password_terenkripsi' => 'unms'.rand(1000, 9999),
-                    'ip_static' => ($item['tipe'] === TipePelanggan::Bisnis) ? '10.0.1.'.(20 + $index) : null,
+                    'ip_static' => $ipStatic,
                     'odp_port_id' => $availablePort?->id,
-                    'jenis_koneksi' => JenisKoneksi::Pppoe,
+                    'jenis_koneksi' => $jenisKoneksi,
                     'status' => $item['status_layanan'],
                     'tanggal_mulai' => $mulaiTanggal,
                     'tanggal_expired' => $expiredTanggal,

@@ -167,16 +167,40 @@ class LayananPelanggan extends Model
      * Tentukan nilai remote-address yang harus dikirim ke PPP Secret RouterOS.
      *
      * Prioritas: ip_static (jika ada) → nama IP Pool (ip_pool_id) → null.
-     * Nilai ini mencegah tabrakan IP antar pelanggan dan menjamin UNMS
-     * sebagai satu-satunya sumber kebenaran alokasi IP.
+     * Field remote-address pada /ppp/secret RouterOS HANYA menerima alamat IP valid (IP Statis).
+     * Jika pelanggan menggunakan alokasi dinamis via IP Pool, RouterOS secara otomatis
+     * mengalokasikan IP dari IP Pool terkait pada subnet tersebut (remote-address dibiarkan kosong/null).
      */
     public function resolveRemoteAddress(): ?string
     {
-        if (! empty($this->ip_static)) {
+        if (! empty($this->ip_static) && filter_var($this->ip_static, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             return $this->ip_static;
         }
 
-        return $this->ipPool?->nama_pool ?? null;
+        return null;
+    }
+
+    /**
+     * Tentukan nilai local-address (Gateway) yang harus dikirim ke PPP Secret RouterOS.
+     *
+     * Prioritas: Gateway dari IP Pool terkait → Subnet Gateway dari ip_static → null.
+     */
+    public function resolveLocalAddress(): ?string
+    {
+        if ($this->ipPool) {
+            return $this->ipPool->getGatewayAddress();
+        }
+
+        if (! empty($this->ip_static) && filter_var($this->ip_static, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $ipLong = ip2long($this->ip_static);
+            if ($ipLong !== false) {
+                $networkLong = $ipLong & ip2long('255.255.255.0');
+
+                return long2ip($networkLong + 1);
+            }
+        }
+
+        return null;
     }
 
     /**

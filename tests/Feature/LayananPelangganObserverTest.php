@@ -116,12 +116,12 @@ test('resolveRemoteAddress returns ip_static when present', function () {
     expect($this->layanan->resolveRemoteAddress())->toBe('192.168.1.100');
 });
 
-test('resolveRemoteAddress returns pool name when no ip_static', function () {
+test('resolveRemoteAddress returns null when no ip_static even with ip_pool', function () {
     $this->layanan->ip_static = null;
     $this->layanan->ip_pool_id = $this->poolLama->id;
     $this->layanan->setRelation('ipPool', $this->poolLama);
 
-    expect($this->layanan->resolveRemoteAddress())->toBe($this->poolLama->nama_pool);
+    expect($this->layanan->resolveRemoteAddress())->toBeNull();
 });
 
 test('resolveRemoteAddress returns null when neither ip_static nor ip_pool', function () {
@@ -130,6 +130,41 @@ test('resolveRemoteAddress returns null when neither ip_static nor ip_pool', fun
     $this->layanan->setRelation('ipPool', null);
 
     expect($this->layanan->resolveRemoteAddress())->toBeNull();
+});
+
+// --- Model: resolveLocalAddress & IpPool getGatewayAddress ---
+
+test('IpPool getGatewayAddress returns first host of ip_network', function () {
+    $this->poolLama->ip_network = '10.0.0.0';
+    expect($this->poolLama->getGatewayAddress())->toBe('10.0.0.1');
+
+    $this->poolLama->ip_network = '10.0.1.0';
+    expect($this->poolLama->getGatewayAddress())->toBe('10.0.1.1');
+});
+
+test('resolveLocalAddress returns gateway of related ipPool', function () {
+    $this->poolLama->ip_network = '10.0.0.0';
+    $this->layanan->ip_static = null;
+    $this->layanan->ip_pool_id = $this->poolLama->id;
+    $this->layanan->setRelation('ipPool', $this->poolLama);
+
+    expect($this->layanan->resolveLocalAddress())->toBe('10.0.0.1');
+});
+
+test('resolveLocalAddress calculates subnet gateway when ip_static is present without ipPool', function () {
+    $this->layanan->ip_pool_id = null;
+    $this->layanan->setRelation('ipPool', null);
+    $this->layanan->ip_static = '10.0.1.25';
+
+    expect($this->layanan->resolveLocalAddress())->toBe('10.0.1.1');
+});
+
+test('resolveLocalAddress returns null when neither ipPool nor ip_static exists', function () {
+    $this->layanan->ip_pool_id = null;
+    $this->layanan->setRelation('ipPool', null);
+    $this->layanan->ip_static = null;
+
+    expect($this->layanan->resolveLocalAddress())->toBeNull();
 });
 
 // --- Job: CleanupPppSecretOnOldRouterJob ---

@@ -101,4 +101,17 @@ class IpPool extends Model
     {
         return "{$this->ip_network}/{$this->cidr}";
     }
+
+    /**
+     * Dapatkan alamat IP Gateway (host pertama) dari network pool ini (misal: "10.0.0.1").
+     */
+    public function getGatewayAddress(): string
+    {
+        $networkLong = ip2long($this->ip_network);
+        if ($networkLong !== false) {
+            return long2ip($networkLong + 1);
+        }
+
+        return $this->ip_network;
+    }
 }

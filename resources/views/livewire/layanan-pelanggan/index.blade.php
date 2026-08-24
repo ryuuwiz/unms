@@ -2,11 +2,13 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <flux:heading size="xl">Data Registrasi Billing</flux:heading>
-            <flux:subheading>Kelola data registrasi billing internet, kredensial PPPoE, router, dan masa aktif pelanggan.</flux:subheading>
+            <flux:subheading>Kelola data registrasi billing internet, kredensial PPPoE, router, dan masa aktif
+                pelanggan.</flux:subheading>
         </div>
         <div class="flex items-center gap-2">
             @can('create', App\Models\LayananPelanggan::class)
-                <flux:button wire:click="provisionAllPending" wire:loading.attr="disabled" variant="subtle" icon="arrow-up-tray" title="Provisi semua akun PPPoE yang berstatus pending ke router">
+                <flux:button wire:click="provisionAllPending" wire:loading.attr="disabled" variant="subtle" icon="arrow-up-tray"
+                    title="Provisi semua akun PPPoE yang berstatus pending ke router">
                     Provisi Massal
                 </flux:button>
                 <flux:button :href="route('layanan-pelanggan.create')" wire:navigate variant="primary" icon="plus">
@@ -19,11 +21,8 @@
     {{-- Filter & Search Bar --}}
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div class="flex-1">
-            <flux:input
-                wire:model.live.debounce.300ms="search"
-                icon="magnifying-glass"
-                placeholder="Cari pelanggan, no. HP, atau site ID..."
-            />
+            <flux:input wire:model.live.debounce.300ms="search" icon="magnifying-glass"
+                placeholder="Cari pelanggan, no. HP, atau site ID..." />
         </div>
 
         <flux:select wire:model.live="filterStatus" placeholder="Semua Status" class="sm:w-44">
@@ -51,7 +50,8 @@
                     {{-- Pelanggan --}}
                     <flux:table.cell>
                         <div class="flex flex-col">
-                            <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $layanan->pelanggan?->identitasLengkap() ?? '-' }}</span>
+                            <span
+                                class="font-medium text-zinc-900 dark:text-zinc-100">{{ $layanan->pelanggan?->identitasLengkap() ?? '-' }}</span>
                             <span class="font-mono text-xs text-zinc-500">{{ $layanan->site_id }}</span>
                         </div>
                     </flux:table.cell>
@@ -59,7 +59,8 @@
                     {{-- Paket --}}
                     <flux:table.cell>
                         <div class="flex flex-col">
-                            <span class="font-medium text-zinc-800 dark:text-zinc-200">{{ $layanan->paketLayanan->nama_paket }}</span>
+                            <span
+                                class="font-medium text-zinc-800 dark:text-zinc-200">{{ $layanan->paketLayanan->nama_paket }}</span>
                             <span class="text-xs text-zinc-500">{{ $layanan->paketLayanan->formattedHarga() }}</span>
                         </div>
                     </flux:table.cell>
@@ -67,8 +68,10 @@
                     {{-- Router & PPP --}}
                     <flux:table.cell>
                         <div class="flex flex-col">
-                            <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300">{{ $layanan->router->nama_router }}</span>
-                            <span class="font-mono text-xs text-zinc-500">{{ $layanan->ppp_username }} ({{ $layanan->jenis_koneksi->label() }})</span>
+                            <span
+                                class="text-xs font-medium text-zinc-700 dark:text-zinc-300">{{ $layanan->router->nama_router }}</span>
+                            <span class="font-mono text-xs text-zinc-500">{{ $layanan->ppp_username }}
+                                ({{ $layanan->jenis_koneksi->label() }})</span>
                         </div>
                     </flux:table.cell>
 
@@ -76,7 +79,8 @@
                     <flux:table.cell>
                         <div class="flex flex-col text-xs">
                             <span class="text-zinc-500">Mulai: {{ $layanan->tanggal_mulai->format('d/m/Y') }}</span>
-                            <span class="font-medium {{ $layanan->tanggal_expired && $layanan->tanggal_expired->isPast() ? 'text-red-600' : 'text-zinc-700 dark:text-zinc-300' }}">
+                            <span
+                                class="font-medium {{ $layanan->tanggal_expired && $layanan->tanggal_expired->isPast() ? 'text-red-600' : 'text-zinc-700 dark:text-zinc-300' }}">
                                 Exp: {{ $layanan->tanggal_expired?->format('d/m/Y') ?? '—' }}
                             </span>
                         </div>
@@ -88,19 +92,6 @@
                             <flux:badge size="sm" :color="$layanan->status->color()">
                                 {{ $layanan->status->label() }}
                             </flux:badge>
-                            @if ($layanan->provisioning_status === \App\Enums\ProvisioningStatus::Success)
-                                <span class="text-[11px] text-emerald-600 dark:text-emerald-400" title="Terprovisi: {{ $layanan->terprovisi_pada?->format('d/m/Y H:i') }}">
-                                    ✓ PPPoE Terprovisi
-                                </span>
-                            @elseif ($layanan->provisioning_status === \App\Enums\ProvisioningStatus::Failed)
-                                <span class="text-[11px] text-red-500" title="{{ $layanan->last_provisioning_error }}">
-                                    ✗ Gagal Provisi
-                                </span>
-                            @else
-                                <span class="text-[11px] text-amber-500">
-                                    ⏳ Menunggu Provisi
-                                </span>
-                            @endif
                         </div>
                     </flux:table.cell>
 
@@ -109,45 +100,25 @@
                         <div class="flex items-center justify-end gap-1">
                             @can('update', $layanan)
                                 @if ($layanan->provisioning_status !== \App\Enums\ProvisioningStatus::Success)
-                                    <flux:button
-                                        wire:click="provisionLayanan({{ $layanan->id }})"
-                                        wire:loading.attr="disabled"
-                                        size="sm"
-                                        variant="ghost"
-                                        icon="arrow-up-tray"
+                                    <flux:button wire:click="provisionLayanan({{ $layanan->id }})"
+                                        wire:loading.attr="disabled" size="sm" variant="ghost" icon="arrow-up-tray"
                                         class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
-                                        title="Provisi PPPoE ke MikroTik"
-                                    />
+                                        title="Provisi PPPoE ke MikroTik" />
                                 @endif
 
-                                <flux:button
-                                    wire:click="toggleIsolir({{ $layanan->id }})"
-                                    size="sm"
-                                    variant="ghost"
+                                <flux:button wire:click="toggleIsolir({{ $layanan->id }})" size="sm" variant="ghost"
                                     :icon="$layanan->status === \App\Enums\StatusLayanan::Suspend ? 'check-circle' : 'no-symbol'"
                                     :class="$layanan->status === \App\Enums\StatusLayanan::Suspend ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'"
-                                    :title="$layanan->status === \App\Enums\StatusLayanan::Suspend ? 'Buka Isolir (Aktifkan)' : 'Isolir Layanan (Suspend)'"
-                                />
+                                    :title="$layanan->status === \App\Enums\StatusLayanan::Suspend ? 'Buka Isolir (Aktifkan)' : 'Isolir Layanan (Suspend)'" />
 
-                                <flux:button
-                                    :href="route('layanan-pelanggan.edit', $layanan)"
-                                    wire:navigate
-                                    size="sm"
-                                    variant="ghost"
-                                    icon="pencil-square"
-                                    title="Edit Layanan"
-                                />
+                                <flux:button :href="route('layanan-pelanggan.edit', $layanan)" wire:navigate size="sm"
+                                    variant="ghost" icon="pencil-square" title="Edit Layanan" />
                             @endcan
 
                             @can('delete', $layanan)
-                                <flux:button
-                                    wire:click="confirmDelete({{ $layanan->id }})"
-                                    size="sm"
-                                    variant="ghost"
-                                    icon="trash"
-                                    class="text-red-600 hover:text-red-700 dark:text-red-400"
-                                    title="Hapus Layanan"
-                                />
+                                <flux:button wire:click="confirmDelete({{ $layanan->id }})" size="sm" variant="ghost"
+                                    icon="trash" class="text-red-600 hover:text-red-700 dark:text-red-400"
+                                    title="Hapus Layanan" />
                             @endcan
                         </div>
                     </flux:table.cell>
