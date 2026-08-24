@@ -158,20 +158,20 @@
     @endif
 
     {{-- Modal Konfirmasi Hapus --}}
-    @if ($deletingId)
-        <flux:modal name="confirm-delete" :show="true" class="max-w-md">
-            <div class="space-y-4">
-                <div>
-                    <flux:heading size="lg">Hapus Router</flux:heading>
-                    <flux:subheading>
-                        Apakah Anda yakin ingin menghapus router ini? Tindakan ini permanen.
-                    </flux:subheading>
-                </div>
-                <div class="flex justify-end gap-3">
-                    <flux:button wire:click="$set('deletingId', null)" variant="ghost">Batal</flux:button>
-                    <flux:button wire:click="deleteRouter" variant="danger">Hapus</flux:button>
-                </div>
+    <flux:modal name="confirm-delete" class="max-w-md">
+        <div class="space-y-4">
+            <div>
+                <flux:heading size="lg">Hapus Router</flux:heading>
+                <flux:subheading>
+                    Apakah Anda yakin ingin menghapus router ini? Tindakan ini permanen.
+                </flux:subheading>
             </div>
-        </flux:modal>
-    @endif
+            <div class="flex justify-end gap-3">
+                <flux:modal.close>
+                    <flux:button variant="ghost" wire:click="$set('deletingId', null)">Batal</flux:button>
+                </flux:modal.close>
+                <flux:button wire:click="deleteRouter" variant="danger">Hapus</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>

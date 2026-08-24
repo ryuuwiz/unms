@@ -13,7 +13,7 @@ class IpPoolSeeder extends Seeder
      */
     public function run(): void
     {
-        $mainRouter = Router::where('ip_address', '192.168.88.1')->first();
+        $mainRouter = Router::where('ip_address', '192.168.80.92')->first();
 
         if ($mainRouter) {
             // Pool A — Pelanggan Rumahan
@@ -47,16 +47,6 @@ class IpPoolSeeder extends Seeder
                     'priority_rx' => 2,
                 ]
             );
-        }
-
-        // Pool dummy untuk router lain jika belum memiliki pool
-        $otherRouters = Router::where('ip_address', '!=', '192.168.88.1')->get();
-        foreach ($otherRouters as $router) {
-            if ($router->ipPools()->count() === 0) {
-                IpPool::factory()->count(2)->create([
-                    'router_id' => $router->id,
-                ]);
-            }
         }
     }
 }

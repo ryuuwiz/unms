@@ -37,6 +37,7 @@ class Index extends Component
     public function confirmDelete(int $id): void
     {
         $this->deletingId = $id;
+        $this->modal('confirm-delete')->show();
     }
 
     public function deleteIpPool(): void
@@ -48,7 +49,16 @@ class Index extends Component
         $pool = IpPool::findOrFail($this->deletingId);
         $this->authorize('delete', $pool);
 
+        if ($pool->layanans()->exists()) {
+            $this->modal('confirm-delete')->close();
+            Flux::toast(variant: 'danger', text: 'IP Pool masih digunakan oleh layanan pelanggan dan tidak dapat dihapus.');
+            $this->deletingId = null;
+
+            return;
+        }
+
         $pool->delete();
+        $this->modal('confirm-delete')->close();
         $this->deletingId = null;
 
         Flux::toast(variant: 'success', text: 'IP Pool berhasil dihapus.');
@@ -71,6 +81,7 @@ class Index extends Component
     {
         $pools = IpPool::query()
             ->with('router')
+            ->withCount('layanans')
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('nama_pool', 'like', "%{$this->search}%")
                     ->orWhere('ip_network', 'like', "%{$this->search}%");

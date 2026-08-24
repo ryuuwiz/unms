@@ -52,9 +52,9 @@ _Avoid_: Customer ID, Nomor Pelanggan, No Langganan, CUST-XXXXXX, No Reg Duplika
 Format standar representasi identitas pelanggan untuk antarmuka staf backoffice dan selector sistem dengan susunan `[No. Reg]_[Nama Pelanggan]` (contoh: `WG2309202601_Budi Santoso`). Pada dropdown selector dilengkapi informasi sekunder di dalam kurung: `WG2309202601_Budi Santoso (0812xxxx • Cluster Melati)`.
 _Avoid_: Nama Saja Tanpa No Reg, No Reg Tanpa Nama, Format Strip Tak Beraturan (Gunakan Format Baku `No. Reg_Nama`)
 
-**Layanan Pelanggan**:
-Entitas langganan aktif yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu, router gateway, kredensial PPP, dan masa aktif.
-_Avoid_: Subscription, Akun Internet, Koneksi
+**Data Registrasi Billing**:
+Entitas registrasi langganan billing aktif (sebelumnya disebut Layanan Pelanggan, merujuk pada `docs/data_unms.md` bagian `# Layanan & Network -> ## Billing`) yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu, router gateway, alokasi IP Pool / IP Statis, kredensial PPP, Site ID, dan masa aktif. Setiap penambahan divalidasi anti-duplikasi pada router & paket yang sama saat status masih aktif/proses/suspend, dengan tetap mendukung multi-site per pelanggan.
+_Avoid_: Subscription, Akun Internet, Koneksi, Layanan Saja
 
 **PPP Username Credential**:
 Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_00001`) — prefix adalah No.Reg pelanggan, suffix adalah counter 5 digit zero-padded unik per pelanggan (sequential: `max(counter) + 1`). Di-generate otomatis oleh sistem saat layanan dibuat; staff dapat override asal format dipatuhi. Disimpan di kolom `ppp_username` tabel `layanan_pelanggan`.

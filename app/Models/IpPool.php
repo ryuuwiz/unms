@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Database\Factories\IpPoolFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Router $router
+ * @property-read Collection<int, LayananPelanggan> $layanans
  */
 #[Fillable([
     'router_id',
@@ -70,6 +72,16 @@ class IpPool extends Model
     public function router(): BelongsTo
     {
         return $this->belongsTo(Router::class, 'router_id');
+    }
+
+    /**
+     * Relasi ke seluruh layanan pelanggan yang menggunakan IP Pool ini.
+     *
+     * @return HasMany<LayananPelanggan, $this>
+     */
+    public function layanans(): HasMany
+    {
+        return $this->hasMany(LayananPelanggan::class, 'ip_pool_id');
     }
 
     /**

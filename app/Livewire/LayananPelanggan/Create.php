@@ -23,7 +23,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Tambah Layanan Pelanggan')]
+#[Title('Tambah Data Registrasi Billing')]
 class Create extends Component
 {
     // Step 1: Pilih pelanggan & paket
@@ -207,6 +207,19 @@ class Create extends Component
             'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
         ]);
 
+        // Cek duplikasi: pelanggan tidak boleh memiliki layanan aktif/proses/suspend dengan router & paket yang persis sama
+        $existingDuplicate = LayananPelanggan::where('pelanggan_id', $this->pelanggan_id)
+            ->where('router_id', $this->router_id)
+            ->where('paket_layanan_id', $this->paket_layanan_id)
+            ->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Proses, StatusLayanan::Suspend])
+            ->exists();
+
+        if ($existingDuplicate) {
+            $this->addError('router_id', 'Pelanggan ini sudah memiliki Data Registrasi Billing aktif dengan paket yang sama pada router ini. Untuk pemasangan site baru, gunakan paket atau router yang sesuai.');
+
+            return;
+        }
+
         /** @var PaketLayanan $paket */
         $paket = PaketLayanan::findOrFail($this->paket_layanan_id);
 
@@ -250,7 +263,7 @@ class Create extends Component
                     'finished_at' => now(),
                 ]);
 
-                Flux::toast(variant: 'success', text: "Layanan {$layanan->ppp_username} berhasil didaftarkan dan langsung terprovisi aktif di {$router->nama_router}.");
+                Flux::toast(variant: 'success', text: "Data Registrasi Billing {$layanan->ppp_username} berhasil didaftarkan dan langsung terprovisi aktif di {$router->nama_router}.");
             } catch (\Throwable $e) {
                 ProvisionPppoeAccountJob::dispatch($layanan);
 
@@ -264,10 +277,10 @@ class Create extends Component
                     'finished_at' => now(),
                 ]);
 
-                Flux::toast(variant: 'warning', text: "Layanan didaftarkan. Provisi ke router tertunda: {$e->getMessage()}");
+                Flux::toast(variant: 'warning', text: "Data Registrasi Billing didaftarkan. Provisi ke router tertunda: {$e->getMessage()}");
             }
         } else {
-            Flux::toast(variant: 'success', text: 'Layanan pelanggan berhasil didaftarkan.');
+            Flux::toast(variant: 'success', text: 'Data Registrasi Billing berhasil didaftarkan.');
         }
 
         $this->redirectRoute('layanan-pelanggan.index', navigate: true);

@@ -37,6 +37,7 @@ class Index extends Component
     public function confirmDelete(int $id): void
     {
         $this->deletingId = $id;
+        $this->modal('confirm-delete')->show();
     }
 
     public function deleteRouter(): void
@@ -49,6 +50,7 @@ class Index extends Component
         $this->authorize('delete', $router);
 
         if ($router->layanans()->exists() || $router->ipPools()->exists()) {
+            $this->modal('confirm-delete')->close();
             Flux::toast(variant: 'danger', text: 'Router masih memiliki data relasi (layanan/IP pool) dan tidak dapat dihapus.');
             $this->deletingId = null;
 
@@ -56,6 +58,7 @@ class Index extends Component
         }
 
         $router->delete();
+        $this->modal('confirm-delete')->close();
         $this->deletingId = null;
         Flux::toast(variant: 'success', text: 'Router berhasil dihapus.');
     }

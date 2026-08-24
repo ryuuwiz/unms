@@ -16,7 +16,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Edit Layanan Pelanggan')]
+#[Title('Edit Data Registrasi Billing')]
 class Edit extends Component
 {
     #[Locked]
@@ -171,7 +171,7 @@ class Edit extends Component
 
         $layanan->update($data);
 
-        Flux::toast(variant: 'success', text: 'Layanan pelanggan berhasil diperbarui.');
+        Flux::toast(variant: 'success', text: 'Data Registrasi Billing berhasil diperbarui.');
         $this->redirectRoute('layanan-pelanggan.index', navigate: true);
     }
 

@@ -48,9 +48,14 @@
                     </flux:table.cell>
 
                     <flux:table.cell>
-                        <flux:badge size="sm" color="zinc">
-                            {{ $pool->router->nama_router }}
-                        </flux:badge>
+                        <div class="flex flex-col gap-0.5">
+                            <flux:badge size="sm" color="zinc">
+                                {{ $pool->router->nama_router }}
+                            </flux:badge>
+                            @if ($pool->layanans_count > 0)
+                                <span class="text-[11px] text-zinc-500">{{ $pool->layanans_count }} layanan</span>
+                            @endif
+                        </div>
                     </flux:table.cell>
 
                     <flux:table.cell class="font-mono text-sm">
@@ -139,20 +144,20 @@
     @endif
 
     {{-- Modal Konfirmasi Hapus --}}
-    @if ($deletingId)
-        <flux:modal name="confirm-delete" :show="true" class="max-w-md">
-            <div class="space-y-4">
-                <div>
-                    <flux:heading size="lg">Hapus IP Pool</flux:heading>
-                    <flux:subheading>
-                        Apakah Anda yakin ingin menghapus IP pool ini? Tindakan ini tidak dapat dibatalkan.
-                    </flux:subheading>
-                </div>
-                <div class="flex justify-end gap-3">
-                    <flux:button wire:click="$set('deletingId', null)" variant="ghost">Batal</flux:button>
-                    <flux:button wire:click="deleteIpPool" variant="danger">Hapus</flux:button>
-                </div>
+    <flux:modal name="confirm-delete" class="max-w-md">
+        <div class="space-y-4">
+            <div>
+                <flux:heading size="lg">Hapus IP Pool</flux:heading>
+                <flux:subheading>
+                    Apakah Anda yakin ingin menghapus IP pool ini? Tindakan ini tidak dapat dibatalkan.
+                </flux:subheading>
             </div>
-        </flux:modal>
-    @endif
+            <div class="flex justify-end gap-3">
+                <flux:modal.close>
+                    <flux:button variant="ghost" wire:click="$set('deletingId', null)">Batal</flux:button>
+                </flux:modal.close>
+                <flux:button wire:click="deleteIpPool" variant="danger">Hapus</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>

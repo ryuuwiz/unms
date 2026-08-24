@@ -15,20 +15,15 @@ class RouterSeeder extends Seeder
     {
         // Router utama untuk core network
         Router::updateOrCreate(
-            ['ip_address' => '192.168.88.1'],
+            ['ip_address' => '192.168.80.92'],
             [
-                'nama_router' => 'Main Router',
+                'nama_router' => 'Test Billing',
                 'port' => 8728,
-                'username' => 'admin',
-                'password_terenkripsi' => 'password',
-                'deskripsi' => 'Router MikroTik utama untuk Core Network',
+                'username' => 'go_billing',
+                'password_terenkripsi' => '3Vn5Fd3>:,=cc>X<|5{|0)%qgF7d%#8372KuewGIZ?*QO;#?*B',
+                'deskripsi' => 'Router MikroTik Test Billing',
                 'status_koneksi' => StatusRouter::Online,
             ]
         );
-
-        // Data dummy untuk testing jika belum ada
-        if (Router::count() <= 1) {
-            Router::factory(4)->create();
-        }
     }
 }

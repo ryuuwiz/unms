@@ -295,3 +295,66 @@ test('can list and filter layanans by status', function () {
         ->assertOk()
         ->assertSee($this->pelanggan->nama_depan);
 });
+
+test('pendaftaran layanan ditolak jika pelanggan sudah memiliki layanan aktif pada router dan paket yang sama', function () {
+    // Existing active service
+    LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+        'status' => StatusLayanan::Aktif,
+        'ppp_username' => "{$this->pelanggan->no_reg}_00001",
+    ]);
+
+    $newUsername = "{$this->pelanggan->no_reg}_00002";
+
+    Livewire::actingAs($this->admin)
+        ->test(Create::class)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('paket_layanan_id', $this->paket->id)
+        ->call('nextStep')
+        ->assertHasNoErrors()
+        ->set('router_id', $this->router->id)
+        ->set('ip_pool_id', $this->ipPool->id)
+        ->set('ppp_username', $newUsername)
+        ->set('ppp_password', 'secret1234')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->call('save')
+        ->assertHasErrors(['router_id'])
+        ->assertSee('Pelanggan ini sudah memiliki Data Registrasi Billing aktif dengan paket yang sama pada router ini');
+});
+
+test('pelanggan dapat memiliki banyak layanan jika router atau paket berbeda (multi-site)', function () {
+    Queue::fake([ProvisionPppoeAccountJob::class]);
+
+    // Existing active service on router 1
+    LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+        'status' => StatusLayanan::Aktif,
+        'ppp_username' => "{$this->pelanggan->no_reg}_00001",
+    ]);
+
+    // Second router for site 2
+    $secondRouter = Router::factory()->online()->create(['nama_router' => 'Router-Site-2']);
+    $secondPool = IpPool::factory()->create(['router_id' => $secondRouter->id]);
+    $newUsername = "{$this->pelanggan->no_reg}_00002";
+
+    Livewire::actingAs($this->admin)
+        ->test(Create::class)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('paket_layanan_id', $this->paket->id)
+        ->call('nextStep')
+        ->assertHasNoErrors()
+        ->set('router_id', $secondRouter->id)
+        ->set('ip_pool_id', $secondPool->id)
+        ->set('ppp_username', $newUsername)
+        ->set('ppp_password', 'secret1234')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('layanan-pelanggan.index'));
+
+    expect(LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->count())->toBe(2);
+});

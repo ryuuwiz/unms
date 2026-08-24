@@ -25,7 +25,7 @@ return [
                     'permission' => 'pelanggan.lihat',
                 ],
                 [
-                    'title' => 'Layanan Pelanggan',
+                    'title' => 'Data Registrasi Billing',
                     'icon' => 'signal',
                     'route' => 'layanan-pelanggan.index',
                     'active' => 'layanan-pelanggan.*',

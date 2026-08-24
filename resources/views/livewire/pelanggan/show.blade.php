@@ -289,7 +289,7 @@
                 @can('create', App\Models\LayananPelanggan::class)
                     <flux:button :href="route('layanan-pelanggan.create')" wire:navigate variant="primary" size="sm"
                         icon="plus">
-                        Tambah Layanan
+                        Tambah Registrasi Billing
                     </flux:button>
                 @endcan
             </div>

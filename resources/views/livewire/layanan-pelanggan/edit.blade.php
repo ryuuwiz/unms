@@ -1,7 +1,7 @@
 <div class="mx-auto max-w-2xl space-y-6">
     <div>
-        <flux:heading size="xl">Edit Layanan Pelanggan</flux:heading>
-        <flux:subheading>Perbarui konfigurasi paket, router, kredensial PPP, atau status layanan.</flux:subheading>
+        <flux:heading size="xl">Edit Data Registrasi Billing</flux:heading>
+        <flux:subheading>Perbarui konfigurasi paket, router, kredensial PPP, atau status data registrasi billing.</flux:subheading>
     </div>
 
     <flux:separator />

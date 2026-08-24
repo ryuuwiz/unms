@@ -21,7 +21,7 @@ test('super_admin sees all navigation groups and items in indonesian', function 
         ->assertSee('Dashboard')
         ->assertSee('Pelanggan & Layanan')
         ->assertSee('Pelanggan')
-        ->assertSee('Layanan Pelanggan')
+        ->assertSee('Data Registrasi Billing')
         ->assertSee('Paket Layanan')
         ->assertSee('Profil Bandwidth')
         ->assertSee('Keuangan & Billing')
@@ -48,7 +48,7 @@ test('user without permissions only sees dashboard', function () {
     $response->assertOk()
         ->assertSee('Dashboard')
         ->assertDontSee('Pelanggan & Layanan')
-        ->assertDontSee('Layanan Pelanggan')
+        ->assertDontSee('Data Registrasi Billing')
         ->assertDontSee('Profil Bandwidth')
         ->assertDontSee('Keuangan & Billing')
         ->assertDontSee('Tagihan (Invoice)')
@@ -79,7 +79,7 @@ test('super_admin sees contextual module navigation in sidebar when visiting a m
 
     $response->assertOk()
         ->assertSee('Pelanggan')
-        ->assertSee('Layanan Pelanggan')
+        ->assertSee('Data Registrasi Billing')
         ->assertSee('Paket Layanan')
         ->assertSee('Profil Bandwidth');
 });

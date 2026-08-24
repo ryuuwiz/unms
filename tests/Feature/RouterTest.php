@@ -6,6 +6,7 @@ use App\Enums\StatusRouter;
 use App\Livewire\Router\Create;
 use App\Livewire\Router\Edit;
 use App\Livewire\Router\Index;
+use App\Models\IpPool;
 use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Models\User;
@@ -109,4 +110,53 @@ test('autoRecoverPpp on router edit component calls autoRecoverPppSecrets and lo
 
     expect($log)->not->toBeNull()
         ->and($log->status)->toBe(MikrotikJobStatus::Success);
+});
+
+test('can delete router without relations from index', function () {
+    $router = Router::factory()->create([
+        'nama_router' => 'ROUTER_TO_DELETE',
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->call('confirmDelete', $router->id)
+        ->assertSet('deletingId', $router->id)
+        ->call('deleteRouter')
+        ->assertSet('deletingId', null)
+        ->assertHasNoErrors();
+
+    expect(Router::find($router->id))->toBeNull();
+});
+
+test('cannot delete router with existing relations', function () {
+    $router = Router::factory()->create([
+        'nama_router' => 'ROUTER_WITH_POOL',
+    ]);
+
+    IpPool::factory()->create([
+        'router_id' => $router->id,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->call('confirmDelete', $router->id)
+        ->call('deleteRouter')
+        ->assertSet('deletingId', null)
+        ->assertHasNoErrors();
+
+    expect(Router::find($router->id))->not->toBeNull();
+});
+
+test('user without delete permission cannot delete router', function () {
+    $router = Router::factory()->create();
+    $unauthorizedUser = User::factory()->create();
+    $unauthorizedUser->assignRole('teknisi');
+
+    Livewire::actingAs($unauthorizedUser)
+        ->test(Index::class)
+        ->call('confirmDelete', $router->id)
+        ->call('deleteRouter')
+        ->assertForbidden();
+
+    expect(Router::find($router->id))->not->toBeNull();
 });

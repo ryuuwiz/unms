@@ -1,7 +1,7 @@
 <div class="mx-auto max-w-2xl space-y-6">
     <div>
-        <flux:heading size="xl">Tambah Layanan Pelanggan</flux:heading>
-        <flux:subheading>Hubungkan pelanggan dengan paket layanan internet dan konfigurasi PPP.</flux:subheading>
+        <flux:heading size="xl">Tambah Data Registrasi Billing</flux:heading>
+        <flux:subheading>Hubungkan data registrasi billing pelanggan dengan paket layanan internet dan konfigurasi PPP.</flux:subheading>
     </div>
 
     {{-- Stepper Progress --}}

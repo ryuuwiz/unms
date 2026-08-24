@@ -1,8 +1,8 @@
 <div class="space-y-6" wire:poll.5s>
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <flux:heading size="xl">Layanan Pelanggan</flux:heading>
-            <flux:subheading>Kelola layanan internet aktif, kredensial PPPoE, router, dan masa aktif pelanggan.</flux:subheading>
+            <flux:heading size="xl">Data Registrasi Billing</flux:heading>
+            <flux:subheading>Kelola data registrasi billing internet, kredensial PPPoE, router, dan masa aktif pelanggan.</flux:subheading>
         </div>
         <div class="flex items-center gap-2">
             @can('create', App\Models\LayananPelanggan::class)
@@ -10,7 +10,7 @@
                     Provisi Massal
                 </flux:button>
                 <flux:button :href="route('layanan-pelanggan.create')" wire:navigate variant="primary" icon="plus">
-                    Tambah Layanan
+                    Tambah Registrasi Billing
                 </flux:button>
             @endcan
         </div>
@@ -157,7 +157,7 @@
                     <flux:table.cell colspan="6" class="py-12 text-center text-zinc-500">
                         <div class="flex flex-col items-center gap-2">
                             <flux:icon name="signal" class="size-8 text-zinc-300 dark:text-zinc-600" />
-                            <p class="font-medium">Tidak ada layanan pelanggan ditemukan.</p>
+                            <p class="font-medium">Tidak ada data registrasi billing ditemukan.</p>
                         </div>
                     </flux:table.cell>
                 </flux:table.row>
@@ -177,9 +177,9 @@
         <flux:modal name="confirm-delete" :show="true" class="max-w-md">
             <div class="space-y-4">
                 <div>
-                    <flux:heading size="lg">Hapus Layanan</flux:heading>
+                    <flux:heading size="lg">Hapus Data Registrasi Billing</flux:heading>
                     <flux:subheading>
-                        Apakah Anda yakin ingin menghapus layanan ini?
+                        Apakah Anda yakin ingin menghapus data registrasi billing ini?
                     </flux:subheading>
                 </div>
                 <div class="flex justify-end gap-3">
