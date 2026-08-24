@@ -24,6 +24,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $pelanggan_id
  * @property int $paket_layanan_id
  * @property int $router_id
+ * @property int|null $ip_pool_id
  * @property string $site_id
  * @property string $ppp_username
  * @property string $ppp_password_terenkripsi
@@ -42,12 +43,14 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property-read Pelanggan $pelanggan
  * @property-read PaketLayanan $paketLayanan
  * @property-read Router $router
+ * @property-read IpPool|null $ipPool
  * @property-read OdpPort|null $odpPort
  */
 #[Fillable([
     'pelanggan_id',
     'paket_layanan_id',
     'router_id',
+    'ip_pool_id',
     'ppp_username',
     'ppp_password_terenkripsi',
     'ip_static',
@@ -141,6 +144,16 @@ class LayananPelanggan extends Model
     }
 
     /**
+     * Relasi ke IP Pool yang digunakan sebagai remote-address PPP Secret.
+     *
+     * @return BelongsTo<IpPool, $this>
+     */
+    public function ipPool(): BelongsTo
+    {
+        return $this->belongsTo(IpPool::class, 'ip_pool_id');
+    }
+
+    /**
      * Relasi ke port ODP yang digunakan (opsional).
      *
      * @return BelongsTo<OdpPort, $this>
@@ -148,6 +161,22 @@ class LayananPelanggan extends Model
     public function odpPort(): BelongsTo
     {
         return $this->belongsTo(OdpPort::class, 'odp_port_id');
+    }
+
+    /**
+     * Tentukan nilai remote-address yang harus dikirim ke PPP Secret RouterOS.
+     *
+     * Prioritas: ip_static (jika ada) → nama IP Pool (ip_pool_id) → null.
+     * Nilai ini mencegah tabrakan IP antar pelanggan dan menjamin UNMS
+     * sebagai satu-satunya sumber kebenaran alokasi IP.
+     */
+    public function resolveRemoteAddress(): ?string
+    {
+        if (! empty($this->ip_static)) {
+            return $this->ip_static;
+        }
+
+        return $this->ipPool?->nama_pool ?? null;
     }
 
     /**

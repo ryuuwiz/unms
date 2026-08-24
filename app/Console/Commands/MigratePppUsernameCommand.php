@@ -112,8 +112,8 @@ class MigratePppUsernameCommand extends Command
                 // 1. Hapus secret lama dari MikroTik
                 $mikrotikService->deletePppoeSecret($router, $oldUsername);
 
-                // 2. Update ppp_username di database
-                $layanan->update(['ppp_username' => $newUsername]);
+                // 2. Update ppp_username di database tanpa memicu event observer ganda
+                $layanan->updateQuietly(['ppp_username' => $newUsername]);
 
                 // 3. Langsung provision secret baru ke router (sync — tidak via queue)
                 //    agar tidak ada window downtime antara delete dan create

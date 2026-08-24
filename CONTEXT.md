@@ -200,4 +200,34 @@ _Avoid_: Member Hangus, Langganan Mati, Akun Basi
 Visualisasi grafik sumbu-ganda (*dual-axis*) harian selama bulan berjalan yang memadukan kurva nominal pendapatan (Rp) pada sumbu primer dan jumlah volume transaksi berhasil pada sumbu sekunder.
 _Avoid_: Grafik Omzet Harian Lepas, Chart Transaksi Terpisah
 
+**Provisi Router Otomatis (Automatic Router Provisioning)**:
+Pipeline orkestrasi berurutan yang menyelaraskan seluruh data konfigurasi master UNMS ke perangkat MikroTik RouterOS melalui RouterOS API (pemeriksaan koneksi & resource $\rightarrow$ IP Pool & Simple Queue $\rightarrow$ Profil Bandwidth biner $\rightarrow$ PPP Secret Layanan Pelanggan $\rightarrow$ sinkronisasi status isolir dan pemutusan sesi aktif).
+_Avoid_: Sync Parsial Tanpa Urutan, Push Manual Bebas, Provisi Terfragmentasi
+
+**Rekonsiliasi Router (Router Reconciliation)**:
+Proses komparasi periodik terjadwal dan auto-recovery antara basis data UNMS dengan konfigurasi aktual di RouterOS untuk mendeteksi *configuration drift*, memulihkan PPP secret/profil yang hilang atau terhapus di router, dan menyelaraskan status disabled.
+_Avoid_: Cek Status Lepas, Sync Buta, Ping Tanpa Rekonsiliasi
+
+**Orphaned Secret (PPP Secret Tak Terkelola)**:
+Akun PPP Secret yang terdeteksi ada di RouterOS namun tidak memiliki rekaman aktif di database UNMS (misal akun manual sisa instalasi lama atau layanan yang telah dihapus). Ditangani secara audit-safe (hanya dicatat) dan dapat dibersihkan dengan opsi flags eksplisit.
+_Avoid_: Hapus Buta Akun Router, Rogue User Tanpa Log
+
+**IP Pool & Router Gateway Layanan**:
+Binding eksplisit antara satu Layanan Pelanggan, Router Gateway (`router_id`), dan IP Pool (`ip_pool_id`) yang menentukan nilai `remote-address` pada PPP Secret di RouterOS. Jika sistem hanya memiliki tepat 1 Router Online aktif, Livewire secara otomatis memilih router tersebut (*single-router auto-selection*). Selanjutnya, jika router tersebut hanya memiliki tepat 1 IP Pool aktif, sistem secara otomatis memilih pool tersebut (*single-pool auto-selection*). Pola bertingkat ini meniadakan friksi form input, mencegah visual desync di browser, dan menjamin alokasi IP selalu sinkron.
+_Avoid_: Remote Address Kosong, IP Pool Implisit dari Profile Saja, Visual Desync Dropdown Tanpa State Livewire
+
+**Alokasi IP Statis Layanan**:
+Pengalokasian alamat IPv4 statis dedicated (kolom `ip_static` di `layanan_pelanggan`) untuk pelanggan dengan jenis koneksi IP Static yang langsung diset sebagai `remote-address` pada konfigurasi PPP Secret MikroTik.
+_Avoid_: IP Statis Tanpa Validasi IPv4, Alokasi Statis Tak Tercatat di Database
+
+**Cleanup PPP Secret Lama (Router Migration Cleanup)**:
+Proses otomatis yang dipicu oleh Observer saat `router_id` sebuah Layanan Pelanggan berubah (migrasi router). Sistem menghapus PPP Secret dari router lama via job antrian (`CleanupPppSecretOnOldRouterJob`) agar tidak terjadi duplikat secret lintas router. Jika router lama offline, kegagalan dicatat di `MikrotikJobLog` sebagai Failed untuk tindak lanjut manual.
+_Avoid_: Biarkan Secret Lama, Hapus Manual, Duplikat Dibiarkan Sampai Rekonsiliasi
+
+**Multi-Layanan Pelanggan (Granular Billing & Isolation)**:
+Dukungan di mana satu pelanggan (entitas `Pelanggan`) dapat memiliki banyak layanan internet aktif (entitas `LayananPelanggan` 1:N). Setiap layanan memiliki `site_id` dan `ppp_username` berurutan unik (`{no_reg}_00001`, `{no_reg}_00002`), paket layanan independen, serta siklus invoice tersendiri (`Invoice` 1:1 per periode per layanan). Jika salah satu layanan menunggak (Suspend), isolir dilakukan secara parsial hanya pada PPP Secret layanan yang bersangkutan tanpa mengganggu layanan lain milik pelanggan yang sama.
+_Avoid_: Akumulasi Invoice Tanpa Rincian Site, Isolir Global Seluruh Layanan Pelanggan, Duplikasi Pelanggan untuk Multi-Lokasi
+
+
+
 

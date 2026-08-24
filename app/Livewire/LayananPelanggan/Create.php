@@ -8,6 +8,7 @@ use App\Enums\MikrotikJobType;
 use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
+use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\PaketLayanan;
@@ -35,6 +36,10 @@ class Create extends Component
     // Step 2: Konfigurasi koneksi
     public ?int $router_id = null;
 
+    public ?int $ip_pool_id = null;
+
+    public ?string $ip_static = null;
+
     public string $ppp_username = '';
 
     public string $ppp_password = '';
@@ -49,6 +54,24 @@ class Create extends Component
     {
         $this->authorize('create', LayananPelanggan::class);
         $this->tanggal_mulai = now()->toDateString();
+        $this->initSingleRouterSelection();
+    }
+
+    /**
+     * Auto-assign router_id jika hanya ada 1 Router Online di sistem,
+     * serta trigger pemuatan dan auto-selection IP Pool otomatis.
+     */
+    protected function initSingleRouterSelection(): void
+    {
+        if ($this->router_id) {
+            return;
+        }
+
+        $onlineRouters = Router::online()->get(['id']);
+        if ($onlineRouters->count() === 1) {
+            $this->router_id = $onlineRouters->first()->id;
+            $this->updatedRouterId();
+        }
     }
 
     /**
@@ -68,11 +91,17 @@ class Create extends Component
     protected function rulesStep2(): array
     {
         $pelanggan = $this->pelanggan_id ? Pelanggan::find($this->pelanggan_id) : null;
-        $noReg = $pelanggan?->no_reg ?? '';
-        $escapedNoReg = preg_quote($noReg, '/');
+        $escapedNoReg = $pelanggan ? preg_quote($pelanggan->no_reg, '/') : '[A-Za-z0-9]+';
 
         return [
             'router_id' => ['required', 'integer', 'exists:router,id'],
+            'jenis_koneksi' => ['required', 'string', 'in:pppoe,ip_static'],
+            'ip_pool_id' => $this->jenis_koneksi === 'pppoe'
+                ? ['required', 'integer', 'exists:ip_pool,id']
+                : ['nullable', 'integer', 'exists:ip_pool,id'],
+            'ip_static' => $this->jenis_koneksi === 'ip_static'
+                ? ['required', 'ipv4']
+                : ['nullable', 'ipv4'],
             'ppp_username' => [
                 'required',
                 'string',
@@ -81,7 +110,6 @@ class Create extends Component
                 'unique:layanan_pelanggan,ppp_username',
             ],
             'ppp_password' => ['required', 'string', 'min:4', 'max:64'],
-            'jenis_koneksi' => ['required', 'string', 'in:pppoe,ip_static'],
             'tanggal_mulai' => ['required', 'date'],
             'auto_provision' => ['boolean'],
         ];
@@ -94,6 +122,7 @@ class Create extends Component
             'paket_layanan_id.required' => 'Paket layanan wajib dipilih.',
         ]);
 
+        $this->initSingleRouterSelection();
         $this->step = 2;
     }
 
@@ -114,6 +143,46 @@ class Create extends Component
         }
     }
 
+    /**
+     * Auto-assign ip_pool_id jika router hanya memiliki 1 pool,
+     * atau reset ke null jika memiliki banyak/tanpa pool.
+     *
+     * Dipanggil otomatis oleh Livewire saat properti router_id berubah.
+     */
+    public function updatedRouterId(): void
+    {
+        if ($this->router_id) {
+            $pools = IpPool::where('router_id', $this->router_id)->get(['id']);
+            if ($pools->count() === 1) {
+                $this->ip_pool_id = $pools->first()->id;
+            } else {
+                $this->ip_pool_id = null;
+            }
+        } else {
+            $this->ip_pool_id = null;
+        }
+    }
+
+    /**
+     * Sesuaikan ketersediaan field IP Pool vs IP Statis saat jenis koneksi berubah.
+     *
+     * Dipanggil otomatis oleh Livewire saat properti jenis_koneksi berubah.
+     */
+    public function updatedJenisKoneksi(): void
+    {
+        if ($this->jenis_koneksi === 'pppoe') {
+            $this->ip_static = null;
+            if ($this->router_id) {
+                $pools = IpPool::where('router_id', $this->router_id)->get(['id']);
+                if ($pools->count() === 1) {
+                    $this->ip_pool_id = $pools->first()->id;
+                }
+            }
+        } else {
+            $this->ip_pool_id = null;
+        }
+    }
+
     public function prevStep(): void
     {
         $this->step = 1;
@@ -124,6 +193,11 @@ class Create extends Component
         $this->authorize('create', LayananPelanggan::class);
         $this->validate($this->rulesStep2(), [
             'router_id.required' => 'Router wajib dipilih.',
+            'router_id.exists' => 'Router yang dipilih tidak valid.',
+            'ip_pool_id.required' => 'IP Pool wajib dipilih untuk koneksi PPPoE.',
+            'ip_pool_id.exists' => 'IP Pool yang dipilih tidak valid.',
+            'ip_static.required' => 'Alamat IP Statis wajib diisi untuk koneksi IP Static.',
+            'ip_static.ipv4' => 'Format Alamat IP Statis tidak valid (contoh: 192.168.1.50).',
             'ppp_username.required' => 'Username PPP wajib diisi.',
             'ppp_username.max' => 'Username PPP maksimal 64 karakter.',
             'ppp_username.regex' => 'Format username PPP tidak valid. Harus berupa No.Reg pelanggan diikuti underscore dan 5 digit angka (contoh: BF2308202601_00001).',
@@ -146,6 +220,8 @@ class Create extends Component
             'pelanggan_id' => $this->pelanggan_id,
             'paket_layanan_id' => $this->paket_layanan_id,
             'router_id' => $this->router_id,
+            'ip_pool_id' => $this->jenis_koneksi === 'pppoe' ? $this->ip_pool_id : null,
+            'ip_static' => $this->jenis_koneksi === 'ip_static' ? $this->ip_static : null,
             'ppp_username' => $this->ppp_username,
             'ppp_password_terenkripsi' => $this->ppp_password,
             'jenis_koneksi' => $this->jenis_koneksi,
@@ -202,12 +278,16 @@ class Create extends Component
         $pelanggans = Pelanggan::aktif()->orderBy('nama_depan')->get();
         $pakets = PaketLayanan::aktif()->with('profilBandwidth')->orderBy('nama_paket')->get();
         $routers = Router::online()->get();
+        $ipPools = $this->router_id
+            ? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
+            : collect();
         $jenisKoneksi = JenisKoneksi::cases();
 
         return view('livewire.layanan-pelanggan.create', compact(
             'pelanggans',
             'pakets',
             'routers',
+            'ipPools',
             'jenisKoneksi',
         ));
     }

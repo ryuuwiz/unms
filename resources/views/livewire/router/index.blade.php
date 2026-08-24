@@ -97,6 +97,16 @@
                                 />
 
                                 <flux:button
+                                    wire:click="provisionRouter({{ $router->id }})"
+                                    wire:loading.attr="disabled"
+                                    size="sm"
+                                    variant="ghost"
+                                    icon="arrow-path-rounded-square"
+                                    class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                                    title="Provisi Lengkap Router (IP Pool, Profil, PPP Secret)"
+                                />
+
+                                <flux:button
                                     :href="route('router.edit', $router)"
                                     wire:navigate
                                     size="sm"

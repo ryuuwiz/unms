@@ -94,6 +94,33 @@ class Index extends Component
         }
     }
 
+    public function provisionRouter(int $routerId, MikrotikService $mikrotikService): void
+    {
+        $router = Router::findOrFail($routerId);
+        $this->authorize('update', $router);
+
+        try {
+            $result = $mikrotikService->provisionRouterFull($router, cleanOrphans: true);
+            $details = $result['details'] ?? [];
+            $poolSynced = $details['ip_pools']['synced'] ?? 0;
+            $profileSynced = $details['profiles']['synced'] ?? 0;
+            $secretRecovered = $details['secrets']['recovered'] ?? 0;
+            $orphansDeleted = $details['orphans']['deleted'] ?? 0;
+
+            $orphanText = $orphansDeleted > 0 ? ", Orphan: {$orphansDeleted} dibersihkan" : '';
+
+            Flux::toast(
+                variant: 'success',
+                text: "Provisi {$router->nama_router} sukses! (Pool: {$poolSynced}, Profil: {$profileSynced}, Secret: {$secretRecovered}{$orphanText})"
+            );
+        } catch (\Throwable $e) {
+            Flux::toast(
+                variant: 'danger',
+                text: "Gagal provisi {$router->nama_router}: {$e->getMessage()}"
+            );
+        }
+    }
+
     public function render(): View
     {
         $routers = Router::query()

@@ -10,6 +10,12 @@ use App\Listeners\LogImpersonationActivity;
 use App\Listeners\RecordLastLoginAt;
 use App\Listeners\TriggerMikrotikAktivasiStubListener;
 use App\Listeners\TriggerWaNotifikasiStubListener;
+use App\Models\IpPool;
+use App\Models\LayananPelanggan;
+use App\Models\ProfilBandwidth;
+use App\Observers\IpPoolObserver;
+use App\Observers\LayananPelangganObserver;
+use App\Observers\ProfilBandwidthObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Date;
@@ -36,7 +42,18 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->registerEventListeners();
+        $this->registerModelObservers();
         $this->configureSuperAdminGate();
+    }
+
+    /**
+     * Register Eloquent model observers.
+     */
+    protected function registerModelObservers(): void
+    {
+        IpPool::observe(IpPoolObserver::class);
+        ProfilBandwidth::observe(ProfilBandwidthObserver::class);
+        LayananPelanggan::observe(LayananPelangganObserver::class);
     }
 
     /**

@@ -2,6 +2,9 @@
 
 namespace App\Livewire\Router;
 
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
@@ -143,6 +146,33 @@ class Edit extends Component
             Flux::toast(
                 variant: 'danger',
                 text: "Gagal auto-recover PPP: {$e->getMessage()}"
+            );
+        }
+    }
+
+    public function provisionFullRouter(MikrotikService $mikrotikService): void
+    {
+        $router = Router::findOrFail($this->routerId);
+        $this->authorize('update', $router);
+
+        try {
+            $result = $mikrotikService->provisionRouterFull($router, cleanOrphans: true);
+            $details = $result['details'] ?? [];
+            $poolSynced = $details['ip_pools']['synced'] ?? 0;
+            $profileSynced = $details['profiles']['synced'] ?? 0;
+            $secretRecovered = $details['secrets']['recovered'] ?? 0;
+            $orphansDeleted = $details['orphans']['deleted'] ?? 0;
+
+            $orphanText = $orphansDeleted > 0 ? ", Orphan: {$orphansDeleted} dibersihkan" : '';
+
+            Flux::toast(
+                variant: 'success',
+                text: "Provisi penuh {$router->nama_router} sukses! (Pool: {$poolSynced}, Profil: {$profileSynced}, Secret: {$secretRecovered}{$orphanText})"
+            );
+        } catch (\Throwable $e) {
+            Flux::toast(
+                variant: 'danger',
+                text: "Gagal provisi penuh: {$e->getMessage()}"
             );
         }
     }

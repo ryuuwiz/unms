@@ -1,10 +1,15 @@
 <?php
 
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
 use App\Enums\StatusRouter;
 use App\Livewire\Router\Create;
+use App\Livewire\Router\Edit;
 use App\Livewire\Router\Index;
+use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Models\User;
+use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
@@ -70,4 +75,38 @@ test('can toggle router status from index', function () {
         ->assertHasNoErrors();
 
     expect($router->fresh()->status_koneksi)->toBe(StatusRouter::Offline);
+});
+
+test('autoRecoverPpp on router edit component calls autoRecoverPppSecrets and logs to MikrotikJobLog', function () {
+    $router = Router::factory()->create([
+        'nama_router' => 'R1',
+        'ip_address' => '127.0.0.1',
+        'status_koneksi' => StatusRouter::Online,
+    ]);
+
+    $this->mock(MikrotikService::class, function ($mock) use ($router) {
+        $mock->shouldReceive('autoRecoverPppSecrets')
+            ->once()
+            ->with(Mockery::on(fn ($r) => $r->id === $router->id))
+            ->andReturn([
+                'total_checked' => 5,
+                'recovered' => 2,
+                'already_synced' => 3,
+                'disabled' => 0,
+                'duplicates_removed' => 0,
+                'errors' => [],
+            ]);
+    });
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Edit::class, ['router' => $router])
+        ->call('autoRecoverPpp')
+        ->assertHasNoErrors();
+
+    $log = MikrotikJobLog::where('router_id', $router->id)
+        ->where('job_type', MikrotikJobType::ReconcilePppoe)
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->status)->toBe(MikrotikJobStatus::Success);
 });

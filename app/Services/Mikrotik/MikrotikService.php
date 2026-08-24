@@ -15,6 +15,7 @@ use App\Models\MikrotikJobLog;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use RouterOS\Client;
 use RouterOS\Config;
 use RouterOS\Query;
@@ -113,7 +114,7 @@ class MikrotikService
                 'status_koneksi' => StatusRouter::Offline,
                 'last_ping_at' => Carbon::now(),
                 'last_ping_status' => 'failed',
-                'last_ping_message' => $e->getMessage(),
+                'last_ping_message' => Str::limit($e->getMessage(), 250),
             ]);
 
             MikrotikJobLog::create([
@@ -179,6 +180,19 @@ class MikrotikService
                     ->equal('rate-limit', $rateLimit)
                     ->equal('comment', $comment);
                 $client->query($setQuery)->read();
+
+                // Hapus duplikat profile jika ada lebih dari 1 di RouterOS
+                if (count($existing) > 1) {
+                    for ($i = 1; $i < count($existing); $i++) {
+                        if (isset($existing[$i]['.id'])) {
+                            try {
+                                $client->query((new Query('/ppp/profile/remove'))->equal('.id', $existing[$i]['.id']))->read();
+                            } catch (Throwable $e) {
+                                // Lanjutkan jika duplikat sekunder sudah terhapus
+                            }
+                        }
+                    }
+                }
             } else {
                 $addQuery = (new Query('/ppp/profile/add'))
                     ->equal('name', $profileName)
@@ -236,12 +250,19 @@ class MikrotikService
             $pelangganNama = $layanan->pelanggan ? $layanan->pelanggan->nama_depan.' '.$layanan->pelanggan->nama_belakang : 'Pelanggan';
             $comment = "UNMS: {$layanan->site_id} - {$pelangganNama}";
 
-            // 3. Cek apakah secret sudah ada di RouterOS
+            // 3. Tentukan remote-address untuk IP Statis (IPv4 valid).
+            // Catatan: RouterOS /ppp/secret hanya menerima IP address literal untuk remote-address.
+            // Alokasi dinamis via IP Pool dikelola melalui PPP Profile di RouterOS.
+            $staticIp = ! empty($layanan->ip_static) && filter_var($layanan->ip_static, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
+                ? (string) $layanan->ip_static
+                : null;
+
+            // 4. Cek apakah secret sudah ada di RouterOS
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
             $existing = $client->query($findQuery)->read();
 
             if (! empty($existing) && isset($existing[0]['.id'])) {
-                // Update secret eksisting
+                // Update secret eksisting utama
                 $secretId = $existing[0]['.id'];
                 $setQuery = (new Query('/ppp/secret/set'))
                     ->equal('.id', $secretId)
@@ -251,12 +272,38 @@ class MikrotikService
                     ->equal('comment', $comment)
                     ->equal('disabled', 'no');
 
-                if (! empty($layanan->ip_static)) {
-                    $setQuery->equal('remote-address', $layanan->ip_static);
+                if ($staticIp !== null) {
+                    $setQuery->equal('remote-address', $staticIp);
                 }
 
                 $result = $client->query($setQuery)->read();
                 $action = 'updated';
+
+                // Jika layanan beralih ke dynamic pool dan sebelumnya memiliki remote-address statis di RouterOS, unset remote-address
+                if ($staticIp === null && ! empty($existing[0]['remote-address'])) {
+                    try {
+                        $unsetQuery = (new Query('/ppp/secret/unset'))
+                            ->equal('.id', $secretId)
+                            ->equal('value-name', 'remote-address');
+                        $client->query($unsetQuery)->read();
+                    } catch (Throwable $e) {
+                        // Lanjutkan jika remote-address sudah tidak ada
+                    }
+                }
+
+                // Hapus entri duplikat jika ada lebih dari 1 secret dengan username yang sama di RouterOS
+                if (count($existing) > 1) {
+                    for ($i = 1; $i < count($existing); $i++) {
+                        if (isset($existing[$i]['.id'])) {
+                            try {
+                                $removeDupQuery = (new Query('/ppp/secret/remove'))->equal('.id', $existing[$i]['.id']);
+                                $client->query($removeDupQuery)->read();
+                            } catch (Throwable $e) {
+                                // Lanjutkan jika duplikat sekunder sudah terhapus
+                            }
+                        }
+                    }
+                }
             } else {
                 // Buat secret baru
                 $addQuery = (new Query('/ppp/secret/add'))
@@ -267,8 +314,8 @@ class MikrotikService
                     ->equal('comment', $comment)
                     ->equal('disabled', 'no');
 
-                if (! empty($layanan->ip_static)) {
-                    $addQuery->equal('remote-address', $layanan->ip_static);
+                if ($staticIp !== null) {
+                    $addQuery->equal('remote-address', $staticIp);
                 }
 
                 $result = $client->query($addQuery)->read();
@@ -434,8 +481,12 @@ class MikrotikService
                 return false;
             }
 
-            $removeQuery = (new Query('/ppp/secret/remove'))->equal('.id', $existing[0]['.id']);
-            $client->query($removeQuery)->read();
+            foreach ($existing as $item) {
+                if (isset($item['.id'])) {
+                    $removeQuery = (new Query('/ppp/secret/remove'))->equal('.id', $item['.id']);
+                    $client->query($removeQuery)->read();
+                }
+            }
 
             return true;
         } catch (Throwable $e) {
@@ -474,6 +525,18 @@ class MikrotikService
                     ->equal('.id', $poolId)
                     ->equal('ranges', $poolRanges);
                 $client->query($setPoolQuery)->read();
+
+                if (count($existingPool) > 1) {
+                    for ($i = 1; $i < count($existingPool); $i++) {
+                        if (isset($existingPool[$i]['.id'])) {
+                            try {
+                                $client->query((new Query('/ip/pool/remove'))->equal('.id', $existingPool[$i]['.id']))->read();
+                            } catch (Throwable $e) {
+                                // Lanjutkan jika duplikat sekunder sudah terhapus
+                            }
+                        }
+                    }
+                }
             } else {
                 $addPoolQuery = (new Query('/ip/pool/add'))
                     ->equal('name', $poolName)
@@ -560,16 +623,33 @@ class MikrotikService
             throw new MikrotikException("Gagal membaca data PPP Secret dari router {$router->nama_router}: {$e->getMessage()}", (int) $e->getCode(), $e);
         }
 
-        // Petakan username => data secret di RouterOS
+        // Petakan username => data secret di RouterOS dan hapus duplikat jika ditemukan
         $remoteSecrets = [];
+        $duplicatesRemoved = 0;
+
         foreach ($remoteSecretsRaw as $s) {
-            if (isset($s['name'])) {
-                $remoteSecrets[$s['name']] = $s;
+            $name = $s['name'] ?? null;
+            if (! $name) {
+                continue;
+            }
+
+            if (! isset($remoteSecrets[$name])) {
+                $remoteSecrets[$name] = $s;
+            } else {
+                // Secret duplikat di RouterOS: hapus entri duplikat tambahan
+                if (isset($s['.id'])) {
+                    try {
+                        $client->query((new Query('/ppp/secret/remove'))->equal('.id', $s['.id']))->read();
+                        $duplicatesRemoved++;
+                    } catch (Throwable $e) {
+                        // Lanjutkan jika duplikat sudah terhapus
+                    }
+                }
             }
         }
 
         // 2. Ambil seluruh layanan pelanggan UNMS yang terhubung ke router ini
-        $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan'])
+        $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan', 'ipPool'])
             ->where('router_id', $router->id)
             ->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Suspend, StatusLayanan::Proses])
             ->get();
@@ -591,9 +671,12 @@ class MikrotikService
             }
 
             $expectedProfile = $profil->nama_bandwidth;
+            $expectedStaticIp = ! empty($layanan->ip_static) && filter_var($layanan->ip_static, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
+                ? (string) $layanan->ip_static
+                : '';
             $remote = $remoteSecrets[$username] ?? null;
 
-            // Periksa apakah secret hilang, atau profile berbeda
+            // Periksa apakah secret hilang, profile berbeda, atau remote-address (IP statis) tidak sesuai
             $needsRecovery = false;
 
             if ($remote === null) {
@@ -601,6 +684,9 @@ class MikrotikService
                 $needsRecovery = true;
             } elseif (($remote['profile'] ?? '') !== $expectedProfile) {
                 // Profile di RouterOS tidak sesuai
+                $needsRecovery = true;
+            } elseif (($remote['remote-address'] ?? '') !== $expectedStaticIp) {
+                // Remote-address di RouterOS tidak sesuai dengan konfigurasi IP Statis UNMS
                 $needsRecovery = true;
             }
 
@@ -645,6 +731,7 @@ class MikrotikService
             'recovered' => $recovered,
             'already_synced' => $alreadySynced,
             'disabled' => $disabledCount,
+            'duplicates_removed' => $duplicatesRemoved,
             'errors' => $errors,
         ];
     }
@@ -676,5 +763,231 @@ class MikrotikService
             'synced' => $synced,
             'errors' => $errors,
         ];
+    }
+
+    /**
+     * Audit atau bersihkan akun PPP Secret di RouterOS yang tidak terdaftar di UNMS (Orphaned Secrets).
+     * Sesuai ADR 0018 & Kebijakan Whitelist: Akun teknisi (MANUAL:, NOC:, SYSTEM:, admin) dilindungi.
+     *
+     * @return array{
+     *     total_checked: int,
+     *     orphans_count: int,
+     *     orphans: array<string>,
+     *     deleted: int,
+     *     mode: string,
+     *     errors: array<string>
+     * }
+     *
+     * @throws MikrotikException
+     */
+    public function cleanOrphanedPppSecrets(Router $router, bool $executeDelete = false): array
+    {
+        try {
+            $client = $this->getClient($router);
+            $remoteSecrets = $client->query(new Query('/ppp/secret/print'))->read();
+
+            if (empty($remoteSecrets)) {
+                return [
+                    'total_checked' => 0,
+                    'orphans_count' => 0,
+                    'orphans' => [],
+                    'deleted' => 0,
+                    'mode' => $executeDelete ? 'cleaned' : 'audit_only',
+                    'errors' => [],
+                ];
+            }
+
+            // Ambil semua username PPPoE aktif/valid di UNMS untuk router ini
+            $validUsernames = LayananPelanggan::query()
+                ->where('router_id', $router->id)
+                ->pluck('ppp_username')
+                ->filter()
+                ->map(fn ($u) => trim((string) $u))
+                ->toArray();
+
+            $validUsernamesLookup = array_flip($validUsernames);
+
+            $orphans = [];
+            $deletedCount = 0;
+            $errors = [];
+
+            $systemProtectedUsers = ['admin', 'api', 'support', 'guest', 'default-encryption'];
+
+            foreach ($remoteSecrets as $secret) {
+                $name = $secret['name'] ?? '';
+                $comment = $secret['comment'] ?? '';
+                $secretId = $secret['.id'] ?? null;
+
+                if (empty($name) || in_array(strtolower($name), $systemProtectedUsers, true)) {
+                    continue; // Lindungi akun sistem bawaan MikroTik
+                }
+
+                // Lindungi akun dengan tag komentar manajemen teknisi NOC/MANUAL/SYSTEM
+                if (preg_match('/^(MANUAL:|NOC:|SYSTEM:|WHITELIST:)/i', $comment)) {
+                    continue;
+                }
+
+                // Jika nama secret tidak ada dalam database UNMS router ini
+                if (! isset($validUsernamesLookup[$name])) {
+                    $isUnmsTagged = str_starts_with($comment, 'UNMS:') || preg_match('/^[a-zA-Z0-9]+_[0-9]{5}$/', $name);
+
+                    // Catat sebagai orphaned secret unik
+                    $orphanLabel = $name.($comment ? " ({$comment})" : '');
+                    $orphans[$orphanLabel] = true;
+
+                    if ($executeDelete && $secretId && $isUnmsTagged) {
+                        try {
+                            $removeQuery = (new Query('/ppp/secret/remove'))->equal('.id', $secretId);
+                            $client->query($removeQuery)->read();
+
+                            // Putus sesi aktif jika ada
+                            $this->removeActiveSession($router, $name);
+                            $deletedCount++;
+                        } catch (Throwable $e) {
+                            $errors[] = "Gagal menghapus orphaned secret {$name}: {$e->getMessage()}";
+                        }
+                    }
+                }
+            }
+
+            return [
+                'total_checked' => count($remoteSecrets),
+                'orphans_count' => count($orphans),
+                'orphans' => array_keys($orphans),
+                'deleted' => $deletedCount,
+                'mode' => $executeDelete ? 'cleaned' : 'audit_only',
+                'errors' => $errors,
+            ];
+        } catch (Throwable $e) {
+            throw new MikrotikException(
+                "Gagal memeriksa orphaned PPP secrets pada router {$router->nama_router}: {$e->getMessage()}",
+                (int) $e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
+     * Eksekusi Pipeline Lengkap Provisi & Sinkronisasi Otomatis Router MikroTik.
+     * Sesuai ADR 0018:
+     * 1. Test Connection & System Resources
+     * 2. Sinkronisasi IP Pools & Queues
+     * 3. Sinkronisasi PPP Profiles (binary bps)
+     * 4. Sinkronisasi PPP Secrets (Layanan Pelanggan & Static IPs)
+     * 5. Audit / Pembersihan Orphaned Secrets
+     *
+     * @return array<string, mixed>
+     *
+     * @throws MikrotikException
+     */
+    public function provisionRouterFull(Router $router, bool $force = false, bool $cleanOrphans = false): array
+    {
+        try {
+            // 1. Health & Resource Check
+            $resourceResult = $this->testConnection($router, 5);
+
+            // 2. Sinkronisasi IP Pool milik router ini
+            $ipPools = $router->ipPools;
+            $poolSynced = 0;
+            $poolErrors = [];
+            foreach ($ipPools as $pool) {
+                try {
+                    $this->syncIpPool($router, $pool);
+                    $poolSynced++;
+                } catch (Throwable $e) {
+                    $poolErrors[] = "Pool {$pool->nama_pool}: {$e->getMessage()}";
+                }
+            }
+
+            $poolResult = [
+                'total' => $ipPools->count(),
+                'synced' => $poolSynced,
+                'errors' => $poolErrors,
+            ];
+
+            // 3. Sinkronisasi Seluruh Profil Bandwidth (binary bps)
+            $profileResult = $this->syncAllBandwidthProfiles($router);
+
+            // 4. Sinkronisasi PPP Secrets & Status Layanan Pelanggan
+            if ($force) {
+                $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan'])
+                    ->where('router_id', $router->id)
+                    ->get();
+
+                $secretSynced = 0;
+                $secretErrors = [];
+
+                foreach ($layanans as $layanan) {
+                    try {
+                        $this->createOrUpdatePppoeSecret($router, $layanan);
+                        if ($layanan->status === StatusLayanan::Suspend) {
+                            $this->disablePppoeSecret($router, $layanan, false);
+                        }
+                        $secretSynced++;
+                    } catch (Throwable $e) {
+                        $secretErrors[] = "Secret {$layanan->ppp_username}: {$e->getMessage()}";
+                    }
+                }
+
+                $secretResult = [
+                    'total_checked' => $layanans->count(),
+                    'recovered' => $secretSynced,
+                    'already_synced' => 0,
+                    'disabled' => $layanans->where('status', StatusLayanan::Suspend)->count(),
+                    'errors' => $secretErrors,
+                ];
+            } else {
+                $secretResult = $this->autoRecoverPppSecrets($router);
+            }
+
+            // 5. Audit / Pembersihan Orphaned Secrets
+            $orphanResult = $this->cleanOrphanedPppSecrets($router, $cleanOrphans);
+
+            // Update last_sync_at pada router
+            $router->update([
+                'last_sync_at' => Carbon::now(),
+            ]);
+
+            $finalPayload = [
+                'resources' => $resourceResult,
+                'ip_pools' => $poolResult,
+                'profiles' => $profileResult,
+                'secrets' => $secretResult,
+                'orphans' => $orphanResult,
+                'force' => $force,
+                'clean_orphans' => $cleanOrphans,
+            ];
+
+            MikrotikJobLog::create([
+                'router_id' => $router->id,
+                'job_type' => MikrotikJobType::ProvisionRouter,
+                'status' => MikrotikJobStatus::Success,
+                'attempt_count' => 1,
+                'payload' => $finalPayload,
+                'finished_at' => Carbon::now(),
+            ]);
+
+            return [
+                'status' => 'success',
+                'router_id' => $router->id,
+                'nama_router' => $router->nama_router,
+                'details' => $finalPayload,
+            ];
+        } catch (Throwable $e) {
+            MikrotikJobLog::create([
+                'router_id' => $router->id,
+                'job_type' => MikrotikJobType::ProvisionRouter,
+                'status' => MikrotikJobStatus::Failed,
+                'attempt_count' => 1,
+                'error_message' => $e->getMessage(),
+                'finished_at' => Carbon::now(),
+            ]);
+
+            throw new MikrotikException(
+                "Provisi penuh gagal pada router {$router->nama_router}: {$e->getMessage()}",
+                (int) $e->getCode(),
+                $e
+            );
+        }
     }
 }

@@ -5,6 +5,10 @@
             <flux:subheading>Perbarui konfigurasi koneksi router {{ $nama_router }}.</flux:subheading>
         </div>
         <div class="flex items-center gap-2">
+            <flux:button wire:click="provisionFullRouter" wire:loading.attr="disabled" variant="subtle" icon="arrow-path-rounded-square" title="Jalankan pipeline provisi penuh (IP Pool, Profil, PPP Secret, Isolir)">
+                <span wire:loading.remove wire:target="provisionFullRouter">Provisi Penuh Router</span>
+                <span wire:loading wire:target="provisionFullRouter">Memproses Pipeline...</span>
+            </flux:button>
             <flux:button wire:click="autoRecoverPpp" wire:loading.attr="disabled" variant="subtle" icon="arrow-path" title="Periksa dan pulihkan seluruh PPP secret di RouterOS yang belum lengkap">
                 <span wire:loading.remove wire:target="autoRecoverPpp">Auto-Recover PPP</span>
                 <span wire:loading wire:target="autoRecoverPpp">Memulihkan PPP...</span>
