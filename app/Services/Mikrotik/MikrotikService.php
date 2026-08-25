@@ -28,7 +28,7 @@ class MikrotikService
      *
      * @throws MikrotikConnectionException
      */
-    public function getClient(Router $router, int $timeout = 10): Client
+    public function getClient(Router $router, int $timeout = 10, int $socketTimeout = 15): Client
     {
         try {
             $config = new Config([
@@ -37,7 +37,13 @@ class MikrotikService
                 'pass' => $router->password_terenkripsi,
                 'port' => (int) $router->port,
                 'timeout' => $timeout,
-                'attempts' => 1,
+                'socket_timeout' => $socketTimeout,
+                'attempts' => 2,
+                'delay' => 1,
+                'throw_timeout_exception' => false,
+                'socket_options' => [
+                    'tcp_nodelay' => true,
+                ],
             ]);
 
             return new Client($config);
@@ -728,7 +734,13 @@ class MikrotikService
         try {
             $remoteSecretsRaw = $client->query(new Query('/ppp/secret/print'))->read();
         } catch (Throwable $e) {
-            throw new MikrotikException("Gagal membaca data PPP Secret dari router {$router->nama_router}: {$e->getMessage()}", (int) $e->getCode(), $e);
+            // Transient retry: coba sekali lagi dengan fresh reconnect jika gagal karena socket timeout / glitch
+            try {
+                $client = $this->getClient($router, 15);
+                $remoteSecretsRaw = $client->query(new Query('/ppp/secret/print'))->read();
+            } catch (Throwable $retryEx) {
+                throw new MikrotikException("Gagal membaca data PPP Secret dari router {$router->nama_router}: {$retryEx->getMessage()}", (int) $retryEx->getCode(), $retryEx);
+            }
         }
 
         // Petakan username => data secret di RouterOS dan hapus duplikat jika ditemukan
@@ -872,12 +884,93 @@ class MikrotikService
         $synced = 0;
         $errors = [];
 
-        foreach ($profils as $profil) {
-            try {
-                $this->ensurePppProfile($router, $profil, $client);
-                $synced++;
-            } catch (Throwable $e) {
-                $errors[] = "Gagal sinkron profil {$profil->nama_bandwidth}: {$e->getMessage()}";
+        if ($profils->isEmpty()) {
+            return [
+                'total' => 0,
+                'synced' => 0,
+                'errors' => [],
+            ];
+        }
+
+        try {
+            $client = $client ?? $this->getClient($router);
+
+            // 1. Bulk read seluruh PPP profile yang sudah ada di RouterOS
+            $existingProfilesRaw = $client->query(new Query('/ppp/profile/print'))->read();
+
+            $existingByName = [];
+            foreach ($existingProfilesRaw as $item) {
+                $name = $item['name'] ?? null;
+                if ($name) {
+                    $existingByName[$name][] = $item;
+                }
+            }
+
+            // 2. Sinkronisasikan profil UNMS ke RouterOS
+            foreach ($profils as $profil) {
+                if (empty($profil->nama_bandwidth)) {
+                    continue;
+                }
+
+                $profileName = $profil->nama_bandwidth;
+                $rateLimit = $profil->routerOsRateLimit();
+                $comment = "UNMS: {$profil->nama_bandwidth} ({$profil->labelKecepatan()})";
+
+                try {
+                    if (isset($existingByName[$profileName])) {
+                        $entries = $existingByName[$profileName];
+                        $primary = $entries[0];
+
+                        // Periksa apakah konfigurasi perlu diperbarui
+                        $currentRate = $primary['rate-limit'] ?? '';
+                        $currentComment = $primary['comment'] ?? '';
+
+                        if ($currentRate !== $rateLimit || $currentComment !== $comment) {
+                            $setQuery = (new Query('/ppp/profile/set'))
+                                ->equal('.id', $primary['.id'])
+                                ->equal('rate-limit', $rateLimit)
+                                ->equal('comment', $comment);
+                            $client->query($setQuery)->read();
+                        }
+
+                        // Bersihkan duplikat profile jika ada lebih dari 1 di RouterOS
+                        if (count($entries) > 1) {
+                            for ($i = 1; $i < count($entries); $i++) {
+                                if (isset($entries[$i]['.id'])) {
+                                    try {
+                                        $client->query((new Query('/ppp/profile/remove'))->equal('.id', $entries[$i]['.id']))->read();
+                                    } catch (Throwable) {
+                                        // Lanjutkan jika duplikat sekunder sudah terhapus
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Tambahkan profil baru ke RouterOS
+                        $addQuery = (new Query('/ppp/profile/add'))
+                            ->equal('name', $profileName)
+                            ->equal('rate-limit', $rateLimit)
+                            ->equal('comment', $comment);
+                        $res = $client->query($addQuery)->read();
+                        if (isset($res['after']['message'])) {
+                            throw new MikrotikException($res['after']['message']);
+                        }
+                    }
+
+                    $synced++;
+                } catch (Throwable $e) {
+                    $errors[] = "Gagal sinkron profil {$profileName}: {$e->getMessage()}";
+                }
+            }
+        } catch (Throwable $e) {
+            // Fallback ke pemanggilan per-profil jika bulk query mengalami kendala
+            foreach ($profils as $profil) {
+                try {
+                    $this->ensurePppProfile($router, $profil, $client);
+                    $synced++;
+                } catch (Throwable $pe) {
+                    $errors[] = "Gagal sinkron profil {$profil->nama_bandwidth}: {$pe->getMessage()}";
+                }
             }
         }
 
@@ -907,7 +1000,12 @@ class MikrotikService
     {
         try {
             $client = $client ?? $this->getClient($router);
-            $remoteSecrets = $client->query(new Query('/ppp/secret/print'))->read();
+            try {
+                $remoteSecrets = $client->query(new Query('/ppp/secret/print'))->read();
+            } catch (Throwable) {
+                $client = $this->getClient($router, 15);
+                $remoteSecrets = $client->query(new Query('/ppp/secret/print'))->read();
+            }
 
             if (empty($remoteSecrets)) {
                 return [

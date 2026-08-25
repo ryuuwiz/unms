@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
 use App\Exceptions\MikrotikConnectionException;
 use App\Exceptions\MikrotikException;
@@ -11,6 +12,8 @@ use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use RouterOS\Client;
+use RouterOS\Exceptions\StreamException;
 
 uses(RefreshDatabase::class);
 
@@ -89,4 +92,65 @@ test('ensurePppProfile throws MikrotikException if nama_bandwidth is empty', fun
 
     expect(fn () => $this->service->ensurePppProfile($router, $profil))
         ->toThrow(MikrotikException::class, 'Nama profil bandwidth di UNMS kosong');
+});
+
+test('syncAllBandwidthProfiles bulk fetches profiles and adds missing profile', function () {
+    $router = Router::factory()->online()->create();
+    ProfilBandwidth::factory()->create([
+        'nama_bandwidth' => 'Profile-10M',
+        'max_limit_tx' => 10,
+        'max_limit_rx' => 10,
+    ]);
+
+    $mockClient = Mockery::mock(Client::class);
+    $mockClient->shouldReceive('query')->andReturnSelf();
+    // Return empty existing profiles from router
+    $mockClient->shouldReceive('read')->andReturn([]);
+
+    $res = $this->service->syncAllBandwidthProfiles($router, $mockClient);
+
+    expect($res['total'])->toBe(1)
+        ->and($res['synced'])->toBe(1)
+        ->and($res['errors'])->toBeEmpty();
+});
+
+test('autoRecoverPppSecrets retries on initial query timeout and recovers secret', function () {
+    $router = Router::factory()->online()->create();
+    $pelanggan = Pelanggan::factory()->create();
+    $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Fast-20M']);
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'router_id' => $router->id,
+        'pelanggan_id' => $pelanggan->id,
+        'paket_layanan_id' => $paket->id,
+        'ppp_username' => 'test-retry-user',
+        'ppp_password_terenkripsi' => 'secret123',
+        'status' => StatusLayanan::Aktif,
+    ]);
+
+    $mockService = Mockery::mock(MikrotikService::class)->makePartial();
+    $mockService->shouldReceive('syncAllBandwidthProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
+
+    $client1 = Mockery::mock(Client::class);
+    $client2 = Mockery::mock(Client::class);
+
+    // First attempt fails with Stream timed out
+    $client1->shouldReceive('query')->andReturnSelf();
+    $client1->shouldReceive('read')->andThrow(new StreamException('Stream timed out'));
+
+    // Second client attempt succeeds with empty secrets list
+    $client2->shouldReceive('query')->andReturnSelf();
+    $client2->shouldReceive('read')->andReturn([]);
+
+    $mockService->shouldReceive('getClient')->andReturn($client2);
+
+    $mockService->shouldReceive('createOrUpdatePppoeSecret')
+        ->once()
+        ->andReturn(['status' => 'success']);
+
+    $stats = $mockService->autoRecoverPppSecrets($router, $client1);
+
+    expect($stats['recovered'])->toBe(1)
+        ->and($stats['already_synced'])->toBe(0);
 });

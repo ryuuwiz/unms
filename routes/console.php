@@ -9,14 +9,12 @@ Schedule::command('layanan:cek-isolir')->dailyAt('02:30');
 // Master Nightly Reconciliation (Provisi Lengkap, IP Pool, Binary Bps & Pembersihan Orphaned Secret)
 Schedule::command('mikrotik:provisi-router --clean-orphans')
     ->dailyAt('03:00')
-    ->withoutOverlapping(60)
-    ->runInBackground();
+    ->withoutOverlapping(60);
 
 // Fast Auto-Recovery (Pemulihan Instan Secret & Profil Tanpa Menghapus Orphan)
 Schedule::command('mikrotik:recover-ppp')
-    ->everyThirtySeconds()
-    ->withoutOverlapping(10)
-    ->runInBackground();
+    ->everyTwoMinutes()
+    ->withoutOverlapping(10);
 
 Schedule::command('xendit:cek-va-expired')->hourly();
 Schedule::command('mikrotik:ping')->everyTwentySeconds();
