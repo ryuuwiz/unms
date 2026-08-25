@@ -35,7 +35,8 @@ class Create extends Component
 
     public string $prioritas = 'sedang';
 
-    public string $divisi = 'teknisi';
+    /** @var array<int, string> */
+    public array $divisis = [];
 
     public ?int $pic_id = null;
 
@@ -76,12 +77,12 @@ class Create extends Component
 
     protected function autoSetDivisi(): void
     {
-        $this->divisi = match ($this->jenis) {
-            JenisTicket::Gangguan->value => DivisiTicket::Noc->value,
-            JenisTicket::Pemasangan->value => DivisiTicket::Teknisi->value,
-            JenisTicket::Pencabutan->value => DivisiTicket::Teknisi->value,
-            JenisTicket::PindahAlamat->value => DivisiTicket::Teknisi->value,
-            default => DivisiTicket::Teknisi->value,
+        $this->divisis = match ($this->jenis) {
+            JenisTicket::Gangguan->value => [DivisiTicket::Noc->value, DivisiTicket::Teknisi->value],
+            JenisTicket::Pemasangan->value => [DivisiTicket::Teknisi->value],
+            JenisTicket::Pencabutan->value => [DivisiTicket::Teknisi->value, DivisiTicket::CustomerService->value],
+            JenisTicket::PindahAlamat->value => [DivisiTicket::Noc->value, DivisiTicket::Teknisi->value],
+            default => [DivisiTicket::Teknisi->value],
         };
     }
 
@@ -94,12 +95,15 @@ class Create extends Component
             'pelanggan_id' => ['required', 'integer', 'exists:pelanggan,id'],
             'layanan_pelanggan_id' => ['nullable', 'integer', 'exists:layanan_pelanggan,id'],
             'prioritas' => ['required', Rule::enum(PrioritasTicket::class)],
-            'divisi' => ['required', Rule::enum(DivisiTicket::class)],
+            'divisis' => ['required', 'array', 'min:1'],
+            'divisis.*' => ['required', Rule::enum(DivisiTicket::class)],
             'pic_id' => ['nullable', 'integer', 'exists:users,id'],
             'dijadwalkan_pada' => ['nullable', 'date'],
             'deskripsi' => ['required', 'string', 'min:5', 'max:3000'],
         ], [
             'pelanggan_id.required' => 'Pelanggan / Prospek wajib dipilih.',
+            'divisis.required' => 'Minimal satu divisi harus dipilih.',
+            'divisis.min' => 'Minimal satu divisi harus dipilih.',
             'deskripsi.required' => 'Deskripsi tiket wajib diisi.',
             'deskripsi.min' => 'Deskripsi tiket minimal 5 karakter.',
         ]);
@@ -110,7 +114,6 @@ class Create extends Component
                 'pelanggan_id' => $this->pelanggan_id,
                 'layanan_pelanggan_id' => $this->layanan_pelanggan_id ?: null,
                 'prioritas' => $this->prioritas,
-                'divisi' => $this->divisi,
                 'pic_id' => $this->pic_id ?: null,
                 'status' => StatusTicket::Baru,
                 'sumber' => SumberTicket::Manual,
@@ -118,6 +121,10 @@ class Create extends Component
                 'dijadwalkan_pada' => $this->dijadwalkan_pada ? Carbon::parse($this->dijadwalkan_pada) : null,
                 'dibuat_oleh' => auth()->id(),
             ]);
+
+            // Sync divisi ke pivot
+            $divisiRows = array_map(fn (string $d) => ['ticket_id' => $ticket->id, 'divisi' => $d], $this->divisis);
+            DB::table('ticket_divisi')->insert($divisiRows);
 
             TicketHistori::create([
                 'ticket_id' => $ticket->id,

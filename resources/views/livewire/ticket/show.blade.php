@@ -17,7 +17,10 @@
                     </flux:badge>
                 </div>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                    Dibuat pada {{ $ticket->created_at->format('d M Y, H:i') }} oleh {{ $ticket->dibuatOleh?->name ?? 'Sistem' }} • Divisi: {{ $ticket->divisi->label() }}
+                    Dibuat pada {{ $ticket->created_at->format('d M Y, H:i') }} oleh {{ $ticket->dibuatOleh?->name ?? 'Sistem' }}
+                    @if($ticket->divisis->isNotEmpty())
+                        • Divisi: {{ $ticket->divisis->map(fn($d) => $d->divisi->label())->implode(', ') }}
+                    @endif
                 </p>
             </div>
         </div>
@@ -91,7 +94,13 @@
                 </div>
                 <div>
                     <span class="text-zinc-500 block mb-1">Divisi</span>
-                    <span class="font-semibold text-zinc-900 dark:text-white text-sm">{{ $ticket->divisi->label() }}</span>
+                    <div class="flex flex-wrap gap-1">
+                        @forelse($ticket->divisis as $d)
+                            <flux:badge size="xs">{{ $d->divisi->label() }}</flux:badge>
+                        @empty
+                            <span class="text-zinc-400">-</span>
+                        @endforelse
+                    </div>
                 </div>
                 <div>
                     <span class="text-zinc-500 block mb-1">Waktu Dibuat</span>
@@ -543,6 +552,14 @@
                     required
                 />
                 @error('catatanProses') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
+            </div>
+
+            <div>
+                <flux:checkbox
+                    wire:model="catatanIsInternal"
+                    label="Catatan Internal"
+                    description="Jika dicentang, catatan ini hanya dapat dilihat oleh staf internal dan disembunyikan dari portal pelanggan."
+                />
             </div>
 
             <div class="flex justify-end gap-2 pt-2">

@@ -80,7 +80,7 @@ test('admin can create ticket through livewire create form', function () {
         ->set('jenis', JenisTicket::Pemasangan->value)
         ->set('pelanggan_id', $this->pelanggan->id)
         ->set('prioritas', PrioritasTicket::Tinggi->value)
-        ->set('divisi', DivisiTicket::Teknisi->value)
+        ->set('divisis', [DivisiTicket::Teknisi->value])
         ->set('pic_id', $this->teknisiUser->id)
         ->set('deskripsi', 'Pemasangan paket 50Mbps di perumahan arsyila.')
         ->call('save')

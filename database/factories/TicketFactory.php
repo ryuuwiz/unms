@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\PrioritasTicket;
 use App\Enums\Ticket\StatusTicket;
@@ -27,7 +26,6 @@ class TicketFactory extends Factory
             'pelanggan_id' => Pelanggan::factory(),
             'layanan_pelanggan_id' => null,
             'prioritas' => PrioritasTicket::Sedang,
-            'divisi' => DivisiTicket::Teknisi,
             'pic_id' => null,
             'status' => StatusTicket::Baru,
             'sumber' => SumberTicket::Manual,
@@ -43,7 +41,6 @@ class TicketFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'jenis' => JenisTicket::Pemasangan,
-            'divisi' => DivisiTicket::Teknisi,
         ]);
     }
 
@@ -51,7 +48,6 @@ class TicketFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'jenis' => JenisTicket::Gangguan,
-            'divisi' => DivisiTicket::Noc,
         ]);
     }
 
@@ -73,6 +69,14 @@ class TicketFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'prioritas' => PrioritasTicket::Darurat,
+        ]);
+    }
+
+    public function dariPortal(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'sumber' => SumberTicket::Portal,
+            'dibuat_oleh' => null,
         ]);
     }
 }

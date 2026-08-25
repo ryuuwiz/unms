@@ -20,17 +20,17 @@ test('ticket model auto-generates unique standardized ticket number on creation'
         'jenis' => JenisTicket::Gangguan,
         'pelanggan_id' => $pelanggan->id,
         'prioritas' => PrioritasTicket::Sedang,
-        'divisi' => DivisiTicket::Noc,
         'deskripsi' => 'Koneksi internet loss merah pada modem.',
     ]);
+    $ticket1->divisis()->create(['divisi' => DivisiTicket::Noc]);
 
     $ticket2 = Ticket::create([
         'jenis' => JenisTicket::Pemasangan,
         'pelanggan_id' => $pelanggan->id,
         'prioritas' => PrioritasTicket::Tinggi,
-        'divisi' => DivisiTicket::Teknisi,
         'deskripsi' => 'Pemasangan baru pelanggan cluster arsyila.',
     ]);
+    $ticket2->divisis()->create(['divisi' => DivisiTicket::Teknisi]);
 
     expect($ticket1->nomor_ticket)->toBe("TCK-{$year}-000001")
         ->and($ticket2->nomor_ticket)->toBe("TCK-{$year}-000002");
@@ -44,9 +44,9 @@ test('ticket model auto-computes sla_target_selesai based on prioritas on creati
         'jenis' => JenisTicket::Gangguan,
         'pelanggan_id' => $pelanggan->id,
         'prioritas' => PrioritasTicket::Darurat,
-        'divisi' => DivisiTicket::Noc,
         'deskripsi' => 'Kabel FO putus tertabrak truk.',
     ]);
+    $ticketDarurat->divisis()->create(['divisi' => DivisiTicket::Noc]);
 
     expect($ticketDarurat->sla_target_selesai->toDateTimeString())
         ->toBe(Carbon::now()->addHours(4)->toDateTimeString());
@@ -87,8 +87,8 @@ test('ticket scopes work as expected', function () {
         'pic_id' => $techUser->id,
         'jenis' => JenisTicket::Pemasangan,
         'status' => StatusTicket::Diproses,
-        'divisi' => DivisiTicket::Teknisi,
     ]);
+    $ticket->divisis()->create(['divisi' => DivisiTicket::Teknisi]);
 
     expect(Ticket::assignedTo($techUser->id)->count())->toBe(1);
     expect(Ticket::jenis(JenisTicket::Pemasangan)->count())->toBe(1);

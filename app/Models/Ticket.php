@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,6 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $pelanggan_id
  * @property int|null $layanan_pelanggan_id
  * @property PrioritasTicket $prioritas
- * @property DivisiTicket $divisi
  * @property int|null $pic_id
  * @property StatusTicket $status
  * @property SumberTicket $sumber
@@ -45,6 +45,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property-read User|null $pic
  * @property-read User|null $dibuatOleh
  * @property-read Collection<int, TicketHistori> $histori
+ * @property-read Collection<int, \stdClass> $divisis
  */
 #[Fillable([
     'nomor_ticket',
@@ -52,7 +53,6 @@ use Spatie\Activitylog\Support\LogOptions;
     'pelanggan_id',
     'layanan_pelanggan_id',
     'prioritas',
-    'divisi',
     'pic_id',
     'status',
     'sumber',
@@ -88,7 +88,7 @@ class Ticket extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['nomor_ticket', 'jenis', 'status', 'prioritas', 'divisi', 'pic_id', 'perlu_aktivasi_manual'])
+            ->logOnly(['nomor_ticket', 'jenis', 'status', 'prioritas', 'pic_id', 'perlu_aktivasi_manual'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('ticket');
@@ -104,7 +104,6 @@ class Ticket extends Model
         return [
             'jenis' => JenisTicket::class,
             'prioritas' => PrioritasTicket::class,
-            'divisi' => DivisiTicket::class,
             'status' => StatusTicket::class,
             'sumber' => SumberTicket::class,
             'sla_target_selesai' => 'datetime',
@@ -136,6 +135,48 @@ class Ticket extends Model
         }
 
         return $prefix.str_pad((string) $nextNum, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Relasi ke daftar divisi penanganan tiket via `TicketDivisi`.
+     *
+     * @return HasMany<TicketDivisi, $this>
+     */
+    public function divisis(): HasMany
+    {
+        return $this->hasMany(TicketDivisi::class, 'ticket_id');
+    }
+
+    /**
+     * Cek apakah tiket ditangani oleh divisi tertentu.
+     */
+    public function hasDivisi(DivisiTicket $divisi): bool
+    {
+        if ($this->relationLoaded('divisis')) {
+            return $this->divisis->contains(fn (TicketDivisi $item) => $item->divisi === $divisi);
+        }
+
+        return DB::table('ticket_divisi')
+            ->where('ticket_id', $this->id)
+            ->where('divisi', $divisi->value)
+            ->exists();
+    }
+
+    /**
+     * Ambil nilai divisi sebagai array string dari pivot.
+     *
+     * @return array<int, string>
+     */
+    public function getDivisValues(): array
+    {
+        if ($this->relationLoaded('divisis')) {
+            return $this->divisis->map(fn (TicketDivisi $item) => $item->divisi->value)->values()->toArray();
+        }
+
+        return DB::table('ticket_divisi')
+            ->where('ticket_id', $this->id)
+            ->pluck('divisi')
+            ->toArray();
     }
 
     /**
@@ -242,7 +283,9 @@ class Ticket extends Model
     {
         $val = $divisi instanceof DivisiTicket ? $divisi->value : $divisi;
 
-        return $query->where('divisi', $val);
+        return $query->whereHas('divisis', function (Builder $q) use ($val) {
+            $q->where('ticket_divisi.divisi', $val);
+        });
     }
 
     /**

@@ -17,6 +17,7 @@ use App\Livewire\Portal\Auth\Login;
 use App\Livewire\Portal\Dashboard;
 use App\Livewire\Portal\Invoice\Index;
 use App\Livewire\Portal\Invoice\Show;
+use App\Livewire\Portal\Tiket\Create;
 use App\Livewire\ProfilBandwidth;
 use App\Livewire\Promo;
 use App\Livewire\Roles;
@@ -306,6 +307,13 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/tagihan/{invoice}/bayar', fn (App\Models\Invoice $invoice) => redirect()->route('portal.invoice.show', $invoice))->name('invoice.bayar');
         Route::get('/profil', App\Livewire\Portal\Profil\Index::class)->name('profil');
         Route::get('/ganti-password', GantiPassword::class)->middleware('impersonate.protect')->name('ganti-password');
+
+        // ─── Tiket Portal ──────────────────────────────────────────
+        Route::prefix('tiket')->name('tiket.')->group(function () {
+            Route::get('/', App\Livewire\Portal\Tiket\Index::class)->name('index');
+            Route::get('/buat', Create::class)->name('create');
+            Route::get('/{ticket}', App\Livewire\Portal\Tiket\Show::class)->name('show');
+        });
     });
 });
 

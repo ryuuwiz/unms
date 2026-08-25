@@ -86,6 +86,7 @@ class Index extends Component
                 'layananPelanggan.odpPort.odp',
                 'pic',
                 'dibuatOleh',
+                'divisis',
             ]);
 
         // Role-based scoping
@@ -122,7 +123,9 @@ class Index extends Component
             ->when($this->status, fn (Builder $q) => $q->where('status', $this->status))
             ->when($this->jenis, fn (Builder $q) => $q->where('jenis', $this->jenis))
             ->when($this->prioritas, fn (Builder $q) => $q->where('prioritas', $this->prioritas))
-            ->when($this->divisi, fn (Builder $q) => $q->where('divisi', $this->divisi));
+            ->when($this->divisi, fn (Builder $q) => $q->whereHas('divisis', function (Builder $dq) {
+                $dq->where('ticket_divisi.divisi', $this->divisi);
+            }));
 
         /** @var LengthAwarePaginator<Ticket> $tickets */
         $tickets = $query->orderByDesc('id')->paginate(15);

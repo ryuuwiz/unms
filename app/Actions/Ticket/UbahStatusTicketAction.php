@@ -4,11 +4,14 @@ namespace App\Actions\Ticket;
 
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\StatusTicket;
+use App\Enums\Ticket\SumberTicket;
 use App\Exceptions\TransisiStatusTidakValidException;
+use App\Models\AkunPelanggan;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
 use App\Notifications\TicketStatusBerubahNotification;
+use App\Notifications\TicketStatusBerubahPelangganNotification;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -77,6 +80,7 @@ class UbahStatusTicketAction
 
     /**
      * Kirim notifikasi internal ke pembuat tiket dan PIC jika bukan aktor pengubah.
+     * Jika tiket berasal dari portal, kirim juga notifikasi ke AkunPelanggan pemilik tiket.
      */
     protected function dispatchNotifications(
         Ticket $ticket,
@@ -107,6 +111,19 @@ class UbahStatusTicketAction
                 changedBy: $actor,
                 catatan: $catatan,
             ));
+        }
+
+        // Notifikasi ke AkunPelanggan jika tiket berasal dari portal
+        if ($ticket->sumber === SumberTicket::Portal) {
+            $akunPelanggan = AkunPelanggan::where('pelanggan_id', $ticket->pelanggan_id)->first();
+            if ($akunPelanggan) {
+                $akunPelanggan->notify(new TicketStatusBerubahPelangganNotification(
+                    ticket: $ticket,
+                    statusLama: $statusLama,
+                    statusBaru: $statusBaru,
+                    catatan: $catatan,
+                ));
+            }
         }
     }
 }

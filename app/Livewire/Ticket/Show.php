@@ -41,6 +41,8 @@ class Show extends Component
 
     public string $catatanProses = '';
 
+    public bool $catatanIsInternal = false;
+
     public function mount(Ticket $ticket): void
     {
         $this->authorize('view', $ticket);
@@ -58,6 +60,7 @@ class Show extends Component
             'layananPelanggan.odpPort.odp',
             'pic',
             'dibuatOleh',
+            'divisis',
             'histori.olehPengguna',
         ]);
     }
@@ -136,6 +139,7 @@ class Show extends Component
     public function openCatatanModal(): void
     {
         $this->catatanProses = '';
+        $this->catatanIsInternal = false;
         $this->showCatatanModal = true;
     }
 
@@ -152,6 +156,7 @@ class Show extends Component
             'status_lama' => $this->ticket->status,
             'status_baru' => $this->ticket->status,
             'catatan' => trim($this->catatanProses),
+            'is_internal' => $this->catatanIsInternal,
             'oleh_pengguna_id' => auth()->id(),
         ]);
 

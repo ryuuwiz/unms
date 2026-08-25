@@ -222,9 +222,13 @@
                                     <flux:badge size="xs" :color="$tck->prioritas->color()">
                                         {{ $tck->prioritas->label() }}
                                     </flux:badge>
-                                    <span class="text-xs text-zinc-500 font-medium">
-                                        {{ $tck->divisi->label() }}
-                                    </span>
+                                    <div class="flex flex-wrap gap-1 mt-0.5">
+                                        @foreach($tck->divisis as $divisiItem)
+                                            <span class="text-[11px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium">
+                                                {{ $divisiItem->divisi->label() }}
+                                            </span>
+                                        @endforeach
+                                    </div>
                                 </div>
                             </td>
 

@@ -32,15 +32,21 @@
                         </flux:select>
                     </div>
 
-                    <!-- Divisi -->
+                    <!-- Divisi Penanggung Jawab (Multi-select) -->
                     <div>
-                        <flux:select wire:model="divisi" label="Divisi Penanggung Jawab" required>
-                            @foreach($divisiList as $d)
-                                <flux:select.option value="{{ $d->value }}">
-                                    {{ $d->label() }}
-                                </flux:select.option>
-                            @endforeach
-                        </flux:select>
+                        <flux:field>
+                            <flux:label>Divisi Penanggung Jawab</flux:label>
+                            <div class="grid grid-cols-2 gap-2 mt-1">
+                                @foreach($divisiList as $d)
+                                    <flux:checkbox
+                                        wire:model="divisis"
+                                        value="{{ $d->value }}"
+                                        label="{{ $d->label() }}"
+                                    />
+                                @endforeach
+                            </div>
+                            <flux:error name="divisis" />
+                        </flux:field>
                     </div>
                 </div>
 

@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property StatusTicket|null $status_lama
  * @property StatusTicket $status_baru
  * @property string|null $catatan
+ * @property bool $is_internal
  * @property int|null $oleh_pengguna_id
  * @property Carbon $created_at
  * @property-read Ticket $ticket
@@ -25,6 +26,7 @@ use Illuminate\Support\Carbon;
     'status_lama',
     'status_baru',
     'catatan',
+    'is_internal',
     'oleh_pengguna_id',
 ])]
 class TicketHistori extends Model
@@ -40,6 +42,7 @@ class TicketHistori extends Model
         return [
             'status_lama' => StatusTicket::class,
             'status_baru' => StatusTicket::class,
+            'is_internal' => 'boolean',
             'created_at' => 'datetime',
         ];
     }
