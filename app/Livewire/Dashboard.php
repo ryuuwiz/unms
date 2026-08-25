@@ -76,8 +76,8 @@ class Dashboard extends Component
         // 1. Total Pelanggan & Breakdown
         $totalCustomers = Pelanggan::count();
         $activeCustomers = Pelanggan::where('status', StatusPelanggan::Aktif)->count();
-        $inactiveCustomers = Pelanggan::where('status', StatusPelanggan::TidakAktif)->count();
-        $prospectCustomers = Pelanggan::where('status', StatusPelanggan::Prospek)->count();
+        $inactiveCustomers = Pelanggan::whereIn('status', [StatusPelanggan::Off, StatusPelanggan::Expired])->count();
+        $prospectCustomers = Pelanggan::whereIn('status', [StatusPelanggan::BelumTerpasang, StatusPelanggan::ReqPemasangan, StatusPelanggan::PemasanganSelesai])->count();
 
         // 2. Pendapatan Hari Ini vs Kemarin
         $todayStart = $now->copy()->startOfDay();

@@ -248,14 +248,14 @@ class Pelanggan extends Model implements HasMedia
     }
 
     /**
-     * Scope filter pelanggan prospek (belum aktif).
+     * Scope filter pelanggan belum terpasang.
      *
      * @param  Builder<Pelanggan>  $query
      * @return Builder<Pelanggan>
      */
-    public function scopeProspek(Builder $query): Builder
+    public function scopeBelumTerpasang(Builder $query): Builder
     {
-        return $query->where('status', StatusPelanggan::Prospek);
+        return $query->where('status', StatusPelanggan::BelumTerpasang);
     }
 
     /**

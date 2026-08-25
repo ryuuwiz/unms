@@ -74,9 +74,9 @@ class Index extends Component
         $this->authorize('update', $pelanggan);
 
         $oldStatus = $pelanggan->status;
-        $newStatus = $pelanggan->status === StatusPelanggan::Active
-            ? StatusPelanggan::Inactive
-            : StatusPelanggan::Active;
+        $newStatus = $pelanggan->status === StatusPelanggan::Aktif
+            ? StatusPelanggan::Off
+            : StatusPelanggan::Aktif;
 
         $pelanggan->update(['status' => $newStatus]);
 

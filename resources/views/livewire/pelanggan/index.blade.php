@@ -1,8 +1,8 @@
 <div class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <flux:heading size="xl">Data Pelanggan</flux:heading>
-            <flux:subheading>Kelola master data, kontak, dan titik instalasi pelanggan.</flux:subheading>
+            <flux:heading size="xl">List Kontak Pelanggan</flux:heading>
+            <flux:subheading>Daftar seluruh pelanggan internet beserta status pemasangan & aktivasi.</flux:subheading>
         </div>
         @can('create', App\Models\Pelanggan::class)
             <flux:button :href="route('pelanggan.create')" wire:navigate variant="primary" icon="plus">
@@ -17,7 +17,7 @@
             <flux:input
                 wire:model.live.debounce.300ms="search"
                 icon="magnifying-glass"
-                placeholder="Cari nama, no. HP, email, atau no. registrasi..."
+                placeholder="Cari no. reg, nama, no. HP, atau email..."
             />
         </div>
 
@@ -39,50 +39,68 @@
     {{-- Tabel Pelanggan --}}
     <flux:table>
         <flux:table.columns>
-            <flux:table.column>No. Registrasi</flux:table.column>
-            <flux:table.column>Nama & Kontak</flux:table.column>
-            <flux:table.column>Tipe</flux:table.column>
-            <flux:table.column>Alamat</flux:table.column>
+            <flux:table.column>No. Reg</flux:table.column>
+            <flux:table.column>Nama Pelanggan</flux:table.column>
+            <flux:table.column>No. HP</flux:table.column>
+            <flux:table.column>Email</flux:table.column>
+            <flux:table.column>Dibuat</flux:table.column>
             <flux:table.column>Status</flux:table.column>
-            <flux:table.column>Didaftarkan Oleh</flux:table.column>
             <flux:table.column align="end">Aksi</flux:table.column>
         </flux:table.columns>
 
         <flux:table.rows>
             @forelse ($pelanggans as $pelanggan)
                 <flux:table.row :key="$pelanggan->id">
-                    {{-- No. Registrasi --}}
-                    <flux:table.cell class="font-mono font-medium text-zinc-800 dark:text-zinc-200">
-                        {{ $pelanggan->no_reg }}
+                    {{-- No. Reg --}}
+                    <flux:table.cell>
+                        <a href="{{ route('pelanggan.show', $pelanggan) }}" wire:navigate class="font-mono text-xs font-bold text-primary-600 hover:underline dark:text-primary-400">
+                            {{ $pelanggan->no_reg }}
+                        </a>
                     </flux:table.cell>
 
-                    {{-- Nama & Kontak --}}
+                    {{-- Nama Pelanggan --}}
                     <flux:table.cell>
                         <div class="flex flex-col">
-                            <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $pelanggan->namaLengkap() }}</span>
-                            <span class="text-xs text-zinc-500">{{ $pelanggan->no_hp }}</span>
-                            @if ($pelanggan->email)
-                                <span class="text-xs text-zinc-400">{{ $pelanggan->email }}</span>
-                            @endif
+                            <a href="{{ route('pelanggan.show', $pelanggan) }}" wire:navigate class="font-medium text-xs text-zinc-900 hover:underline dark:text-zinc-100">
+                                {{ $pelanggan->namaLengkap() }}
+                            </a>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <flux:badge size="xs" color="zinc" class="text-[10px]">
+                                    {{ $pelanggan->tipe_pelanggan->label() }}
+                                </flux:badge>
+                                @if ($pelanggan->latitude && $pelanggan->longitude)
+                                    <span class="inline-flex items-center text-[10px] text-emerald-600 dark:text-emerald-400 font-medium gap-0.5">
+                                        <flux:icon name="map-pin" class="size-3" />
+                                        GPS
+                                    </span>
+                                @endif
+                            </div>
                         </div>
                     </flux:table.cell>
 
-                    {{-- Tipe --}}
-                    <flux:table.cell>
-                        <flux:badge size="sm" color="zinc">
-                            {{ $pelanggan->tipe_pelanggan->label() }}
-                        </flux:badge>
+                    {{-- No. HP --}}
+                    <flux:table.cell class="text-xs">
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-mono text-zinc-800 dark:text-zinc-200">{{ $pelanggan->no_hp }}</span>
+                            <a href="https://wa.me/{{ $pelanggan->no_hp }}" target="_blank" rel="noopener noreferrer"
+                                class="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400" title="Chat WhatsApp">
+                                <flux:icon name="chat-bubble-left-right" class="size-3.5" />
+                            </a>
+                        </div>
                     </flux:table.cell>
 
-                    {{-- Alamat --}}
-                    <flux:table.cell class="max-w-xs truncate text-zinc-600 dark:text-zinc-300">
-                        <div class="flex items-center gap-1.5">
-                            @if ($pelanggan->latitude && $pelanggan->longitude)
-                                <flux:icon name="map-pin" class="size-4 shrink-0 text-emerald-500" />
-                            @endif
-                            <span class="truncate" title="{{ $pelanggan->alamat_lengkap }}">
-                                {{ $pelanggan->alamat_lengkap }}
-                            </span>
+                    {{-- Email --}}
+                    <flux:table.cell class="text-xs text-zinc-600 dark:text-zinc-300">
+                        {{ $pelanggan->email ?: '—' }}
+                    </flux:table.cell>
+
+                    {{-- Dibuat (Timestamp) --}}
+                    <flux:table.cell class="text-xs text-zinc-500">
+                        <div class="font-medium text-zinc-700 dark:text-zinc-300">
+                            {{ $pelanggan->created_at?->translatedFormat('d M Y, H:i') ?? '—' }}
+                        </div>
+                        <div class="text-[11px] text-zinc-400">
+                            Oleh: {{ $pelanggan->pembuat?->name ?? 'Sistem' }}
                         </div>
                     </flux:table.cell>
 
@@ -91,11 +109,6 @@
                         <flux:badge size="sm" :color="$pelanggan->status->color()">
                             {{ $pelanggan->status->label() }}
                         </flux:badge>
-                    </flux:table.cell>
-
-                    {{-- Pembuat --}}
-                    <flux:table.cell class="text-xs text-zinc-500">
-                        {{ $pelanggan->pembuat?->name ?? '—' }}
                     </flux:table.cell>
 
                     {{-- Aksi --}}
@@ -108,6 +121,7 @@
                                 variant="ghost"
                                 icon="eye"
                                 aria-label="Lihat detail"
+                                title="Detail Pelanggan"
                             />
                             @can('update', $pelanggan)
                                 <flux:button
@@ -117,6 +131,7 @@
                                     variant="ghost"
                                     icon="pencil-square"
                                     aria-label="Edit"
+                                    title="Edit Pelanggan"
                                 />
                             @endcan
                             @can('update', $pelanggan)
@@ -127,6 +142,7 @@
                                     variant="ghost"
                                     :icon="$pelanggan->status === App\Enums\StatusPelanggan::Aktif ? 'pause' : 'play'"
                                     :aria-label="$pelanggan->status === App\Enums\StatusPelanggan::Aktif ? 'Nonaktifkan' : 'Aktifkan'"
+                                    title="{{ $pelanggan->status === App\Enums\StatusPelanggan::Aktif ? 'Nonaktifkan' : 'Aktifkan' }}"
                                 />
                             @endcan
                             @can('delete', $pelanggan)
@@ -137,6 +153,7 @@
                                     icon="trash"
                                     class="text-red-600 hover:text-red-700 dark:text-red-400"
                                     aria-label="Hapus"
+                                    title="Hapus Pelanggan"
                                 />
                             @endcan
                         </div>

@@ -10,6 +10,7 @@ use App\Models\Perumahan;
 use App\Services\CustomerDocumentService;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -69,7 +70,7 @@ class Create extends Component
     /** @var array<int, array{id: int, nama_odp: string, jarak: float, port_kosong_count: int}> */
     public array $odpTerdekat = [];
 
-    public string $status = 'prospek';
+    public string $status = 'belum_terpasang';
 
     public function mount(): void
     {
@@ -98,7 +99,7 @@ class Create extends Component
             'alamat_lengkap' => ['required', 'string', 'max:1000'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'status' => ['required', 'string', 'in:aktif,tidak_aktif,prospek'],
+            'status' => ['required', 'string', Rule::enum(StatusPelanggan::class)],
             'foto_ktp' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
             'dokumen_mou' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp', 'max:10240'],
             'jenis_dokumen' => ['nullable', 'string', 'max:100'],

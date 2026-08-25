@@ -112,7 +112,7 @@ test('super_admin can impersonate active customer portal account and redirect to
 
 test('super_admin cannot impersonate inactive customer portal account (returns 403)', function () {
     $pelanggan = Pelanggan::factory()->create([
-        'status' => StatusPelanggan::TidakAktif,
+        'status' => StatusPelanggan::Off,
         'email' => 'inactive_customer@test.com',
     ]);
     $akun = $pelanggan->akunPelanggan;

@@ -55,7 +55,7 @@ test('can create a pelanggan with valid data, normalized phone, and sequential n
         ->and($pelanggan->no_reg)->toBe($expectedNoReg)
         ->and($pelanggan->identitasLengkap())->toBe("{$expectedNoReg}_Ahmad Dahlan")
         ->and($pelanggan->no_hp)->toBe('6281234567890')
-        ->and($pelanggan->status)->toBe(StatusPelanggan::Prospek)
+        ->and($pelanggan->status)->toBe(StatusPelanggan::BelumTerpasang)
         ->and($pelanggan->dibuat_oleh)->toBe($this->salesUser->id)
         ->and($pelanggan->latitude)->toBe(-6.2088)
         ->and($pelanggan->longitude)->toBe(106.8456)

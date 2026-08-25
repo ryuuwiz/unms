@@ -117,7 +117,7 @@ class Edit extends Component
             'alamat_lengkap' => ['required', 'string', 'max:1000'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'status' => ['required', 'string', 'in:aktif,tidak_aktif,prospek'],
+            'status' => ['required', 'string', Rule::enum(StatusPelanggan::class)],
             'foto_ktp' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
         ];
     }

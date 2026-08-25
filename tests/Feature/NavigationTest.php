@@ -20,7 +20,7 @@ test('super_admin sees all navigation groups and items in indonesian', function 
     $response->assertOk()
         ->assertSee('Dashboard')
         ->assertSee('Pelanggan & Layanan')
-        ->assertSee('Pelanggan')
+        ->assertSee('List Kontak')
         ->assertSee('Data Registrasi Billing')
         ->assertSee('Paket Layanan')
         ->assertSee('Profil Bandwidth')
@@ -78,7 +78,7 @@ test('super_admin sees contextual module navigation in sidebar when visiting a m
     $response = $this->actingAs($superAdmin)->get(route('pelanggan.index'));
 
     $response->assertOk()
-        ->assertSee('Pelanggan')
+        ->assertSee('List Kontak')
         ->assertSee('Data Registrasi Billing')
         ->assertSee('Paket Layanan')
         ->assertSee('Profil Bandwidth');

@@ -69,7 +69,7 @@ test('komponen dashboard menghitung kpi, tren harian, dan expired services secar
     $pelangganNonaktif = Pelanggan::factory()->create([
         'nama_depan' => 'Joko',
         'nama_belakang' => 'Susilo',
-        'status' => StatusPelanggan::TidakAktif,
+        'status' => StatusPelanggan::Off,
     ]);
 
     $router = Router::factory()->create();

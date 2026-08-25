@@ -18,7 +18,7 @@ return [
             'expanded' => true,
             'items' => [
                 [
-                    'title' => 'Pelanggan',
+                    'title' => 'List Kontak',
                     'icon' => 'user-group',
                     'route' => 'pelanggan.index',
                     'active' => 'pelanggan.*',

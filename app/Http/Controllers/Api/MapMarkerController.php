@@ -46,8 +46,11 @@ class MapMarkerController extends Controller
                 $statusEnum = $p->status instanceof StatusPelanggan ? $p->status : StatusPelanggan::tryFrom((string) $p->status);
                 $statusColor = match ($statusEnum) {
                     StatusPelanggan::Aktif => 'emerald',
-                    StatusPelanggan::TidakAktif => 'rose',
-                    StatusPelanggan::Prospek => 'amber',
+                    StatusPelanggan::BelumTerpasang => 'zinc',
+                    StatusPelanggan::ReqPemasangan => 'cyan',
+                    StatusPelanggan::PemasanganSelesai => 'indigo',
+                    StatusPelanggan::Expired => 'amber',
+                    StatusPelanggan::Off => 'rose',
                     default => 'zinc',
                 };
 

@@ -40,7 +40,7 @@
 
     {{-- Tabs Navigation --}}
     <div class="border-b border-zinc-200 dark:border-zinc-700">
-        <nav class="-mb-px flex gap-6" aria-label="Tabs">
+        <nav class="-mb-px flex flex-wrap gap-6" aria-label="Tabs">
             <button type="button" wire:click="setTab('overview')"
                 class="flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors {{ $activeTab === 'overview' ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400' : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}">
                 <flux:icon name="user" class="size-4" />
@@ -52,8 +52,18 @@
                 <flux:icon name="rss" class="size-4" />
                 Layanan Internet
                 @if ($pelanggan->layanans->isNotEmpty())
-                    <span
-                        class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $pelanggan->layanans->count() }}</span>
+                    <span class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $pelanggan->layanans->count() }}</span>
+                @endif
+            </button>
+
+            <button type="button" wire:click="setTab('billing')"
+                class="flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors {{ $activeTab === 'billing' ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400' : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}">
+                <flux:icon name="banknotes" class="size-4" />
+                Tagihan & Pembayaran
+                @if ($invoicesAktif->isNotEmpty())
+                    <span class="rounded-full bg-rose-100 px-1.5 py-0.2 text-xs font-semibold text-rose-700 dark:bg-rose-950 dark:text-rose-300">{{ $invoicesAktif->count() }}</span>
+                @elseif ($invoicesLunas->isNotEmpty())
+                    <span class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $invoicesLunas->count() }}</span>
                 @endif
             </button>
 
@@ -62,8 +72,7 @@
                 <flux:icon name="document-duplicate" class="size-4" />
                 Dokumen & Legalitas
                 @if ($dokumens->isNotEmpty() || $ktpMedia)
-                    <span
-                        class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $dokumens->count() + ($ktpMedia ? 1 : 0) }}</span>
+                    <span class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $dokumens->count() + ($ktpMedia ? 1 : 0) }}</span>
                 @endif
             </button>
 
@@ -72,8 +81,7 @@
                 <flux:icon name="clock" class="size-4" />
                 Riwayat Aktivitas
                 @if ($activityLogs->isNotEmpty())
-                    <span
-                        class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $activityLogs->count() }}</span>
+                    <span class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $activityLogs->count() }}</span>
                 @endif
             </button>
         </nav>
@@ -82,25 +90,35 @@
     {{-- Tab 1: Informasi & Lokasi --}}
     @if ($activeTab === 'overview')
         <div class="space-y-6">
-            {{-- Bagian Atas: Kontak, Alamat, & Informasi Internal --}}
-            <div class="grid grid-cols-2 gap-6 lg:grid-cols-3">
-                {{-- Kolom Kiri: Detail Kontak & Alamat --}}
+            {{-- Bagian Atas: Kontak & Identitas, Alamat, dan Akun Portal / Internal --}}
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                {{-- Kolom 1 & 2: Detail Kontak & Identitas + Alamat --}}
                 <div class="space-y-6 lg:col-span-2">
-                    {{-- Card Kontak --}}
-                    <div
-                        class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                        <flux:heading size="base" class="mb-4">Kontak & Identitas</flux:heading>
+                    {{-- Card Data Pelanggan (Kontak & Identitas) --}}
+                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                        <div class="flex items-center justify-between mb-4 border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                            <flux:heading size="base">Data Pelanggan & Identitas</flux:heading>
+                            <flux:badge size="sm" :color="$pelanggan->tipe_pelanggan->value === 'bisnis' ? 'purple' : 'zinc'">
+                                {{ $pelanggan->tipe_pelanggan->label() }}
+                            </flux:badge>
+                        </div>
 
                         <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
-                                <dt class="text-xs font-medium text-zinc-400">Nama Lengkap</dt>
-                                <dd class="mt-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                    {{ $pelanggan->namaLengkap() }}</dd>
+                                <dt class="text-xs font-medium text-zinc-400">Nomor Registrasi (No. Reg)</dt>
+                                <dd class="mt-1 font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                                    {{ $pelanggan->no_reg }}
+                                </dd>
                             </div>
                             <div>
-                                <dt class="text-xs font-medium text-zinc-400">Nomor WhatsApp / HP</dt>
-                                <dd
-                                    class="mt-1 flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                <dt class="text-xs font-medium text-zinc-400">Nama Lengkap Pelanggan</dt>
+                                <dd class="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                    {{ $pelanggan->namaLengkap() }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-zinc-400">Nomor HP / WhatsApp</dt>
+                                <dd class="mt-1 flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
                                     {{ $pelanggan->no_hp }}
                                     <a href="https://wa.me/{{ $pelanggan->no_hp }}" target="_blank"
                                         rel="noopener noreferrer"
@@ -114,22 +132,42 @@
                             <div>
                                 <dt class="text-xs font-medium text-zinc-400">Alamat Email</dt>
                                 <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                    {{ $pelanggan->email ?: '—' }}</dd>
+                                    {{ $pelanggan->email ?: '—' }}
+                                </dd>
                             </div>
                             <div>
                                 <dt class="text-xs font-medium text-zinc-400">Telepon Rumah</dt>
                                 <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                    {{ $pelanggan->telepon_rumah ?: '—' }}</dd>
+                                    {{ $pelanggan->telepon_rumah ?: '—' }}
+                                </dd>
                             </div>
                             <div>
-                                <dt class="text-xs font-medium text-zinc-400">Tipe Pelanggan</dt>
-                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                    {{ $pelanggan->tipe_pelanggan->label() }}</dd>
+                                <dt class="text-xs font-medium text-zinc-400">Nomor Induk Kependudukan (NIK)</dt>
+                                <dd class="mt-1 flex items-center gap-2 text-sm font-mono font-medium text-zinc-900 dark:text-zinc-100">
+                                    @if ($pelanggan->nik)
+                                        @if ($showNik)
+                                            <span>{{ $pelanggan->nik }}</span>
+                                        @else
+                                            <span>{{ substr($pelanggan->nik, 0, 4) . '••••••••' . substr($pelanggan->nik, -4) }}</span>
+                                        @endif
+                                        <button
+                                            type="button"
+                                            wire:click="toggleShowNik"
+                                            class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition"
+                                            title="{{ $showNik ? 'Sembunyikan NIK' : 'Tampilkan NIK' }}"
+                                        >
+                                            <flux:icon :name="$showNik ? 'eye-slash' : 'eye'" class="size-4" />
+                                        </button>
+                                    @else
+                                        <span class="text-zinc-400">—</span>
+                                    @endif
+                                </dd>
                             </div>
                             <div>
-                                <dt class="text-xs font-medium text-zinc-400">Kode Pembayaran (VA)</dt>
-                                <dd class="mt-1 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                                    {{ $pelanggan->kode_pembayaran }}</dd>
+                                <dt class="text-xs font-medium text-zinc-400">Kode Pembayaran (Virtual Account)</dt>
+                                <dd class="mt-1 font-mono text-sm font-bold text-primary-700 dark:text-primary-400">
+                                    {{ $pelanggan->kode_pembayaran }}
+                                </dd>
                             </div>
                             <div>
                                 <dt class="text-xs font-medium text-zinc-400">Status Akun</dt>
@@ -139,78 +177,160 @@
                                     </flux:badge>
                                 </dd>
                             </div>
-                            <div>
-                                <dt class="text-xs font-medium text-zinc-400">Perumahan / Area</dt>
-                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                    {{ $pelanggan->perumahan?->nama_perumahan ?? '—' }}</dd>
-                            </div>
                         </dl>
                     </div>
 
-                    {{-- Card Alamat --}}
-                    <div
-                        class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                        <flux:heading size="base" class="mb-4">Alamat Pemasangan</flux:heading>
+                    {{-- Card Alamat & Wilayah --}}
+                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                        <flux:heading size="base" class="mb-4 border-b border-zinc-100 pb-3 dark:border-zinc-800">Alamat & Lokasi Pemasangan</flux:heading>
 
                         <dl class="space-y-4">
                             <div>
                                 <dt class="text-xs font-medium text-zinc-400">Alamat Lengkap</dt>
-                                <dd class="mt-1 text-sm text-zinc-800 dark:text-zinc-200">
-                                    {{ $pelanggan->alamat_lengkap }}</dd>
+                                <dd class="mt-1 text-sm text-zinc-800 dark:text-zinc-200 font-medium">
+                                    {{ $pelanggan->alamat_lengkap }}
+                                </dd>
                             </div>
+
                             <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
                                 <div>
                                     <dt class="text-xs font-medium text-zinc-400">RT / RW</dt>
                                     <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                        {{ $pelanggan->rt ?? '-' }} / {{ $pelanggan->rw ?? '-' }}</dd>
+                                        {{ $pelanggan->rt ?? '-' }} / {{ $pelanggan->rw ?? '-' }}
+                                    </dd>
                                 </div>
                                 <div>
                                     <dt class="text-xs font-medium text-zinc-400">No. Rumah</dt>
                                     <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                        {{ $pelanggan->no_rumah ?? '—' }}</dd>
+                                        {{ $pelanggan->no_rumah ?? '—' }}
+                                    </dd>
                                 </div>
                                 <div>
                                     <dt class="text-xs font-medium text-zinc-400">Kode Pos</dt>
                                     <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                        {{ $pelanggan->kode_pos ?? '—' }}</dd>
+                                        {{ $pelanggan->kode_pos ?? '—' }}
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-zinc-400">Perumahan / Cluster</dt>
+                                    <dd class="mt-1 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                                        {{ $pelanggan->perumahan?->nama_perumahan ?? '—' }}
+                                    </dd>
                                 </div>
                             </div>
+
+                            @if ($pelanggan->perumahan)
+                                <div class="rounded-lg bg-zinc-50 p-3 text-xs dark:bg-zinc-800/50">
+                                    <span class="text-zinc-400">Struktur Wilayah Administratif:</span>
+                                    <div class="mt-1 font-medium text-zinc-700 dark:text-zinc-300">
+                                        Kel. {{ $pelanggan->perumahan->kelurahan?->nama_kelurahan ?? '—' }} •
+                                        Kec. {{ $pelanggan->perumahan->kelurahan?->kecamatan?->nama_kecamatan ?? '—' }} •
+                                        Kota {{ $pelanggan->perumahan->kelurahan?->kecamatan?->kota?->nama_kota ?? '—' }}
+                                    </div>
+                                </div>
+                            @endif
                         </dl>
                     </div>
                 </div>
 
-                {{-- Kolom Kanan: Informasi Internal --}}
+                {{-- Kolom 3: Akun Portal Pelanggan & Informasi Internal --}}
                 <div class="space-y-6">
-                    <div
-                        class="rounded-xl h-full border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                        <flux:heading size="base" class="mb-4">Informasi Internal</flux:heading>
+                    {{-- Card Akun Portal Pelanggan --}}
+                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                        <div class="flex items-center gap-2 mb-4 border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                            <flux:icon name="user-circle" class="size-5 text-primary-600 dark:text-primary-400" />
+                            <div>
+                                <flux:heading size="base">Akun Portal Pelanggan</flux:heading>
+                                <flux:subheading class="text-xs">Akses pelanggan ke Self-Care Client Area</flux:subheading>
+                            </div>
+                        </div>
 
-                        <dl class="space-y-4 text-xs">
+                        <dl class="space-y-3.5 text-xs">
+                            <div>
+                                <dt class="text-zinc-400">Username Portal (Email)</dt>
+                                <dd class="mt-0.5 font-medium text-sm text-zinc-800 dark:text-zinc-200">
+                                    {{ $pelanggan->akunPelanggan?->email ?? $pelanggan->email ?? '— (Belum didaftarkan)' }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt class="text-zinc-400">Password Akun Portal</dt>
+                                <dd class="mt-0.5 flex items-center justify-between">
+                                    <span class="font-mono text-zinc-700 dark:text-zinc-300">Default: <strong>12345678</strong></span>
+                                    @can('update', $pelanggan)
+                                        <button
+                                            type="button"
+                                            wire:click="resetPasswordPortal"
+                                            wire:confirm="Apakah Anda yakin ingin mereset password akun portal pelanggan ini ke default (12345678)?"
+                                            class="text-[11px] text-primary-600 hover:underline dark:text-primary-400 font-semibold"
+                                        >
+                                            Reset Password
+                                        </button>
+                                    @endcan
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt class="text-zinc-400">Status Akun Portal</dt>
+                                <dd class="mt-0.5">
+                                    @if ($pelanggan->akunPelanggan)
+                                        <flux:badge size="sm" color="emerald">Aktif & Terdaftar</flux:badge>
+                                    @else
+                                        <flux:badge size="sm" color="amber">Belum Ada Akun</flux:badge>
+                                    @endif
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <div class="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                            @canImpersonate
+                                @if ($pelanggan->akunPelanggan && $pelanggan->akunPelanggan->canBeImpersonated())
+                                    <flux:button
+                                        :href="route('impersonate', ['id' => $pelanggan->akunPelanggan->id, 'guardName' => 'pelanggan'])"
+                                        variant="subtle"
+                                        class="w-full"
+                                        icon="arrow-right-end-on-rectangle"
+                                    >
+                                        Buka Portal (Login as)
+                                    </flux:button>
+                                @endif
+                            @endCanImpersonate
+                        </div>
+                    </div>
+
+                    {{-- Card Informasi Internal --}}
+                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                        <flux:heading size="base" class="mb-4 border-b border-zinc-100 pb-3 dark:border-zinc-800">Informasi Registrasi</flux:heading>
+
+                        <dl class="space-y-3.5 text-xs">
                             <div>
                                 <dt class="text-zinc-400">Didaftarkan Oleh</dt>
                                 <dd class="mt-0.5 font-medium text-zinc-800 dark:text-zinc-200">
-                                    {{ $pelanggan->pembuat?->name ?? '—' }}</dd>
+                                    {{ $pelanggan->pembuat?->name ?? 'Sistem' }}
+                                </dd>
                             </div>
                             <div>
-                                <dt class="text-zinc-400">Tanggal Dibuat</dt>
+                                <dt class="text-zinc-400">Waktu Dibuat</dt>
                                 <dd class="mt-0.5 text-zinc-700 dark:text-zinc-300">
-                                    {{ $pelanggan->created_at?->format('d/m/Y H:i') ?? '—' }}</dd>
+                                    {{ $pelanggan->created_at?->translatedFormat('d F Y, H:i') ?? '—' }}
+                                </dd>
                             </div>
                             <div>
                                 <dt class="text-zinc-400">Terakhir Diperbarui</dt>
                                 <dd class="mt-0.5 text-zinc-700 dark:text-zinc-300">
-                                    {{ $pelanggan->updated_at?->format('d/m/Y H:i') ?? '—' }}</dd>
+                                    {{ $pelanggan->updated_at?->translatedFormat('d F Y, H:i') ?? '—' }}
+                                </dd>
                             </div>
                         </dl>
                     </div>
                 </div>
             </div>
 
-            {{-- Card Titik Koordinat Lokasi (Full Width) --}}
+            {{-- Card Titik Koordinat Lokasi & Peta Leaflet (Full Width) --}}
             <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
                 <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div class="flex items-center gap-3">
-                        <flux:heading size="base">Titik Koordinat Lokasi</flux:heading>
+                        <flux:heading size="base">Titik Lokasi Pelanggan (Peta)</flux:heading>
                         @if (is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude))
                             <flux:badge size="sm" color="emerald" class="font-mono text-xs">
                                 <flux:icon name="map-pin" class="mr-1 size-3" />
@@ -220,6 +340,7 @@
                     </div>
 
                     @if (is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude))
+                        <div class="flex flex-wrap items-center gap-2">
                             <a href="{{ route('maps.estimasi-kabel', ['lat' => $pelanggan->latitude, 'lng' => $pelanggan->longitude]) }}"
                                 wire:navigate
                                 class="inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-300 dark:hover:bg-primary-900">
@@ -250,7 +371,17 @@
 
                 @if (is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude))
                     <div class="space-y-4">
-                        {{-- Peta Leaflet Berukuran Besar --}}
+                        <div class="rounded-lg border border-zinc-200/80 bg-zinc-50/50 p-2.5 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400 flex items-center justify-between">
+                            <span class="flex items-center gap-1.5">
+                                <flux:icon name="information-circle" class="size-4 text-zinc-400" />
+                                Peta hanya untuk visualisasi lokasi pelanggan. Perubahan koordinat dilakukan dari menu edit pelanggan.
+                            </span>
+                            @can('update', $pelanggan)
+                                <a href="{{ route('pelanggan.edit', $pelanggan) }}" wire:navigate class="text-primary-600 hover:underline dark:text-primary-400 font-medium">Edit Titik Lokasi →</a>
+                            @endcan
+                        </div>
+
+                        {{-- Peta Leaflet --}}
                         <x-map-view :lat="$pelanggan->latitude" :lng="$pelanggan->longitude" :popup-title="$pelanggan->namaLengkap()" :popup-subtitle="$pelanggan->alamat_lengkap"
                             height="380px" />
 
@@ -301,7 +432,7 @@
         <div class="space-y-6">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <flux:heading size="base">Router & Paket Aktif Pelanggan</flux:heading>
+                    <flux:heading size="base">Router & Paket Aktif Pelanggan (Layanan / Pemasangan)</flux:heading>
                     <flux:subheading class="text-xs">Kelola router gateway BRAS, profil bandwidth paket langganan, dan pantau status realtime sesi PPP MikroTik.</flux:subheading>
                 </div>
                 <div class="flex items-center gap-2">
@@ -351,7 +482,7 @@
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-2">
-                                            <flux:heading size="base">{{ $layanan->paketLayanan->nama_paket }}</flux:heading>
+                                            <flux:heading size="base">{{ $layanan->label_layanan ?: $layanan->paketLayanan->nama_paket }}</flux:heading>
                                             <flux:badge size="sm" color="zinc" class="font-mono text-xs">{{ $layanan->site_id }}</flux:badge>
                                             @if ($isConnected)
                                                 <flux:badge size="sm" color="emerald" class="animate-pulse">
@@ -590,7 +721,421 @@
         </div>
     @endif
 
-    {{-- Tab 3: Dokumen & Legalitas --}}
+    {{-- Tab 3: Tagihan & Pembayaran (Billing Keuangan) --}}
+    @if ($activeTab === 'billing')
+        <div class="space-y-8">
+            {{-- 1. Tagihan Aktif (Belum Lunas / Pending) --}}
+            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-100 pb-4 dark:border-zinc-800">
+                    <div class="flex items-center gap-3">
+                        <div class="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
+                            <flux:icon name="exclamation-circle" class="size-5" />
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <flux:heading size="base">Tagihan Aktif (Belum Lunas / Pending)</flux:heading>
+                                <flux:badge size="sm" :color="$invoicesAktif->isNotEmpty() ? 'rose' : 'zinc'">
+                                    {{ $invoicesAktif->count() }} Tagihan
+                                </flux:badge>
+                            </div>
+                            <flux:description class="text-xs">Daftar invoice berjalan yang menunggu pembayaran atau tertunda.</flux:description>
+                        </div>
+                    </div>
+
+                    @can('create', App\Models\Invoice::class)
+                        <flux:button :href="route('invoice.create')" wire:navigate size="sm" variant="subtle" icon="plus">
+                            Terbitkan Invoice
+                        </flux:button>
+                    @endcan
+                </div>
+
+                <div class="mt-4">
+                    @if ($invoicesAktif->isNotEmpty())
+                        <div class="overflow-x-auto">
+                            <flux:table>
+                                <flux:table.columns>
+                                    <flux:table.column>No. Invoice</flux:table.column>
+                                    <flux:table.column>Layanan</flux:table.column>
+                                    <flux:table.column>Detail</flux:table.column>
+                                    <flux:table.column>Tanggal</flux:table.column>
+                                    <flux:table.column>Metode</flux:table.column>
+                                    <flux:table.column>Teller / Ref</flux:table.column>
+                                    <flux:table.column>Jumlah</flux:table.column>
+                                    <flux:table.column>Promo</flux:table.column>
+                                    <flux:table.column>Status</flux:table.column>
+                                    <flux:table.column class="text-right">Proses</flux:table.column>
+                                </flux:table.columns>
+
+                                <flux:table.rows>
+                                    @foreach ($invoicesAktif as $inv)
+                                        @php
+                                            $pgTrx = $inv->transaksiPaymentGateways->first();
+                                        @endphp
+                                        <flux:table.row :key="$inv->id">
+                                            {{-- No Invoice --}}
+                                            <flux:table.cell>
+                                                <a href="{{ route('invoice.show', $inv) }}" wire:navigate class="font-mono text-xs font-bold text-primary-600 hover:underline dark:text-primary-400">
+                                                    {{ $inv->no_invoice }}
+                                                </a>
+                                            </flux:table.cell>
+
+                                            {{-- Layanan --}}
+                                            <flux:table.cell class="text-xs">
+                                                <div class="font-medium text-zinc-800 dark:text-zinc-200">
+                                                    {{ $inv->layananPelanggan?->paketLayanan?->nama_paket ?? 'Layanan' }}
+                                                </div>
+                                                <div class="font-mono text-[11px] text-zinc-400">
+                                                    {{ $inv->layananPelanggan?->site_id ?? '—' }}
+                                                </div>
+                                            </flux:table.cell>
+
+                                            {{-- Detail (Periode Tagihan) --}}
+                                            <flux:table.cell class="text-xs">
+                                                <span class="font-medium text-zinc-700 dark:text-zinc-300">
+                                                    {{ $inv->formattedPeriodeTagihan() }}
+                                                </span>
+                                            </flux:table.cell>
+
+                                            {{-- Tanggal (Jatuh Tempo) --}}
+                                            <flux:table.cell class="text-xs">
+                                                <div class="text-zinc-800 dark:text-zinc-200">
+                                                    {{ $inv->tanggal_jatuh_tempo->format('d/m/Y') }}
+                                                </div>
+                                                <span class="text-[11px] text-zinc-400">Terbit: {{ $inv->tanggal_terbit->format('d/m/Y') }}</span>
+                                            </flux:table.cell>
+
+                                            {{-- Metode --}}
+                                            <flux:table.cell class="text-xs">
+                                                @if ($pgTrx)
+                                                    <flux:badge size="sm" color="indigo">
+                                                        {{ strtoupper($pgTrx->gateway) }} ({{ strtoupper($pgTrx->channel?->value ?? 'VA') }})
+                                                    </flux:badge>
+                                                @elseif ($inv->metode_pembayaran)
+                                                    <span class="capitalize text-zinc-700 dark:text-zinc-300">{{ $inv->metode_pembayaran?->label() ?? $inv->metode_pembayaran }}</span>
+                                                @else
+                                                    <span class="text-zinc-400">—</span>
+                                                @endif
+                                            </flux:table.cell>
+
+                                            {{-- Teller / Ref --}}
+                                            <flux:table.cell class="text-xs">
+                                                @if ($pgTrx && $pgTrx->nomor_pembayaran)
+                                                    <div class="font-mono text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">
+                                                        VA: {{ $pgTrx->nomor_pembayaran }}
+                                                    </div>
+                                                @elseif ($inv->xendit_invoice_id)
+                                                    <div class="font-mono text-[11px] text-zinc-500">
+                                                        Xendit: {{ substr($inv->xendit_invoice_id, -8) }}
+                                                    </div>
+                                                @else
+                                                    <span class="text-zinc-400">—</span>
+                                                @endif
+                                            </flux:table.cell>
+
+                                            {{-- Jumlah --}}
+                                            <flux:table.cell>
+                                                <div class="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                                                    {{ $inv->formattedJumlahSetelahPromo() }}
+                                                </div>
+                                                @if ($inv->jumlah != $inv->jumlah_setelah_promo)
+                                                    <span class="text-[11px] line-through text-zinc-400 font-mono">
+                                                        {{ $inv->formattedJumlah() }}
+                                                    </span>
+                                                @endif
+                                            </flux:table.cell>
+
+                                            {{-- Promo --}}
+                                            <flux:table.cell class="text-xs">
+                                                @if ($inv->promo)
+                                                    <flux:badge size="sm" color="emerald" class="text-[11px]">
+                                                        {{ $inv->promo->kode_promo }}
+                                                    </flux:badge>
+                                                @else
+                                                    <span class="text-zinc-400">—</span>
+                                                @endif
+                                            </flux:table.cell>
+
+                                            {{-- Status --}}
+                                            <flux:table.cell>
+                                                <flux:badge size="sm" :color="$inv->status->color()">
+                                                    {{ $inv->status->label() }}
+                                                </flux:badge>
+                                            </flux:table.cell>
+
+                                            {{-- Proses --}}
+                                            <flux:table.cell class="text-right">
+                                                <div class="flex items-center justify-end gap-1.5">
+                                                    @can('create', App\Models\Pembayaran::class)
+                                                        <flux:button
+                                                            type="button"
+                                                            wire:click="openBayarModal({{ $inv->id }})"
+                                                            size="xs"
+                                                            variant="primary"
+                                                            icon="banknotes"
+                                                        >
+                                                            Bayar
+                                                        </flux:button>
+                                                    @endcan
+
+                                                    @if ($inv->hasActiveXenditInvoice())
+                                                        <flux:button
+                                                            :href="$inv->xendit_invoice_url"
+                                                            target="_blank"
+                                                            size="xs"
+                                                            variant="subtle"
+                                                            icon="arrow-top-right-on-square"
+                                                            title="Buka Tautan Pembayaran Xendit"
+                                                        />
+                                                    @endif
+
+                                                    <flux:button
+                                                        :href="route('invoice.show', $inv)"
+                                                        wire:navigate
+                                                        size="xs"
+                                                        variant="ghost"
+                                                        icon="eye"
+                                                        title="Lihat Detail Invoice"
+                                                    />
+                                                </div>
+                                            </flux:table.cell>
+                                        </flux:table.row>
+                                    @endforeach
+                                </flux:table.rows>
+                            </flux:table>
+                        </div>
+                    @else
+                        <div class="rounded-lg border-2 border-dashed border-zinc-200 p-8 text-center dark:border-zinc-800">
+                            <flux:icon name="check-circle" class="mx-auto size-8 text-emerald-500 dark:text-emerald-400" />
+                            <p class="mt-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">Tidak ada tagihan aktif yang tertunda.</p>
+                            <span class="text-[11px] text-zinc-400">Seluruh tagihan pelanggan ini sudah lunas atau belum diterbitkan.</span>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- 2. Riwayat Pembayaran Lunas --}}
+            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-zinc-800">
+                    <div class="flex items-center gap-3">
+                        <div class="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                            <flux:icon name="check-badge" class="size-5" />
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <flux:heading size="base">Riwayat Pembayaran Lunas</flux:heading>
+                                <span class="text-xs text-zinc-500 font-medium">({{ $invoicesLunas->count() }} Transaksi)</span>
+                            </div>
+                            <flux:description class="text-xs">Catatan pembayaran dan pelunasan tagihan yang berhasil diproses.</flux:description>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    @if ($invoicesLunas->isNotEmpty())
+                        <div class="overflow-x-auto">
+                            <flux:table>
+                                <flux:table.columns>
+                                    <flux:table.column>No. Invoice</flux:table.column>
+                                    <flux:table.column>Layanan</flux:table.column>
+                                    <flux:table.column>Detail</flux:table.column>
+                                    <flux:table.column>Tanggal</flux:table.column>
+                                    <flux:table.column>Metode</flux:table.column>
+                                    <flux:table.column>Teller / Ref</flux:table.column>
+                                    <flux:table.column>Jumlah (Rp.)</flux:table.column>
+                                    <flux:table.column>Promo</flux:table.column>
+                                    <flux:table.column>Status</flux:table.column>
+                                    <flux:table.column class="text-right">Aksi</flux:table.column>
+                                </flux:table.columns>
+
+                                <flux:table.rows>
+                                    @foreach ($invoicesLunas as $inv)
+                                        @php
+                                            $lastPayment = $inv->pembayarans->first();
+                                        @endphp
+                                        <flux:table.row :key="$inv->id">
+                                            {{-- No Invoice --}}
+                                            <flux:table.cell>
+                                                <a href="{{ route('invoice.show', $inv) }}" wire:navigate class="font-mono text-xs font-bold text-primary-600 hover:underline dark:text-primary-400">
+                                                    {{ $inv->no_invoice }}
+                                                </a>
+                                            </flux:table.cell>
+
+                                            {{-- Layanan --}}
+                                            <flux:table.cell class="text-xs">
+                                                <div class="font-medium text-zinc-800 dark:text-zinc-200">
+                                                    {{ $inv->layananPelanggan?->paketLayanan?->nama_paket ?? 'Layanan' }}
+                                                </div>
+                                                <div class="font-mono text-[11px] text-zinc-400">
+                                                    {{ $inv->layananPelanggan?->site_id ?? '—' }}
+                                                </div>
+                                            </flux:table.cell>
+
+                                            {{-- Detail (Periode Tagihan) --}}
+                                            <flux:table.cell class="text-xs">
+                                                <span class="font-medium text-zinc-700 dark:text-zinc-300">
+                                                    {{ $inv->formattedPeriodeTagihan() }}
+                                                </span>
+                                            </flux:table.cell>
+
+                                            {{-- Tanggal (Tanggal Lunas / Bayar) --}}
+                                            <flux:table.cell class="text-xs">
+                                                <div class="font-medium text-zinc-800 dark:text-zinc-200">
+                                                    {{ $inv->tanggal_lunas?->format('d/m/Y') ?? $lastPayment?->dibayar_pada?->format('d/m/Y') ?? '—' }}
+                                                </div>
+                                                @if ($lastPayment?->dibayar_pada)
+                                                    <span class="text-[11px] text-zinc-400">{{ $lastPayment->dibayar_pada->format('H:i') }} WIB</span>
+                                                @endif
+                                            </flux:table.cell>
+
+                                            {{-- Metode --}}
+                                            <flux:table.cell class="text-xs">
+                                                <flux:badge size="sm" color="zinc">
+                                                    {{ $lastPayment?->metode?->label() ?? $inv->metode_pembayaran?->label() ?? 'Lunas' }}
+                                                </flux:badge>
+                                            </flux:table.cell>
+
+                                            {{-- Teller / Ref --}}
+                                            <flux:table.cell class="text-xs">
+                                                <div class="text-zinc-700 dark:text-zinc-300">
+                                                    {{ $lastPayment?->dicatatOleh?->name ?? 'Sistem Gateway' }}
+                                                </div>
+                                                @if ($lastPayment?->referensi_transaksi)
+                                                    <div class="font-mono text-[11px] text-zinc-400">Ref: {{ $lastPayment->referensi_transaksi }}</div>
+                                                @endif
+                                            </flux:table.cell>
+
+                                            {{-- Jumlah --}}
+                                            <flux:table.cell class="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                                {{ $inv->formattedJumlahSetelahPromo() }}
+                                            </flux:table.cell>
+
+                                            {{-- Promo --}}
+                                            <flux:table.cell class="text-xs">
+                                                @if ($inv->promo)
+                                                    <flux:badge size="sm" color="emerald" class="text-[11px]">
+                                                        {{ $inv->promo->kode_promo }}
+                                                    </flux:badge>
+                                                @else
+                                                    <span class="text-zinc-400">—</span>
+                                                @endif
+                                            </flux:table.cell>
+
+                                            {{-- Status --}}
+                                            <flux:table.cell>
+                                                <flux:badge size="sm" color="emerald">
+                                                    Lunas
+                                                </flux:badge>
+                                            </flux:table.cell>
+
+                                            {{-- Aksi --}}
+                                            <flux:table.cell class="text-right">
+                                                <flux:button
+                                                    :href="route('invoice.show', $inv)"
+                                                    wire:navigate
+                                                    size="xs"
+                                                    variant="ghost"
+                                                    icon="arrow-top-right-on-square"
+                                                    title="Lihat Kuitansi / Invoice"
+                                                />
+                                            </flux:table.cell>
+                                        </flux:table.row>
+                                    @endforeach
+                                </flux:table.rows>
+                            </flux:table>
+                        </div>
+                    @else
+                        <div class="rounded-lg border-2 border-dashed border-zinc-200 p-8 text-center dark:border-zinc-800">
+                            <flux:icon name="banknotes" class="mx-auto size-8 text-zinc-300 dark:text-zinc-600" />
+                            <p class="mt-2 text-xs text-zinc-500">Belum ada riwayat invoice yang telah lunas.</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- 3. Riwayat Invoice Dihapus --}}
+            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-zinc-800">
+                    <div class="flex items-center gap-3">
+                        <div class="flex size-9 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                            <flux:icon name="trash" class="size-5" />
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <flux:heading size="base">Riwayat Invoice Dihapus / Dibatalkan</flux:heading>
+                                <span class="text-xs text-zinc-500 font-medium">({{ $invoicesDihapus->count() }} Data)</span>
+                            </div>
+                            <flux:description class="text-xs">Daftar invoice tagihan yang pernah dibatalkan atau dihapus dari sistem (audit trail).</flux:description>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    @if ($invoicesDihapus->isNotEmpty())
+                        <div class="overflow-x-auto">
+                            <flux:table>
+                                <flux:table.columns>
+                                    <flux:table.column>No. Invoice</flux:table.column>
+                                    <flux:table.column>Layanan</flux:table.column>
+                                    <flux:table.column>Detail</flux:table.column>
+                                    <flux:table.column>Tanggal</flux:table.column>
+                                    <flux:table.column>Jumlah</flux:table.column>
+                                    <flux:table.column>Dihapus Oleh</flux:table.column>
+                                    <flux:table.column>Keterangan</flux:table.column>
+                                </flux:table.columns>
+
+                                <flux:table.rows>
+                                    @foreach ($invoicesDihapus as $delInv)
+                                        <flux:table.row :key="$delInv->id">
+                                            {{-- No Invoice --}}
+                                            <flux:table.cell class="font-mono text-xs font-medium text-zinc-500">
+                                                {{ $delInv->no_invoice }}
+                                            </flux:table.cell>
+
+                                            {{-- Layanan --}}
+                                            <flux:table.cell class="text-xs text-zinc-600 dark:text-zinc-400">
+                                                {{ $delInv->layananPelanggan?->paketLayanan?->nama_paket ?? '—' }}
+                                            </flux:table.cell>
+
+                                            {{-- Detail --}}
+                                            <flux:table.cell class="text-xs text-zinc-600 dark:text-zinc-400">
+                                                {{ $delInv->formattedPeriodeTagihan() }}
+                                            </flux:table.cell>
+
+                                            {{-- Tanggal --}}
+                                            <flux:table.cell class="text-xs text-zinc-500">
+                                                <div>{{ $delInv->deleted_at?->translatedFormat('d M Y, H:i') ?? '—' }}</div>
+                                            </flux:table.cell>
+
+                                            {{-- Jumlah --}}
+                                            <flux:table.cell class="font-mono text-xs text-zinc-600 dark:text-zinc-400">
+                                                {{ $delInv->formattedJumlahSetelahPromo() }}
+                                            </flux:table.cell>
+
+                                            {{-- Dihapus Oleh --}}
+                                            <flux:table.cell class="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
+                                                {{ $delInv->dihapusOleh?->name ?? 'Sistem' }}
+                                            </flux:table.cell>
+
+                                            {{-- Keterangan --}}
+                                            <flux:table.cell class="text-xs text-zinc-500 italic max-w-xs truncate" title="{{ $delInv->keterangan_hapus }}">
+                                                {{ $delInv->keterangan_hapus ?: '—' }}
+                                            </flux:table.cell>
+                                        </flux:table.row>
+                                    @endforeach
+                                </flux:table.rows>
+                            </flux:table>
+                        </div>
+                    @else
+                        <div class="rounded-lg border border-dashed border-zinc-200 p-6 text-center text-xs text-zinc-400 dark:border-zinc-800">
+                            Tidak ada data invoice yang dihapus untuk pelanggan ini.
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Tab 4: Dokumen & Legalitas --}}
     @if ($activeTab === 'dokumen')
         <div class="space-y-6">
             {{-- Toolbar & Actions --}}
@@ -794,7 +1339,7 @@
         </div>
     @endif
 
-    {{-- Tab 4: Riwayat Aktivitas (Activity Log) --}}
+    {{-- Tab 5: Riwayat Aktivitas (Activity Log) --}}
     @if ($activeTab === 'audit')
         <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
             <div class="p-6 pb-2">
@@ -966,6 +1511,90 @@
                     <div class="flex justify-end gap-2 pt-2">
                         <flux:button wire:click="closeUploadDocModal" type="button" variant="ghost">Batal</flux:button>
                         <flux:button type="submit" variant="primary" icon="lock-closed">Unggah & Enkripsi</flux:button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- ─── Modal 4: Modal Pencatatan Pembayaran Cepat Tagihan Aktif ─── --}}
+    @if ($showBayarModal && $selectedInvoice)
+        <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+            <div class="relative w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 space-y-5">
+                <div class="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+                            <flux:icon name="banknotes" class="size-5" />
+                        </div>
+                        <div>
+                            <flux:heading size="lg">Catat Pembayaran Tagihan</flux:heading>
+                            <flux:description class="text-xs">Invoice: <strong class="font-mono text-zinc-900 dark:text-zinc-100">{{ $selectedInvoice->no_invoice }}</strong></flux:description>
+                        </div>
+                    </div>
+                    <flux:button wire:click="closeBayarModal" variant="ghost" size="sm" icon="x-mark" />
+                </div>
+
+                {{-- Summary Box --}}
+                <div class="rounded-xl bg-zinc-50 p-4 text-xs dark:bg-zinc-800/60 space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">Layanan & Paket:</span>
+                        <span class="font-semibold text-zinc-800 dark:text-zinc-200">{{ $selectedInvoice->layananPelanggan?->paketLayanan?->nama_paket ?? 'Layanan Internet' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">Periode Tagihan:</span>
+                        <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $selectedInvoice->formattedPeriodeTagihan() }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">Jatuh Tempo:</span>
+                        <span class="text-zinc-700 dark:text-zinc-300">{{ $selectedInvoice->tanggal_jatuh_tempo->format('d F Y') }}</span>
+                    </div>
+                    <div class="flex justify-between border-t border-zinc-200/60 pt-2 dark:border-zinc-700/60">
+                        <span class="font-semibold text-zinc-700 dark:text-zinc-300">Total Harus Dibayar:</span>
+                        <span class="font-mono text-sm font-bold text-primary-600 dark:text-primary-400">{{ $selectedInvoice->formattedJumlahSetelahPromo() }}</span>
+                    </div>
+                </div>
+
+                <form wire:submit="prosesBayarInvoice" class="space-y-4">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <flux:field>
+                            <flux:label>Metode Pembayaran</flux:label>
+                            <flux:select wire:model="bayarMetode">
+                                <flux:select.option value="manual_admin">Tunai / Kasir (Admin)</flux:select.option>
+                                <flux:select.option value="transfer">Transfer Bank Manual</flux:select.option>
+                            </flux:select>
+                            <flux:error name="bayarMetode" />
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>Jumlah Dibayar (Rp)</flux:label>
+                            <flux:input wire:model="bayarJumlah" type="number" step="1000" />
+                            <flux:error name="bayarJumlah" />
+                        </flux:field>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <flux:field>
+                            <flux:label>Tanggal Pembayaran</flux:label>
+                            <flux:input wire:model="bayarTanggal" type="datetime-local" />
+                            <flux:error name="bayarTanggal" />
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>Referensi / No. Struk <span class="text-zinc-400 font-normal">(opsional)</span></flux:label>
+                            <flux:input wire:model="bayarReferensi" placeholder="Contoh: TRX-12345" />
+                            <flux:error name="bayarReferensi" />
+                        </flux:field>
+                    </div>
+
+                    <flux:field>
+                        <flux:label>Catatan Petugas <span class="text-zinc-400 font-normal">(opsional)</span></flux:label>
+                        <flux:input wire:model="bayarCatatan" placeholder="Catatan internal..." />
+                        <flux:error name="bayarCatatan" />
+                    </flux:field>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <flux:button wire:click="closeBayarModal" type="button" variant="ghost">Batal</flux:button>
+                        <flux:button type="submit" variant="primary" icon="check">Simpan & Lunasi</flux:button>
                     </div>
                 </form>
             </div>

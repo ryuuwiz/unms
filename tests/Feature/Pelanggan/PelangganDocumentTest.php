@@ -51,7 +51,7 @@ test('can create pelanggan with encrypted ktp and mou document', function () {
         ->set('nama_belakang', 'Santoso')
         ->set('no_hp', '081234567890')
         ->set('alamat_lengkap', 'Jl. Merdeka No. 10')
-        ->set('status', StatusPelanggan::Prospek->value)
+        ->set('status', StatusPelanggan::BelumTerpasang->value)
         ->set('foto_ktp', $ktpFile)
         ->set('dokumen_mou', $mouFile)
         ->set('jenis_dokumen', 'MOU / Kontrak')

@@ -38,18 +38,42 @@ class PelangganFactory extends Factory
     }
 
     /**
-     * State untuk pelanggan prospek.
+     * State untuk pelanggan belum terpasang.
      */
-    public function prospek(): static
+    public function belumTerpasang(): static
     {
-        return $this->state(['status' => StatusPelanggan::Prospek]);
+        return $this->state(['status' => StatusPelanggan::BelumTerpasang]);
     }
 
     /**
-     * State untuk pelanggan tidak aktif.
+     * State untuk pelanggan req pemasangan.
      */
-    public function tidakAktif(): static
+    public function reqPemasangan(): static
     {
-        return $this->state(['status' => StatusPelanggan::TidakAktif]);
+        return $this->state(['status' => StatusPelanggan::ReqPemasangan]);
+    }
+
+    /**
+     * State untuk pelanggan pemasangan selesai.
+     */
+    public function pemasanganSelesai(): static
+    {
+        return $this->state(['status' => StatusPelanggan::PemasanganSelesai]);
+    }
+
+    /**
+     * State untuk pelanggan expired.
+     */
+    public function expired(): static
+    {
+        return $this->state(['status' => StatusPelanggan::Expired]);
+    }
+
+    /**
+     * State untuk pelanggan off (tidak aktif).
+     */
+    public function off(): static
+    {
+        return $this->state(['status' => StatusPelanggan::Off]);
     }
 }

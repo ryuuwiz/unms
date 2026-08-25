@@ -2,10 +2,18 @@
 
 namespace App\Livewire\Pelanggan;
 
+use App\Enums\StatusInvoice;
+use App\Models\AkunPelanggan;
+use App\Models\Invoice;
 use App\Models\Pelanggan;
+use App\Models\Pembayaran;
+use App\Models\User;
+use App\Services\Billing\BillingService;
 use App\Services\CustomerDocumentService;
 use App\Services\Mikrotik\MikrotikService;
+use Exception;
 use Flux\Flux;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -24,6 +32,8 @@ class Show extends Component
 
     public string $activeTab = 'overview';
 
+    public bool $showNik = false;
+
     /**
      * Modal states & properties
      */
@@ -32,6 +42,20 @@ class Show extends Component
     public bool $showUploadKtpModal = false;
 
     public bool $showUploadDocModal = false;
+
+    public bool $showBayarModal = false;
+
+    public ?int $selectedInvoiceId = null;
+
+    public string $bayarMetode = 'manual_admin';
+
+    public float $bayarJumlah = 0.0;
+
+    public string $bayarReferensi = '';
+
+    public string $bayarTanggal = '';
+
+    public string $bayarCatatan = '';
 
     /** @var mixed */
     public $newKtpFile = null;
@@ -62,6 +86,106 @@ class Show extends Component
     public function setTab(string $tab): void
     {
         $this->activeTab = $tab;
+    }
+
+    public function toggleShowNik(): void
+    {
+        $this->showNik = ! $this->showNik;
+    }
+
+    public function resetPasswordPortal(): void
+    {
+        $pelanggan = Pelanggan::with('akunPelanggan')->findOrFail($this->pelangganId);
+        $this->authorize('update', $pelanggan);
+
+        if ($pelanggan->akunPelanggan) {
+            $pelanggan->akunPelanggan->update([
+                'password' => '12345678',
+            ]);
+        } else {
+            if (empty($pelanggan->email)) {
+                Flux::toast(variant: 'danger', text: 'Pelanggan belum memiliki alamat email untuk akun portal.');
+
+                return;
+            }
+
+            AkunPelanggan::create([
+                'pelanggan_id' => $pelanggan->id,
+                'email' => strtolower(trim($pelanggan->email)),
+                'password' => '12345678',
+            ]);
+        }
+
+        activity('pelanggan')
+            ->performedOn($pelanggan)
+            ->causedBy(Auth::user())
+            ->log("Mereset password akun portal pelanggan {$pelanggan->identitasLengkap()} ke default");
+
+        Flux::toast(variant: 'success', text: 'Password portal pelanggan berhasil direset ke default (12345678).');
+    }
+
+    public function openBayarModal(int $invoiceId): void
+    {
+        $invoice = Invoice::where('pelanggan_id', $this->pelangganId)->findOrFail($invoiceId);
+        $this->selectedInvoiceId = $invoice->id;
+        $this->bayarMetode = 'manual_admin';
+        $this->bayarJumlah = (float) $invoice->jumlah_setelah_promo;
+        $this->bayarTanggal = Carbon::now()->format('Y-m-d\TH:i');
+        $this->bayarReferensi = '';
+        $this->bayarCatatan = '';
+        $this->showBayarModal = true;
+    }
+
+    public function closeBayarModal(): void
+    {
+        $this->showBayarModal = false;
+        $this->selectedInvoiceId = null;
+    }
+
+    public function prosesBayarInvoice(BillingService $billingService, MikrotikService $mikrotikService): void
+    {
+        $this->authorize('create', Pembayaran::class);
+
+        $this->validate([
+            'bayarMetode' => ['required', 'string', 'in:manual_admin,transfer'],
+            'bayarJumlah' => ['required', 'numeric', 'min:1'],
+            'bayarTanggal' => ['required', 'date'],
+            'bayarReferensi' => ['nullable', 'string', 'max:100'],
+            'bayarCatatan' => ['nullable', 'string', 'max:500'],
+        ], [
+            'bayarMetode.required' => 'Pilih metode pembayaran.',
+            'bayarJumlah.required' => 'Jumlah pembayaran wajib diisi.',
+            'bayarTanggal.required' => 'Tanggal pembayaran wajib diisi.',
+        ]);
+
+        $invoice = Invoice::where('pelanggan_id', $this->pelangganId)->findOrFail($this->selectedInvoiceId);
+
+        try {
+            /** @var User $actor */
+            $actor = Auth::user();
+
+            $billingService->prosesPembayaranManual(
+                invoice: $invoice,
+                payload: [
+                    'metode' => $this->bayarMetode,
+                    'jumlah_dibayar' => $this->bayarJumlah,
+                    'referensi_transaksi' => $this->bayarReferensi ?: null,
+                    'dibayar_pada' => $this->bayarTanggal,
+                    'catatan' => $this->bayarCatatan ?: null,
+                ],
+                actor: $actor
+            );
+
+            $this->closeBayarModal();
+
+            // Refresh ppp status
+            $pelanggan = Pelanggan::with(['layanans.router', 'layanans.paketLayanan.profilBandwidth'])->findOrFail($this->pelangganId);
+            $this->loadPppStatuses($pelanggan, $mikrotikService);
+
+            Flux::toast(variant: 'success', text: "Pembayaran invoice {$invoice->no_invoice} berhasil dicatat & layanan diperpanjang!");
+        } catch (Exception $e) {
+            Flux::toast(variant: 'danger', text: $e->getMessage());
+        }
     }
 
     public function openKtpModal(): void
@@ -216,6 +340,7 @@ class Show extends Component
     {
         $pelanggan = Pelanggan::with([
             'pembuat',
+            'akunPelanggan',
             'perumahan.kelurahan.kecamatan.kota',
             'layanans.paketLayanan.profilBandwidth',
             'layanans.router',
@@ -232,12 +357,39 @@ class Show extends Component
         $dokumens = $pelanggan->getMedia('dokumen');
         $ktpMedia = $pelanggan->getKtpMedia();
 
+        $invoicesAktif = Invoice::where('pelanggan_id', $this->pelangganId)
+            ->whereIn('status', [StatusInvoice::MenungguPembayaran, StatusInvoice::Kadaluarsa])
+            ->with(['layananPelanggan.paketLayanan', 'layananPelanggan.router', 'promo', 'transaksiPaymentGateways' => fn ($q) => $q->latest('id')])
+            ->orderByDesc('tanggal_terbit')
+            ->get();
+
+        $invoicesLunas = Invoice::where('pelanggan_id', $this->pelangganId)
+            ->where('status', StatusInvoice::Lunas)
+            ->with(['layananPelanggan.paketLayanan', 'promo', 'pembayarans.dicatatOleh'])
+            ->orderByDesc('tanggal_lunas')
+            ->orderByDesc('id')
+            ->get();
+
+        $invoicesDihapus = Invoice::onlyTrashed()
+            ->where('pelanggan_id', $this->pelangganId)
+            ->with(['layananPelanggan.paketLayanan', 'dihapusOleh'])
+            ->orderByDesc('deleted_at')
+            ->get();
+
+        $selectedInvoice = $this->selectedInvoiceId
+            ? Invoice::with(['layananPelanggan.paketLayanan', 'promo'])->find($this->selectedInvoiceId)
+            : null;
+
         return view('livewire.pelanggan.show', [
             'pelanggan' => $pelanggan,
             'activityLogs' => $activityLogs,
             'pppStatuses' => $this->pppStatuses,
             'dokumens' => $dokumens,
             'ktpMedia' => $ktpMedia,
+            'invoicesAktif' => $invoicesAktif,
+            'invoicesLunas' => $invoicesLunas,
+            'invoicesDihapus' => $invoicesDihapus,
+            'selectedInvoice' => $selectedInvoice,
         ]);
     }
 }
