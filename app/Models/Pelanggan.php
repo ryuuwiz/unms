@@ -18,6 +18,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
  * @property int $id
@@ -39,7 +42,6 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property float|null $longitude
  * @property StatusPelanggan $status
  * @property string $kode_pembayaran
- * @property string|null $gambar_ktp_path
  * @property int $dibuat_oleh
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
@@ -65,15 +67,43 @@ use Spatie\Activitylog\Support\LogOptions;
     'latitude',
     'longitude',
     'status',
-    'gambar_ktp_path',
     'dibuat_oleh',
 ])]
-class Pelanggan extends Model
+class Pelanggan extends Model implements HasMedia
 {
     /** @use HasFactory<PelangganFactory> */
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, InteractsWithMedia, LogsActivity, SoftDeletes;
 
     protected $table = 'pelanggan';
+
+    /**
+     * Konfigurasi collection Spatie MediaLibrary pada disk privat.
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('ktp')
+            ->singleFile()
+            ->useDisk('local');
+
+        $this->addMediaCollection('dokumen')
+            ->useDisk('local');
+    }
+
+    /**
+     * Cek apakah pelanggan memiliki berkas KTP.
+     */
+    public function hasKtp(): bool
+    {
+        return $this->hasMedia('ktp');
+    }
+
+    /**
+     * Ambil objek Media KTP pertama pelanggan.
+     */
+    public function getKtpMedia(): ?Media
+    {
+        return $this->getFirstMedia('ktp');
+    }
 
     /**
      * Konfigurasi logging aktivitas via Spatie activitylog.

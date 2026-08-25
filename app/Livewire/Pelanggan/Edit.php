@@ -7,6 +7,7 @@ use App\Enums\TipePelanggan;
 use App\Models\Odp;
 use App\Models\Pelanggan;
 use App\Models\Perumahan;
+use App\Services\CustomerDocumentService;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -14,11 +15,14 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Edit Pelanggan')]
 class Edit extends Component
 {
+    use WithFileUploads;
+
     #[Locked]
     public int $pelangganId;
 
@@ -54,6 +58,13 @@ class Edit extends Component
 
     public ?float $longitude = null;
 
+    /** @var mixed */
+    public $foto_ktp = null;
+
+    public bool $hapus_ktp = false;
+
+    public bool $hasExistingKtp = false;
+
     /** @var array<int, array{id: int, nama_odp: string, jarak: float, port_kosong_count: int}> */
     public array $odpTerdekat = [];
 
@@ -81,6 +92,7 @@ class Edit extends Component
         $this->latitude = $pelanggan->latitude;
         $this->longitude = $pelanggan->longitude;
         $this->status = $pelanggan->status->value;
+        $this->hasExistingKtp = $pelanggan->hasKtp();
     }
 
     /**
@@ -106,6 +118,7 @@ class Edit extends Component
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'status' => ['required', 'string', 'in:aktif,tidak_aktif,prospek'],
+            'foto_ktp' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
         ];
     }
 
@@ -122,10 +135,23 @@ class Edit extends Component
             'no_hp.regex' => 'Format nomor HP tidak valid. Gunakan awalan 08 atau +628 (contoh: 08123456789).',
             'email.email' => 'Format alamat email tidak valid.',
             'alamat_lengkap.required' => 'Alamat lengkap pemasangan wajib diisi.',
+            'foto_ktp.image' => 'Berkas KTP harus berupa gambar (JPG, PNG, atau WEBP).',
+            'foto_ktp.max' => 'Ukuran berkas KTP maksimal 5MB.',
         ];
     }
 
-    public function save(): void
+    public function tandaiHapusKtp(): void
+    {
+        $this->hapus_ktp = true;
+        $this->foto_ktp = null;
+    }
+
+    public function batalkanHapusKtp(): void
+    {
+        $this->hapus_ktp = false;
+    }
+
+    public function save(CustomerDocumentService $documentService): void
     {
         $pelanggan = Pelanggan::findOrFail($this->pelangganId);
         $this->authorize('update', $pelanggan);
@@ -150,6 +176,13 @@ class Edit extends Component
             'longitude' => $this->longitude,
             'status' => $this->status,
         ]);
+
+        // Simpan / Perbarui KTP jika diunggah
+        if ($this->foto_ktp) {
+            $documentService->storeEncryptedMedia($pelanggan, $this->foto_ktp, 'ktp');
+        } elseif ($this->hapus_ktp) {
+            $pelanggan->clearMediaCollection('ktp');
+        }
 
         Flux::toast(variant: 'success', text: "Data pelanggan {$pelanggan->identitasLengkap()} berhasil diperbarui.");
 

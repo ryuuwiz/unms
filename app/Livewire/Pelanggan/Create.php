@@ -7,17 +7,21 @@ use App\Enums\TipePelanggan;
 use App\Models\Odp;
 use App\Models\Pelanggan;
 use App\Models\Perumahan;
+use App\Services\CustomerDocumentService;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Tambah Pelanggan')]
 class Create extends Component
 {
+    use WithFileUploads;
+
     public string $no_reg = '';
 
     public string $tipe_pelanggan = 'rumah';
@@ -49,6 +53,18 @@ class Create extends Component
     public ?float $latitude = null;
 
     public ?float $longitude = null;
+
+    /** @var mixed */
+    public $foto_ktp = null;
+
+    /** @var mixed */
+    public $dokumen_mou = null;
+
+    public string $jenis_dokumen = 'MOU / Kontrak';
+
+    public string $nomor_dokumen = '';
+
+    public string $keterangan_dokumen = '';
 
     /** @var array<int, array{id: int, nama_odp: string, jarak: float, port_kosong_count: int}> */
     public array $odpTerdekat = [];
@@ -83,6 +99,11 @@ class Create extends Component
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'status' => ['required', 'string', 'in:aktif,tidak_aktif,prospek'],
+            'foto_ktp' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+            'dokumen_mou' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp', 'max:10240'],
+            'jenis_dokumen' => ['nullable', 'string', 'max:100'],
+            'nomor_dokumen' => ['nullable', 'string', 'max:100'],
+            'keterangan_dokumen' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -98,10 +119,14 @@ class Create extends Component
             'no_hp.regex' => 'Format nomor HP tidak valid. Gunakan awalan 08 atau +628 (contoh: 08123456789).',
             'email.email' => 'Format alamat email tidak valid.',
             'alamat_lengkap.required' => 'Alamat lengkap pemasangan wajib diisi.',
+            'foto_ktp.image' => 'Berkas KTP harus berupa gambar (JPG, PNG, atau WEBP).',
+            'foto_ktp.max' => 'Ukuran berkas KTP maksimal 5MB.',
+            'dokumen_mou.mimes' => 'Berkas MOU / dokumen harus berformat PDF, JPG, PNG, atau WEBP.',
+            'dokumen_mou.max' => 'Ukuran berkas MOU / dokumen maksimal 10MB.',
         ];
     }
 
-    public function save(): void
+    public function save(CustomerDocumentService $documentService): void
     {
         $this->authorize('create', Pelanggan::class);
         $this->validate();
@@ -131,6 +156,30 @@ class Create extends Component
         }
 
         $pelanggan = Pelanggan::create($data);
+
+        // Simpan Berkas KTP Terenkripsi
+        if ($this->foto_ktp) {
+            $documentService->storeEncryptedMedia(
+                $pelanggan,
+                $this->foto_ktp,
+                'ktp'
+            );
+        }
+
+        // Simpan Berkas MOU Terenkripsi (jika diunggah)
+        if ($this->dokumen_mou) {
+            $documentService->storeEncryptedMedia(
+                $pelanggan,
+                $this->dokumen_mou,
+                'dokumen',
+                [
+                    'jenis_dokumen' => $this->jenis_dokumen ?: 'MOU / Kontrak',
+                    'nomor_dokumen' => $this->nomor_dokumen ?: null,
+                    'keterangan' => $this->keterangan_dokumen ?: null,
+                    'uploaded_by' => Auth::user()?->name,
+                ]
+            );
+        }
 
         Flux::toast(variant: 'success', text: "Pelanggan {$pelanggan->identitasLengkap()} berhasil didaftarkan.");
 

@@ -30,6 +30,7 @@ class RolesAndPermissionsSeeder extends Seeder
         foreach ([
             // Pelanggan
             'pelanggan.lihat', 'pelanggan.buat', 'pelanggan.ubah', 'pelanggan.hapus',
+            'pelanggan.lihat_ktp', 'pelanggan.lihat_dokumen', 'pelanggan.unggah_dokumen', 'pelanggan.hapus_dokumen',
             // Layanan Pelanggan
             'layanan_pelanggan.lihat', 'layanan_pelanggan.buat', 'layanan_pelanggan.ubah', 'layanan_pelanggan.hapus',
             // Invoice & Pembayaran (Fase 2)
@@ -77,6 +78,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // admin: operasional harian — semua kecuali router provision/sync, wilayah config, WA gateway
         $adminRole->syncPermissions([
             $p['pelanggan.lihat'], $p['pelanggan.buat'], $p['pelanggan.ubah'], $p['pelanggan.hapus'],
+            $p['pelanggan.lihat_ktp'], $p['pelanggan.lihat_dokumen'], $p['pelanggan.unggah_dokumen'], $p['pelanggan.hapus_dokumen'],
             $p['layanan_pelanggan.lihat'], $p['layanan_pelanggan.buat'], $p['layanan_pelanggan.ubah'], $p['layanan_pelanggan.hapus'],
             $p['invoice.lihat'], $p['invoice.buat'], $p['invoice.hapus'], $p['invoice.cetak'],
             $p['pembayaran.catat'], $p['pembayaran.lihat'],
@@ -94,6 +96,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // sales: akuisisi pelanggan baru & tiket pemasangan
         $salesRole->syncPermissions([
             $p['pelanggan.lihat'], $p['pelanggan.buat'], $p['pelanggan.ubah'],
+            $p['pelanggan.lihat_ktp'], $p['pelanggan.lihat_dokumen'], $p['pelanggan.unggah_dokumen'], $p['pelanggan.hapus_dokumen'],
             $p['layanan_pelanggan.lihat'],
             $p['paket_layanan.lihat'],
             $p['wilayah.lihat'],

@@ -155,6 +155,69 @@
 
         <flux:separator />
 
+        {{-- Section 4: Dokumen Identitas (KTP) --}}
+        <div class="space-y-4">
+            <div>
+                <flux:heading size="base">Dokumen Identitas (KTP Terenkripsi)</flux:heading>
+                <flux:subheading>Berkas KTP disimpan terenkripsi di penyimpanan privat terisolasi.</flux:subheading>
+            </div>
+
+            <flux:card class="space-y-4 p-4 border border-zinc-200 dark:border-zinc-700 max-w-xl">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <flux:icon name="identification" class="size-5 text-indigo-500" />
+                        <div>
+                            <flux:label class="font-medium">Foto Kartu Identitas (KTP)</flux:label>
+                            <flux:description>Format: JPG, PNG, WEBP (Maks. 5MB)</flux:description>
+                        </div>
+                    </div>
+
+                    @if ($hasExistingKtp && ! $hapus_ktp)
+                        <flux:badge color="green" size="sm" icon="check-badge">Tersimpan Terenkripsi</flux:badge>
+                    @elseif ($hapus_ktp)
+                        <flux:badge color="red" size="sm" icon="trash">Akan Dihapus</flux:badge>
+                    @else
+                        <flux:badge color="zinc" size="sm">Belum Diunggah</flux:badge>
+                    @endif
+                </div>
+
+                @if ($hasExistingKtp && ! $hapus_ktp && ! $foto_ktp)
+                    <div class="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900">
+                        <div class="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                            <flux:icon name="lock-closed" class="size-4 text-emerald-500" />
+                            <span>Berkas KTP aktif tersimpan aman.</span>
+                        </div>
+                        <flux:button wire:click="tandaiHapusKtp" variant="danger" size="sm" icon="trash">Hapus KTP</flux:button>
+                    </div>
+                @elseif ($hapus_ktp)
+                    <div class="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/20">
+                        <div class="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                            <flux:icon name="exclamation-triangle" class="size-4" />
+                            <span>KTP akan dihapus saat form disimpan.</span>
+                        </div>
+                        <flux:button wire:click="batalkanHapusKtp" variant="ghost" size="sm">Batalkan</flux:button>
+                    </div>
+                @endif
+
+                <flux:field>
+                    <flux:label>{{ $hasExistingKtp ? 'Ganti Foto KTP (opsional)' : 'Unggah Foto KTP' }}</flux:label>
+                    <flux:input wire:model="foto_ktp" type="file" accept="image/jpeg,image/png,image/webp" />
+                    <flux:error name="foto_ktp" />
+                </flux:field>
+
+                @if ($foto_ktp)
+                    <div class="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 dark:border-indigo-900/50 dark:bg-indigo-950/20">
+                        <div class="flex items-center gap-2 text-xs text-indigo-700 dark:text-indigo-400">
+                            <flux:icon name="check-circle" class="size-4 shrink-0" />
+                            <span>Berkas KTP baru siap dienkripsi: <strong>{{ $foto_ktp->getClientOriginalName() }}</strong></span>
+                        </div>
+                    </div>
+                @endif
+            </flux:card>
+        </div>
+
+        <flux:separator />
+
         {{-- Tombol Aksi --}}
         <div class="flex items-center justify-end gap-3 pt-2">
             <flux:button :href="route('pelanggan.index')" wire:navigate variant="ghost">Batal</flux:button>

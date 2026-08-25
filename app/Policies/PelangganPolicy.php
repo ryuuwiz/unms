@@ -64,4 +64,72 @@ class PelangganPolicy
 
         return true;
     }
+
+    /**
+     * Determine whether the user can view the customer's KTP image.
+     * Sales can only view KTP for customers they created.
+     */
+    public function viewKtp(User $user, Pelanggan $pelanggan): bool
+    {
+        if (! $user->can('pelanggan.lihat_ktp')) {
+            return false;
+        }
+
+        if ($user->hasRole('sales')) {
+            return $pelanggan->dibuat_oleh === $user->id;
+        }
+
+        return true;
+    }
+
+    /**
+     * Determine whether the user can view the customer's documents.
+     * Sales can only view documents for customers they created.
+     */
+    public function viewDokumen(User $user, Pelanggan $pelanggan): bool
+    {
+        if (! $user->can('pelanggan.lihat_dokumen')) {
+            return false;
+        }
+
+        if ($user->hasRole('sales')) {
+            return $pelanggan->dibuat_oleh === $user->id;
+        }
+
+        return true;
+    }
+
+    /**
+     * Determine whether the user can upload documents for the customer.
+     * Sales can only upload documents for customers they created.
+     */
+    public function uploadDokumen(User $user, Pelanggan $pelanggan): bool
+    {
+        if (! $user->can('pelanggan.unggah_dokumen')) {
+            return false;
+        }
+
+        if ($user->hasRole('sales')) {
+            return $pelanggan->dibuat_oleh === $user->id;
+        }
+
+        return true;
+    }
+
+    /**
+     * Determine whether the user can delete documents for the customer.
+     * Sales can only delete documents for customers they created.
+     */
+    public function deleteDokumen(User $user, Pelanggan $pelanggan): bool
+    {
+        if (! $user->can('pelanggan.hapus_dokumen')) {
+            return false;
+        }
+
+        if ($user->hasRole('sales')) {
+            return $pelanggan->dibuat_oleh === $user->id;
+        }
+
+        return true;
+    }
 }

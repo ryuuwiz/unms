@@ -57,6 +57,16 @@
                 @endif
             </button>
 
+            <button type="button" wire:click="setTab('dokumen')"
+                class="flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors {{ $activeTab === 'dokumen' ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400' : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}">
+                <flux:icon name="document-duplicate" class="size-4" />
+                Dokumen & Legalitas
+                @if ($dokumens->isNotEmpty() || $ktpMedia)
+                    <span
+                        class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $dokumens->count() + ($ktpMedia ? 1 : 0) }}</span>
+                @endif
+            </button>
+
             <button type="button" wire:click="setTab('audit')"
                 class="flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors {{ $activeTab === 'audit' ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400' : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}">
                 <flux:icon name="clock" class="size-4" />
@@ -580,7 +590,211 @@
         </div>
     @endif
 
-    {{-- Tab 3: Riwayat Aktivitas (Activity Log) --}}
+    {{-- Tab 3: Dokumen & Legalitas --}}
+    @if ($activeTab === 'dokumen')
+        <div class="space-y-6">
+            {{-- Toolbar & Actions --}}
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <flux:heading size="base">Dokumen Identitas & Legalitas</flux:heading>
+                    <flux:subheading>Seluruh berkas disimpan terenkripsi di penyimpanan privat dan dilindungi tanda air dinamis (UU PDP).</flux:subheading>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    @can('update', $pelanggan)
+                        <flux:button wire:click="openUploadKtpModal" variant="subtle" icon="identification">
+                            {{ $ktpMedia ? 'Ganti Foto KTP' : 'Unggah Foto KTP' }}
+                        </flux:button>
+                    @endcan
+
+                    @can('uploadDokumen', $pelanggan)
+                        <flux:button wire:click="openUploadDocModal" variant="primary" icon="plus">
+                            Unggah Dokumen Baru
+                        </flux:button>
+                    @endcan
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                {{-- Card KTP Pelanggan --}}
+                <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                    <div class="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                        <div class="flex items-center gap-2">
+                            <div class="flex size-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                                <flux:icon name="identification" class="size-5" />
+                            </div>
+                            <div>
+                                <flux:heading size="sm">Kartu Identitas (KTP)</flux:heading>
+                                <flux:description class="text-xs">Foto identitas resmi</flux:description>
+                            </div>
+                        </div>
+
+                        @if ($ktpMedia)
+                            <flux:badge color="green" size="sm" icon="lock-closed">Terenkripsi</flux:badge>
+                        @else
+                            <flux:badge color="zinc" size="sm">Belum Ada</flux:badge>
+                        @endif
+                    </div>
+
+                    <div class="mt-4 space-y-4">
+                        @if ($ktpMedia)
+                            {{-- Masked Preview Box --}}
+                            <div class="relative overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 p-6 text-center dark:border-zinc-800 dark:bg-zinc-950/60">
+                                <div class="flex flex-col items-center justify-center gap-2">
+                                    <div class="flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                                        <flux:icon name="shield-check" class="size-6" />
+                                    </div>
+                                    <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300">Berkas KTP Tersimpan Aman</span>
+                                    <span class="text-[11px] text-zinc-500 font-mono">{{ $ktpMedia->file_name }} ({{ number_format($ktpMedia->size / 1024, 1) }} KB)</span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2">
+                                @can('viewKtp', $pelanggan)
+                                    <flux:button wire:click="openKtpModal" variant="primary" class="w-full" icon="eye">
+                                        Buka Foto KTP (Watermarked)
+                                    </flux:button>
+                                @else
+                                    <div class="rounded-lg bg-amber-50 p-2.5 text-center text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                                        Anda tidak memiliki hak akses untuk melihat foto KTP.
+                                    </div>
+                                @endcan
+                            </div>
+                        @else
+                            <div class="rounded-lg border-2 border-dashed border-zinc-200 p-6 text-center dark:border-zinc-800">
+                                <flux:icon name="identification" class="mx-auto size-8 text-zinc-300 dark:text-zinc-600" />
+                                <p class="mt-2 text-xs text-zinc-500">Belum ada foto KTP yang diunggah untuk pelanggan ini.</p>
+                                @can('update', $pelanggan)
+                                    <flux:button wire:click="openUploadKtpModal" variant="ghost" size="sm" class="mt-3" icon="arrow-up-tray">
+                                        Unggah Sekarang
+                                    </flux:button>
+                                @endcan
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Kolom Tabel Dokumen Pendukung & MOU --}}
+                <div class="lg:col-span-2 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                    <div class="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                        <div class="flex items-center gap-2">
+                            <div class="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
+                                <flux:icon name="document-text" class="size-5" />
+                            </div>
+                            <div>
+                                <flux:heading size="sm">Dokumen MOU & Legalitas Pendukung</flux:heading>
+                                <flux:description class="text-xs">Kontrak kerja sama, berita acara, dan berkas syarat administrasi</flux:description>
+                            </div>
+                        </div>
+
+                        <span class="text-xs text-zinc-500 font-medium">{{ $dokumens->count() }} Dokumen</span>
+                    </div>
+
+                    <div class="mt-4">
+                        @if ($dokumens->isNotEmpty())
+                            <div class="overflow-x-auto">
+                                <flux:table>
+                                    <flux:table.columns>
+                                        <flux:table.column>Dokumen</flux:table.column>
+                                        <flux:table.column>Jenis</flux:table.column>
+                                        <flux:table.column>Keterangan</flux:table.column>
+                                        <flux:table.column>Diunggah</flux:table.column>
+                                        <flux:table.column class="text-right">Aksi</flux:table.column>
+                                    </flux:table.columns>
+
+                                    <flux:table.rows>
+                                        @foreach ($dokumens as $doc)
+                                            @php
+                                                $jenis = $doc->getCustomProperty('jenis_dokumen', 'Dokumen');
+                                                $nomor = $doc->getCustomProperty('nomor_dokumen');
+                                                $ket = $doc->getCustomProperty('keterangan');
+                                                $uploader = $doc->getCustomProperty('uploaded_by', 'Staf');
+                                                $isPdf = str_contains((string) $doc->mime_type, 'pdf');
+                                            @endphp
+                                            <flux:table.row :key="$doc->id">
+                                                <flux:table.cell>
+                                                    <div class="flex items-center gap-2">
+                                                        <flux:icon :name="$isPdf ? 'document-text' : 'photo'" class="size-4 text-zinc-500 shrink-0" />
+                                                        <div class="flex flex-col">
+                                                            <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100 truncate max-w-[180px]">{{ $doc->file_name }}</span>
+                                                            <span class="text-[11px] text-zinc-400">{{ number_format($doc->size / 1024, 1) }} KB</span>
+                                                        </div>
+                                                    </div>
+                                                </flux:table.cell>
+
+                                                <flux:table.cell>
+                                                    <flux:badge size="sm" :color="match ($jenis) {
+                                                        'MOU / Kontrak' => 'indigo',
+                                                        'Formulir Berlangganan' => 'emerald',
+                                                        'Surat Kuasa' => 'amber',
+                                                        'Berita Acara Pemasangan' => 'cyan',
+                                                        default => 'zinc',
+                                                    }">
+                                                        {{ $jenis }}
+                                                    </flux:badge>
+                                                    @if ($nomor)
+                                                        <span class="block text-[11px] font-mono text-zinc-500 mt-0.5">{{ $nomor }}</span>
+                                                    @endif
+                                                </flux:table.cell>
+
+                                                <flux:table.cell class="text-xs text-zinc-600 dark:text-zinc-400">
+                                                    {{ $ket ?: '—' }}
+                                                </flux:table.cell>
+
+                                                <flux:table.cell class="text-xs text-zinc-500">
+                                                    <div>{{ $doc->created_at->translatedFormat('d M Y, H:i') }}</div>
+                                                    <div class="text-[11px] text-zinc-400">Oleh: {{ $uploader }}</div>
+                                                </flux:table.cell>
+
+                                                <flux:table.cell class="text-right">
+                                                    <div class="flex items-center justify-end gap-1.5">
+                                                        @can('viewDokumen', $pelanggan)
+                                                            <flux:button
+                                                                :href="route('pelanggan.dokumen.stream', [$pelanggan, $doc])"
+                                                                target="_blank"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                icon="arrow-down-tray"
+                                                                title="Lihat / Unduh Dokumen"
+                                                            />
+                                                        @endcan
+
+                                                        @can('deleteDokumen', $pelanggan)
+                                                            <flux:button
+                                                                wire:click="deleteDokumen({{ $doc->id }})"
+                                                                wire:confirm="Apakah Anda yakin ingin menghapus berkas dokumen {{ $doc->file_name }}?"
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                icon="trash"
+                                                                class="text-red-500 hover:text-red-700"
+                                                                title="Hapus Dokumen"
+                                                            />
+                                                        @endcan
+                                                    </div>
+                                                </flux:table.cell>
+                                            </flux:table.row>
+                                        @endforeach
+                                    </flux:table.rows>
+                                </flux:table>
+                            </div>
+                        @else
+                            <div class="rounded-lg border-2 border-dashed border-zinc-200 p-8 text-center dark:border-zinc-800">
+                                <flux:icon name="document-text" class="mx-auto size-8 text-zinc-300 dark:text-zinc-600" />
+                                <p class="mt-2 text-xs text-zinc-500">Belum ada berkas MOU atau dokumen legalitas yang diunggah.</p>
+                                @can('uploadDokumen', $pelanggan)
+                                    <flux:button wire:click="openUploadDocModal" variant="ghost" size="sm" class="mt-3" icon="plus">
+                                        Unggah Dokumen MOU
+                                    </flux:button>
+                                @endcan
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Tab 4: Riwayat Aktivitas (Activity Log) --}}
     @if ($activeTab === 'audit')
         <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
             <div class="p-6 pb-2">
@@ -628,6 +842,132 @@
                         @endforelse
                     </flux:table.rows>
                 </flux:table>
+            </div>
+        </div>
+    @endif
+
+    {{-- ─── Modal 1: Preview KTP Terenkripsi dengan Dynamic Watermark ─── --}}
+    @if ($showKtpModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+            <div class="relative w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 space-y-4">
+                <div class="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                    <div class="flex items-center gap-2">
+                        <flux:icon name="identification" class="size-5 text-indigo-600 dark:text-indigo-400" />
+                        <flux:heading size="lg">Foto KTP Pelanggan (Terenkripsi)</flux:heading>
+                    </div>
+                    <flux:button wire:click="closeKtpModal" variant="ghost" size="sm" icon="x-mark" />
+                </div>
+
+                {{-- Alert UU PDP Notice --}}
+                <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+                    <div class="flex items-center gap-2 font-semibold">
+                        <flux:icon name="shield-exclamation" class="size-4 shrink-0" />
+                        <span>Perlindungan Data Pribadi (UU PDP) & Tanda Air Digital</span>
+                    </div>
+                    <p class="mt-1 text-[11px] leading-relaxed">
+                        Dokumen ini telah disematkan tanda air dinamis berisi identitas Anda (<strong>{{ auth()->user()->name }}</strong>) dan timestamp akses. Setiap aktivitas preview terekam dalam audit trail sistem.
+                    </p>
+                </div>
+
+                {{-- Image Container --}}
+                <div class="flex justify-center rounded-xl bg-zinc-950 p-2 shadow-inner">
+                    <img
+                        src="{{ route('pelanggan.ktp.preview', $pelanggan) }}"
+                        alt="Foto KTP {{ $pelanggan->namaLengkap() }}"
+                        class="max-h-[60vh] w-auto rounded-lg object-contain"
+                    />
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <flux:button wire:click="closeKtpModal" variant="primary">Tutup</flux:button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- ─── Modal 2: Unggah / Ganti Foto KTP ─── --}}
+    @if ($showUploadKtpModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+            <div class="relative w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 space-y-4">
+                <div class="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                    <flux:heading size="lg">{{ $ktpMedia ? 'Ganti Foto KTP' : 'Unggah Foto KTP' }}</flux:heading>
+                    <flux:button wire:click="closeUploadKtpModal" variant="ghost" size="sm" icon="x-mark" />
+                </div>
+
+                <form wire:submit="saveKtp" class="space-y-4">
+                    <flux:field>
+                        <flux:label>Pilih Foto KTP Baru</flux:label>
+                        <flux:input wire:model="newKtpFile" type="file" accept="image/jpeg,image/png,image/webp" />
+                        <flux:description>Format: JPG, PNG, WEBP (Maksimal 5MB). Otomatis dienkripsi at-rest.</flux:description>
+                        <flux:error name="newKtpFile" />
+                    </flux:field>
+
+                    @if ($newKtpFile)
+                        <div class="rounded-lg border border-indigo-200 bg-indigo-50/50 p-2.5 text-xs text-indigo-700 dark:border-indigo-900/50 dark:bg-indigo-950/20 dark:text-indigo-400">
+                            Berkas siap dienkripsi: <strong>{{ $newKtpFile->getClientOriginalName() }}</strong>
+                        </div>
+                    @endif
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <flux:button wire:click="closeUploadKtpModal" type="button" variant="ghost">Batal</flux:button>
+                        <flux:button type="submit" variant="primary" icon="lock-closed">Simpan & Enkripsi</flux:button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- ─── Modal 3: Unggah Dokumen MOU / Pendukung ─── --}}
+    @if ($showUploadDocModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+            <div class="relative w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 space-y-4">
+                <div class="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                    <div class="flex items-center gap-2">
+                        <flux:icon name="document-plus" class="size-5 text-emerald-600 dark:text-emerald-400" />
+                        <flux:heading size="lg">Unggah Dokumen Legalitas / MOU</flux:heading>
+                    </div>
+                    <flux:button wire:click="closeUploadDocModal" variant="ghost" size="sm" icon="x-mark" />
+                </div>
+
+                <form wire:submit="saveDokumen" class="space-y-4">
+                    <flux:field>
+                        <flux:label>Berkas Dokumen</flux:label>
+                        <flux:input wire:model="docFile" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" />
+                        <flux:description>Format: PDF, JPG, PNG, WEBP (Maks. 10MB). Disimpan terenkripsi.</flux:description>
+                        <flux:error name="docFile" />
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Jenis Dokumen</flux:label>
+                        <flux:select wire:model="docJenis">
+                            <flux:select.option value="MOU / Kontrak">MOU / Kontrak Kerja Sama</flux:select.option>
+                            <flux:select.option value="Formulir Berlangganan">Formulir Berlangganan</flux:select.option>
+                            <flux:select.option value="Surat Kuasa">Surat Kuasa</flux:select.option>
+                            <flux:select.option value="Berita Acara Pemasangan">Berita Acara Pemasangan</flux:select.option>
+                            <flux:select.option value="Lainnya">Dokumen Lainnya</flux:select.option>
+                        </flux:select>
+                        <flux:error name="docJenis" />
+                    </flux:field>
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <flux:field>
+                            <flux:label>Nomor Dokumen <span class="text-zinc-400 font-normal">(opsional)</span></flux:label>
+                            <flux:input wire:model="docNomor" placeholder="MOU/2026/08/001" />
+                            <flux:error name="docNomor" />
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>Keterangan <span class="text-zinc-400 font-normal">(opsional)</span></flux:label>
+                            <flux:input wire:model="docKeterangan" placeholder="Keterangan singkat..." />
+                            <flux:error name="docKeterangan" />
+                        </flux:field>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <flux:button wire:click="closeUploadDocModal" type="button" variant="ghost">Batal</flux:button>
+                        <flux:button type="submit" variant="primary" icon="lock-closed">Unggah & Enkripsi</flux:button>
+                    </div>
+                </form>
             </div>
         </div>
     @endif

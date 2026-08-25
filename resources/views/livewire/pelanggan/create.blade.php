@@ -180,6 +180,81 @@
 
         <flux:separator />
 
+        {{-- Section 4: Dokumen Identitas & Legalitas --}}
+        <div class="space-y-4">
+            <div>
+                <flux:heading size="base">Dokumen Identitas & Legalitas (Terenkripsi)</flux:heading>
+                <flux:subheading>Seluruh berkas disimpan terenkripsi di penyimpanan privat dan dilindungi UU PDP.</flux:subheading>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                {{-- Foto KTP --}}
+                <flux:card class="space-y-4 p-4 border border-zinc-200 dark:border-zinc-700">
+                    <div class="flex items-center gap-2">
+                        <flux:icon name="identification" class="size-5 text-indigo-500" />
+                        <div>
+                            <flux:label class="font-medium">Foto Kartu Identitas (KTP)</flux:label>
+                            <flux:description>Format: JPG, PNG, WEBP (Maks. 5MB)</flux:description>
+                        </div>
+                    </div>
+
+                    <flux:input wire:model="foto_ktp" type="file" accept="image/jpeg,image/png,image/webp" />
+                    <flux:error name="foto_ktp" />
+
+                    @if ($foto_ktp)
+                        <div class="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 dark:border-indigo-900/50 dark:bg-indigo-950/20">
+                            <div class="flex items-center gap-2 text-xs text-indigo-700 dark:text-indigo-400">
+                                <flux:icon name="check-circle" class="size-4 shrink-0" />
+                                <span>Berkas KTP siap dienkripsi: <strong>{{ $foto_ktp->getClientOriginalName() }}</strong></span>
+                            </div>
+                        </div>
+                    @endif
+                </flux:card>
+
+                {{-- Dokumen MOU / Kontrak Awal --}}
+                <flux:card class="space-y-4 p-4 border border-zinc-200 dark:border-zinc-700">
+                    <div class="flex items-center gap-2">
+                        <flux:icon name="document-text" class="size-5 text-emerald-500" />
+                        <div>
+                            <flux:label class="font-medium">Dokumen MOU / Kontrak <span class="text-zinc-400 font-normal">(opsional)</span></flux:label>
+                            <flux:description>Format: PDF, JPG, PNG (Maks. 10MB)</flux:description>
+                        </div>
+                    </div>
+
+                    <flux:input wire:model="dokumen_mou" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" />
+                    <flux:error name="dokumen_mou" />
+
+                    @if ($dokumen_mou)
+                        <div class="space-y-3 pt-2">
+                            <flux:field>
+                                <flux:label>Jenis Dokumen</flux:label>
+                                <flux:select wire:model="jenis_dokumen">
+                                    <flux:select.option value="MOU / Kontrak">MOU / Kontrak Kerja Sama</flux:select.option>
+                                    <flux:select.option value="Formulir Berlangganan">Formulir Berlangganan</flux:select.option>
+                                    <flux:select.option value="Surat Kuasa">Surat Kuasa</flux:select.option>
+                                    <flux:select.option value="Berita Acara Pemasangan">Berita Acara Pemasangan</flux:select.option>
+                                    <flux:select.option value="Lainnya">Dokumen Lainnya</flux:select.option>
+                                </flux:select>
+                            </flux:field>
+
+                            <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <flux:field>
+                                    <flux:label>Nomor Dokumen</flux:label>
+                                    <flux:input wire:model="nomor_dokumen" placeholder="Contoh: MOU/2026/08/001" />
+                                </flux:field>
+                                <flux:field>
+                                    <flux:label>Keterangan</flux:label>
+                                    <flux:input wire:model="keterangan_dokumen" placeholder="Catatan berkas..." />
+                                </flux:field>
+                            </div>
+                        </div>
+                    @endif
+                </flux:card>
+            </div>
+        </div>
+
+        <flux:separator />
+
         {{-- Tombol Aksi --}}
         <div class="flex items-center justify-end gap-3 pt-2">
             <flux:button :href="route('pelanggan.index')" wire:navigate variant="ghost">Batal</flux:button>

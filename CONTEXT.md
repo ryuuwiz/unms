@@ -292,4 +292,10 @@ _Avoid_: Input Manual Satu Per Satu untuk Proyek Baru, Format CSV Polos Saja
 Fitur visualisasi batas area cakupan jaringan (coverage boundary / polygon) pada Data Maps berbasis format GeoJSON poligon, memungkinkan tim membedakan zona ter-cover dan area blank-spot secara visual.
 _Avoid_: Polygon Hardcoded, Gambar Overlay Statis
 
+**Dokumen Pelanggan Terenkripsi**:
+Pengelolaan berkas identitas (KTP) dan dokumen legalitas pelanggan (MOU, kontrak langganan, formulir pendaftaran) yang disimpan secara terenkripsi at-rest pada disk privat terisolasi, diakses melalui endpoint berotentikasi dengan audit log Spatie Activitylog, dan dilindungi watermark dinamis untuk kepatuhan UU Pelindungan Data Pribadi (UU PDP).
+_Avoid_: Dokumen Publik Tak Terenkripsi, Simpan KTP di Folder Public, Berkas Tanpa Audit Trail
 
+**Watermark Dokumen Identitas**:
+Penyematan teks tanda air dinamis on-the-fly pada saat peninjauan/unduh berkas identitas pelanggan (memuat nama staf pengakses dan timestamp verifikasi) untuk mencegah kebocoran atau penyalahgunaan tangkapan layar dokumen identitas secara internal.
+_Avoid_: Peninjauan Gambar Mentah Tanpa Watermark, Hardcoded Watermark Statis

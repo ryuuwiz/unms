@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\MapMarkerController;
 use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
+use App\Http\Controllers\PelangganMediaController;
 use App\Http\Controllers\Webhook\XenditWebhookController;
 use App\Livewire\Invoice;
 use App\Livewire\IpPool;
@@ -106,6 +107,8 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('permission:pelanggan.ubah')->group(function () {
             Route::get('/{pelanggan}/edit', Pelanggan\Edit::class)->name('edit');
         });
+        Route::get('/{pelanggan}/ktp/preview', [PelangganMediaController::class, 'previewKtp'])->name('ktp.preview');
+        Route::get('/{pelanggan}/dokumen/{media}/stream', [PelangganMediaController::class, 'streamDokumen'])->name('dokumen.stream');
         Route::middleware('permission:pelanggan.lihat')->group(function () {
             Route::get('/', Pelanggan\Index::class)->name('index');
             Route::get('/{pelanggan}', Pelanggan\Show::class)->name('show');

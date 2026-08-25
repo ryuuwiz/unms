@@ -65,3 +65,21 @@ test('update denies noc and teknisi', function () {
     expect($this->policy->update($this->noc, $this->pelangganSales1))->toBeFalse()
         ->and($this->policy->update($this->teknisi, $this->pelangganSales1))->toBeFalse();
 });
+
+test('viewKtp allows super_admin, admin, and sales owner, but denies other sales, noc, and teknisi', function () {
+    expect($this->policy->viewKtp($this->superAdmin, $this->pelangganSales1))->toBeTrue()
+        ->and($this->policy->viewKtp($this->admin, $this->pelangganSales1))->toBeTrue()
+        ->and($this->policy->viewKtp($this->sales1, $this->pelangganSales1))->toBeTrue()
+        ->and($this->policy->viewKtp($this->sales2, $this->pelangganSales1))->toBeFalse()
+        ->and($this->policy->viewKtp($this->noc, $this->pelangganSales1))->toBeFalse()
+        ->and($this->policy->viewKtp($this->teknisi, $this->pelangganSales1))->toBeFalse();
+});
+
+test('viewDokumen and uploadDokumen allow super_admin, admin, and sales owner', function () {
+    expect($this->policy->viewDokumen($this->superAdmin, $this->pelangganSales1))->toBeTrue()
+        ->and($this->policy->viewDokumen($this->admin, $this->pelangganSales1))->toBeTrue()
+        ->and($this->policy->viewDokumen($this->sales1, $this->pelangganSales1))->toBeTrue()
+        ->and($this->policy->viewDokumen($this->sales2, $this->pelangganSales1))->toBeFalse()
+        ->and($this->policy->uploadDokumen($this->sales1, $this->pelangganSales1))->toBeTrue()
+        ->and($this->policy->uploadDokumen($this->noc, $this->pelangganSales1))->toBeFalse();
+});
