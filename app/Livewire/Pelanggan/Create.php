@@ -4,6 +4,7 @@ namespace App\Livewire\Pelanggan;
 
 use App\Enums\StatusPelanggan;
 use App\Enums\TipePelanggan;
+use App\Models\Odp;
 use App\Models\Pelanggan;
 use App\Models\Perumahan;
 use Flux\Flux;
@@ -48,6 +49,9 @@ class Create extends Component
     public ?float $latitude = null;
 
     public ?float $longitude = null;
+
+    /** @var array<int, array{id: int, nama_odp: string, jarak: float, port_kosong_count: int}> */
+    public array $odpTerdekat = [];
 
     public string $status = 'prospek';
 
@@ -131,6 +135,34 @@ class Create extends Component
         Flux::toast(variant: 'success', text: "Pelanggan {$pelanggan->identitasLengkap()} berhasil didaftarkan.");
 
         $this->redirectRoute('pelanggan.index', navigate: true);
+    }
+
+    public function cariOdpTerdekat(): void
+    {
+        $this->odpTerdekat = [];
+
+        if (blank($this->latitude) || blank($this->longitude)) {
+            Flux::toast(variant: 'warning', text: 'Silakan isi koordinat Latitude dan Longitude terlebih dahulu.');
+
+            return;
+        }
+
+        $this->odpTerdekat = Odp::query()
+            ->terdekat((float) $this->latitude, (float) $this->longitude, 300)
+            ->withCount(['ports as port_kosong_count' => fn ($query) => $query->where('status', 'kosong')])
+            ->take(3)
+            ->get()
+            ->map(fn ($odp) => [
+                'id' => $odp->id,
+                'nama_odp' => $odp->nama_odp,
+                'jarak' => round((float) $odp->jarak),
+                'port_kosong_count' => $odp->port_kosong_count,
+            ])
+            ->toArray();
+
+        if (empty($this->odpTerdekat)) {
+            Flux::toast(variant: 'warning', text: 'Tidak ada ODP dalam radius 300 meter.');
+        }
     }
 
     public function render(): View

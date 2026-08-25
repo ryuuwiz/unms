@@ -210,7 +210,12 @@
                     </div>
 
                     @if (is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude))
-                        <div class="flex flex-wrap items-center gap-2">
+                            <a href="{{ route('maps.estimasi-kabel', ['lat' => $pelanggan->latitude, 'lng' => $pelanggan->longitude]) }}"
+                                wire:navigate
+                                class="inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-300 dark:hover:bg-primary-900">
+                                <flux:icon name="calculator" class="size-3.5" />
+                                Hitung Estimasi Kabel
+                            </a>
                             <a href="https://www.google.com/maps?q={{ $pelanggan->latitude }},{{ $pelanggan->longitude }}"
                                 target="_blank" rel="noopener noreferrer"
                                 class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">

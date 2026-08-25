@@ -132,6 +132,35 @@ return [
                     'active' => 'ip-pool.*',
                     'permission' => 'ip_pool.lihat',
                 ],
+                [
+                    'title' => 'ODP',
+                    'icon' => 'circle-stack',
+                    'route' => 'odp.index',
+                    'active' => 'odp.*',
+                    'permission' => 'odp.lihat',
+                ],
+            ],
+        ],
+        [
+            'heading' => 'Maps & Estimasi Kabel',
+            'icon' => 'map-pin',
+            'expandable' => true,
+            'expanded' => false,
+            'items' => [
+                [
+                    'title' => 'Maps Lokasi',
+                    'icon' => 'map',
+                    'route' => 'maps.index',
+                    'active' => 'maps.lokasi',
+                    'permission' => 'pelanggan.lihat',
+                ],
+                [
+                    'title' => 'Estimasi Kabel',
+                    'icon' => 'calculator',
+                    'route' => 'maps.estimasi-kabel',
+                    'active' => 'maps.estimasi-kabel',
+                    'permission' => 'pelanggan.lihat',
+                ],
             ],
         ],
         [

@@ -28,6 +28,11 @@ _Avoid_: Network, Hardware, Alat Jaringan
 Kelompok navigasi untuk manajemen hierarki cakupan lokasi operasional ISP dari tingkat Kota, Kecamatan, Kelurahan, hingga Perumahan/Cluster.
 _Avoid_: Lokasi, Mapping, Coverage Area
 
+**Maps & Estimasi Kabel**:
+Kelompok navigasi geospasial untuk visualisasi peta sebaran infrastruktur (Maps Lokasi) dan kalkulator perhitungan kebutuhan kabel optik (Estimasi Kabel).
+_Avoid_: GIS Saja, Peta Bebas, Kalkulator Saja
+
+
 **Administrasi**:
 Kelompok navigasi untuk manajemen sistem, konfigurasi peran, dan kontrol hak akses pengguna.
 _Avoid_: Administration, Settings, Pengaturan
@@ -254,3 +259,37 @@ _Avoid_: Pencampuran Subnet Up To dan Dedicated, Single Pool untuk Semua Kelas L
 **Manajemen Local & Remote Address PPP Secret**:
 Penetapan eksplisit parameter `local-address` (IP gateway sisi router) dan `remote-address` (nama pool IP untuk PPPoE dinamis atau IP literal untuk IP Statis) pada setiap akun PPP Secret di RouterOS oleh UNMS. Menjamin setiap sesi PPP client terhubung ke gateway yang tepat dan menerima alokasi IP yang terisolasi sesuai kelas layanannya tanpa mengandalkan profil default global router.
 _Avoid_: Local Address Kosong di Secret, Remote Address Kosong untuk Dynamic Client, Ketergantungan Profile Default RouterOS
+
+**ODP (Optical Distribution Point)**:
+Titik terminasi fisik kabel distribusi serat optik luar ruang tempat tersambungnya kabel drop instalasi pelanggan, memiliki kapasitas port terukur (4, 8, 16, 24, 32), deskripsi/PON, dan koordinat geografis presisi untuk perhitungan jalur pemasangan jaringan.
+_Avoid_: Box ODP Bebas, Kotak Fiber Lepas, ODP Tanpa Koordinat
+
+**Port ODP**:
+Slot fisik terminasi pada perangkat ODP yang melacak status pemakaian (*kosong, terpakai, rusak*) dan terikat 1:1 dengan satu entitas Layanan Pelanggan (Data Registrasi Billing).
+_Avoid_: Colokan Kabel, Slot ODP Lepas
+
+**Peta Jaringan (Data Maps)**:
+Antarmuka visualisasi spasial interaktif berbasis Leaflet.js dan OpenStreetMap yang memetakan persebaran 4 layer entitas (Pelanggan, Layanan/Site, Perumahan, ODP) dengan dukungan toggle filter layer independen dan marker clustering untuk menangani ribuan titik secara ringan dan responsif.
+_Avoid_: Google Maps API Berbayar, Peta Statis Gambar, Peta Tanpa Clustering
+
+**Estimasi Kabel**:
+Kalkulator geospasial non-destruktif (*transient calculator*) untuk mencari kandidat ODP terdekat dari titik koordinat survey/pelanggan dan menghitung estimasi panjang kabel drop fisik yang dibutuhkan menggunakan kombinasi formula spasial MySQL `ST_Distance_Sphere` dan faktor koreksi lapangan.
+_Avoid_: Jarak Udara Mentah Tanpa Slack, Routing Pathfinding Berat, Kalkulator Tersimpan Permanen
+
+**Faktor Pengali Kabel**:
+Parameter pengali estimasi panjang kabel fisik (default: `1.3`) terhadap jarak lurus geografis (*Haversine*) untuk mengompensasi jalur tiang listrik, belokan jalan, penurunan tiang, dan rute fisik di lapangan.
+_Avoid_: Jarak Euclidean 1:1, Perhitungan Tanpa Faktor Rute
+
+**Cadangan Kabel (Slack Reserve)**:
+Tambahan panjang kabel fisik dalam satuan meter (default: `25m`) yang dialokasikan untuk sambungan terminasi (*splicing*), gulungan cadangan di tiang (*slack loop*), dan penurunan kabel ke roset/ONT pelanggan.
+_Avoid_: Kabel Pas-Pasan Tanpa Cadangan, Estimasi Tanpa Slack
+
+**Import ODP Geospasial (KML & GeoJSON)**:
+Fasilitas unggah dan konversi berkas geospasial standar industri (.kml dari Google Earth atau .geojson dari QGIS/CAD) untuk mengekstraksi titik koordinat ODP, nama, dan deskripsi secara massal dengan tinjauan data (*preview table*) sebelum disimpan dan di-generate port-nya secara otomatis.
+_Avoid_: Input Manual Satu Per Satu untuk Proyek Baru, Format CSV Polos Saja
+
+**Layer Coverage GeoJSON (Polygon Cakupan)**:
+Fitur visualisasi batas area cakupan jaringan (coverage boundary / polygon) pada Data Maps berbasis format GeoJSON poligon, memungkinkan tim membedakan zona ter-cover dan area blank-spot secara visual.
+_Avoid_: Polygon Hardcoded, Gambar Overlay Statis
+
+

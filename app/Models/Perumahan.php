@@ -16,12 +16,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $singkatan
  * @property float|null $latitude
  * @property float|null $longitude
+ * @property string|null $geojson
  * @property string|null $keterangan
  * @property-read Kelurahan $kelurahan
  * @property-read Collection<int, Pelanggan> $pelanggans
  * @property-read Collection<int, Odp> $odps
  */
-#[Fillable(['kelurahan_id', 'nama_perumahan', 'singkatan', 'latitude', 'longitude', 'keterangan'])]
+#[Fillable(['kelurahan_id', 'nama_perumahan', 'singkatan', 'latitude', 'longitude', 'keterangan', 'geojson'])]
 class Perumahan extends Model
 {
     use HasFactory;

@@ -148,6 +148,34 @@
                     <flux:error name="longitude" />
                 </flux:field>
             </div>
+
+            <div class="flex items-center gap-3">
+                <flux:button wire:click="cariOdpTerdekat" variant="primary" icon="map-pin">Cari ODP Terdekat</flux:button>
+                <flux:description>Mencari maksimal 3 ODP terdekat dalam radius 300 meter berdasarkan koordinat di atas.</flux:description>
+            </div>
+
+            @if(!empty($odpTerdekat))
+                <div class="space-y-2 mt-4">
+                    <flux:label>Hasil Pencarian ODP Terdekat:</flux:label>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        @foreach($odpTerdekat as $odp)
+                            <flux:card class="flex flex-col gap-2 p-3">
+                                <div class="flex justify-between items-start">
+                                    <span class="font-medium">{{ $odp['nama_odp'] }}</span>
+                                    <span class="text-sm text-zinc-500">{{ $odp['jarak'] }}m</span>
+                                </div>
+                                <div>
+                                    @if($odp['port_kosong_count'] > 0)
+                                        <flux:badge color="green" size="sm">{{ $odp['port_kosong_count'] }} Port Kosong</flux:badge>
+                                    @else
+                                        <flux:badge color="red" size="sm">Penuh</flux:badge>
+                                    @endif
+                                </div>
+                            </flux:card>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
         </div>
 
         <flux:separator />

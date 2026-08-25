@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\MapMarkerController;
 use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\Webhook\XenditWebhookController;
@@ -7,7 +8,10 @@ use App\Livewire\Invoice;
 use App\Livewire\IpPool;
 use App\Livewire\Laporan;
 use App\Livewire\LayananPelanggan;
+use App\Livewire\Maps\EstimasiKabel;
+use App\Livewire\Maps\Lokasi;
 use App\Livewire\Mikrotik\LogIndex;
+use App\Livewire\Odp\Edit;
 use App\Livewire\PaketLayanan;
 use App\Livewire\Pelanggan;
 use App\Livewire\Pembayaran;
@@ -225,6 +229,32 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', IpPool\Index::class)->name('index');
         });
     });
+
+    // ─── ODP (Optical Distribution Point) ─────────────────────────
+    Route::prefix('odp')->name('odp.')->group(function () {
+        Route::middleware('permission:odp.buat')->group(function () {
+            Route::get('/create', App\Livewire\Odp\Create::class)->name('create');
+        });
+        Route::middleware('permission:odp.ubah')->group(function () {
+            Route::get('/{odp}/edit', Edit::class)->name('edit');
+        });
+        Route::middleware('permission:odp.lihat')->group(function () {
+            Route::get('/', App\Livewire\Odp\Index::class)->name('index');
+            Route::get('/{odp}', App\Livewire\Odp\Show::class)->name('show');
+        });
+    });
+
+    // ─── Maps & Estimasi Kabel ────────────────────────────────────
+    Route::prefix('maps')->name('maps.')->group(function () {
+        Route::middleware('permission:pelanggan.lihat')->group(function () {
+            Route::get('/lokasi', Lokasi::class)->name('lokasi');
+            Route::get('/', fn () => redirect()->route('maps.lokasi'))->name('index');
+            Route::get('/estimasi-kabel', EstimasiKabel::class)->name('estimasi-kabel');
+        });
+    });
+
+    // ─── API Geospasial Maps Markers ──────────────────────────────
+    Route::get('/api/maps/markers', MapMarkerController::class)->name('api.maps.markers');
 
     // ─── Wilayah ──────────────────────────────────────────────────
     Route::prefix('wilayah')->name('wilayah.')->group(function () {
