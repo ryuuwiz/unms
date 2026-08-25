@@ -334,36 +334,39 @@ class LayananPelanggan extends Model
     /**
      * Generate ppp_username unik untuk pelanggan dengan format {no_reg}_{NNNNN}.
      *
-     * Counter di-increment dari nilai tertinggi yang sudah ada per pelanggan.
-     * Operasi dilindungi DB transaction + lockForUpdate untuk mencegah race condition.
+     * Suffix berupa 5-digit angka acak (10000-99999) via CSPRNG yang dijamin unik global.
+     * Dilindungi retry guard (max 10 percobaan) untuk mencegah infinite loop.
      */
     public static function generatePppUsername(Pelanggan $pelanggan): string
     {
         return DB::transaction(function () use ($pelanggan) {
             $prefix = $pelanggan->no_reg;
-            $pattern = $prefix.'_%';
+            $attempts = 0;
 
-            $existing = static::withTrashed()
-                ->lockForUpdate()
-                ->where('pelanggan_id', $pelanggan->id)
-                ->where('ppp_username', 'like', $pattern)
-                ->get(['ppp_username']);
+            do {
+                $suffix = (string) random_int(10000, 99999);
+                $username = sprintf('%s_%s', $prefix, $suffix);
 
-            $maxCounter = $existing
-                ->map(fn (self $l) => static::extractCounter($l->ppp_username))
-                ->filter(fn (?int $c) => $c !== null)
-                ->max() ?? 0;
+                $exists = static::withTrashed()
+                    ->lockForUpdate()
+                    ->where('ppp_username', $username)
+                    ->exists();
 
-            $next = $maxCounter + 1;
+                $attempts++;
 
-            return sprintf('%s_%05d', $prefix, $next);
+                if ($attempts > 10) {
+                    throw new \RuntimeException('Gagal menghasilkan ppp_username unik setelah 10 percobaan.');
+                }
+            } while ($exists);
+
+            return $username;
         });
     }
 
     /**
      * Parse suffix 5-digit angka dari ppp_username berformat {no_reg}_{NNNNN}.
      *
-     * Mengembalikan integer counter, atau null jika format tidak sesuai.
+     * Mengembalikan integer suffix, atau null jika format tidak sesuai.
      */
     public static function extractCounter(string $pppUsername): ?int
     {

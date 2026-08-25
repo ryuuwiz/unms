@@ -1,4 +1,6 @@
-# PPP Username Format: No.Reg + 5-Digit Counter
+# [SUPERSEDED by ADR-0025] PPP Username Format: No.Reg + 5-Digit Counter
+
+> **Status: SUPERSEDED** oleh [ADR-0025](file:///c:/Ryu/Projects/unms/docs/adr/0025-ppp-username-random-5-digit-suffix.md) (Format suffix beralih dari sequential counter `max+1` menjadi random CSPRNG 5-digit number).
 
 PPP username pelanggan sebelumnya diisi bebas oleh staff (contoh: `user_budi_01`), yang menyebabkan inkonsistensi dan tidak ada hubungan traceable ke identitas pelanggan. Kami memutuskan format baru: `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_00001`), di-generate otomatis oleh sistem saat staff memilih pelanggan di form layanan.
 

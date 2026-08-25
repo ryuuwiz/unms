@@ -224,10 +224,13 @@ test('pendaftaran layanan dengan format ip_static tidak valid ditolak', function
 });
 
 test('memilih pelanggan di step 1 auto-fill ppp_username dengan format baru', function () {
-    Livewire::actingAs($this->admin)
+    $component = Livewire::actingAs($this->admin)
         ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
-        ->assertSet('ppp_username', "{$this->pelanggan->no_reg}_00001");
+        ->set('pelanggan_id', $this->pelanggan->id);
+
+    $pppUsername = $component->get('ppp_username');
+    expect($pppUsername)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/');
+    expect(LayananPelanggan::extractCounter($pppUsername))->toBeBetween(10000, 99999);
 });
 
 test('ppp_username dengan format lama (bebas) ditolak validasi', function () {

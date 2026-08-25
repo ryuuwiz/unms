@@ -52,21 +52,23 @@ test('migrasi mengupdate ppp_username ke format baru dan provision sync ke route
         ->andReturn(true);
     $mikrotik->shouldReceive('createOrUpdatePppoeSecret')
         ->once()
-        ->andReturn(['status' => 'success', 'action' => 'created', 'username' => 'BF2308202601_00001']);
+        ->andReturn(['status' => 'success', 'action' => 'created']);
     $this->app->instance(MikrotikService::class, $mikrotik);
 
     $this->artisan(MigratePppUsernameCommand::class)
         ->expectsConfirmation('Lanjutkan migrasi?', 'yes')
         ->assertExitCode(0);
 
-    expect($this->layanan->fresh()->ppp_username)->toBe('BF2308202601_00001');
+    $username = $this->layanan->fresh()->ppp_username;
+    expect($username)->toMatch('/^BF2308202601_[0-9]{5}$/');
+    expect(LayananPelanggan::extractCounter($username))->toBeBetween(10000, 99999);
 });
 
 test('counter increment jika pelanggan sudah punya layanan dengan format baru', function () {
     // Layanan pertama sudah berformat baru — harus di-skip (tidak dimigrasi ulang)
-    $this->layanan->update(['ppp_username' => 'BF2308202601_00001']);
+    $this->layanan->update(['ppp_username' => 'BF2308202601_10001']);
 
-    // Layanan kedua masih format lama — harus dimigrasi ke _00002
+    // Layanan kedua masih format lama — harus dimigrasi ke format baru
     $layanan2 = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
@@ -76,7 +78,7 @@ test('counter increment jika pelanggan sudah punya layanan dengan format baru', 
 
     $mikrotik = Mockery::mock(MikrotikService::class);
     $mikrotik->shouldReceive('deletePppoeSecret')->once()->andReturn(true);
-    $mikrotik->shouldReceive('createOrUpdatePppoeSecret')->once()->andReturn(['status' => 'success', 'action' => 'created', 'username' => 'BF2308202601_00002']);
+    $mikrotik->shouldReceive('createOrUpdatePppoeSecret')->once()->andReturn(['status' => 'success', 'action' => 'created']);
     $this->app->instance(MikrotikService::class, $mikrotik);
 
     $this->artisan(MigratePppUsernameCommand::class)
@@ -84,9 +86,11 @@ test('counter increment jika pelanggan sudah punya layanan dengan format baru', 
         ->assertExitCode(0);
 
     // Layanan pertama SKIP: tetap tidak berubah
-    expect($this->layanan->fresh()->ppp_username)->toBe('BF2308202601_00001');
-    // Layanan kedua di-migrasi ke 00002 (karena 00001 sudah terpakai)
-    expect($layanan2->fresh()->ppp_username)->toBe('BF2308202601_00002');
+    expect($this->layanan->fresh()->ppp_username)->toBe('BF2308202601_10001');
+    // Layanan kedua di-migrasi ke format baru (dan tidak tabrakan dengan layanan 1)
+    $username2 = $layanan2->fresh()->ppp_username;
+    expect($username2)->toMatch('/^BF2308202601_[0-9]{5}$/')
+        ->and($username2)->not->toBe('BF2308202601_10001');
 });
 
 test('gagal pada satu layanan tidak menghentikan migrasi layanan lain', function () {
@@ -112,7 +116,7 @@ test('gagal pada satu layanan tidak menghentikan migrasi layanan lain', function
         });
     $mikrotik->shouldReceive('createOrUpdatePppoeSecret')
         ->once()
-        ->andReturn(['status' => 'success', 'action' => 'created', 'username' => 'BF2308202602_00001']);
+        ->andReturn(['status' => 'success', 'action' => 'created']);
     $this->app->instance(MikrotikService::class, $mikrotik);
 
     $this->artisan(MigratePppUsernameCommand::class)
@@ -123,7 +127,7 @@ test('gagal pada satu layanan tidak menghentikan migrasi layanan lain', function
     expect($this->layanan->fresh()->ppp_username)->toBe('user_lama_01');
 
     // Layanan yang berhasil: ppp_username sudah dimigrasi
-    expect($layanan2->fresh()->ppp_username)->toBe('BF2308202602_00001');
+    expect($layanan2->fresh()->ppp_username)->toMatch('/^BF2308202602_[0-9]{5}$/');
 
     // Log kegagalan tercatat
     expect(MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)->exists())->toBeTrue();

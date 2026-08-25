@@ -62,7 +62,7 @@ Entitas registrasi langganan billing aktif (sebelumnya disebut Layanan Pelanggan
 _Avoid_: Subscription, Akun Internet, Koneksi, Layanan Saja
 
 **PPP Username Credential**:
-Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_00001`) — prefix adalah No.Reg pelanggan, suffix adalah counter 5 digit zero-padded unik per pelanggan (sequential: `max(counter) + 1`). Di-generate otomatis oleh sistem saat layanan dibuat; staff dapat override asal format dipatuhi. Disimpan di kolom `ppp_username` tabel `layanan_pelanggan`.
+Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_84920`) — prefix adalah No.Reg pelanggan, suffix adalah 5-digit angka acak (*CSPRNG token* `10000`–`99999`) yang dijamin unik global di tabel `layanan_pelanggan`. Di-generate otomatis oleh sistem saat layanan dibuat; staff dapat override asal format dipatuhi. Disimpan di kolom `ppp_username` tabel `layanan_pelanggan`.
 _Avoid_: Username Bebas, PPP User Manual, Format Lama (`user_budi_01`)
 
 **Site ID**:
