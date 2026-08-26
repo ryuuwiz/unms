@@ -11,9 +11,9 @@ Schedule::command('mikrotik:provisi-router --clean-orphans')
     ->dailyAt('03:00')
     ->withoutOverlapping(60);
 
-// Fast Auto-Recovery (Pemulihan Instan Secret & Profil Tanpa Menghapus Orphan)
 Schedule::command('mikrotik:recover-ppp')
     ->everyTwoSeconds();
+// ->withoutOverlapping(5);
 
 Schedule::command('xendit:cek-va-expired')->hourly();
 Schedule::command('mikrotik:ping')->everyTwentySeconds();
