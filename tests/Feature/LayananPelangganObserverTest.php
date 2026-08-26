@@ -4,6 +4,7 @@ use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\StatusLayanan;
 use App\Jobs\Mikrotik\CleanupPppSecretOnOldRouterJob;
+use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
@@ -105,6 +106,30 @@ test('Observer resets ip_pool_id to null when router_id changes', function () {
     ]);
 
     expect($this->layanan->fresh()->ip_pool_id)->toBeNull();
+});
+
+test('Observer dispatch UpdatePppoeProfileJob when paket_layanan_id changes', function () {
+    Queue::fake();
+
+    $paketBaru = PaketLayanan::factory()->create();
+
+    $this->layanan->update([
+        'paket_layanan_id' => $paketBaru->id,
+    ]);
+
+    Queue::assertPushed(UpdatePppoeProfileJob::class, function ($job) {
+        return $job->layanan->id === $this->layanan->id;
+    });
+});
+
+test('Observer does NOT dispatch UpdatePppoeProfileJob when paket_layanan_id is unchanged', function () {
+    Queue::fake();
+
+    $this->layanan->update([
+        'nama_site' => 'Site Baru',
+    ]);
+
+    Queue::assertNotPushed(UpdatePppoeProfileJob::class);
 });
 
 // --- Model: resolveRemoteAddress ---

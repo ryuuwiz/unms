@@ -377,6 +377,81 @@ class MikrotikService
     }
 
     /**
+     * Update profil PPP Secret di RouterOS saat terjadi perubahan paket (Upgrade/Downgrade).
+     * Memastikan profil baru ada di router, mengubah secret profile, dan memutus sesi aktif
+     * agar limit rate-limit baru langsung diterapkan RouterOS.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws MikrotikException
+     */
+    public function updatePppoeProfile(Router $router, LayananPelanggan $layanan, bool $kickActive = true, ?Client $client = null): array
+    {
+        try {
+            $username = trim((string) $layanan->ppp_username);
+            $paket = $layanan->paketLayanan;
+            $profil = $paket?->profilBandwidth;
+
+            if (! $paket || ! $profil || empty($profil->nama_bandwidth)) {
+                throw new MikrotikException("Layanan {$username} tidak memiliki paket layanan atau profil bandwidth yang valid di UNMS.");
+            }
+
+            $client = $client ?? $this->getClient($router);
+            $profileName = $this->ensurePppProfile($router, $profil, $client);
+
+            $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
+            $existing = $client->query($findQuery)->read();
+
+            if (empty($existing) || ! isset($existing[0]['.id'])) {
+                // Jika secret belum ada di RouterOS, jalankan createOrUpdate
+                return $this->createOrUpdatePppoeSecret($router, $layanan, $client);
+            }
+
+            $secretId = $existing[0]['.id'];
+            $setQuery = (new Query('/ppp/secret/set'))
+                ->equal('.id', $secretId)
+                ->equal('profile', $profileName);
+
+            $result = $client->query($setQuery)->read();
+
+            if (isset($result['after']['message'])) {
+                throw new MikrotikException($result['after']['message']);
+            }
+
+            // Putus sesi aktif jika user sedang online agar paket baru langsung aktif
+            $kicked = false;
+            if ($kickActive) {
+                $kicked = $this->removeActiveSession($router, $username, $client);
+            }
+
+            $layanan->update([
+                'terprovisi_pada' => Carbon::now(),
+                'provisioning_status' => ProvisioningStatus::Success,
+                'last_provisioning_error' => null,
+            ]);
+
+            return [
+                'status' => 'success',
+                'action' => 'profile_updated',
+                'username' => $username,
+                'profile' => $profileName,
+                'session_kicked' => $kicked,
+            ];
+        } catch (Throwable $e) {
+            $layanan->update([
+                'provisioning_status' => ProvisioningStatus::Failed,
+                'last_provisioning_error' => $e->getMessage(),
+            ]);
+
+            throw new MikrotikException(
+                "Gagal update profil PPPoE {$layanan->ppp_username} pada router {$router->nama_router}: {$e->getMessage()}",
+                (int) $e->getCode(),
+                $e
+            );
+        }
+    }
+
+    /**
      * Aktifkan (Enable) PPPoE Secret di RouterOS.
      *
      * @throws MikrotikException

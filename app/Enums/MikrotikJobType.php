@@ -14,6 +14,7 @@ enum MikrotikJobType: string
     case ReconcilePppoe = 'reconcile_pppoe';
     case SyncProfilBandwidth = 'sync_profil_bandwidth';
     case ProvisionRouter = 'provision_router';
+    case UpdatePppoeProfile = 'update_pppoe_profile';
 
     /**
      * Mendapatkan label tampilan Bahasa Indonesia.
@@ -31,6 +32,7 @@ enum MikrotikJobType: string
             self::ReconcilePppoe => 'Auto-Recover PPPoE',
             self::SyncProfilBandwidth => 'Sinkronisasi Profil Bandwidth',
             self::ProvisionRouter => 'Provisi Penuh Router',
+            self::UpdatePppoeProfile => 'Ubah Paket PPPoE',
         };
     }
 }

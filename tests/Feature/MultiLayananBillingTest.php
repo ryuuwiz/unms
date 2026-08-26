@@ -5,8 +5,10 @@ use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
 use App\Enums\UserStatus;
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
+use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
 use App\Livewire\Invoice\Create as InvoiceCreate;
 use App\Livewire\LayananPelanggan\Create as LayananCreate;
+use App\Livewire\Pelanggan\Show;
 use App\Models\Invoice;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
@@ -269,4 +271,90 @@ test('dropdown invoice manual memfilter daftar layanan sesuai pelanggan yang dip
         ->assertSee($layananHome->site_id)
         ->assertSee($layananOffice->site_id)
         ->assertDontSee($layananLain->site_id);
+});
+
+test('pendaftaran layanan mendukung nama_site dan koordinat lokasi spesifik per titik pasang', function () {
+    Queue::fake([ProvisionPppoeAccountJob::class]);
+
+    $comp = Livewire::actingAs($this->admin)
+        ->test(LayananCreate::class)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('paket_layanan_id', $this->paketHome->id)
+        ->call('nextStep')
+        ->set('nama_site', 'Kantor Cabang Sudirman')
+        ->set('alamat_pemasangan', 'Gedung Wisma Sudirman Lt. 5')
+        ->set('latitude', -6.2146)
+        ->set('longitude', 106.8212)
+        ->set('ppp_password', 'password123')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('layanan-pelanggan.index'));
+
+    $layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)
+        ->where('nama_site', 'Kantor Cabang Sudirman')
+        ->first();
+
+    expect($layanan)->not->toBeNull()
+        ->and($layanan->alamat_pemasangan)->toBe('Gedung Wisma Sudirman Lt. 5')
+        ->and($layanan->latitude)->toBe(-6.2146)
+        ->and($layanan->longitude)->toBe(106.8212)
+        ->and($layanan->alamat_efektif)->toBe('Gedung Wisma Sudirman Lt. 5')
+        ->and($layanan->latitude_efektif)->toBe(-6.2146)
+        ->and($layanan->nama_site_label)->toBe('Kantor Cabang Sudirman');
+});
+
+test('alamat_efektif dan koordinat_efektif fallback ke master pelanggan jika lokasi site null', function () {
+    $this->pelanggan->update([
+        'alamat_lengkap' => 'Jl. Kebon Sirih No. 10',
+        'latitude' => -6.1818,
+        'longitude' => 106.8271,
+    ]);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paketHome->id,
+        'nama_site' => null,
+        'alamat_pemasangan' => null,
+        'latitude' => null,
+        'longitude' => null,
+    ]);
+
+    expect($layanan->alamat_efektif)->toBe('Jl. Kebon Sirih No. 10')
+        ->and($layanan->latitude_efektif)->toBe(-6.1818)
+        ->and($layanan->longitude_efektif)->toBe(106.8271)
+        ->and($layanan->nama_site_label)->toBe($layanan->site_id);
+});
+
+test('staf dapat mengubah paket layanan via modal di halaman detail pelanggan', function () {
+    Queue::fake([UpdatePppoeProfileJob::class]);
+
+    $mockMikrotik = Mockery::mock(MikrotikService::class);
+    $mockMikrotik->shouldReceive('getPppStatus')->andReturn([
+        'is_connected' => true,
+        'uptime' => '1h',
+        'ip_address' => '10.0.0.50',
+    ]);
+    $this->app->instance(MikrotikService::class, $mockMikrotik);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paketHome->id,
+        'router_id' => $this->router->id,
+        'status' => StatusLayanan::Aktif,
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->call('openUbahPaketModal', $layanan->id)
+        ->assertSet('showUbahPaketModal', true)
+        ->assertSet('selectedLayananId', $layanan->id)
+        ->set('newPaketId', $this->paketOffice->id)
+        ->call('prosesUbahPaket')
+        ->assertSet('showUbahPaketModal', false);
+
+    expect($layanan->fresh()->paket_layanan_id)->toBe($this->paketOffice->id);
+
+    Queue::assertPushed(UpdatePppoeProfileJob::class, function ($job) use ($layanan) {
+        return $job->layanan->id === $layanan->id;
+    });
 });

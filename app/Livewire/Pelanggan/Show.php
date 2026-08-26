@@ -5,6 +5,8 @@ namespace App\Livewire\Pelanggan;
 use App\Enums\StatusInvoice;
 use App\Models\AkunPelanggan;
 use App\Models\Invoice;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\Pembayaran;
 use App\Models\User;
@@ -44,6 +46,12 @@ class Show extends Component
     public bool $showUploadDocModal = false;
 
     public bool $showBayarModal = false;
+
+    public bool $showUbahPaketModal = false;
+
+    public ?int $selectedLayananId = null;
+
+    public ?int $newPaketId = null;
 
     public ?int $selectedInvoiceId = null;
 
@@ -336,6 +344,75 @@ class Show extends Component
         }
     }
 
+    public function openUbahPaketModal(int $layananId): void
+    {
+        $pelanggan = Pelanggan::findOrFail($this->pelangganId);
+        $layanan = $pelanggan->layanans()->findOrFail($layananId);
+        $this->authorize('update', $layanan);
+
+        $this->selectedLayananId = $layanan->id;
+        $this->newPaketId = $layanan->paket_layanan_id;
+        $this->showUbahPaketModal = true;
+    }
+
+    public function closeUbahPaketModal(): void
+    {
+        $this->showUbahPaketModal = false;
+        $this->selectedLayananId = null;
+        $this->newPaketId = null;
+    }
+
+    public function prosesUbahPaket(MikrotikService $mikrotikService): void
+    {
+        $this->validate([
+            'newPaketId' => ['required', 'integer', 'exists:paket_layanan,id'],
+        ], [
+            'newPaketId.required' => 'Pilih paket layanan baru.',
+            'newPaketId.exists' => 'Paket layanan tidak valid.',
+        ]);
+
+        $pelanggan = Pelanggan::findOrFail($this->pelangganId);
+        /** @var LayananPelanggan $layanan */
+        $layanan = $pelanggan->layanans()->with(['paketLayanan', 'router'])->findOrFail($this->selectedLayananId);
+        $this->authorize('update', $layanan);
+
+        if ($layanan->paket_layanan_id === (int) $this->newPaketId) {
+            $this->closeUbahPaketModal();
+            Flux::toast(variant: 'warning', text: 'Paket yang dipilih sama dengan paket yang sedang aktif.');
+
+            return;
+        }
+
+        $oldPaketNama = $layanan->paketLayanan?->nama_paket ?? 'Lama';
+        $newPaket = PaketLayanan::with('profilBandwidth')->findOrFail($this->newPaketId);
+
+        // Update paket_layanan_id (memicu LayananPelangganObserver -> UpdatePppoeProfileJob)
+        $layanan->update([
+            'paket_layanan_id' => $newPaket->id,
+        ]);
+
+        activity('layanan_pelanggan')
+            ->performedOn($layanan)
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'old_paket_id' => $layanan->getOriginal('paket_layanan_id'),
+                'old_paket_nama' => $oldPaketNama,
+                'new_paket_id' => $newPaket->id,
+                'new_paket_nama' => $newPaket->nama_paket,
+            ])
+            ->log("Mengubah paket {$layanan->site_id} ({$layanan->ppp_username}) dari {$oldPaketNama} ke {$newPaket->nama_paket}");
+
+        $this->closeUbahPaketModal();
+
+        // Refresh ppp status
+        $this->loadPppStatuses($pelanggan, $mikrotikService);
+
+        Flux::toast(
+            variant: 'success',
+            text: "Paket berhasil diubah ke {$newPaket->nama_paket}. Job sinkronisasi profil ke MikroTik telah dikirim ke antrean."
+        );
+    }
+
     public function render(): View
     {
         $pelanggan = Pelanggan::with([
@@ -380,6 +457,12 @@ class Show extends Component
             ? Invoice::with(['layananPelanggan.paketLayanan', 'promo'])->find($this->selectedInvoiceId)
             : null;
 
+        $pakets = PaketLayanan::aktif()->with('profilBandwidth')->orderBy('nama_paket')->get();
+
+        $selectedLayananForModal = $this->selectedLayananId
+            ? $pelanggan->layanans->firstWhere('id', $this->selectedLayananId)
+            : null;
+
         return view('livewire.pelanggan.show', [
             'pelanggan' => $pelanggan,
             'activityLogs' => $activityLogs,
@@ -390,6 +473,8 @@ class Show extends Component
             'invoicesLunas' => $invoicesLunas,
             'invoicesDihapus' => $invoicesDihapus,
             'selectedInvoice' => $selectedInvoice,
+            'pakets' => $pakets,
+            'selectedLayananForModal' => $selectedLayananForModal,
         ]);
     }
 }

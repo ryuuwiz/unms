@@ -481,9 +481,15 @@
                                         <flux:icon name="server-stack" class="size-5" />
                                     </div>
                                     <div>
-                                        <div class="flex items-center gap-2">
+                                        <div class="flex items-center flex-wrap gap-2">
                                             <flux:heading size="base">{{ $layanan->label_layanan ?: $layanan->paketLayanan->nama_paket }}</flux:heading>
                                             <flux:badge size="sm" color="zinc" class="font-mono text-xs">{{ $layanan->site_id }}</flux:badge>
+                                            @if ($layanan->nama_site)
+                                                <flux:badge size="sm" color="indigo" class="text-xs">
+                                                    <flux:icon name="map-pin" class="size-3 mr-1" />
+                                                    {{ $layanan->nama_site }}
+                                                </flux:badge>
+                                            @endif
                                             @if ($isConnected)
                                                 <flux:badge size="sm" color="emerald" class="animate-pulse">
                                                     <span class="inline-block size-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
@@ -502,6 +508,9 @@
                                             @endif
                                         </div>
                                         <flux:subheading class="text-xs">
+                                            @if ($layanan->alamat_pemasangan)
+                                                <span class="text-zinc-600 dark:text-zinc-300 font-medium">Titik Pasang: {{ $layanan->alamat_pemasangan }}</span> &bull;
+                                            @endif
                                             Sinkronisasi status realtime dengan MikroTik BRAS Gateway
                                         </flux:subheading>
                                     </div>
@@ -511,6 +520,14 @@
                                     <flux:badge size="sm" :color="$layanan->statusBadgeColor()">
                                         {{ $layanan->statusBadgeLabel() }}
                                     </flux:badge>
+                                    @can('update', $layanan)
+                                        <flux:button wire:click="openUbahPaketModal({{ $layanan->id }})" size="xs" variant="outline" icon="arrows-up-down">
+                                            Ubah Paket
+                                        </flux:button>
+                                        <flux:button :href="route('layanan-pelanggan.edit', $layanan)" wire:navigate size="xs" variant="ghost" icon="pencil-square">
+                                            Edit
+                                        </flux:button>
+                                    @endcan
                                 </div>
                             </div>
 
@@ -1595,6 +1612,78 @@
                     <div class="flex justify-end gap-2 pt-2">
                         <flux:button wire:click="closeBayarModal" type="button" variant="ghost">Batal</flux:button>
                         <flux:button type="submit" variant="primary" icon="check">Simpan & Lunasi</flux:button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- ─── Modal 5: Modal Ubah / Upgrade Paket Layanan & Auto Sync MikroTik ─── --}}
+    @if ($showUbahPaketModal && $selectedLayananForModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+            <div class="relative w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 space-y-5">
+                <div class="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+                            <flux:icon name="arrows-up-down" class="size-5" />
+                        </div>
+                        <div>
+                            <flux:heading size="lg">Ubah / Upgrade Paket Layanan</flux:heading>
+                            <flux:description class="text-xs">Site: <strong class="font-mono text-zinc-900 dark:text-zinc-100">{{ $selectedLayananForModal->site_id }}</strong> ({{ $selectedLayananForModal->ppp_username }})</flux:description>
+                        </div>
+                    </div>
+                    <flux:button wire:click="closeUbahPaketModal" variant="ghost" size="sm" icon="x-mark" />
+                </div>
+
+                {{-- Summary Paket Aktif Saat Ini --}}
+                <div class="rounded-xl bg-zinc-50 p-4 text-xs dark:bg-zinc-800/60 space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">Paket Saat Ini:</span>
+                        <span class="font-semibold text-zinc-800 dark:text-zinc-200">{{ $selectedLayananForModal->paketLayanan?->nama_paket ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">Profil Bandwidth:</span>
+                        <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $selectedLayananForModal->paketLayanan?->profilBandwidth?->labelKecepatan() ?? '-' }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">Tarif Saat Ini:</span>
+                        <span class="font-mono font-medium text-zinc-700 dark:text-zinc-300">Rp {{ number_format($selectedLayananForModal->total_tarif, 0, ',', '.') }}/bln</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-zinc-500">Router BRAS:</span>
+                        <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $selectedLayananForModal->router?->nama_router ?? '-' }}</span>
+                    </div>
+                </div>
+
+                <form wire:submit="prosesUbahPaket" class="space-y-4">
+                    <flux:field>
+                        <flux:label>Pilih Paket Baru</flux:label>
+                        <flux:select wire:model="newPaketId" searchable>
+                            <flux:select.option value="">-- Pilih Paket Baru --</flux:select.option>
+                            @foreach ($pakets as $pk)
+                                <flux:select.option value="{{ $pk->id }}">
+                                    {{ $pk->nama_paket }} — {{ $pk->formattedHarga() }} ({{ $pk->profilBandwidth?->labelKecepatan() ?? 'No Profile' }})
+                                </flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:error name="newPaketId" />
+                    </flux:field>
+
+                    <div class="rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300">
+                        <div class="flex items-start gap-2">
+                            <flux:icon name="bolt" class="size-4 shrink-0 mt-0.5 text-indigo-600 dark:text-indigo-400" />
+                            <div>
+                                <span class="font-semibold">Otomatisasi Sinkronisasi MikroTik:</span>
+                                <p class="mt-0.5 text-[11px] text-indigo-700 dark:text-indigo-400">
+                                    Sistem akan otomatis memperbarui PPP Profile di MikroTik RouterOS dan memutus sesi aktif client (re-dial 1 detik) agar limit kecepatan baru langsung aktif.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <flux:button wire:click="closeUbahPaketModal" type="button" variant="ghost">Batal</flux:button>
+                        <flux:button type="submit" variant="primary" icon="check">Terapkan Perubahan</flux:button>
                     </div>
                 </form>
             </div>

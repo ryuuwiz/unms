@@ -26,10 +26,14 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $router_id
  * @property int|null $ip_pool_id
  * @property string $site_id
+ * @property string|null $nama_site
  * @property string $ppp_username
  * @property string $ppp_password_terenkripsi
  * @property string|null $ip_static
  * @property int|null $odp_port_id
+ * @property string|null $alamat_pemasangan
+ * @property float|null $latitude
+ * @property float|null $longitude
  * @property JenisKoneksi $jenis_koneksi
  * @property StatusLayanan $status
  * @property Carbon $tanggal_mulai
@@ -51,10 +55,15 @@ use Spatie\Activitylog\Support\LogOptions;
     'paket_layanan_id',
     'router_id',
     'ip_pool_id',
+    'site_id',
+    'nama_site',
     'ppp_username',
     'ppp_password_terenkripsi',
     'ip_static',
     'odp_port_id',
+    'alamat_pemasangan',
+    'latitude',
+    'longitude',
     'jenis_koneksi',
     'status',
     'tanggal_mulai',
@@ -76,7 +85,7 @@ class LayananPelanggan extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['status', 'paket_layanan_id', 'router_id', 'tanggal_expired'])
+            ->logOnly(['status', 'paket_layanan_id', 'router_id', 'tanggal_expired', 'nama_site'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('layanan_pelanggan');
@@ -106,6 +115,8 @@ class LayananPelanggan extends Model
             'status' => StatusLayanan::class,
             'provisioning_status' => ProvisioningStatus::class,
             'ppp_password_terenkripsi' => 'encrypted',
+            'latitude' => 'float',
+            'longitude' => 'float',
             'tanggal_mulai' => 'date',
             'tanggal_expired' => 'date',
             'terprovisi_pada' => 'datetime',
@@ -375,5 +386,41 @@ class LayananPelanggan extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Dapatkan label nama site (nama_site atau fallback ke site_id).
+     */
+    public function getNamaSiteLabelAttribute(): string
+    {
+        return ! empty($this->nama_site) ? $this->nama_site : $this->site_id;
+    }
+
+    /**
+     * Dapatkan alamat pemasangan efektif (fallback ke alamat master pelanggan).
+     */
+    public function getAlamatEfektifAttribute(): string
+    {
+        if (! empty($this->alamat_pemasangan)) {
+            return $this->alamat_pemasangan;
+        }
+
+        return $this->pelanggan?->alamat_lengkap ?? '';
+    }
+
+    /**
+     * Dapatkan latitude efektif (fallback ke latitude master pelanggan).
+     */
+    public function getLatitudeEfektifAttribute(): ?float
+    {
+        return $this->latitude ?? $this->pelanggan?->latitude;
+    }
+
+    /**
+     * Dapatkan longitude efektif (fallback ke longitude master pelanggan).
+     */
+    public function getLongitudeEfektifAttribute(): ?float
+    {
+        return $this->longitude ?? $this->pelanggan?->longitude;
     }
 }

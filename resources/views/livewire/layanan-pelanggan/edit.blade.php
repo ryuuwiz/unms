@@ -93,6 +93,40 @@
             </flux:field>
         </div>
 
+        {{-- Informasi Lokasi Pemasangan Spesifik Site (Multi-Site Ready) --}}
+        <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-4 dark:border-zinc-800 dark:bg-zinc-900/30">
+            <div>
+                <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Titik Pasang & Lokasi Site <span class="text-xs font-normal text-zinc-500">(Opsional / Multi-Lokasi)</span></h4>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">Kosongkan jika pemasangan berada di alamat utama pelanggan.</p>
+            </div>
+
+            <flux:field>
+                <flux:label>Nama / Label Site</flux:label>
+                <flux:input wire:model="nama_site" placeholder="Contoh: Rumah Utama, Ruko Lt. 2, Kantor Cabang" />
+                <flux:error name="nama_site" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>Alamat Pemasangan Spesifik</flux:label>
+                <flux:textarea wire:model="alamat_pemasangan" placeholder="Isi jika lokasi fisik berbeda dari domisili pelanggan..." rows="2" />
+                <flux:error name="alamat_pemasangan" />
+            </flux:field>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <flux:field>
+                    <flux:label>Latitude Site</flux:label>
+                    <flux:input wire:model="latitude" type="number" step="any" placeholder="Contoh: -6.2088" />
+                    <flux:error name="latitude" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Longitude Site</flux:label>
+                    <flux:input wire:model="longitude" type="number" step="any" placeholder="Contoh: 106.8456" />
+                    <flux:error name="longitude" />
+                </flux:field>
+            </div>
+        </div>
+
         <flux:field>
             <flux:label>Status Layanan</flux:label>
             <flux:select wire:model="status">

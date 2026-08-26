@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Jobs\Mikrotik\CleanupPppSecretOnOldRouterJob;
+use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
 use App\Models\LayananPelanggan;
 
 class LayananPelangganObserver
@@ -45,6 +46,20 @@ class LayananPelangganObserver
                     $layanan->id,
                 );
             }
+        }
+    }
+
+    /**
+     * Handle the LayananPelanggan "updated" event.
+     *
+     * Ketika paket_layanan_id berubah (upgrade/downgrade paket), otomatis
+     * dispatch UpdatePppoeProfileJob ke MikroTik agar profil secret terupdate
+     * dan sesi aktif diputus (re-dial instan dengan kecepatan baru).
+     */
+    public function updated(LayananPelanggan $layanan): void
+    {
+        if ($layanan->wasChanged('paket_layanan_id') && $layanan->router_id) {
+            UpdatePppoeProfileJob::dispatch($layanan);
         }
     }
 

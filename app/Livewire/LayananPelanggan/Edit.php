@@ -33,6 +33,14 @@ class Edit extends Component
 
     public ?string $ip_static = null;
 
+    public string $nama_site = '';
+
+    public string $alamat_pemasangan = '';
+
+    public ?float $latitude = null;
+
+    public ?float $longitude = null;
+
     public string $ppp_username = '';
 
     public string $ppp_password = '';
@@ -55,6 +63,10 @@ class Edit extends Component
         $this->router_id = $layananPelanggan->router_id;
         $this->ip_pool_id = $layananPelanggan->ip_pool_id;
         $this->ip_static = $layananPelanggan->ip_static;
+        $this->nama_site = $layananPelanggan->nama_site ?? '';
+        $this->alamat_pemasangan = $layananPelanggan->alamat_pemasangan ?? '';
+        $this->latitude = $layananPelanggan->latitude;
+        $this->longitude = $layananPelanggan->longitude;
         $this->ppp_username = $layananPelanggan->ppp_username;
         $this->ppp_password = ''; // Kosongkan untuk keamanan
         $this->jenis_koneksi = $layananPelanggan->jenis_koneksi->value;
@@ -74,6 +86,10 @@ class Edit extends Component
             'paket_layanan_id' => ['required', 'integer', 'exists:paket_layanan,id'],
             'router_id' => ['required', 'integer', 'exists:router,id'],
             'jenis_koneksi' => ['required', 'string', 'in:pppoe,ip_static'],
+            'nama_site' => ['nullable', 'string', 'max:100'],
+            'alamat_pemasangan' => ['nullable', 'string', 'max:1000'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'ip_pool_id' => $this->jenis_koneksi === 'pppoe'
                 ? ['required', 'integer', 'exists:ip_pool,id']
                 : ['nullable', 'integer', 'exists:ip_pool,id'],
@@ -155,6 +171,10 @@ class Edit extends Component
         $data = [
             'paket_layanan_id' => $this->paket_layanan_id,
             'router_id' => $this->router_id,
+            'nama_site' => $this->nama_site ?: null,
+            'alamat_pemasangan' => $this->alamat_pemasangan ?: null,
+            'latitude' => $this->latitude,
+            'longitude' => $this->longitude,
             'ip_pool_id' => $this->jenis_koneksi === 'pppoe' ? $this->ip_pool_id : null,
             'ip_static' => $this->jenis_koneksi === 'ip_static' ? $this->ip_static : null,
             'ppp_username' => $this->ppp_username,

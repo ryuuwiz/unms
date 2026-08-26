@@ -40,6 +40,14 @@ class Create extends Component
 
     public ?string $ip_static = null;
 
+    public string $nama_site = '';
+
+    public string $alamat_pemasangan = '';
+
+    public ?float $latitude = null;
+
+    public ?float $longitude = null;
+
     public string $ppp_username = '';
 
     public string $ppp_password = '';
@@ -96,6 +104,10 @@ class Create extends Component
         return [
             'router_id' => ['required', 'integer', 'exists:router,id'],
             'jenis_koneksi' => ['required', 'string', 'in:pppoe,ip_static'],
+            'nama_site' => ['nullable', 'string', 'max:100'],
+            'alamat_pemasangan' => ['nullable', 'string', 'max:1000'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'ip_pool_id' => $this->jenis_koneksi === 'pppoe'
                 ? ['required', 'integer', 'exists:ip_pool,id']
                 : ['nullable', 'integer', 'exists:ip_pool,id'],
@@ -233,6 +245,10 @@ class Create extends Component
             'pelanggan_id' => $this->pelanggan_id,
             'paket_layanan_id' => $this->paket_layanan_id,
             'router_id' => $this->router_id,
+            'nama_site' => $this->nama_site ?: null,
+            'alamat_pemasangan' => $this->alamat_pemasangan ?: null,
+            'latitude' => $this->latitude,
+            'longitude' => $this->longitude,
             'ip_pool_id' => $this->jenis_koneksi === 'pppoe' ? $this->ip_pool_id : null,
             'ip_static' => $this->jenis_koneksi === 'ip_static' ? $this->ip_static : null,
             'ppp_username' => $this->ppp_username,
