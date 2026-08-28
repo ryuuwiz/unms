@@ -13,6 +13,7 @@ use App\Models\TicketHistori;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class TicketSeeder extends Seeder
 {
@@ -27,25 +28,25 @@ class TicketSeeder extends Seeder
         $teknisi = User::where('email', 'teknisi@example.com')->first() ?? $admin;
         $noc = User::where('email', 'noc@example.com')->first() ?? $admin;
 
-        $pelanggans = Pelanggan::with('layanans')->get();
-        if ($pelanggans->isEmpty()) {
-            return;
-        }
+        foreach ($this->daftarTiketContoh() as $data) {
+            $pelanggan = Pelanggan::where('email', $data['pelanggan_email'])->first();
 
-        $ticketsData = $this->daftarTiketContoh();
+            if (! $pelanggan) {
+                continue;
+            }
 
-        foreach ($ticketsData as $index => $data) {
-            $pelanggan = $pelanggans->firstWhere('email', $data['pelanggan_email']) ?? $pelanggans[$index % $pelanggans->count()];
-            $layanan = $pelanggan->layanans->first();
+            $layanan = $pelanggan->layanans()->first();
 
             $creator = match ($data['dibuat_oleh_role']) {
                 'sales' => $sales,
-                'noc' => $noc,
                 'teknisi' => $teknisi,
+                'noc' => $noc,
+                'super_admin' => $superAdmin,
                 default => $admin,
             };
 
             $pic = match ($data['pic_role']) {
+                'sales' => $sales,
                 'teknisi' => $teknisi,
                 'noc' => $noc,
                 'admin' => $admin,
@@ -56,22 +57,12 @@ class TicketSeeder extends Seeder
             $prioritas = $data['prioritas'];
             $slaTarget = $createdDate->copy()->addHours($prioritas->durasiSlaHours());
 
-            // Cek apakah tiket contoh ini sudah pernah di-seed (Idempotent)
-            $ticket = Ticket::where('pelanggan_id', $pelanggan->id)
-                ->where('deskripsi', $data['deskripsi'])
-                ->first();
-
-            if ($ticket) {
-                continue;
-            }
-
             // Buat Ticket
             $ticket = Ticket::create([
                 'jenis' => $data['jenis'],
                 'pelanggan_id' => $pelanggan->id,
                 'layanan_pelanggan_id' => $data['pakai_layanan'] ? $layanan?->id : null,
                 'prioritas' => $prioritas,
-                'divisi' => $data['divisi'],
                 'pic_id' => $pic?->id,
                 'status' => $data['status_akhir'],
                 'sumber' => $data['sumber'] ?? SumberTicket::Manual,
@@ -83,6 +74,15 @@ class TicketSeeder extends Seeder
                 'created_at' => $createdDate,
                 'updated_at' => $createdDate,
             ]);
+
+            // Buat Divisi Pivot
+            $divisis = is_array($data['divisi']) ? $data['divisi'] : [$data['divisi']];
+            foreach ($divisis as $divisiItem) {
+                DB::table('ticket_divisi')->insertOrIgnore([
+                    'ticket_id' => $ticket->id,
+                    'divisi' => $divisiItem instanceof DivisiTicket ? $divisiItem->value : $divisiItem,
+                ]);
+            }
 
             // Buat Histori Kronologis
             foreach ($data['histori'] as $hIndex => $historiItem) {
@@ -101,6 +101,7 @@ class TicketSeeder extends Seeder
                     'status_lama' => $historiItem['status_lama'],
                     'status_baru' => $historiItem['status_baru'],
                     'catatan' => $historiItem['catatan'],
+                    'is_internal' => $historiItem['is_internal'] ?? false,
                     'oleh_pengguna_id' => $actor->id,
                     'created_at' => $historiDate,
                 ]);
@@ -116,7 +117,7 @@ class TicketSeeder extends Seeder
      *     pelanggan_email: string,
      *     pakai_layanan: bool,
      *     prioritas: PrioritasTicket,
-     *     divisi: DivisiTicket,
+     *     divisi: DivisiTicket|array<int, DivisiTicket>,
      *     status_akhir: StatusTicket,
      *     dibuat_oleh_role: string,
      *     pic_role: ?string,
@@ -125,7 +126,7 @@ class TicketSeeder extends Seeder
      *     perlu_aktivasi_manual?: bool,
      *     sumber?: SumberTicket,
      *     deskripsi: string,
-     *     histori: array<int, array{status_lama: ?StatusTicket, status_baru: StatusTicket, catatan: string, oleh_role: string}>
+     *     histori: array<int, array{status_lama: ?StatusTicket, status_baru: StatusTicket, catatan: string, oleh_role: string, is_internal?: bool}>
      * }>
      */
     private function daftarTiketContoh(): array

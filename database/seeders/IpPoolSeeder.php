@@ -13,7 +13,7 @@ class IpPoolSeeder extends Seeder
      */
     public function run(): void
     {
-        $mainRouter = Router::where('ip_address', '192.168.80.92')->first();
+        $mainRouter = Router::where('ip_address', '103.175.156.72')->first();
 
         if ($mainRouter) {
             // Pool A — Pelanggan Rumahan

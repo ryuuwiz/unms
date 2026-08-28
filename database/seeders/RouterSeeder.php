@@ -15,7 +15,7 @@ class RouterSeeder extends Seeder
     {
         // Router utama untuk core network
         Router::updateOrCreate(
-            ['ip_address' => '192.168.80.92'],
+            ['ip_address' => '103.175.156.72'],
             [
                 'nama_router' => 'Test Billing',
                 'port' => 8728,
