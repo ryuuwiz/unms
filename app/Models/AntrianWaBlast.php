@@ -7,11 +7,13 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
+ * @property int|null $sysblas_id
  * @property string $no_hp_tujuan
  * @property string $pesan
  * @property string $jenis
@@ -27,8 +29,10 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Model|null $referensi
+ * @property-read Sysblas|null $sysblas
  */
 #[Fillable([
+    'sysblas_id',
     'no_hp_tujuan',
     'pesan',
     'jenis',
@@ -54,6 +58,7 @@ class AntrianWaBlast extends Model
     protected function casts(): array
     {
         return [
+            'sysblas_id' => 'integer',
             'status' => StatusAntrianWa::class,
             'tanggal_kirim' => 'date',
             'dijadwalkan_pada' => 'datetime',
@@ -61,6 +66,16 @@ class AntrianWaBlast extends Model
             'response_log' => 'array',
             'percobaan_ke' => 'integer',
         ];
+    }
+
+    /**
+     * Relasi ke koneksi gateway Sysblas.
+     *
+     * @return BelongsTo<Sysblas, $this>
+     */
+    public function sysblas(): BelongsTo
+    {
+        return $this->belongsTo(Sysblas::class, 'sysblas_id');
     }
 
     /**

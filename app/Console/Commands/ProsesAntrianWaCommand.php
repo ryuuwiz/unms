@@ -3,8 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Enums\Wa\StatusAntrianWa;
-use App\Jobs\Wa\KirimWaBlastJob;
 use App\Models\AntrianWaBlast;
+use App\Models\Sysblas;
+use App\Services\Wablas\WablasClient;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -33,6 +34,7 @@ class ProsesAntrianWaCommand extends Command
         $this->info("Memeriksa antrean WhatsApp siap kirim (Limit: {$limit})...");
 
         $antreanList = AntrianWaBlast::query()
+            ->with('sysblas')
             ->where('status', StatusAntrianWa::Menunggu)
             ->where(function ($q) {
                 $q->whereNull('dijadwalkan_pada')
@@ -47,13 +49,40 @@ class ProsesAntrianWaCommand extends Command
             return Command::SUCCESS;
         }
 
-        $count = 0;
-        foreach ($antreanList as $antrian) {
-            KirimWaBlastJob::dispatch($antrian);
-            $count++;
+        // Kelompokkan berdasarkan koneksi Sysblas
+        $grouped = $antreanList->groupBy(fn ($item) => $item->sysblas_id ?? 0);
+        $totalTerkirim = 0;
+        $totalGagal = 0;
+
+        foreach ($grouped as $sysblasId => $items) {
+            $sysblas = $items->first()->sysblas ?? Sysblas::getDefault();
+            $client = $sysblas ? $sysblas->makeClient() : app(WablasClient::class);
+
+            // Chunk per 50 pesan untuk pengiriman batch API WABLAS v2
+            foreach ($items->chunk(50) as $chunk) {
+                $batchPayload = [];
+                foreach ($chunk as $antrian) {
+                    $batchPayload[] = [
+                        'phone' => $antrian->no_hp_tujuan,
+                        'message' => $antrian->pesan,
+                    ];
+                }
+
+                $result = $client->sendBatchMessages($batchPayload);
+
+                foreach ($chunk as $antrian) {
+                    if ($result['success']) {
+                        $antrian->tandaiTerkirim($result);
+                        $totalTerkirim++;
+                    } else {
+                        $antrian->tandaiGagal($result['message'], $result);
+                        $totalGagal++;
+                    }
+                }
+            }
         }
 
-        $this->info("Berhasil men-dispatch {$count} antrean WhatsApp ke queue worker.");
+        $this->info("Pemrosesan antrean selesai: {$totalTerkirim} terkirim, {$totalGagal} gagal.");
 
         return Command::SUCCESS;
     }

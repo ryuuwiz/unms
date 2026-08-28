@@ -207,6 +207,28 @@ return [
             ],
         ],
         [
+            'heading' => 'SysBlast',
+            'icon' => 'chat-bubble-left-right',
+            'expandable' => true,
+            'expanded' => false,
+            'items' => [
+                [
+                    'title' => 'Koneksi API',
+                    'icon' => 'server-stack',
+                    'route' => 'sysblas.koneksi.index',
+                    'active' => 'sysblas.koneksi.*',
+                    'permission' => 'wa_gateway.lihat',
+                ],
+                [
+                    'title' => 'Antrian Blast',
+                    'icon' => 'queue-list',
+                    'route' => 'sysblas.antrian.index',
+                    'active' => 'sysblas.antrian.*',
+                    'permission' => 'wa_gateway.lihat',
+                ],
+            ],
+        ],
+        [
             'heading' => 'Administrasi',
             'icon' => 'shield-check',
             'expandable' => true,

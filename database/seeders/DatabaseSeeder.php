@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             PelangganSeeder::class,
             TicketSeeder::class,
             PerusahaanSeeder::class,
+            SysblasSeeder::class,
             WaTemplateSeeder::class,
             AturanPengingatTagihanSeeder::class,
         ]);

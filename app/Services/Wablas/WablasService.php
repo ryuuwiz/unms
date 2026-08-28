@@ -8,6 +8,7 @@ use App\Models\AntrianWaBlast;
 use App\Models\Invoice;
 use App\Models\Pembayaran;
 use App\Models\Perusahaan;
+use App\Models\Sysblas;
 use App\Models\Ticket;
 use App\Models\WaTemplate;
 use Illuminate\Database\Eloquent\Model;
@@ -31,7 +32,8 @@ class WablasService
         array $params = [],
         ?Model $referensi = null,
         ?string $jenis = null,
-        ?Carbon $tanggalTarget = null
+        ?Carbon $tanggalTarget = null,
+        ?Sysblas $sysblas = null
     ): ?AntrianWaBlast {
         $template = WaTemplate::where('kode', $kodeTemplate)->first();
 
@@ -52,7 +54,8 @@ class WablasService
             pesan: $pesan,
             referensi: $referensi,
             jenis: $jenisPesan,
-            tanggalTarget: $tanggalTarget
+            tanggalTarget: $tanggalTarget,
+            sysblas: $sysblas
         );
     }
 
@@ -64,7 +67,8 @@ class WablasService
         string $pesan,
         ?Model $referensi = null,
         string $jenis = 'kustom',
-        ?Carbon $tanggalTarget = null
+        ?Carbon $tanggalTarget = null,
+        ?Sysblas $sysblas = null
     ): ?AntrianWaBlast {
         $tanggalKirim = $tanggalTarget ? $tanggalTarget->toDateString() : Carbon::today()->toDateString();
         $refTipe = $referensi ? $referensi->getMorphClass() : null;
@@ -87,8 +91,11 @@ class WablasService
         $normalizedPhone = WablasClient::normalizePhoneNumber($noHp);
         $isValidPhone = ! empty($normalizedPhone);
 
+        $targetSysblas = $sysblas ?? Sysblas::getDefault();
+
         /** @var AntrianWaBlast $antrian */
         $antrian = AntrianWaBlast::create([
+            'sysblas_id' => $targetSysblas?->id,
             'no_hp_tujuan' => $normalizedPhone ?? $noHp,
             'pesan' => $pesan,
             'jenis' => $jenis,
@@ -102,7 +109,12 @@ class WablasService
         ]);
 
         if ($isValidPhone) {
-            KirimWaBlastJob::dispatch($antrian);
+            // Pengiriman instan: gunakan dispatchAfterResponse jika di web context, atau dispatch langsung
+            if (! app()->runningInConsole() && (! $tanggalTarget || $tanggalTarget->isPast() || $tanggalTarget->isToday())) {
+                KirimWaBlastJob::dispatchAfterResponse($antrian);
+            } else {
+                KirimWaBlastJob::dispatch($antrian);
+            }
         }
 
         return $antrian;

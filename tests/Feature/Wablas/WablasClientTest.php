@@ -53,7 +53,7 @@ test('sendMessage berhasil memanggil endpoint wablas v2 api', function () {
 
 test('getDeviceInfo mengembalikan informasi status device yang terhubung', function () {
     Http::fake([
-        'https://tegal.wablas.com/api/device/info' => Http::response([
+        'https://tegal.wablas.com/api/device/info*' => Http::response([
             'status' => true,
             'message' => 'Success',
             'data' => [

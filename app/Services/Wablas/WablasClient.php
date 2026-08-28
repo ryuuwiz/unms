@@ -2,7 +2,9 @@
 
 namespace App\Services\Wablas;
 
+use App\Models\Sysblas;
 use Exception;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -30,15 +32,39 @@ class WablasClient
     }
 
     /**
+     * Buat instance client dari model Sysblas (atau default DB).
+     */
+    public static function forSysblas(?Sysblas $sysblas = null): self
+    {
+        $target = $sysblas ?? Sysblas::getDefault();
+
+        if ($target) {
+            return $target->makeClient();
+        }
+
+        return new self;
+    }
+
+    /**
+     * Alias method untuk melakukan test koneksi / ping ke host & nomor API.
+     *
+     * @return array{connected: bool, phone: string, quota: mixed, expired_at: string|null, message: string, raw: array<string, mixed>}
+     */
+    public function pingConnection(): array
+    {
+        return $this->getDeviceInfo();
+    }
+
+    /**
      * Ambil header Authorization untuk WABLAS.
      * Format: {token}.{secret} atau {token}
      */
-    public function getAuthorizationHeader(): string
+    public function getAuthorizationHeader(bool $withSecret = true): string
     {
         $token = trim($this->token);
         $secret = trim($this->secret);
 
-        if (! empty($token) && ! empty($secret)) {
+        if ($withSecret && ! empty($token) && ! empty($secret) && $secret !== $token) {
             return "{$token}.{$secret}";
         }
 
@@ -98,30 +124,45 @@ class WablasClient
             return [
                 'success' => false,
                 'status' => 'failed',
-                'message' => 'WABLAS Token belum dikonfigurasi di environment (.env).',
+                'message' => 'WABLAS Token belum dikonfigurasi.',
                 'data' => [],
             ];
         }
 
         $url = "{$this->host}/api/v2/send-message";
-        $authHeader = $this->getAuthorizationHeader();
+        $authHeader = $this->getAuthorizationHeader(true);
 
         try {
-            /** @var Response $response */
-            $response = Http::withHeaders([
-                'Authorization' => $authHeader,
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-            ])->timeout(15)->post($url, [
+            $payload = [
                 'data' => [
                     [
                         'phone' => $normalizedPhone,
                         'message' => $message,
                     ],
                 ],
-            ]);
+            ];
+
+            /** @var Response $response */
+            $response = Http::withHeaders([
+                'Authorization' => $authHeader,
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+            ])->timeout(15)->post($url, $payload);
 
             $json = $response->json() ?? [];
+            $msg = strtolower((string) ($json['message'] ?? ''));
+
+            // Jika gagal karena secret key invalid dan sebelumnya menyertakan secret, coba fallback hanya dengan token
+            if (str_contains($msg, 'secret') && str_contains($authHeader, '.')) {
+                $fallbackAuth = $this->getAuthorizationHeader(false);
+                $response = Http::withHeaders([
+                    'Authorization' => $fallbackAuth,
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])->timeout(15)->post($url, $payload);
+                $json = $response->json() ?? [];
+            }
+
             $isSuccess = $response->successful() && (($json['status'] ?? '') === true || ($json['status'] ?? '') === 'success' || isset($json['data']));
 
             return [
@@ -175,7 +216,7 @@ class WablasClient
         }
 
         $url = "{$this->host}/api/v2/send-message";
-        $authHeader = $this->getAuthorizationHeader();
+        $authHeader = $this->getAuthorizationHeader(true);
 
         try {
             /** @var Response $response */
@@ -188,6 +229,20 @@ class WablasClient
             ]);
 
             $json = $response->json() ?? [];
+            $msg = strtolower((string) ($json['message'] ?? ''));
+
+            if (str_contains($msg, 'secret') && str_contains($authHeader, '.')) {
+                $fallbackAuth = $this->getAuthorizationHeader(false);
+                $response = Http::withHeaders([
+                    'Authorization' => $fallbackAuth,
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])->timeout(30)->post($url, [
+                    'data' => $validData,
+                ]);
+                $json = $response->json() ?? [];
+            }
+
             $isSuccess = $response->successful();
 
             return [
@@ -221,24 +276,46 @@ class WablasClient
                 'phone' => $this->number,
                 'quota' => 0,
                 'expired_at' => null,
-                'message' => 'Token WABLAS belum disetel di file .env.',
+                'message' => 'Token WABLAS belum disetel.',
                 'raw' => [],
             ];
         }
 
-        $url = "{$this->host}/api/device/info";
-        $authHeader = $this->getAuthorizationHeader();
+        $url = rtrim($this->host, '/').'/api/device/info';
+        $authHeader = $this->getAuthorizationHeader(true);
+        $plainToken = trim($this->token);
 
         try {
+            // Request pertama: Header Authorization dan query param ?token= (selalu gunakan plain token tanpa secret di URL)
             /** @var Response $response */
             $response = Http::withHeaders([
                 'Authorization' => $authHeader,
                 'Accept' => 'application/json',
-            ])->timeout(10)->get($url);
+            ])->timeout(15)->get($url, [
+                'token' => $plainToken,
+            ]);
 
             $json = $response->json() ?? [];
+            $msg = strtolower((string) ($json['message'] ?? ''));
 
-            if ($response->successful() && isset($json['data'])) {
+            // Fallback 1: Jika gagal karena secret key invalid dan tadi menyertakan secret di header, coba lagi hanya dengan plain token
+            if ((! $response->successful() || str_contains($msg, 'secret') || str_contains($msg, 'invalid')) && str_contains($authHeader, '.')) {
+                $response = Http::withHeaders([
+                    'Authorization' => $plainToken,
+                    'Accept' => 'application/json',
+                ])->timeout(15)->get($url, [
+                    'token' => $plainToken,
+                ]);
+                $json = $response->json() ?? [];
+            }
+
+            // Fallback 2: Jika masih gagal, coba request murni tanpa header khusus
+            if (! $response->successful() && ! isset($json['data'])) {
+                $response = Http::timeout(15)->get("{$url}?token={$plainToken}");
+                $json = $response->json() ?? [];
+            }
+
+            if (($response->successful() || isset($json['data'])) && isset($json['data'])) {
                 $data = $json['data'];
                 $statusDevice = strtolower((string) ($data['status'] ?? ''));
                 $isConnected = in_array($statusDevice, ['connected', 'active', 'online', '1', 'true'], true);
@@ -260,6 +337,15 @@ class WablasClient
                 'expired_at' => null,
                 'message' => (string) ($json['message'] ?? "Gagal mengambil status device (HTTP {$response->status()})"),
                 'raw' => $json,
+            ];
+        } catch (ConnectionException $e) {
+            return [
+                'connected' => false,
+                'phone' => $this->number,
+                'quota' => '-',
+                'expired_at' => null,
+                'message' => 'Koneksi ke host WABLAS timeout (server tidak merespon dalam 15 detik). Silahkan periksa koneksi internet / Host URL.',
+                'raw' => [],
             ];
         } catch (Exception $e) {
             return [

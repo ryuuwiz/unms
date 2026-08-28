@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\MapMarkerController;
 use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\PelangganMediaController;
+use App\Http\Controllers\Webhook\WablasWebhookController;
 use App\Http\Controllers\Webhook\XenditWebhookController;
 use App\Livewire\Invoice;
 use App\Livewire\IpPool;
@@ -182,6 +183,14 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/settings/whatsapp', WhatsappSettings::class)->name('settings.whatsapp');
     });
 
+    // ─── SysBlast Gateway & Antrian ───────────────────────────────
+    Route::prefix('sysblas')->name('sysblas.')->group(function () {
+        Route::middleware('permission:wa_gateway.lihat')->group(function () {
+            Route::get('/koneksi', App\Livewire\Sysblas\Koneksi\Index::class)->name('koneksi.index');
+            Route::get('/antrian', App\Livewire\Sysblas\Antrian\Index::class)->name('antrian.index');
+        });
+    });
+
     // ─── Aturan Pengingat Tagihan ─────────────────────────────────
     Route::prefix('billing/aturan-pengingat')->name('billing.aturan-pengingat.')->group(function () {
         Route::middleware('permission:invoice.lihat')->group(function () {
@@ -322,6 +331,11 @@ Route::middleware('xendit.token')->group(function () {
     Route::post('/webhook/xendit/virtual-account', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.va');
     Route::post('/webhook/xendit/qris', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.qris');
 });
+
+// ─── Webhook WABLAS (Public & CSRF-Exempt) ───────────────────────
+Route::post('/webhook/wablas', [WablasWebhookController::class, 'handle'])->name('webhook.wablas');
+Route::post('/webhook/wablas/tracking', [WablasWebhookController::class, 'tracking'])->name('webhook.wablas.tracking');
+Route::post('/webhook/wablas/message', [WablasWebhookController::class, 'message'])->name('webhook.wablas.message');
 
 // ─── Portal Pelanggan (Guard: pelanggan) ─────────────────────────
 Route::prefix('portal')->name('portal.')->group(function () {

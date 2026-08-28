@@ -3,6 +3,7 @@
 namespace App\Jobs\Wa;
 
 use App\Models\AntrianWaBlast;
+use App\Models\Sysblas;
 use App\Services\Wablas\WablasClient;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -42,15 +43,20 @@ class KirimWaBlastJob implements ShouldQueue
             return;
         }
 
-        // Rate Limiter: Maksimal 25 pesan per 60 detik per gateway WABLAS
-        $limiterKey = 'wablas-rate-limit';
+        // Resolusi koneksi Sysblas spesifik atau default
+        $sysblas = $this->antrian->sysblas ?? Sysblas::getDefault();
+        $targetClient = $sysblas ? $sysblas->makeClient() : $client;
+        $maxAttempts = $sysblas ? max(1, $sysblas->limit_per_menit) : 25;
+        $limiterKey = $sysblas ? "sysblas-rate-limit-{$sysblas->id}" : 'wablas-rate-limit';
+
+        // Rate Limiter: Maksimal N pesan per 60 detik per gateway Sysblas
         $executed = RateLimiter::attempt(
             $limiterKey,
-            25,
-            function () use ($client) {
+            $maxAttempts,
+            function () use ($targetClient) {
                 $this->antrian->update(['status' => 'diproses']);
 
-                $result = $client->sendMessage(
+                $result = $targetClient->sendMessage(
                     $this->antrian->no_hp_tujuan,
                     $this->antrian->pesan
                 );
