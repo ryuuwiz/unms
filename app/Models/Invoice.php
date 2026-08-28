@@ -37,6 +37,11 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property string|null $payment_gateway_url
+ * @property string|null $payment_gateway_id
+ * @property string|null $payment_gateway_provider
+ * @property string|null $payment_gateway_status
+ * @property Carbon|null $payment_gateway_expired_at
  * @property string|null $xendit_invoice_id
  * @property string|null $xendit_invoice_url
  * @property string|null $xendit_status
@@ -60,6 +65,11 @@ use Spatie\Activitylog\Support\LogOptions;
     'tanggal_jatuh_tempo',
     'tanggal_lunas',
     'metode_pembayaran',
+    'payment_gateway_url',
+    'payment_gateway_id',
+    'payment_gateway_provider',
+    'payment_gateway_status',
+    'payment_gateway_expired_at',
     'xendit_invoice_id',
     'xendit_invoice_url',
     'xendit_status',
@@ -79,7 +89,13 @@ class Invoice extends Model
     {
         static::creating(function (Invoice $invoice) {
             if (empty($invoice->no_invoice)) {
-                $invoice->no_invoice = static::generateNoInvoice();
+                $pelangganId = $invoice->pelanggan_id;
+                if (! $pelangganId && $invoice->layanan_pelanggan_id) {
+                    $pelangganId = DB::table('layanan_pelanggan')
+                        ->where('id', $invoice->layanan_pelanggan_id)
+                        ->value('pelanggan_id');
+                }
+                $invoice->no_invoice = static::generateNoInvoice($pelangganId, $invoice->periode_tagihan);
             }
         });
     }
@@ -90,7 +106,7 @@ class Invoice extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['no_invoice', 'periode_tagihan', 'status', 'jumlah_setelah_promo', 'metode_pembayaran', 'tanggal_lunas'])
+            ->logOnly(['no_invoice', 'periode_tagihan', 'status', 'jumlah_setelah_promo', 'metode_pembayaran', 'tanggal_lunas', 'payment_gateway_provider'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('invoice');
@@ -111,17 +127,33 @@ class Invoice extends Model
             'tanggal_terbit' => 'date',
             'tanggal_jatuh_tempo' => 'date',
             'tanggal_lunas' => 'date',
+            'payment_gateway_expired_at' => 'datetime',
             'xendit_expired_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
     }
 
     /**
-     * Generate nomor invoice berurutan per bulan: INV-YYYYMM-NNNNNN
+     * Generate nomor invoice menyertakan No. Registrasi Pelanggan: INV-[No.Reg]-[YYYYMM]-[Counter]
      */
-    public static function generateNoInvoice(): string
+    public static function generateNoInvoice(?int $pelangganId = null, ?string $periodeTagihan = null): string
     {
-        $prefix = 'INV-'.Carbon::now()->format('Ym').'-';
+        $noReg = 'GENERAL';
+
+        if ($pelangganId) {
+            $foundNoReg = DB::table('pelanggan')->where('id', $pelangganId)->value('no_reg');
+            if (! empty($foundNoReg)) {
+                $noReg = trim($foundNoReg);
+            }
+        }
+
+        if (! empty($periodeTagihan)) {
+            $period = str_replace('-', '', $periodeTagihan);
+        } else {
+            $period = Carbon::now()->format('Ym');
+        }
+
+        $prefix = "INV-{$noReg}-{$period}-";
 
         $last = DB::table('invoice')
             ->where('no_invoice', 'like', $prefix.'%')
@@ -136,7 +168,7 @@ class Invoice extends Model
             $nextNum = 1;
         }
 
-        return $prefix.str_pad((string) $nextNum, 6, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $nextNum, 2, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -226,19 +258,22 @@ class Invoice extends Model
     }
 
     /**
-     * Cek apakah invoice memiliki tautan pembayaran Xendit yang aktif dan belum kedaluwarsa.
+     * Cek apakah invoice memiliki tautan pembayaran gateway yang aktif dan belum kedaluwarsa.
      */
-    public function hasActiveXenditInvoice(): bool
+    public function hasActivePaymentLink(): bool
     {
-        if (empty($this->xendit_invoice_url)) {
+        $url = $this->payment_gateway_url ?: ($this->attributes['xendit_invoice_url'] ?? null);
+        if (empty($url)) {
             return false;
         }
 
-        if ($this->xendit_status === 'EXPIRED' || $this->xendit_status === 'PAID') {
+        $status = strtoupper((string) ($this->payment_gateway_status ?: ($this->attributes['xendit_status'] ?? '')));
+        if ($status === 'EXPIRED' || $status === 'PAID') {
             return false;
         }
 
-        if ($this->xendit_expired_at && $this->xendit_expired_at->isPast()) {
+        $expiredAt = $this->payment_gateway_expired_at ?: $this->xendit_expired_at;
+        if ($expiredAt && $expiredAt->isPast()) {
             return false;
         }
 
@@ -246,15 +281,58 @@ class Invoice extends Model
     }
 
     /**
-     * Cek apakah sesi Xendit invoice telah kedaluwarsa.
+     * Alias kompatibilitas mundur.
      */
-    public function isXenditInvoiceExpired(): bool
+    public function hasActiveXenditInvoice(): bool
     {
-        if ($this->xendit_status === 'EXPIRED') {
+        return $this->hasActivePaymentLink();
+    }
+
+    /**
+     * Cek apakah sesi payment gateway invoice telah kedaluwarsa.
+     */
+    public function isPaymentLinkExpired(): bool
+    {
+        $status = strtoupper((string) ($this->payment_gateway_status ?: ($this->attributes['xendit_status'] ?? '')));
+        if ($status === 'EXPIRED') {
             return true;
         }
 
-        return $this->xendit_expired_at ? $this->xendit_expired_at->isPast() : false;
+        $expiredAt = $this->payment_gateway_expired_at ?: $this->xendit_expired_at;
+
+        return $expiredAt ? $expiredAt->isPast() : false;
+    }
+
+    /**
+     * Alias kompatibilitas mundur.
+     */
+    public function isXenditInvoiceExpired(): bool
+    {
+        return $this->isPaymentLinkExpired();
+    }
+
+    /**
+     * Accessor URL link pembayaran (kompatibilitas mundur).
+     */
+    public function getXenditInvoiceUrlAttribute(?string $value): ?string
+    {
+        return $this->payment_gateway_url ?: $value;
+    }
+
+    /**
+     * Accessor ID invoice gateway (kompatibilitas mundur).
+     */
+    public function getXenditInvoiceIdAttribute(?string $value): ?string
+    {
+        return $this->payment_gateway_id ?: $value;
+    }
+
+    /**
+     * Accessor status gateway (kompatibilitas mundur).
+     */
+    public function getXenditStatusAttribute(?string $value): ?string
+    {
+        return $this->payment_gateway_status ?: $value;
     }
 
     public function formattedJumlah(): string

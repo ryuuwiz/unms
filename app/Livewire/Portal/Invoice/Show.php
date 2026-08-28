@@ -3,7 +3,7 @@
 namespace App\Livewire\Portal\Invoice;
 
 use App\Models\Invoice;
-use App\Services\Xendit\XenditPaymentService;
+use App\Services\PaymentGateway\PaymentGatewayManager;
 use Exception;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +18,7 @@ class Show extends Component
 {
     public Invoice $invoice;
 
-    public function mount(Invoice $invoice, XenditPaymentService $paymentService): void
+    public function mount(Invoice $invoice, PaymentGatewayManager $paymentManager): void
     {
         $pelangganId = Auth::guard('pelanggan')->user()->pelanggan_id;
 
@@ -26,10 +26,10 @@ class Show extends Component
             abort(403, 'Anda tidak memiliki akses ke tagihan ini.');
         }
 
-        // Sinkronisasi otomatis dengan Xendit jika masih menunggu pembayaran
-        // (Sangat berguna saat pelanggan kembali di-redirect dari halaman checkout Xendit)
-        if ($invoice->isMenungguPembayaran() && ! empty($invoice->xendit_invoice_id)) {
-            $paymentService->sinkronkanStatus($invoice);
+        // Sinkronisasi otomatis dengan payment gateway jika masih menunggu pembayaran
+        // (Sangat berguna saat pelanggan kembali di-redirect dari halaman checkout gateway)
+        if ($invoice->isMenungguPembayaran() && (! empty($invoice->payment_gateway_id) || ! empty($invoice->xendit_invoice_id))) {
+            $paymentManager->sinkronkanStatus($invoice);
             $invoice->refresh();
         }
 
@@ -45,10 +45,10 @@ class Show extends Component
     /**
      * Cek dan sinkronisasikan status pembayaran terbaru dari gateway.
      */
-    public function sinkronkanStatus(XenditPaymentService $paymentService): void
+    public function sinkronkanStatus(PaymentGatewayManager $paymentManager): void
     {
         try {
-            $paymentService->sinkronkanStatus($this->invoice);
+            $paymentManager->sinkronkanStatus($this->invoice);
             $this->invoice->refresh();
 
             if ($this->invoice->isLunas()) {
@@ -62,9 +62,9 @@ class Show extends Component
     }
 
     /**
-     * Arahkan pelanggan ke link hosted payment page Xendit.
+     * Arahkan pelanggan ke tautan hosted payment page resmi payment gateway.
      */
-    public function bayar(XenditPaymentService $paymentService): mixed
+    public function bayar(PaymentGatewayManager $paymentManager): mixed
     {
         $this->invoice->refresh();
 
@@ -75,8 +75,8 @@ class Show extends Component
         }
 
         // Cek sinkronisasi terlebih dahulu jika sudah dibayar di tab/jendela lain
-        if (! empty($this->invoice->xendit_invoice_id)) {
-            $paymentService->sinkronkanStatus($this->invoice);
+        if (! empty($this->invoice->payment_gateway_id) || ! empty($this->invoice->xendit_invoice_id)) {
+            $paymentManager->sinkronkanStatus($this->invoice);
             $this->invoice->refresh();
 
             if ($this->invoice->isLunas()) {
@@ -87,17 +87,19 @@ class Show extends Component
         }
 
         try {
-            // Jika belum memiliki link Xendit aktif atau sudah expired, generate baru
-            if (! $this->invoice->hasActiveXenditInvoice()) {
-                $paymentService->buatInvoice($this->invoice, forceRegenerate: true);
+            // Jika belum memiliki link payment gateway aktif atau sudah expired, generate baru
+            if (! $this->invoice->hasActivePaymentLink()) {
+                $paymentManager->buatPaymentLink($this->invoice, forceRegenerate: true);
                 $this->invoice->refresh();
             }
 
-            if (! empty($this->invoice->xendit_invoice_url)) {
-                return redirect()->away($this->invoice->xendit_invoice_url);
+            $paymentUrl = $this->invoice->payment_gateway_url ?: $this->invoice->xendit_invoice_url;
+
+            if (! empty($paymentUrl)) {
+                return redirect()->away($paymentUrl);
             }
 
-            Flux::toast(variant: 'danger', text: 'Gagal memuat link pembayaran Xendit.');
+            Flux::toast(variant: 'danger', text: 'Gagal memuat tautan pembayaran gateway.');
         } catch (Exception $e) {
             Flux::toast(variant: 'danger', text: 'Gagal memproses pembayaran: '.$e->getMessage());
         }

@@ -106,8 +106,8 @@ Entitas cluster, perumahan, atau kawasan pemukiman spesifik titik pemasangan ins
 _Avoid_: Residential, Cluster, Komplek
 
 **Invoice**:
-Dokumen tagihan pembayaran resmi atas layanan internet pelanggan dengan format penomoran `INV-YYYYMM-NNNNNN`.
-_Avoid_: Tagihan Bebas, Kuitansi (sebelum dibayar), Bill
+Dokumen tagihan pembayaran resmi atas layanan internet pelanggan dengan format penomoran yang menyertakan No. Registrasi pelanggan: `INV-[No.Reg]-[YYYYMM]-[Counter]` (contoh: `INV-BF2309202601-202608-01`).
+_Avoid_: Tagihan Bebas, Kuitansi (sebelum dibayar), Bill, Invoice Tanpa No Reg
 
 **Periode Tagihan**:
 Identitas siklus bulan penagihan layanan (format `YYYY-MM`) yang memetakan kewajiban bayar langganan untuk satu siklus masa aktif dan menjamin batas 1 tagihan per layanan per siklus.
@@ -134,16 +134,28 @@ Entitas kredensial autentikasi pengguna portal (guard `pelanggan`) yang terikat 
 _Avoid_: User Pelanggan, Akun Web Bebas
 
 **Transaksi Payment Gateway**:
-Catatan transaksi penerbitan tagihan digital (Xendit Hosted Invoice) ke payment gateway dengan identitas `external_id` unik untuk penjaminan idempotensi dan riwayat sesi pembayaran.
-_Avoid_: Billing Gateway, Tagihan Xendit, Order ID Bebas
+Catatan transaksi penerbitan tagihan digital ke payment gateway (seperti Xendit, iPaymu) dengan identitas `external_id` unik untuk penjaminan idempotensi dan riwayat sesi pembayaran.
+_Avoid_: Billing Gateway, Tagihan Xendit Saja, Order ID Bebas
 
 **Link Pembayaran Gateway**:
-Tautan resmi sesi pembayaran terkelola Xendit (`xendit_invoice_url`) yang memuat pilihan metode bayar (VA, QRIS, e-wallet, dsb) secara langsung di halaman hosted Xendit.
-_Avoid_: Custom Checkout URL, Link Bayar Bebas
+Tautan resmi sesi pembayaran terkelola dari payment gateway aktif (`payment_gateway_url`) yang memuat pilihan metode bayar secara langsung di halaman hosted gateway tanpa form custom internal.
+_Avoid_: Custom Checkout URL, Link Bayar Bebas, Xendit URL Saja
 
 **Log Webhook**:
-Catatan audit trail penerimaan callback HTTP dari payment gateway Xendit untuk mencatat event id, payload mentah, status verifikasi token, dan proses eksekusi database.
-_Avoid_: Callback History, Webhook Record
+Catatan audit trail penerimaan callback HTTP dari payment gateway untuk mencatat event id, payload mentah, status verifikasi signature/token, dan proses eksekusi database.
+_Avoid_: Callback History, Webhook Record, Xendit Webhook Saja
+
+**Koneksi Payment Gateway**:
+Entitas konfigurasi akun penyedia gateway pembayaran (seperti Xendit, iPaymu) yang memuat kredensial terenkripsi di database, status aktif, mode sandbox, dan penanda default gateway.
+_Avoid_: Akun Gateway Bebas, Setting Gateway Statis, Env Gateway
+
+**Driver Payment Gateway**:
+Komponen adapter perangkat lunak yang mengimplementasikan protokol komunikasi API dan verifikasi signature spesifik dari masing-masing penyedia gateway (seperti `XenditDriver`, `IpaymuDriver`).
+_Avoid_: Payment Plugin, Modul Bayar Bebas
+
+**Biaya Admin Gateway**:
+Biaya pemrosesan transaksi dari penyedia payment gateway (default riset: VA Rp 4.000, QRIS 0.70%) yang secara default dibebankan kepada pelanggan (`bebankan_ke_pelanggan: true`) dengan penambahan nominal tagihan (Xendit `fees`) atau direct charge gateway (iPaymu `feeDirection: 'BUYER'`).
+_Avoid_: Biaya Tambahan Bebas, Hidden Fee, Potongan ISP Saja
 
 **Impersonasi**:
 Aksi staf dengan peran `super_admin` untuk masuk sementara (*login as*) ke sesi pengguna staf lain atau akun portal pelanggan tanpa membutuhkan kata sandi untuk tujuan *troubleshooting*, audit hak akses, dan verifikasi tampilan portal secara *real-time*.

@@ -76,7 +76,7 @@ test('admin can create manual invoice with correct auto-number sequence', functi
 
     $invoice = Invoice::where('pelanggan_id', $this->pelanggan->id)->first();
     expect($invoice)->not->toBeNull()
-        ->and($invoice->no_invoice)->toMatch('/^INV-\d{6}-\d{6}$/')
+        ->and($invoice->no_invoice)->toBe("INV-{$this->pelanggan->no_reg}-".str_replace('-', '', $invoice->periode_tagihan).'-01')
         ->and((float) $invoice->jumlah)->toBe(300000.0)
         ->and((float) $invoice->jumlah_setelah_promo)->toBe(300000.0)
         ->and($invoice->status)->toBe(StatusInvoice::MenungguPembayaran);

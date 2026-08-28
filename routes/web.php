@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\MapMarkerController;
 use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\PelangganMediaController;
+use App\Http\Controllers\Webhook\PaymentWebhookController;
 use App\Http\Controllers\Webhook\WablasWebhookController;
 use App\Http\Controllers\Webhook\XenditWebhookController;
 use App\Livewire\Invoice;
@@ -325,7 +326,10 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
-// ─── Webhook Xendit (Public & CSRF-Exempt, Protected with xendit.token) ──
+// ─── Webhook Payment Gateways (Public & CSRF-Exempt) ─────────────
+Route::post('/webhook/payment/{gateway}', [PaymentWebhookController::class, 'handle'])->name('webhook.payment');
+
+// ─── Webhook Xendit Legacy Aliases (Protected with xendit.token) ──
 Route::middleware('xendit.token')->group(function () {
     Route::post('/webhook/xendit', [XenditWebhookController::class, 'handle'])->name('webhook.xendit');
     Route::post('/webhook/xendit/virtual-account', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.va');
