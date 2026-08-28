@@ -47,6 +47,15 @@
             <flux:card class="p-5 space-y-3">
                 <p class="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Deskripsi Keluhan</p>
                 <p class="text-sm text-zinc-800 dark:text-zinc-200 whitespace-pre-wrap">{{ $ticket->deskripsi }}</p>
+
+                @if($ticket->getFirstMedia('foto_kendala'))
+                    <div class="pt-2">
+                        <span class="text-xs font-medium text-zinc-500 block mb-1">Lampiran Foto:</span>
+                        <a href="{{ $ticket->getFirstMediaUrl('foto_kendala') }}" target="_blank" class="inline-block">
+                            <img src="{{ $ticket->getFirstMediaUrl('foto_kendala') }}" alt="Foto Kendala" class="h-28 w-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-sm" />
+                        </a>
+                    </div>
+                @endif
             </flux:card>
 
             {{-- Histori Tiket --}}
@@ -73,6 +82,13 @@
                                     </div>
                                     @if($h->catatan)
                                         <p class="text-sm text-zinc-600 dark:text-zinc-400">{{ $h->catatan }}</p>
+                                    @endif
+                                    @if($h->getFirstMedia('foto_pengerjaan'))
+                                        <div class="pt-1">
+                                            <a href="{{ $h->getFirstMediaUrl('foto_pengerjaan') }}" target="_blank" class="inline-block">
+                                                <img src="{{ $h->getFirstMediaUrl('foto_pengerjaan') }}" alt="Bukti Pengerjaan" class="h-24 w-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-sm" />
+                                            </a>
+                                        </div>
                                     @endif
                                 </div>
                             </div>

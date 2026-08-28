@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
             PelangganSeeder::class,
             TicketSeeder::class,
             PerusahaanSeeder::class,
+            WaTemplateSeeder::class,
+            AturanPengingatTagihanSeeder::class,
         ]);
     }
 }

@@ -12,9 +12,11 @@ use App\Models\TicketHistori;
 use App\Models\User;
 use App\Notifications\TicketStatusBerubahNotification;
 use App\Notifications\TicketStatusBerubahPelangganNotification;
+use App\Services\Wablas\WablasService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 class UbahStatusTicketAction
@@ -123,6 +125,24 @@ class UbahStatusTicketAction
                     statusBaru: $statusBaru,
                     catatan: $catatan,
                 ));
+            }
+        }
+
+        // Notifikasi WhatsApp ke Pelanggan via WABLAS
+        if ($ticket->pelanggan && ! empty($ticket->pelanggan->no_hp)) {
+            try {
+                /** @var WablasService $wablasService */
+                $wablasService = app(WablasService::class);
+                $params = $wablasService->buildTicketParams($ticket, $catatan);
+                $wablasService->antrikanPesan(
+                    noHp: $ticket->pelanggan->no_hp,
+                    kodeTemplate: 'tiket_status_update',
+                    params: $params,
+                    referensi: $ticket,
+                    jenis: "tiket_status_{$statusBaru->value}_{$ticket->histori()->count()}"
+                );
+            } catch (\Throwable $e) {
+                Log::error('Gagal mengantrikan WA update tiket: '.$e->getMessage());
             }
         }
     }

@@ -103,6 +103,13 @@ return [
                     'active' => 'laporan.*',
                     'permission' => 'laporan.lihat',
                 ],
+                [
+                    'title' => 'Aturan Pengingat',
+                    'icon' => 'bell-alert',
+                    'route' => 'billing.aturan-pengingat.index',
+                    'active' => 'billing.aturan-pengingat.*',
+                    'permission' => 'invoice.lihat',
+                ],
             ],
         ],
         [

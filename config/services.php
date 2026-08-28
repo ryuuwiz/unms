@@ -41,4 +41,11 @@ return [
         'env' => env('XENDIT_ENV', 'development'),
     ],
 
+    'wablas' => [
+        'number' => env('WABLAS_NUMBER', ''),
+        'host' => rtrim((string) env('WABLAS_HOST', 'https://tegal.wablas.com'), '/'),
+        'token' => env('WABLAS_TOKEN', ''),
+        'secret' => env('WABLAS_SECRET', ''),
+    ],
+
 ];

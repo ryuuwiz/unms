@@ -21,6 +21,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * @property int $id
@@ -62,10 +64,10 @@ use Spatie\Activitylog\Support\LogOptions;
     'dijadwalkan_pada',
     'dibuat_oleh',
 ])]
-class Ticket extends Model
+class Ticket extends Model implements HasMedia
 {
     /** @use HasFactory<TicketFactory> */
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, InteractsWithMedia, LogsActivity, SoftDeletes;
 
     protected $table = 'ticket';
 

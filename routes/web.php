@@ -28,6 +28,7 @@ use App\Livewire\Promo;
 use App\Livewire\Roles;
 use App\Livewire\Router;
 use App\Livewire\Settings\PengaturanGateway;
+use App\Livewire\Settings\WhatsappSettings;
 use App\Livewire\Ticket;
 use App\Livewire\Users;
 use App\Livewire\Wilayah;
@@ -175,9 +176,17 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-    // ─── Pengaturan Gateway ───────────────────────────────────────
+    // ─── Pengaturan Gateway & WhatsApp ────────────────────────────
     Route::middleware('permission:peran.lihat')->group(function () {
         Route::get('/settings/gateway', PengaturanGateway::class)->name('settings.gateway');
+        Route::get('/settings/whatsapp', WhatsappSettings::class)->name('settings.whatsapp');
+    });
+
+    // ─── Aturan Pengingat Tagihan ─────────────────────────────────
+    Route::prefix('billing/aturan-pengingat')->name('billing.aturan-pengingat.')->group(function () {
+        Route::middleware('permission:invoice.lihat')->group(function () {
+            Route::get('/', App\Livewire\Billing\AturanPengingat\Index::class)->name('index');
+        });
     });
 
     // ─── Promo & Diskon ───────────────────────────────────────────

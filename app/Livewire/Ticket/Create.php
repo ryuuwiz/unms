@@ -13,20 +13,26 @@ use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
 use App\Notifications\TicketDiassignNotification;
+use App\Services\Wablas\WablasService;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Buat Tiket Baru')]
 class Create extends Component
 {
+    use WithFileUploads;
+
     public string $jenis = 'pemasangan';
 
     public ?int $pelanggan_id = null;
@@ -43,6 +49,9 @@ class Create extends Component
     public string $dijadwalkan_pada = '';
 
     public string $deskripsi = '';
+
+    /** @var mixed */
+    public $fotoKendala = null;
 
     public function mount(): void
     {
@@ -100,15 +109,22 @@ class Create extends Component
             'pic_id' => ['nullable', 'integer', 'exists:users,id'],
             'dijadwalkan_pada' => ['nullable', 'date'],
             'deskripsi' => ['required', 'string', 'min:5', 'max:3000'],
+            'fotoKendala' => ['nullable', 'image', 'max:5120'],
         ], [
             'pelanggan_id.required' => 'Pelanggan / Prospek wajib dipilih.',
             'divisis.required' => 'Minimal satu divisi harus dipilih.',
             'divisis.min' => 'Minimal satu divisi harus dipilih.',
             'deskripsi.required' => 'Deskripsi tiket wajib diisi.',
             'deskripsi.min' => 'Deskripsi tiket minimal 5 karakter.',
+            'fotoKendala.image' => 'Lampiran foto harus berupa format gambar (jpg, png, webp).',
+            'fotoKendala.max' => 'Ukuran foto maksimal 5 MB.',
         ]);
 
-        $ticket = DB::transaction(function () {
+        $authUserId = Auth::id();
+        /** @var User $authUser */
+        $authUser = Auth::user();
+
+        $ticket = DB::transaction(function () use ($authUserId) {
             $ticket = Ticket::create([
                 'jenis' => $this->jenis,
                 'pelanggan_id' => $this->pelanggan_id,
@@ -119,7 +135,7 @@ class Create extends Component
                 'sumber' => SumberTicket::Manual,
                 'deskripsi' => trim($this->deskripsi),
                 'dijadwalkan_pada' => $this->dijadwalkan_pada ? Carbon::parse($this->dijadwalkan_pada) : null,
-                'dibuat_oleh' => auth()->id(),
+                'dibuat_oleh' => $authUserId,
             ]);
 
             // Sync divisi ke pivot
@@ -131,18 +147,65 @@ class Create extends Component
                 'status_lama' => null,
                 'status_baru' => StatusTicket::Baru,
                 'catatan' => 'Tiket baru dibuat.'.($this->pic_id ? ' PIC ditugaskan pada saat pembuatan.' : ''),
-                'oleh_pengguna_id' => auth()->id(),
+                'oleh_pengguna_id' => $authUserId,
             ]);
 
             return $ticket;
         });
 
+        // Simpan lampiran media foto jika diunggah
+        if ($this->fotoKendala) {
+            try {
+                $ticket->addMedia($this->fotoKendala->getRealPath())
+                    ->usingFileName($this->fotoKendala->getClientOriginalName())
+                    ->toMediaCollection('foto_kendala');
+            } catch (\Throwable $e) {
+                Log::error('Gagal menyimpan foto kendala tiket: '.$e->getMessage());
+            }
+        }
+
         // Kirim notifikasi ke PIC jika ditugaskan
-        if ($ticket->pic_id && $ticket->pic_id !== auth()->id() && $ticket->pic) {
+        if ($ticket->pic_id && $ticket->pic_id !== $authUserId && $ticket->pic) {
             $ticket->pic->notify(new TicketDiassignNotification(
                 ticket: $ticket,
-                assignedBy: auth()->user(),
+                assignedBy: $authUser,
             ));
+
+            if (! empty($ticket->pic->phone)) {
+                try {
+                    /** @var WablasService $wablasService */
+                    $wablasService = app(WablasService::class);
+                    $params = $wablasService->buildTicketParams($ticket);
+                    $wablasService->antrikanPesan(
+                        noHp: $ticket->pic->phone,
+                        kodeTemplate: 'tiket_penugasan_teknisi',
+                        params: $params,
+                        referensi: $ticket,
+                        jenis: 'tiket_assign_pic_create'
+                    );
+                } catch (\Throwable $e) {
+                    Log::error('Gagal kirim WA penugasan teknisi: '.$e->getMessage());
+                }
+            }
+        }
+
+        // Kirim konfirmasi WhatsApp ke Pelanggan
+        $pelanggan = $ticket->pelanggan;
+        if ($pelanggan && ! empty($pelanggan->no_hp)) {
+            try {
+                /** @var WablasService $wablasService */
+                $wablasService = app(WablasService::class);
+                $params = $wablasService->buildTicketParams($ticket);
+                $wablasService->antrikanPesan(
+                    noHp: $pelanggan->no_hp,
+                    kodeTemplate: 'tiket_dibuat',
+                    params: $params,
+                    referensi: $ticket,
+                    jenis: 'tiket_dibuat'
+                );
+            } catch (\Throwable $e) {
+                Log::error('Gagal kirim WA tiket dibuat ke pelanggan: '.$e->getMessage());
+            }
         }
 
         Flux::toast(variant: 'success', text: "Tiket {$ticket->nomor_ticket} berhasil dibuat.");

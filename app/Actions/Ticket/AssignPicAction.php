@@ -6,9 +6,11 @@ use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
 use App\Notifications\TicketDiassignNotification;
+use App\Services\Wablas\WablasService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 
 class AssignPicAction
 {
@@ -53,6 +55,24 @@ class AssignPicAction
                 ticket: $ticket,
                 assignedBy: $actor,
             ));
+        }
+
+        // Kirim WhatsApp disposisi ke teknisi jika memiliki nomor HP
+        if ($pic && ! empty($pic->phone)) {
+            try {
+                /** @var WablasService $wablasService */
+                $wablasService = app(WablasService::class);
+                $params = $wablasService->buildTicketParams($ticket, $catatan);
+                $wablasService->antrikanPesan(
+                    noHp: $pic->phone,
+                    kodeTemplate: 'tiket_penugasan_teknisi',
+                    params: $params,
+                    referensi: $ticket,
+                    jenis: "tiket_assign_pic_{$pic->id}_{$ticket->histori()->count()}"
+                );
+            } catch (\Throwable $e) {
+                Log::error('Gagal mengantrikan WA penugasan PIC: '.$e->getMessage());
+            }
         }
 
         return $ticket->refresh()->load(['histori.olehPengguna', 'pic', 'dibuatOleh']);

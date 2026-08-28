@@ -164,6 +164,15 @@
             <div class="p-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg text-sm text-zinc-800 dark:text-zinc-200 leading-relaxed whitespace-pre-wrap">
                 {{ $ticket->deskripsi }}
             </div>
+
+            @if($ticket->getFirstMedia('foto_kendala'))
+                <div class="pt-2">
+                    <span class="text-xs font-semibold text-zinc-600 dark:text-zinc-400 block mb-2">Lampiran Foto Kendala:</span>
+                    <a href="{{ $ticket->getFirstMediaUrl('foto_kendala') }}" target="_blank" class="inline-block group">
+                        <img src="{{ $ticket->getFirstMediaUrl('foto_kendala') }}" alt="Foto Kendala" class="h-32 w-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-sm group-hover:opacity-90 transition-opacity" />
+                    </a>
+                </div>
+            @endif
         </div>
 
         <!-- 3. Grid 3 Kartu Informasi: Pelanggan, Layanan, Tim/Sales -->
@@ -445,6 +454,16 @@
                                     {{ $hist->catatan }}
                                 </div>
                             @endif
+
+                            <!-- Foto Bukti Pengerjaan -->
+                            @if($hist->getFirstMedia('foto_pengerjaan'))
+                                <div class="pt-1">
+                                    <span class="text-xs font-medium text-zinc-500 block mb-1">Bukti Foto / Pengerjaan:</span>
+                                    <a href="{{ $hist->getFirstMediaUrl('foto_pengerjaan') }}" target="_blank" class="inline-block group">
+                                        <img src="{{ $hist->getFirstMediaUrl('foto_pengerjaan') }}" alt="Bukti Pengerjaan" class="h-28 w-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 group-hover:opacity-90 shadow-sm" />
+                                    </a>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @empty
@@ -552,6 +571,27 @@
                     required
                 />
                 @error('catatanProses') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
+            </div>
+
+            <div>
+                <flux:field>
+                    <flux:label>Foto Bukti Pengerjaan (Opsional)</flux:label>
+                    <input
+                        type="file"
+                        wire:model="fotoPengerjaan"
+                        accept="image/png, image/jpeg, image/webp"
+                        class="block w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-zinc-700 dark:file:text-zinc-200"
+                    />
+                    <flux:description>Foto hasil instalasi, redaman OPM, atau router terpasang.</flux:description>
+                    <flux:error name="fotoPengerjaan" />
+                </flux:field>
+
+                @if ($fotoPengerjaan)
+                    <div class="mt-2 flex items-center gap-3 p-2 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs">
+                        <span class="text-emerald-600 font-medium">✓ Foto terpilih:</span>
+                        <span class="text-zinc-600 dark:text-zinc-300 truncate">{{ $fotoPengerjaan->getClientOriginalName() }}</span>
+                    </div>
+                @endif
             </div>
 
             <div>

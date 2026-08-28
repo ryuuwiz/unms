@@ -17,3 +17,7 @@ Schedule::command('mikrotik:recover-ppp')
 
 Schedule::command('xendit:cek-va-expired')->hourly();
 Schedule::command('mikrotik:ping')->everyTwentySeconds();
+
+// Pengingat Tagihan WhatsApp Otomatis (Setiap jam memeriksa aturan aktif)
+Schedule::command('invoice:kirim-pengingat')->hourly();
+Schedule::command('wa:proses-antrian')->everyFiveMinutes();

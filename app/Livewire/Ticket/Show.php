@@ -8,18 +8,24 @@ use App\Enums\Ticket\StatusTicket;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
+use App\Services\Wablas\WablasService;
 use Exception;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Detail Tiket')]
 class Show extends Component
 {
+    use WithFileUploads;
+
     public Ticket $ticket;
 
     // State Modal Ubah Status
@@ -43,6 +49,9 @@ class Show extends Component
 
     public bool $catatanIsInternal = false;
 
+    /** @var mixed */
+    public $fotoPengerjaan = null;
+
     public function mount(Ticket $ticket): void
     {
         $this->authorize('view', $ticket);
@@ -62,6 +71,7 @@ class Show extends Component
             'dibuatOleh',
             'divisis',
             'histori.olehPengguna',
+            'media',
         ]);
     }
 
@@ -88,10 +98,12 @@ class Show extends Component
         }
 
         try {
+            /** @var User $actor */
+            $actor = Auth::user();
             $action->execute(
                 ticket: $this->ticket,
                 statusBaru: $statusBaruEnum,
-                actor: auth()->user(),
+                actor: $actor,
                 catatan: $this->catatanStatus ?: null,
             );
 
@@ -120,10 +132,12 @@ class Show extends Component
         $newPic = $this->selectedPicId ? User::find($this->selectedPicId) : null;
 
         try {
+            /** @var User $actor */
+            $actor = Auth::user();
             $action->execute(
                 ticket: $this->ticket,
                 pic: $newPic,
-                actor: auth()->user(),
+                actor: $actor,
                 catatan: $this->catatanAssign ?: null,
             );
 
@@ -140,6 +154,7 @@ class Show extends Component
     {
         $this->catatanProses = '';
         $this->catatanIsInternal = false;
+        $this->fotoPengerjaan = null;
         $this->showCatatanModal = true;
     }
 
@@ -147,18 +162,49 @@ class Show extends Component
     {
         $this->validate([
             'catatanProses' => ['required', 'string', 'min:3', 'max:1000'],
+            'fotoPengerjaan' => ['nullable', 'image', 'max:5120'],
         ], [
             'catatanProses.required' => 'Catatan proses penanganan wajib diisi.',
+            'fotoPengerjaan.image' => 'Bukti pengerjaan harus berupa berkas gambar (jpg, png, webp).',
+            'fotoPengerjaan.max' => 'Ukuran foto maksimal 5 MB.',
         ]);
 
-        TicketHistori::create([
+        $histori = TicketHistori::create([
             'ticket_id' => $this->ticket->id,
             'status_lama' => $this->ticket->status,
             'status_baru' => $this->ticket->status,
             'catatan' => trim($this->catatanProses),
             'is_internal' => $this->catatanIsInternal,
-            'oleh_pengguna_id' => auth()->id(),
+            'oleh_pengguna_id' => Auth::id(),
         ]);
+
+        if ($this->fotoPengerjaan) {
+            try {
+                $histori->addMedia($this->fotoPengerjaan->getRealPath())
+                    ->usingFileName($this->fotoPengerjaan->getClientOriginalName())
+                    ->toMediaCollection('foto_pengerjaan');
+            } catch (\Throwable $e) {
+                Log::error('Gagal menyimpan foto pengerjaan: '.$e->getMessage());
+            }
+        }
+
+        // Jika catatan publik, kirim notifikasi WhatsApp ke Pelanggan
+        if (! $this->catatanIsInternal && $this->ticket->pelanggan && ! empty($this->ticket->pelanggan->no_hp)) {
+            try {
+                /** @var WablasService $wablasService */
+                $wablasService = app(WablasService::class);
+                $params = $wablasService->buildTicketParams($this->ticket, trim($this->catatanProses));
+                $wablasService->antrikanPesan(
+                    noHp: $this->ticket->pelanggan->no_hp,
+                    kodeTemplate: 'tiket_status_update',
+                    params: $params,
+                    referensi: $this->ticket,
+                    jenis: "tiket_catatan_{$histori->id}"
+                );
+            } catch (\Throwable $e) {
+                Log::error('Gagal kirim WA catatan baru: '.$e->getMessage());
+            }
+        }
 
         Flux::toast(variant: 'success', text: 'Catatan proses penanganan berhasil ditambahkan.');
         $this->showCatatanModal = false;

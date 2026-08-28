@@ -7,6 +7,7 @@
             @if(auth()->user()?->hasRole('super_admin'))
                 <flux:navlist.item :href="route('settings.perusahaan')" wire:navigate>{{ __('Perusahaan') }}</flux:navlist.item>
                 <flux:navlist.item :href="route('settings.gateway')" wire:navigate>{{ __('Payment Gateway') }}</flux:navlist.item>
+                <flux:navlist.item :href="route('settings.whatsapp')" wire:navigate>{{ __('WhatsApp Gateway') }}</flux:navlist.item>
             @endif
         </flux:navlist>
     </div>

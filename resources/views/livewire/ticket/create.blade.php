@@ -137,6 +137,28 @@
                     />
                     @error('deskripsi') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
                 </div>
+
+                <!-- Upload Foto Kendala / Lokasi -->
+                <div>
+                    <flux:field>
+                        <flux:label>Foto Kendala / Lokasi (Opsional)</flux:label>
+                        <input
+                            type="file"
+                            wire:model="fotoKendala"
+                            accept="image/png, image/jpeg, image/webp"
+                            class="block w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 dark:file:bg-zinc-700 dark:file:text-zinc-200"
+                        />
+                        <flux:description>Format: JPG, PNG, WEBP. Maksimal 5 MB.</flux:description>
+                        <flux:error name="fotoKendala" />
+                    </flux:field>
+
+                    @if ($fotoKendala)
+                        <div class="mt-2 flex items-center gap-3 p-2 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs">
+                            <span class="text-emerald-600 font-medium">✓ Foto terpilih:</span>
+                            <span class="text-zinc-600 dark:text-zinc-300 truncate">{{ $fotoKendala->getClientOriginalName() }}</span>
+                        </div>
+                    @endif
+                </div>
             </div>
         </div>
 

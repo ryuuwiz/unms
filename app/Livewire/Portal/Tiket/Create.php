@@ -13,25 +13,33 @@ use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
 use App\Notifications\TicketBaruDariPortalNotification;
+use App\Services\Wablas\WablasService;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.portal')]
 #[Title('Ajukan Tiket Baru')]
 class Create extends Component
 {
+    use WithFileUploads;
+
     public string $jenis = 'gangguan';
 
     public ?int $layanan_pelanggan_id = null;
 
     public string $deskripsi = '';
+
+    /** @var mixed */
+    public $fotoKendala = null;
 
     /** Konfirmasi khusus untuk jenis Pencabutan */
     public bool $showKonfirmasiPencabutan = false;
@@ -82,10 +90,13 @@ class Create extends Component
             'jenis' => ['required', 'in:gangguan,pencabutan,pindah_alamat'],
             'layanan_pelanggan_id' => ['required', 'integer', 'exists:layanan_pelanggan,id'],
             'deskripsi' => ['required', 'string', 'min:5', 'max:3000'],
+            'fotoKendala' => ['nullable', 'image', 'max:5120'],
         ], [
             'layanan_pelanggan_id.required' => 'Layanan wajib dipilih.',
             'deskripsi.required' => 'Deskripsi keluhan wajib diisi.',
             'deskripsi.min' => 'Deskripsi minimal 5 karakter.',
+            'fotoKendala.image' => 'Lampiran foto harus berupa format gambar (jpg, png, webp).',
+            'fotoKendala.max' => 'Ukuran foto maksimal 5 MB.',
         ]);
 
         // Pastikan layanan milik pelanggan yang login
@@ -125,9 +136,39 @@ class Create extends Component
             return $ticket;
         });
 
+        // Simpan foto kendala jika diunggah
+        if ($this->fotoKendala) {
+            try {
+                $ticket->addMedia($this->fotoKendala->getRealPath())
+                    ->usingFileName($this->fotoKendala->getClientOriginalName())
+                    ->toMediaCollection('foto_kendala');
+            } catch (\Throwable $e) {
+                Log::error('Gagal simpan foto kendala portal: '.$e->getMessage());
+            }
+        }
+
         // Notifikasi ke semua staf dengan permission ticket.lihat
         $staffDenganAkses = User::permission('ticket.lihat')->get();
         Notification::send($staffDenganAkses, new TicketBaruDariPortalNotification($ticket->load('pelanggan')));
+
+        // Kirim WhatsApp konfirmasi ke Pelanggan
+        $pelanggan = $ticket->pelanggan;
+        if ($pelanggan && ! empty($pelanggan->no_hp)) {
+            try {
+                /** @var WablasService $wablasService */
+                $wablasService = app(WablasService::class);
+                $params = $wablasService->buildTicketParams($ticket);
+                $wablasService->antrikanPesan(
+                    noHp: $pelanggan->no_hp,
+                    kodeTemplate: 'tiket_dibuat',
+                    params: $params,
+                    referensi: $ticket,
+                    jenis: 'tiket_dibuat_portal'
+                );
+            } catch (\Throwable $e) {
+                Log::error('Gagal kirim WA tiket portal ke pelanggan: '.$e->getMessage());
+            }
+        }
 
         Flux::toast(variant: 'success', text: "Tiket {$ticket->nomor_ticket} berhasil diajukan. Tim kami akan segera menindaklanjuti.");
 
