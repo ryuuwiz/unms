@@ -238,7 +238,8 @@ class IpaymuDriver extends AbstractPaymentDriver
         $status = $isPaid ? 'PAID' : ($isExpired ? 'EXPIRED' : $rawStatus);
         $externalId = (string) ($payload['reference_id'] ?? ($payload['referenceId'] ?? ''));
         $amount = (float) ($payload['total'] ?? ($payload['amount'] ?? 0));
-        $eventId = (string) ($payload['trx_id'] ?? ($payload['sid'] ?? null));
+        $rawEventId = $payload['trx_id'] ?? ($payload['sid'] ?? null);
+        $eventId = ! empty($rawEventId) ? trim((string) $rawEventId) : null;
 
         $via = strtolower((string) ($payload['via'] ?? ''));
         $channelDetail = (string) ($payload['channel'] ?? $via);

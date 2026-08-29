@@ -13,6 +13,7 @@ use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Xendit\BalanceAndTransaction\BalanceApi;
 use Xendit\Configuration;
@@ -211,21 +212,75 @@ class XenditDriver extends AbstractPaymentDriver
             ];
         }
 
+        // 1. Jika ID bertipe V3 Payment Request (pr-xxx / py-xxx), panggil endpoint V3
+        if (str_starts_with($xenditId, 'pr-') || str_starts_with($xenditId, 'py-') || str_starts_with($xenditId, 'pr_')) {
+            return $this->checkPaymentRequestV3Status($xenditId, $apiKey);
+        }
+
+        // 2. Coba periksa via Invoice API (V1/V2)
         try {
             $invoiceApi = $this->getInvoiceApi($apiKey);
             $response = $invoiceApi->getInvoiceById($xenditId);
 
             return json_decode((string) json_encode($response), true) ?: [];
         } catch (Exception $e) {
+            // Fallback coba periksa ke V3 Payment Requests API jika invoice ID tidak ditemukan
+            try {
+                $v3Result = $this->checkPaymentRequestV3Status($xenditId, $apiKey);
+                if (! empty($v3Result) && ! isset($v3Result['error'])) {
+                    return $v3Result;
+                }
+            } catch (Exception) {
+                // Abaikan error fallback
+            }
+
             Log::error("Gagal cek status invoice Xendit {$xenditId}: ".$e->getMessage());
 
             return ['error' => $e->getMessage()];
         }
     }
 
+    /**
+     * Cek status transaksi via Xendit V3 Payment Requests API (/v3/payment_requests/{id}).
+     *
+     * @return array<string, mixed>
+     */
+    public function checkPaymentRequestV3Status(string $paymentRequestId, string $apiKey): array
+    {
+        try {
+            $response = Http::withBasicAuth($apiKey, '')
+                ->withHeaders([
+                    'api-version' => '2024-05-01',
+                ])
+                ->timeout(20)
+                ->get("https://api.xendit.co/v3/payment_requests/{$paymentRequestId}");
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $rawStatus = strtoupper((string) ($data['status'] ?? ''));
+                $status = match ($rawStatus) {
+                    'SUCCEEDED', 'PAID', 'CAPTURED', 'SETTLED' => 'PAID',
+                    'FAILED', 'FAILURE', 'DECLINED' => 'FAILED',
+                    'EXPIRED', 'CANCELLED' => 'EXPIRED',
+                    default => 'PENDING',
+                };
+                $data['status'] = $status;
+                $data['raw_status'] = $rawStatus;
+                $data['paid_amount'] = (float) ($data['capture_amount'] ?? ($data['amount'] ?? 0));
+
+                return $data;
+            }
+
+            return ['error' => "HTTP {$response->status()}: {$response->body()}"];
+        } catch (Exception $e) {
+            return ['error' => $e->getMessage()];
+        }
+    }
+
     public function verifyWebhook(Request $request, PengaturanGateway $setting): bool
     {
-        $headerToken = $request->header('x-callback-token');
+        $headerToken = $request->header('x-callback-token')
+            ?: ($request->header('webhook-token') ?: $request->header('x-webhook-token'));
         $expectedToken = $this->getCallbackToken($setting);
 
         if (empty($expectedToken)) {
@@ -244,25 +299,131 @@ class XenditDriver extends AbstractPaymentDriver
     public function parseWebhookPayload(Request $request): PaymentCallbackData
     {
         $payload = $request->all();
-        $pm = strtoupper((string) ($payload['payment_method'] ?? ''));
+
+        // 1. Ekstrak Event Name (V3 format: 'event' e.g. 'payment.succeeded', 'payment_request.succeeded')
+        $eventName = strtolower(trim((string) ($payload['event'] ?? '')));
+
+        // 2. Tangani Payment Method baik berupa String (v1 / invoice) maupun Array/Object (v2 / v3 payment_requests)
+        $rawPm = $payload['payment_method'] ?? ($payload['data']['payment_method'] ?? ($payload['data']['type'] ?? ''));
+        $channelDetail = null;
+
+        if (is_array($rawPm)) {
+            $pmType = $rawPm['type'] ?? ($rawPm['payment_method_type'] ?? '');
+            $pm = is_string($pmType) ? strtoupper(trim($pmType)) : '';
+
+            $extractedChannel = $rawPm['ewallet']['channel_code']
+                ?? ($rawPm['virtual_account']['channel_code']
+                ?? ($rawPm['qr_code']['channel_code']
+                ?? ($rawPm['direct_debit']['channel_code']
+                ?? ($rawPm['over_the_counter']['channel_code']
+                ?? ($rawPm['card']['channel_properties']['card_brand'] ?? null)))));
+
+            if (is_string($extractedChannel)) {
+                $channelDetail = strtolower(trim($extractedChannel));
+            }
+        } elseif (is_string($rawPm)) {
+            $pm = strtoupper(trim($rawPm));
+        } else {
+            $pm = '';
+        }
+
+        if (empty($channelDetail)) {
+            $rawChannel = $payload['payment_channel']
+                ?? ($payload['data']['payment_channel']
+                ?? ($payload['data']['channel_code']
+                ?? ($payload['channel_code'] ?? null)));
+
+            if (is_string($rawChannel)) {
+                $channelDetail = strtolower(trim($rawChannel));
+            } elseif (is_array($rawChannel)) {
+                $channelDetail = strtolower((string) ($rawChannel['channel_code'] ?? ($rawChannel['code'] ?? '')));
+            }
+        }
 
         $channel = match ($pm) {
             'BANK_TRANSFER', 'VIRTUAL_ACCOUNT' => GatewayChannel::VirtualAccount,
-            'QR_CODE', 'QRIS' => GatewayChannel::Qris,
+            'QR_CODE', 'QRIS', 'QR' => GatewayChannel::Qris,
             'EWALLET', 'E_WALLET' => GatewayChannel::Ewallet,
-            'RETAIL_OUTLET' => GatewayChannel::RetailOutlet,
+            'RETAIL_OUTLET', 'OVER_THE_COUNTER' => GatewayChannel::RetailOutlet,
             default => GatewayChannel::Invoice,
         };
 
-        $externalId = (string) ($payload['external_id'] ?? '');
-        $status = strtoupper((string) ($payload['status'] ?? 'PENDING'));
-        $amount = (float) ($payload['paid_amount'] ?? ($payload['amount'] ?? 0));
-        $eventId = (string) ($payload['id'] ?? null);
-        $paidAt = (string) ($payload['paid_at'] ?? ($payload['updated'] ?? now()->toIso8601String()));
-        $channelDetail = isset($payload['payment_channel']) ? strtolower((string) $payload['payment_channel']) : null;
-        $paymentRef = (string) ($payload['payment_destination'] ?? ($payload['payment_id'] ?? ($payload['id'] ?? null)));
+        // 3. External / Reference ID
+        $rawExternalId = $payload['external_id']
+            ?? ($payload['data']['reference_id']
+            ?? ($payload['data']['external_id']
+            ?? ($payload['reference_id'] ?? '')));
+        $externalId = is_string($rawExternalId) ? trim($rawExternalId) : (is_numeric($rawExternalId) ? (string) $rawExternalId : '');
 
-        $isTestDummy = str_contains($externalId, '123124123') || str_contains($externalId, 'test-') || ($payload['is_test'] ?? false);
+        // 4. Normalisasi Status Transaksi dari Event V3 maupun status attribute
+        $rawStatus = $payload['status'] ?? ($payload['data']['status'] ?? '');
+        $statusStr = is_string($rawStatus) ? strtoupper(trim($rawStatus)) : '';
+
+        if (! empty($eventName)) {
+            $status = match (true) {
+                str_contains($eventName, 'succeeded'), str_contains($eventName, 'paid'), str_contains($eventName, 'capture'), str_contains($eventName, 'settled') => 'PAID',
+                str_contains($eventName, 'failure'), str_contains($eventName, 'failed'), str_contains($eventName, 'declined') => 'FAILED',
+                str_contains($eventName, 'expired'), str_contains($eventName, 'cancelled') => 'EXPIRED',
+                default => in_array($statusStr, ['SUCCEEDED', 'PAID', 'SETTLED', 'CAPTURED', 'BERHASIL'], true) ? 'PAID' : (in_array($statusStr, ['FAILED', 'FAILURE', 'DECLINED'], true) ? 'FAILED' : (in_array($statusStr, ['EXPIRED', 'CANCELLED'], true) ? 'EXPIRED' : 'PENDING')),
+            };
+        } else {
+            $status = match (true) {
+                in_array($statusStr, ['SUCCEEDED', 'PAID', 'SETTLED', 'CAPTURED', 'BERHASIL'], true) => 'PAID',
+                in_array($statusStr, ['FAILED', 'FAILURE', 'DECLINED', 'GAGAL'], true) => 'FAILED',
+                in_array($statusStr, ['EXPIRED', 'CANCELLED', 'KEDALUWARSA'], true) => 'EXPIRED',
+                default => 'PENDING',
+            };
+        }
+
+        // 5. Nominal Transaksi
+        $rawAmount = $payload['paid_amount']
+            ?? ($payload['amount']
+            ?? ($payload['data']['capture_amount']
+            ?? ($payload['data']['amount'] ?? 0)));
+        $amount = is_numeric($rawAmount) ? (float) $rawAmount : 0.0;
+
+        // 6. Identifier Event / Payment Request ID / Payment ID
+        $rawEventId = $payload['id']
+            ?? ($payload['data']['id'] ?? null)
+            ?? ($payload['data']['payment_request_id'] ?? null)
+            ?? ($payload['data']['payment_id'] ?? null)
+            ?? ($payload['payment_id'] ?? null)
+            ?? ($payload['event_id'] ?? null)
+            ?? ($payload['callback_virtual_account_id'] ?? null)
+            ?? ($payload['qr_id'] ?? null);
+
+        $eventId = (is_string($rawEventId) || is_numeric($rawEventId)) && ! empty($rawEventId) ? trim((string) $rawEventId) : null;
+
+        // 7. Waktu Pembayaran / Update
+        $rawPaidAt = $payload['paid_at']
+            ?? ($payload['updated']
+            ?? ($payload['data']['updated']
+            ?? ($payload['created']
+            ?? ($payload['data']['created'] ?? null))));
+        $paidAt = is_string($rawPaidAt) ? $rawPaidAt : now()->toIso8601String();
+
+        // 8. Payment Reference (URL redirect actions / VA / QR / ID)
+        $paymentRef = null;
+        if (isset($payload['data']['actions']) && is_array($payload['data']['actions'])) {
+            foreach ($payload['data']['actions'] as $action) {
+                if (isset($action['url']) && is_string($action['url'])) {
+                    $paymentRef = $action['url'];
+                    break;
+                }
+            }
+        }
+        if (empty($paymentRef)) {
+            $rawPaymentRef = $payload['payment_destination']
+                ?? ($payload['payment_id']
+                ?? ($payload['id']
+                ?? ($payload['data']['id'] ?? null)));
+            $paymentRef = (is_string($rawPaymentRef) || is_numeric($rawPaymentRef)) ? (string) $rawPaymentRef : null;
+        }
+
+        $isTestDummy = str_contains($externalId, '123124123')
+            || str_contains($externalId, 'test-')
+            || ($payload['is_test'] ?? false)
+            || ($payload['data']['is_test'] ?? false);
 
         return new PaymentCallbackData(
             provider: 'xendit',

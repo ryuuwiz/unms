@@ -41,11 +41,17 @@ class WebhookLog extends Model
 
     protected $table = 'webhook_log';
 
+    public function setProviderEventIdAttribute(?string $value): void
+    {
+        $this->attributes['provider_event_id'] = ! empty($value) ? trim($value) : null;
+    }
+
     public function setXenditEventIdAttribute(?string $value): void
     {
-        $this->attributes['xendit_event_id'] = $value;
+        $val = ! empty($value) ? trim($value) : null;
+        $this->attributes['xendit_event_id'] = $val;
         if (empty($this->attributes['provider_event_id'])) {
-            $this->attributes['provider_event_id'] = $value;
+            $this->attributes['provider_event_id'] = $val;
         }
     }
 

@@ -91,12 +91,15 @@ class PaymentWebhookController extends Controller
         }
 
         // 5. Catat Webhook Log dengan status awal diterima dan relasi transaksi
+        $eventType = ! empty($payload['event']) ? (string) $payload['event'] : "payment.{$gateway}";
+        $eventId = ! empty($callbackData->eventId) ? $callbackData->eventId : null;
+
         $webhookLog = WebhookLog::create([
             'provider' => $gateway,
             'transaksi_payment_gateway_id' => $transaksi?->id,
-            'event_type' => "payment.{$gateway}",
-            'provider_event_id' => $callbackData->eventId,
-            'xendit_event_id' => $callbackData->eventId,
+            'event_type' => $eventType,
+            'provider_event_id' => $eventId,
+            'xendit_event_id' => $eventId,
             'payload' => $payload,
             'status_proses' => StatusWebhookLog::Diterima,
             'diterima_pada' => Carbon::now(),

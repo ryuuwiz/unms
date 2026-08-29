@@ -13,10 +13,12 @@ use App\Models\Pelanggan;
 use App\Models\PengaturanGateway;
 use App\Models\Router;
 use App\Models\TransaksiPaymentGateway;
+use App\Services\PaymentGateway\Drivers\XenditDriver;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
@@ -147,4 +149,32 @@ test('proses pelunasan memperbarui status invoice, layanan, dan memancarkan even
         ->and($this->layanan->tanggal_expired?->toDateString())->toBe(now()->addMonth()->toDateString());
 
     Event::assertDispatched(InvoicePaidEvent::class);
+});
+
+test('xendit driver checkPaymentRequestV3Status dapat memproses respon v3 dengan benar', function () {
+    Http::fake([
+        'https://api.xendit.co/v3/payment_requests/pr-123456789' => Http::response([
+            'id' => 'pr-123456789',
+            'reference_id' => 'INV-TEST-001',
+            'status' => 'SUCCEEDED',
+            'amount' => 250000,
+            'capture_amount' => 250000,
+            'currency' => 'IDR',
+            'payment_method' => [
+                'type' => 'QR_CODE',
+                'qr_code' => [
+                    'channel_code' => 'QRIS',
+                ],
+            ],
+        ], 200),
+    ]);
+
+    /** @var XenditDriver $driver */
+    $driver = $this->manager->driver('xendit');
+    $result = $driver->checkPaymentRequestV3Status('pr-123456789', 'xnd_development_test_123');
+
+    expect($result)->toBeArray()
+        ->and($result['status'])->toBe('PAID')
+        ->and($result['paid_amount'])->toBe(250000.0)
+        ->and($result['id'])->toBe('pr-123456789');
 });
