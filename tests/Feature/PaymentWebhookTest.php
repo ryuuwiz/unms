@@ -88,8 +88,8 @@ test('webhook xendit memproses pelunasan invoice dengan benar', function () {
         'id' => 'xnd_inv_test_123',
         'external_id' => $trx->external_id,
         'status' => 'PAID',
-        'amount' => 300000,
-        'paid_amount' => 300000,
+        'amount' => $trx->total_tagihan,
+        'paid_amount' => $trx->total_tagihan,
         'payment_method' => 'VIRTUAL_ACCOUNT',
         'payment_channel' => 'BCA',
         'paid_at' => now()->toIso8601String(),
@@ -101,8 +101,9 @@ test('webhook xendit memproses pelunasan invoice dengan benar', function () {
 
     $response->assertOk()
         ->assertJson([
-            'message' => 'Payment processed successfully',
-            'external_id' => $trx->external_id,
+            'message' => 'Webhook received and queued for processing',
+            'event_id' => 'xnd_inv_test_123',
+            'status' => 'QUEUED',
         ]);
 
     $this->invoice->refresh();
@@ -123,7 +124,7 @@ test('webhook ipaymu memproses pelunasan invoice dengan benar', function () {
         'reference_id' => $trx->external_id,
         'status' => 'berhasil',
         'status_code' => 1,
-        'total' => 300000,
+        'total' => $trx->total_tagihan,
         'fee' => 3000,
         'via' => 'qris',
         'channel' => 'qris',
@@ -133,8 +134,8 @@ test('webhook ipaymu memproses pelunasan invoice dengan benar', function () {
 
     $response->assertOk()
         ->assertJson([
-            'message' => 'Payment processed successfully',
-            'external_id' => $trx->external_id,
+            'message' => 'Webhook received and queued for processing',
+            'status' => 'QUEUED',
         ]);
 
     $this->invoice->refresh();

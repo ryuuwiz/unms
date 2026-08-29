@@ -20,6 +20,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $invoice_id
  * @property string $gateway
  * @property string $external_id
+ * @property string|null $provider_reference_id
  * @property string|null $xendit_reference_id
  * @property GatewayChannel $channel
  * @property string|null $channel_detail
@@ -40,6 +41,7 @@ use Spatie\Activitylog\Support\LogOptions;
     'invoice_id',
     'gateway',
     'external_id',
+    'provider_reference_id',
     'xendit_reference_id',
     'channel',
     'channel_detail',
@@ -57,6 +59,19 @@ class TransaksiPaymentGateway extends Model
     use HasFactory, LogsActivity;
 
     protected $table = 'transaksi_payment_gateway';
+
+    public function setXenditReferenceIdAttribute(?string $value): void
+    {
+        $this->attributes['xendit_reference_id'] = $value;
+        if (empty($this->attributes['provider_reference_id'])) {
+            $this->attributes['provider_reference_id'] = $value;
+        }
+    }
+
+    public function getXenditReferenceIdAttribute(?string $value): ?string
+    {
+        return $value ?: ($this->attributes['provider_reference_id'] ?? null);
+    }
 
     public function getActivitylogOptions(): LogOptions
     {

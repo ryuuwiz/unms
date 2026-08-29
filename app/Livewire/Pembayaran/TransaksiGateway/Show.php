@@ -6,6 +6,7 @@ use App\Enums\StatusTransaksiGateway;
 use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
+use App\Services\PaymentGateway\PaymentGatewayManager;
 use App\Services\Xendit\XenditPaymentService;
 use Flux\Flux;
 use Illuminate\View\View;
@@ -27,10 +28,18 @@ class Show extends Component
         $this->transaksi = $transaksi->load(['invoice.pelanggan', 'webhookLogs' => fn ($q) => $q->latest('id')]);
     }
 
-    public function rekonsiliasiStatus(XenditPaymentService $paymentService): void
+    public function rekonsiliasiStatus(PaymentGatewayManager $manager): void
     {
-        $this->reconciliationResult = $paymentService->cekStatusTransaksi($this->transaksi);
-        Flux::toast(variant: 'info', text: 'Status berhasil diperiksa dari Xendit API.');
+        $this->authorize('viewAny', Pembayaran::class);
+
+        try {
+            $this->reconciliationResult = $manager->sinkronkanStatus($this->transaksi->invoice);
+            $this->transaksi->refresh();
+            $this->transaksi->load(['invoice.pelanggan', 'webhookLogs' => fn ($q) => $q->latest('id')]);
+            Flux::toast(variant: 'success', text: 'Status berhasil disinkronkan langsung dari API Gateway.');
+        } catch (\Throwable $e) {
+            Flux::toast(variant: 'danger', text: 'Gagal rekonsiliasi: '.$e->getMessage());
+        }
     }
 
     public function simulasikanPembayaran(XenditPaymentService $paymentService): void

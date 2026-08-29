@@ -183,10 +183,38 @@ class PaymentGatewayManager
         $statusData = $driver->checkStatus($invoice, $setting);
         $statusStr = strtoupper((string) ($statusData['status'] ?? ''));
 
+        $transaksi = $invoice->transaksiPaymentGatewayAktif();
+        if ($transaksi && ! empty($statusData) && ! isset($statusData['error'])) {
+            $transaksi->update([
+                'payload_response' => $statusData,
+                'provider_reference_id' => $statusData['id'] ?? $transaksi->provider_reference_id,
+                'xendit_reference_id' => $statusData['id'] ?? $transaksi->xendit_reference_id,
+            ]);
+
+            // Catat log audit sinkronisasi API jika belum ada
+            $eventId = (string) ($statusData['id'] ?? ($transaksi->provider_reference_id ?: $transaksi->external_id));
+            if (! empty($eventId)) {
+                WebhookLog::firstOrCreate(
+                    [
+                        'provider' => $provider,
+                        'provider_event_id' => $eventId,
+                    ],
+                    [
+                        'transaksi_payment_gateway_id' => $transaksi->id,
+                        'event_type' => "sync.{$provider}",
+                        'xendit_event_id' => $eventId,
+                        'payload' => $statusData,
+                        'status_proses' => in_array($statusStr, ['PAID', 'SETTLED', 'SUCCEEDED', 'BERHASIL', 'EXPIRED'], true) ? StatusWebhookLog::Diproses : StatusWebhookLog::Diterima,
+                        'diterima_pada' => Carbon::now(),
+                    ]
+                );
+            }
+        }
+
         if (in_array($statusStr, ['PAID', 'SETTLED', 'SUCCEEDED', 'BERHASIL'], true)) {
             $callbackData = new PaymentCallbackData(
                 provider: $provider,
-                externalId: $invoice->transaksiPaymentGatewayAktif()?->external_id ?: $invoice->no_invoice,
+                externalId: $transaksi?->external_id ?: $invoice->no_invoice,
                 status: 'PAID',
                 paidAmount: (float) ($statusData['paid_amount'] ?? ($statusData['amount'] ?? $invoice->jumlah_setelah_promo)),
                 eventId: (string) ($statusData['id'] ?? null),
@@ -194,7 +222,7 @@ class PaymentGatewayManager
                 rawPayload: $statusData
             );
 
-            $this->prosesPelunasan($invoice, $callbackData);
+            $this->prosesPelunasan($invoice, $callbackData, $transaksi);
             $invoice->refresh();
         } elseif ($statusStr === 'EXPIRED' || $statusStr === 'BATAL') {
             if (! $invoice->isLunas()) {
@@ -204,7 +232,6 @@ class PaymentGatewayManager
                     'xendit_invoice_url' => null,
                     'xendit_status' => 'EXPIRED',
                 ]);
-                $transaksi = $invoice->transaksiPaymentGatewayAktif();
                 if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
                     $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
                 }
@@ -277,23 +304,30 @@ class PaymentGatewayManager
             if ($transaksi) {
                 $transaksi->update([
                     'status' => StatusTransaksiGateway::Paid,
+                    'provider_reference_id' => $paymentRef ?: $transaksi->provider_reference_id,
+                    'xendit_reference_id' => $paymentRef ?: $transaksi->xendit_reference_id,
                     'payload_response' => $rawPayload,
                 ]);
             }
 
-            // 2. Buat Record Pembayaran
+            // 2. Buat / Dapatkan Record Pembayaran secara idempoten
             $channelDetailText = $channelDetail ? strtoupper($channelDetail) : '';
             $nominalBayar = $amount > 0 ? $amount : (float) ($transaksi?->total_tagihan ?? $lockedInvoice->jumlah_setelah_promo);
             $providerLabel = strtoupper($provider);
+            $refTrx = $paymentRef ?: ($transaksi?->external_id ?? $lockedInvoice->no_invoice);
 
-            $pembayaran = Pembayaran::create([
-                'invoice_id' => $lockedInvoice->id,
-                'metode' => MetodePembayaran::PaymentGateway,
-                'referensi_transaksi' => $paymentRef ?: ($transaksi?->external_id ?? $lockedInvoice->no_invoice),
-                'jumlah_dibayar' => $nominalBayar,
-                'dibayar_pada' => $dibayarPada,
-                'catatan' => trim("Pembayaran otomatis {$providerLabel} {$channel} {$channelDetailText}"),
-            ]);
+            $pembayaran = Pembayaran::firstOrCreate(
+                [
+                    'metode' => MetodePembayaran::PaymentGateway,
+                    'referensi_transaksi' => $refTrx,
+                ],
+                [
+                    'invoice_id' => $lockedInvoice->id,
+                    'jumlah_dibayar' => $nominalBayar,
+                    'dibayar_pada' => $dibayarPada,
+                    'catatan' => trim("Pembayaran otomatis {$providerLabel} {$channel} {$channelDetailText}"),
+                ]
+            );
 
             // 3. Update Status Invoice
             $lockedInvoice->update([

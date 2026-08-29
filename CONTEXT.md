@@ -311,3 +311,12 @@ _Avoid_: Dokumen Publik Tak Terenkripsi, Simpan KTP di Folder Public, Berkas Tan
 **Watermark Dokumen Identitas**:
 Penyematan teks tanda air dinamis on-the-fly pada saat peninjauan/unduh berkas identitas pelanggan (memuat nama staf pengakses dan timestamp verifikasi) untuk mencegah kebocoran atau penyalahgunaan tangkapan layar dokumen identitas secara internal.
 _Avoid_: Peninjauan Gambar Mentah Tanpa Watermark, Hardcoded Watermark Statis
+
+**Queue Webhook Payment**:
+Antrian latar belakang terisolasi berbasis Laravel Queue (`ProcessPaymentWebhookJob`) yang memproses callback status pembayaran gateway secara asinkron pasca commit HTTP acknowledgment (HTTP 200) untuk menjamin pemenuhan SLA gateway dan ketahanan retry.
+_Avoid_: Synchronous Webhook Processing, Long-Running Callback Handler
+
+**Validasi Ketat Nominal Gateway**:
+Mekanisme verifikasi integritas nominal bayar integer IDR tanpa toleransi selisih (`paid_amount === total_tagihan`) sebelum pelunasan invoice dan perpanjangan layanan internet dieksekusi, mencegah anomali *underpayment* atau *overpayment*.
+_Avoid_: Loose Amount Verification, Auto-Pay Tanpa Verifikasi Nominal
+

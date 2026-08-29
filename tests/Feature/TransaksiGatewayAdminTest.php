@@ -3,6 +3,7 @@
 use App\Enums\GatewayChannel;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusTransaksiGateway;
+use App\Enums\StatusWebhookLog;
 use App\Enums\UserStatus;
 use App\Livewire\Pembayaran\TransaksiGateway\Index;
 use App\Livewire\Pembayaran\TransaksiGateway\Show;
@@ -14,6 +15,7 @@ use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\User;
+use App\Models\WebhookLog;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -66,10 +68,45 @@ test('admin dapat melihat daftar transaksi payment gateway', function () {
         ->assertSee('880812345678');
 });
 
-test('admin dapat melihat rincian transaksi gateway', function () {
+test('admin dapat melihat rincian transaksi gateway termasuk request dan response payload', function () {
+    $this->transaksi->update([
+        'payload_request' => [
+            'provider' => 'xendit',
+            'amount' => 200000,
+            'external_id' => $this->transaksi->external_id,
+        ],
+        'payload_response' => [
+            'id' => 'inv_test_response_123',
+            'status' => 'PENDING',
+            'amount' => 200000,
+            'invoice_url' => 'https://checkout-staging.xendit.co/web/inv_test_response_123',
+        ],
+    ]);
+
+    $webhookLog = WebhookLog::create([
+        'provider' => 'xendit',
+        'transaksi_payment_gateway_id' => $this->transaksi->id,
+        'event_type' => 'payment.xendit',
+        'provider_event_id' => 'evt_detailed_999',
+        'xendit_event_id' => 'evt_detailed_999',
+        'payload' => [
+            'id' => 'evt_detailed_999',
+            'status' => 'PAID',
+            'paid_amount' => 200000,
+            'payment_method' => 'BANK_TRANSFER',
+            'payment_channel' => 'BCA',
+        ],
+        'status_proses' => StatusWebhookLog::Diproses,
+        'diterima_pada' => now(),
+    ]);
+
     Livewire::actingAs($this->admin)
         ->test(Show::class, ['transaksi' => $this->transaksi])
         ->assertOk()
         ->assertSee($this->transaksi->external_id)
-        ->assertSee($this->invoice->no_invoice);
+        ->assertSee($this->invoice->no_invoice)
+        ->assertSee('Respon Gateway')
+        ->assertSee('inv_test_response_123')
+        ->assertSee('evt_detailed_999')
+        ->assertSee('BANK_TRANSFER');
 });
