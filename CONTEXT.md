@@ -320,3 +320,11 @@ _Avoid_: Synchronous Webhook Processing, Long-Running Callback Handler
 Mekanisme verifikasi integritas nominal bayar integer IDR tanpa toleransi selisih (`paid_amount === total_tagihan`) sebelum pelunasan invoice dan perpanjangan layanan internet dieksekusi, mencegah anomali *underpayment* atau *overpayment*.
 _Avoid_: Loose Amount Verification, Auto-Pay Tanpa Verifikasi Nominal
 
+**Perintah Instalasi Produksi (Production Setup Command)**:
+Perintah Artisan resmi (`php artisan app:install` / `app:setup-production`) yang memfasilitasi migrasi database, symlink storage, injeksi master data produksi, serta provisioning akun `super_admin` awal secara interaktif maupun non-interaktif (*CI/CD headless mode*).
+_Avoid_: Manual User Registration di Database, Hardcoded Admin Password, Setup Script Lepas
+
+**Seeder Produksi (Production Seeder)**:
+Bundel seeder data master esensial (`ProductionSeeder`) yang mencakup RBAC Permissions & Roles (`RolesAndPermissionsSeeder`), Profil Perusahaan Default (`PerusahaanSeeder`), Template Notifikasi WhatsApp (`WaTemplateSeeder`), dan Aturan Pengingat Jatuh Tempo (`AturanPengingatTagihanSeeder`) tanpa menyertakan data uji coba (mock users/pelanggan fiktif).
+_Avoid_: Full db:seed di Produksi, Pencampuran Dummy Data dengan Master RBAC
+

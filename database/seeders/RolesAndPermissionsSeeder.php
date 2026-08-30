@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\UserStatus;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -122,59 +120,5 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['layanan_pelanggan.lihat'],
             $p['ticket.lihat'], $p['ticket.ubah'],
         ]);
-
-        // ─────────────────────────────────────────────────────
-        // DEFAULT USERS PER ROLE
-        // ─────────────────────────────────────────────────────
-
-        $superAdminUser = User::firstOrCreate(
-            ['email' => 'superadmin@example.com'],
-            [
-                'name' => 'Super Admin',
-                'password' => bcrypt('password'),
-                'status' => UserStatus::Active,
-            ]
-        );
-        $superAdminUser->syncRoles([$superAdmin]);
-
-        $adminUser = User::firstOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'Admin Staff',
-                'password' => bcrypt('password'),
-                'status' => UserStatus::Active,
-            ]
-        );
-        $adminUser->syncRoles([$adminRole]);
-
-        $salesUser = User::firstOrCreate(
-            ['email' => 'sales@example.com'],
-            [
-                'name' => 'Rian Hidayat (Sales)',
-                'password' => bcrypt('password'),
-                'status' => UserStatus::Active,
-            ]
-        );
-        $salesUser->syncRoles([$salesRole]);
-
-        $teknisiUser = User::firstOrCreate(
-            ['email' => 'teknisi@example.com'],
-            [
-                'name' => 'Bambang Supriyadi (Teknisi)',
-                'password' => bcrypt('password'),
-                'status' => UserStatus::Active,
-            ]
-        );
-        $teknisiUser->syncRoles([$teknisiRole]);
-
-        $nocUser = User::firstOrCreate(
-            ['email' => 'noc@example.com'],
-            [
-                'name' => 'Fajar Pratama (NOC)',
-                'password' => bcrypt('password'),
-                'status' => UserStatus::Active,
-            ]
-        );
-        $nocUser->syncRoles([$nocRole]);
     }
 }
