@@ -2,7 +2,9 @@
 
 use App\Enums\StatusInvoice;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -39,8 +41,16 @@ return new class extends Migration
         if (DB::getDriverName() === 'sqlite') {
             DB::statement('CREATE UNIQUE INDEX IF NOT EXISTS unique_active_layanan_periode ON invoice (layanan_pelanggan_id, periode_tagihan) WHERE status != "dibatalkan" AND deleted_at IS NULL');
         } else {
-            // MySQL 8.0+ / MariaDB functional index
-            DB::statement('CREATE UNIQUE INDEX unique_active_layanan_periode ON invoice ((CASE WHEN status != "dibatalkan" AND deleted_at IS NULL THEN CONCAT(layanan_pelanggan_id, "-", periode_tagihan) ELSE NULL END))');
+            // MySQL 5.7+ / MySQL 8.0+ / MariaDB 10.2+ compatible via Virtual Generated Column
+            Schema::table('invoice', function (Blueprint $table) {
+                if (! Schema::hasColumn('invoice', 'active_periode_key')) {
+                    $table->string('active_periode_key', 64)
+                        ->virtualAs("CASE WHEN status != 'dibatalkan' AND deleted_at IS NULL THEN CONCAT(layanan_pelanggan_id, '-', periode_tagihan) ELSE NULL END")
+                        ->nullable()
+                        ->after('periode_tagihan');
+                    $table->unique('active_periode_key', 'unique_active_layanan_periode');
+                }
+            });
         }
     }
 
@@ -52,7 +62,12 @@ return new class extends Migration
         if (DB::getDriverName() === 'sqlite') {
             DB::statement('DROP INDEX IF EXISTS unique_active_layanan_periode');
         } else {
-            DB::statement('DROP INDEX unique_active_layanan_periode ON invoice');
+            Schema::table('invoice', function (Blueprint $table) {
+                if (Schema::hasColumn('invoice', 'active_periode_key')) {
+                    $table->dropUnique('unique_active_layanan_periode');
+                    $table->dropColumn('active_periode_key');
+                }
+            });
         }
     }
 };
