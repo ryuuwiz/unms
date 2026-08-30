@@ -22,8 +22,10 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -41,6 +43,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureLivewireAssets();
         $this->registerEventListeners();
         $this->registerModelObservers();
         $this->configureSuperAdminGate();
@@ -76,6 +79,33 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::before(function ($user, $ability) {
             return $user->hasRole('super_admin') ? true : null;
+        });
+    }
+
+    /**
+     * Serve Livewire JS from the published static file in public/vendor/livewire/
+     * instead of the dynamic PHP route, bypassing nginx static-asset interception.
+     */
+    protected function configureLivewireAssets(): void
+    {
+        Livewire::setScriptRoute(function ($handle) {
+            if (file_exists(public_path('vendor/livewire/livewire.min.js'))) {
+                return Route::get(
+                    'vendor/livewire/livewire.min.js',
+                    fn () => response()->file(public_path('vendor/livewire/livewire.min.js'), [
+                        'Content-Type' => 'application/javascript',
+                        'Cache-Control' => 'public, max-age=31536000, immutable',
+                    ])
+                );
+            }
+
+            return Route::get(
+                'vendor/livewire/livewire.js',
+                fn () => response()->file(public_path('vendor/livewire/livewire.js'), [
+                    'Content-Type' => 'application/javascript',
+                    'Cache-Control' => 'public, max-age=31536000, immutable',
+                ])
+            );
         });
     }
 
