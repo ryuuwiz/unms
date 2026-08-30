@@ -72,6 +72,41 @@ test('can create router with hostname or domain name', function () {
         ->and($router->ip_address)->toBe('router1.sn.mynetname.net');
 });
 
+test('can create router with public ip and whitespace', function () {
+    Livewire::actingAs($this->superAdmin)
+        ->test(Create::class)
+        ->set('nama_router', 'ROUTER_PUBLIC_IP')
+        ->set('ip_address', ' 103.175.156.72 ')
+        ->set('port', 8728)
+        ->set('username', 'admin')
+        ->set('password', '')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('router.index'));
+
+    $router = Router::where('nama_router', 'ROUTER_PUBLIC_IP')->first();
+    expect($router)->not->toBeNull()
+        ->and($router->ip_address)->toBe('103.175.156.72');
+});
+
+test('can create router with ip containing port notation', function () {
+    Livewire::actingAs($this->superAdmin)
+        ->test(Create::class)
+        ->set('nama_router', 'ROUTER_WITH_PORT')
+        ->set('ip_address', '103.175.156.72:8729')
+        ->set('port', 8728)
+        ->set('username', 'admin')
+        ->set('password', 'secret')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('router.index'));
+
+    $router = Router::where('nama_router', 'ROUTER_WITH_PORT')->first();
+    expect($router)->not->toBeNull()
+        ->and($router->ip_address)->toBe('103.175.156.72')
+        ->and($router->port)->toBe(8729);
+});
+
 test('can create router with encrypted password', function () {
     Livewire::actingAs($this->superAdmin)
         ->test(Create::class)

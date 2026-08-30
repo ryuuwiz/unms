@@ -46,6 +46,28 @@ class Edit extends Component
     }
 
     /**
+     * @return array{host: string, port: ?int}
+     */
+    protected function parseHostAndPort(string $raw): array
+    {
+        $cleaned = trim($raw);
+        $cleaned = (string) preg_replace('#^https?://#i', '', $cleaned);
+        $cleaned = rtrim($cleaned, '/');
+
+        if (preg_match('/^([a-zA-Z0-9\.\-_]+):(\d+)$/', $cleaned, $matches)) {
+            return [
+                'host' => $matches[1],
+                'port' => (int) $matches[2],
+            ];
+        }
+
+        return [
+            'host' => $cleaned,
+            'port' => null,
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     protected function rules(): array
@@ -57,8 +79,10 @@ class Edit extends Component
                 'string',
                 'max:255',
                 function ($attribute, $value, $fail) {
-                    $isValidIp = filter_var($value, FILTER_VALIDATE_IP) !== false;
-                    $isValidDomain = filter_var($value, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false;
+                    $parsed = $this->parseHostAndPort((string) $value);
+                    $host = $parsed['host'];
+                    $isValidIp = filter_var($host, FILTER_VALIDATE_IP) !== false;
+                    $isValidDomain = filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false;
                     if (! $isValidIp && ! $isValidDomain) {
                         $fail('Format IP address atau hostname router tidak valid.');
                     }
@@ -94,15 +118,18 @@ class Edit extends Component
         $this->authorize('update', $router);
         $this->validate();
 
+        $parsed = $this->parseHostAndPort($this->ip_address);
+        $port = $parsed['port'] ?? $this->port ?? 8728;
+
         $updateData = [
-            'nama_router' => $this->nama_router,
-            'ip_address' => $this->ip_address,
-            'port' => $this->port,
-            'username' => $this->username,
-            'deskripsi' => $this->deskripsi ?: null,
+            'nama_router' => trim($this->nama_router),
+            'ip_address' => $parsed['host'],
+            'port' => $port,
+            'username' => trim($this->username),
+            'deskripsi' => $this->deskripsi ? trim($this->deskripsi) : null,
         ];
 
-        if (! empty($this->password)) {
+        if ($this->password !== null && $this->password !== '') {
             $updateData['password_terenkripsi'] = $this->password;
         }
 
