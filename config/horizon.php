@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\Mikrotik\PingRouterJob;
 use Illuminate\Support\Str;
 
 return [
@@ -132,7 +133,7 @@ return [
     */
 
     'silenced' => [
-        // App\Jobs\ExampleJob::class,
+        PingRouterJob::class,
     ],
 
     'silenced_tags' => [
@@ -199,7 +200,7 @@ return [
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
-            'queue' => ['default'],
+            'queue' => ['default', 'mikrotik', 'wa-blast'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,

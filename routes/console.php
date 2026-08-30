@@ -9,14 +9,22 @@ Schedule::command('layanan:cek-isolir')->dailyAt('02:30');
 // Master Nightly Reconciliation (Provisi Lengkap, IP Pool, Binary Bps & Pembersihan Orphaned Secret)
 Schedule::command('mikrotik:provisi-router --clean-orphans')
     ->dailyAt('03:00')
-    ->withoutOverlapping(60);
+    ->withoutOverlapping(60)
+    ->runInBackground();
 
+// Periodic Auto-Recovery for PPP Secrets & Profiles
 Schedule::command('mikrotik:recover-ppp')
-    ->everyTwoSeconds();
-// ->withoutOverlapping(5);
+    ->everyTenMinutes()
+    ->withoutOverlapping(10)
+    ->runInBackground();
 
 Schedule::command('xendit:cek-va-expired')->hourly();
-Schedule::command('mikrotik:ping')->everyTwentySeconds();
+
+// Periodic Health Check / System Resource Ping
+Schedule::command('mikrotik:ping')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
+    ->runInBackground();
 
 // Pengingat Tagihan WhatsApp Otomatis (Setiap jam memeriksa aturan aktif)
 Schedule::command('invoice:kirim-pengingat')->hourly();
