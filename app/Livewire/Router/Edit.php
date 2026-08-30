@@ -88,7 +88,7 @@ class Edit extends Component
                     }
                 },
             ],
-            'port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'username' => ['required', 'string', 'max:100'],
             'password' => ['nullable', 'string', 'max:255'],
             'deskripsi' => ['nullable', 'string', 'max:1000'],
@@ -105,7 +105,6 @@ class Edit extends Component
             'nama_router.unique' => 'Nama router sudah digunakan.',
             'ip_address.required' => 'Alamat IP atau hostname router wajib diisi.',
             'username.required' => 'Username API MikroTik wajib diisi.',
-            'port.required' => 'Port API wajib diisi.',
             'port.integer' => 'Port API harus berupa angka.',
             'port.min' => 'Port API minimal 1.',
             'port.max' => 'Port API maksimal 65535.',
@@ -119,7 +118,7 @@ class Edit extends Component
         $this->validate();
 
         $parsed = $this->parseHostAndPort($this->ip_address);
-        $port = $parsed['port'] ?? $this->port ?? 8728;
+        $port = $parsed['port'] ?? ($this->port ?: 8728);
 
         $updateData = [
             'nama_router' => trim($this->nama_router),

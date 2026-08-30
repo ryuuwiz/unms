@@ -89,22 +89,27 @@ test('can create router with public ip and whitespace', function () {
         ->and($router->ip_address)->toBe('103.175.156.72');
 });
 
-test('can create router with ip containing port notation', function () {
+test('can create router with exact user payload and complex password and empty port', function () {
+    $complexPassword = '3Vn5Fd3>:,=cc>X<|5{|0)%qgF7d%#8372KuewGIZ?*QO;#?*B';
+
     Livewire::actingAs($this->superAdmin)
         ->test(Create::class)
-        ->set('nama_router', 'ROUTER_WITH_PORT')
-        ->set('ip_address', '103.175.156.72:8729')
-        ->set('port', 8728)
-        ->set('username', 'admin')
-        ->set('password', 'secret')
+        ->set('nama_router', 'TEST_ROUTER_EXACT')
+        ->set('ip_address', '103.175.156.72')
+        ->set('port', null)
+        ->set('username', 'go_billing')
+        ->set('password', $complexPassword)
+        ->set('deskripsi', '')
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('router.index'));
 
-    $router = Router::where('nama_router', 'ROUTER_WITH_PORT')->first();
+    $router = Router::where('nama_router', 'TEST_ROUTER_EXACT')->first();
     expect($router)->not->toBeNull()
         ->and($router->ip_address)->toBe('103.175.156.72')
-        ->and($router->port)->toBe(8729);
+        ->and($router->port)->toBe(8728)
+        ->and($router->username)->toBe('go_billing')
+        ->and($router->password_terenkripsi)->toBe($complexPassword);
 });
 
 test('can create router with encrypted password', function () {

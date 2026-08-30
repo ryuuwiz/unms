@@ -29,6 +29,26 @@ class Create extends Component
     public function mount(): void
     {
         $this->authorize('create', Router::class);
+
+        if (request()->has('nama_router')) {
+            $this->nama_router = (string) request()->query('nama_router', '');
+        }
+        if (request()->has('ip_address')) {
+            $this->ip_address = (string) request()->query('ip_address', '');
+        }
+        if (request()->has('port')) {
+            $rawPort = request()->query('port');
+            $this->port = is_numeric($rawPort) ? (int) $rawPort : 8728;
+        }
+        if (request()->has('username')) {
+            $this->username = (string) request()->query('username', 'admin');
+        }
+        if (request()->has('password')) {
+            $this->password = (string) request()->query('password', '');
+        }
+        if (request()->has('deskripsi')) {
+            $this->deskripsi = (string) request()->query('deskripsi', '');
+        }
     }
 
     /**
@@ -74,7 +94,7 @@ class Create extends Component
                     }
                 },
             ],
-            'port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'username' => ['required', 'string', 'max:100'],
             'password' => ['nullable', 'string', 'max:255'],
             'deskripsi' => ['nullable', 'string', 'max:1000'],
@@ -91,7 +111,6 @@ class Create extends Component
             'nama_router.unique' => 'Nama router sudah digunakan.',
             'ip_address.required' => 'Alamat IP atau hostname router wajib diisi.',
             'username.required' => 'Username API MikroTik wajib diisi.',
-            'port.required' => 'Port API wajib diisi.',
             'port.integer' => 'Port API harus berupa angka.',
             'port.min' => 'Port API minimal 1.',
             'port.max' => 'Port API maksimal 65535.',
@@ -104,7 +123,7 @@ class Create extends Component
         $this->validate();
 
         $parsed = $this->parseHostAndPort($this->ip_address);
-        $port = $parsed['port'] ?? $this->port ?? 8728;
+        $port = $parsed['port'] ?? ($this->port ?: 8728);
 
         Router::create([
             'nama_router' => trim($this->nama_router),
