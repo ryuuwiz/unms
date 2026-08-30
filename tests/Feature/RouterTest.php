@@ -25,6 +25,9 @@ beforeEach(function () {
     $this->superAdmin = User::factory()->create();
     $this->superAdmin->assignRole('super_admin');
 
+    $this->adminUser = User::factory()->create();
+    $this->adminUser->assignRole('admin');
+
     $this->nocUser = User::factory()->create();
     $this->nocUser->assignRole('noc');
 });
@@ -35,6 +38,38 @@ test('super admin can access router create page', function () {
         ->assertOk()
         ->assertSee('Username API')
         ->assertSee('Password API');
+});
+
+test('admin can access router create page', function () {
+    $this->actingAs($this->adminUser)
+        ->get(route('router.create'))
+        ->assertOk()
+        ->assertSee('Username API')
+        ->assertSee('Password API');
+});
+
+test('admin can see create router button on index page', function () {
+    $this->actingAs($this->adminUser)
+        ->get(route('router.index'))
+        ->assertOk()
+        ->assertSee('Tambah Router');
+});
+
+test('can create router with hostname or domain name', function () {
+    Livewire::actingAs($this->superAdmin)
+        ->test(Create::class)
+        ->set('nama_router', 'ROUTER_DDNS')
+        ->set('ip_address', 'router1.sn.mynetname.net')
+        ->set('port', 8728)
+        ->set('username', 'api_user')
+        ->set('password', 'secret123')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('router.index'));
+
+    $router = Router::where('nama_router', 'ROUTER_DDNS')->first();
+    expect($router)->not->toBeNull()
+        ->and($router->ip_address)->toBe('router1.sn.mynetname.net');
 });
 
 test('can create router with encrypted password', function () {

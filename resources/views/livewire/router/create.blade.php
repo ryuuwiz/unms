@@ -15,8 +15,8 @@
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <flux:field class="sm:col-span-2">
-                <flux:label>Alamat IP Router</flux:label>
-                <flux:input wire:model="ip_address" placeholder="192.168.88.1" />
+                <flux:label>Alamat IP / Hostname Router</flux:label>
+                <flux:input wire:model="ip_address" placeholder="192.168.88.1 atau router.domain.com" />
                 <flux:error name="ip_address" />
             </flux:field>
 

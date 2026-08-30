@@ -18,7 +18,7 @@ class Create extends Component
 
     public string $ip_address = '';
 
-    public int $port = 8728;
+    public ?int $port = 8728;
 
     public string $username = 'admin';
 
@@ -38,7 +38,18 @@ class Create extends Component
     {
         return [
             'nama_router' => ['required', 'string', 'max:100', 'unique:router,nama_router'],
-            'ip_address' => ['required', 'string', 'max:45', 'ip'],
+            'ip_address' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    $isValidIp = filter_var($value, FILTER_VALIDATE_IP) !== false;
+                    $isValidDomain = filter_var($value, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false;
+                    if (! $isValidIp && ! $isValidDomain) {
+                        $fail('Format IP address atau hostname router tidak valid.');
+                    }
+                },
+            ],
             'port' => ['required', 'integer', 'min:1', 'max:65535'],
             'username' => ['required', 'string', 'max:100'],
             'password' => ['required', 'string', 'max:255'],
@@ -54,10 +65,13 @@ class Create extends Component
         return [
             'nama_router.required' => 'Nama router wajib diisi.',
             'nama_router.unique' => 'Nama router sudah digunakan.',
-            'ip_address.required' => 'Alamat IP router wajib diisi.',
-            'ip_address.ip' => 'Format IP address tidak valid.',
+            'ip_address.required' => 'Alamat IP atau hostname router wajib diisi.',
             'username.required' => 'Username API MikroTik wajib diisi.',
             'password.required' => 'Password API MikroTik wajib diisi.',
+            'port.required' => 'Port API wajib diisi.',
+            'port.integer' => 'Port API harus berupa angka.',
+            'port.min' => 'Port API minimal 1.',
+            'port.max' => 'Port API maksimal 65535.',
         ];
     }
 
