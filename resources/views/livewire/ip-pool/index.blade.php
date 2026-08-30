@@ -144,20 +144,33 @@
     @endif
 
     {{-- Modal Konfirmasi Hapus --}}
-    <flux:modal name="confirm-delete" class="max-w-md">
+    <flux:modal :open="$deletingId !== null" wire:model.self="deletingId" class="max-w-md">
         <div class="space-y-4">
             <div>
                 <flux:heading size="lg">Hapus IP Pool</flux:heading>
                 <flux:subheading>
-                    Apakah Anda yakin ingin menghapus IP pool ini? Tindakan ini tidak dapat dibatalkan.
+                    Apakah Anda yakin ingin menghapus IP pool <strong>{{ $poolToDelete?->nama_pool }}</strong>? Tindakan ini tidak dapat dibatalkan.
                 </flux:subheading>
             </div>
+
+            @if ($poolToDelete && ! $poolToDelete->canBeDeleted())
+                <flux:callout variant="danger" icon="exclamation-triangle">
+                    IP Pool ini masih digunakan oleh <strong>{{ $poolToDelete->layanans_count }}</strong> data layanan pelanggan. Pindahkan atau hapus layanan pelanggan terkait sebelum menghapus IP pool.
+                </flux:callout>
+            @endif
+
             <div class="flex justify-end gap-3">
-                <flux:modal.close>
-                    <flux:button variant="ghost" wire:click="$set('deletingId', null)">Batal</flux:button>
-                </flux:modal.close>
-                <flux:button wire:click="deleteIpPool" variant="danger">Hapus</flux:button>
+                <flux:button variant="ghost" wire:click="$set('deletingId', null)">Batal</flux:button>
+                <flux:button
+                    wire:click="deleteIpPool"
+                    variant="danger"
+                    :disabled="$poolToDelete && ! $poolToDelete->canBeDeleted()"
+                >
+                    Hapus
+                </flux:button>
             </div>
         </div>
     </flux:modal>
 </div>
+
+

@@ -113,20 +113,18 @@
     @endif
 
     {{-- Modal Konfirmasi Hapus --}}
-    @if ($deletingId)
-        <flux:modal name="confirm-delete" :show="true" class="max-w-md">
-            <div class="space-y-4">
-                <div>
-                    <flux:heading size="lg">Hapus Kecamatan</flux:heading>
-                    <flux:subheading>
-                        Apakah Anda yakin ingin menghapus data kecamatan ini? Tindakan ini akan diblokir jika kecamatan masih memiliki data kelurahan.
-                    </flux:subheading>
-                </div>
-                <div class="flex justify-end gap-3">
-                    <flux:button wire:click="$set('deletingId', null)" variant="ghost">Batal</flux:button>
-                    <flux:button wire:click="deleteKecamatan" variant="danger">Hapus</flux:button>
-                </div>
+    <flux:modal :open="$deletingId !== null" wire:model.self="deletingId" class="max-w-md">
+        <div class="space-y-4">
+            <div>
+                <flux:heading size="lg">Hapus Kecamatan</flux:heading>
+                <flux:subheading>
+                    Apakah Anda yakin ingin menghapus data kecamatan ini? Tindakan ini tidak dapat dibatalkan jika tidak memiliki data turunan.
+                </flux:subheading>
             </div>
-        </flux:modal>
-    @endif
+            <div class="flex justify-end gap-3">
+                <flux:button wire:click="$set('deletingId', null)" variant="ghost">Batal</flux:button>
+                <flux:button wire:click="deleteKecamatan" variant="danger">Hapus</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>

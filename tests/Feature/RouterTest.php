@@ -7,7 +7,10 @@ use App\Livewire\Router\Create;
 use App\Livewire\Router\Edit;
 use App\Livewire\Router\Index;
 use App\Models\IpPool;
+use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
 use App\Models\Router;
 use App\Models\User;
 use App\Services\Mikrotik\MikrotikService;
@@ -203,14 +206,23 @@ test('can delete router without relations from index', function () {
     expect(Router::find($router->id))->toBeNull();
 });
 
-test('cannot delete router with existing relations', function () {
+test('can delete router with unused ip pools and job logs from index', function () {
     $router = Router::factory()->create([
-        'nama_router' => 'ROUTER_WITH_POOL',
+        'nama_router' => 'ROUTER_WITH_UNUSED_POOL',
     ]);
 
-    IpPool::factory()->create([
+    $pool = IpPool::factory()->create([
         'router_id' => $router->id,
     ]);
+
+    $jobLog = MikrotikJobLog::create([
+        'router_id' => $router->id,
+        'job_type' => MikrotikJobType::ReconcilePppoe,
+        'status' => MikrotikJobStatus::Success,
+        'attempt_count' => 1,
+    ]);
+
+    expect($router->canBeDeleted())->toBeTrue();
 
     Livewire::actingAs($this->superAdmin)
         ->test(Index::class)
@@ -219,7 +231,59 @@ test('cannot delete router with existing relations', function () {
         ->assertSet('deletingId', null)
         ->assertHasNoErrors();
 
-    expect(Router::find($router->id))->not->toBeNull();
+    expect(Router::find($router->id))->toBeNull()
+        ->and(IpPool::find($pool->id))->toBeNull()
+        ->and(MikrotikJobLog::find($jobLog->id))->toBeNull();
+});
+
+test('can delete router and move its layanans to another router', function () {
+    $routerA = Router::factory()->create(['nama_router' => 'ROUTER_A']);
+    $routerB = Router::factory()->create(['nama_router' => 'ROUTER_B']);
+
+    $pelanggan = Pelanggan::factory()->create();
+    $paket = PaketLayanan::factory()->create();
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $pelanggan->id,
+        'paket_layanan_id' => $paket->id,
+        'router_id' => $routerA->id,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->call('confirmDelete', $routerA->id)
+        ->set('targetRouterId', $routerB->id)
+        ->call('deleteRouter')
+        ->assertSet('deletingId', null)
+        ->assertHasNoErrors();
+
+    expect(Router::find($routerA->id))->toBeNull()
+        ->and($layanan->fresh()->router_id)->toBe($routerB->id);
+});
+
+test('can delete router and force delete its layanans with confirmation', function () {
+    $routerA = Router::factory()->create(['nama_router' => 'ROUTER_A_FORCE']);
+    $routerB = Router::factory()->create(['nama_router' => 'ROUTER_B_OTHER']);
+
+    $pelanggan = Pelanggan::factory()->create();
+    $paket = PaketLayanan::factory()->create();
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $pelanggan->id,
+        'paket_layanan_id' => $paket->id,
+        'router_id' => $routerA->id,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->call('confirmDelete', $routerA->id)
+        ->set('confirmForceDelete', true)
+        ->call('deleteRouter')
+        ->assertSet('deletingId', null)
+        ->assertHasNoErrors();
+
+    expect(Router::find($routerA->id))->toBeNull()
+        ->and(LayananPelanggan::find($layanan->id))->toBeNull();
 });
 
 test('user without delete permission cannot delete router', function () {

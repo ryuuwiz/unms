@@ -145,20 +145,19 @@
     @endif
 
     {{-- Modal Konfirmasi Hapus --}}
-    @if ($deletingId)
-        <flux:modal name="confirm-delete" :show="true" class="max-w-md">
-            <div class="space-y-4">
-                <div>
-                    <flux:heading size="lg">Hapus Data Registrasi Billing</flux:heading>
-                    <flux:subheading>
-                        Apakah Anda yakin ingin menghapus data registrasi billing ini?
-                    </flux:subheading>
-                </div>
-                <div class="flex justify-end gap-3">
-                    <flux:button wire:click="$set('deletingId', null)" variant="ghost">Batal</flux:button>
-                    <flux:button wire:click="deleteLayanan" variant="danger">Hapus</flux:button>
-                </div>
+    <flux:modal :open="$deletingId !== null" wire:model.self="deletingId" class="max-w-md">
+        <div class="space-y-4">
+            <div>
+                <flux:heading size="lg">Hapus Data Registrasi Billing</flux:heading>
+                <flux:subheading>
+                    Apakah Anda yakin ingin menghapus data registrasi billing ini?
+                </flux:subheading>
             </div>
-        </flux:modal>
-    @endif
+            <div class="flex justify-end gap-3">
+                <flux:button wire:click="$set('deletingId', null)" variant="ghost">Batal</flux:button>
+                <flux:button wire:click="deleteLayanan" variant="danger">Hapus</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>
+

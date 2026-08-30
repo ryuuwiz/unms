@@ -3,9 +3,11 @@
 namespace App\Livewire\Router;
 
 use App\Enums\StatusRouter;
+use App\Models\LayananPelanggan;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -24,6 +26,12 @@ class Index extends Component
 
     public ?int $deletingId = null;
 
+    public string $deleteStrategy = 'move';
+
+    public ?int $targetRouterId = null;
+
+    public bool $confirmForceDelete = false;
+
     public function updatingSearch(): void
     {
         $this->resetPage();
@@ -37,7 +45,18 @@ class Index extends Component
     public function confirmDelete(int $id): void
     {
         $this->deletingId = $id;
-        $this->modal('confirm-delete')->show();
+        $firstOther = Router::where('id', '!=', $id)->first();
+        $this->targetRouterId = $firstOther?->id;
+        $this->confirmForceDelete = false;
+
+        $this->modal('confirm-delete-router')->show();
+    }
+
+    public function cancelDelete(): void
+    {
+        $this->deletingId = null;
+        $this->targetRouterId = null;
+        $this->confirmForceDelete = false;
     }
 
     public function deleteRouter(): void
@@ -46,21 +65,96 @@ class Index extends Component
             return;
         }
 
-        $router = Router::findOrFail($this->deletingId);
-        $this->authorize('delete', $router);
-
-        if ($router->layanans()->exists() || $router->ipPools()->exists()) {
-            $this->modal('confirm-delete')->close();
-            Flux::toast(variant: 'danger', text: 'Router masih memiliki data relasi (layanan/IP pool) dan tidak dapat dihapus.');
+        $router = Router::withCount(['layanans', 'ipPools'])->find($this->deletingId);
+        if (! $router) {
             $this->deletingId = null;
+            $this->modal('confirm-delete-router')->close();
 
             return;
         }
 
-        $router->delete();
-        $this->modal('confirm-delete')->close();
+        $this->authorize('delete', $router);
+
+        $hasLayanans = $router->layanans()->withTrashed()->exists()
+            || $router->ipPools()->whereHas('layanans', fn ($q) => $q->withTrashed())->exists();
+
+        if ($hasLayanans) {
+            $otherRoutersCount = Router::where('id', '!=', $router->id)->count();
+
+            // Jika admin memilih untuk force delete atau tidak ada router lain yang tersedia
+            if ($this->confirmForceDelete || $otherRoutersCount === 0) {
+                DB::transaction(function () use ($router) {
+                    LayananPelanggan::withTrashed()
+                        ->where('router_id', $router->id)
+                        ->forceDelete();
+
+                    LayananPelanggan::withTrashed()
+                        ->whereIn('ip_pool_id', $router->ipPools()->pluck('id'))
+                        ->update(['ip_pool_id' => null]);
+
+                    $router->ipPools()->delete();
+                    $router->jobLogs()->delete();
+                    $router->delete();
+                });
+
+                $nama = $router->nama_router;
+                $this->deletingId = null;
+                $this->modal('confirm-delete-router')->close();
+                Flux::toast(variant: 'success', text: "Router {$nama} beserta seluruh data layanan terkait berhasil dihapus permanen.");
+
+                return;
+            }
+
+            // Opsi pemindahan ke router lain
+            $targetRouter = $this->targetRouterId
+                ? Router::where('id', '!=', $router->id)->find($this->targetRouterId)
+                : Router::where('id', '!=', $router->id)->first();
+
+            if (! $targetRouter) {
+                Flux::toast(variant: 'danger', text: 'Pilih router tujuan untuk memindahkan data layanan pelanggan.');
+
+                return;
+            }
+
+            DB::transaction(function () use ($router, $targetRouter) {
+                LayananPelanggan::withTrashed()
+                    ->where('router_id', $router->id)
+                    ->update([
+                        'router_id' => $targetRouter->id,
+                        'ip_pool_id' => null,
+                    ]);
+
+                LayananPelanggan::withTrashed()
+                    ->whereIn('ip_pool_id', $router->ipPools()->pluck('id'))
+                    ->update(['ip_pool_id' => null]);
+
+                $router->ipPools()->delete();
+                $router->jobLogs()->delete();
+                $router->delete();
+            });
+
+            $nama = $router->nama_router;
+            $this->deletingId = null;
+            $this->modal('confirm-delete-router')->close();
+            Flux::toast(variant: 'success', text: "Router {$nama} berhasil dihapus dan layanannya dipindahkan ke {$targetRouter->nama_router}.");
+
+            return;
+        }
+
+        DB::transaction(function () use ($router) {
+            LayananPelanggan::withTrashed()
+                ->whereIn('ip_pool_id', $router->ipPools()->pluck('id'))
+                ->update(['ip_pool_id' => null]);
+
+            $router->ipPools()->delete();
+            $router->jobLogs()->delete();
+            $router->delete();
+        });
+
+        $nama = $router->nama_router;
         $this->deletingId = null;
-        Flux::toast(variant: 'success', text: 'Router berhasil dihapus.');
+        $this->modal('confirm-delete-router')->close();
+        Flux::toast(variant: 'success', text: "Router {$nama} berhasil dihapus.");
     }
 
     public function toggleStatus(int $routerId): void
@@ -137,9 +231,19 @@ class Index extends Component
             ->latest()
             ->paginate(15);
 
+        $routerToDelete = $this->deletingId
+            ? Router::withCount(['ipPools', 'layanans'])->find($this->deletingId)
+            : null;
+
+        $otherRouters = $this->deletingId
+            ? Router::where('id', '!=', $this->deletingId)->orderBy('nama_router')->get()
+            : collect();
+
         return view('livewire.router.index', [
             'routers' => $routers,
             'statuses' => StatusRouter::cases(),
+            'routerToDelete' => $routerToDelete,
+            'otherRouters' => $otherRouters,
         ]);
     }
 }

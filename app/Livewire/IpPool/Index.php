@@ -37,7 +37,6 @@ class Index extends Component
     public function confirmDelete(int $id): void
     {
         $this->deletingId = $id;
-        $this->modal('confirm-delete')->show();
     }
 
     public function deleteIpPool(): void
@@ -49,19 +48,19 @@ class Index extends Component
         $pool = IpPool::findOrFail($this->deletingId);
         $this->authorize('delete', $pool);
 
-        if ($pool->layanans()->exists()) {
-            $this->modal('confirm-delete')->close();
-            Flux::toast(variant: 'danger', text: 'IP Pool masih digunakan oleh layanan pelanggan dan tidak dapat dihapus.');
+        if (! $pool->canBeDeleted()) {
             $this->deletingId = null;
+            $count = $pool->layanans()->withTrashed()->count();
+            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} masih digunakan oleh {$count} layanan pelanggan dan tidak dapat dihapus.");
 
             return;
         }
 
+        $nama = $pool->nama_pool;
         $pool->delete();
-        $this->modal('confirm-delete')->close();
         $this->deletingId = null;
 
-        Flux::toast(variant: 'success', text: 'IP Pool berhasil dihapus.');
+        Flux::toast(variant: 'success', text: "IP Pool {$nama} berhasil dihapus.");
     }
 
     public function syncToRouter(int $poolId): void
@@ -92,9 +91,14 @@ class Index extends Component
 
         $routers = Router::orderBy('nama_router')->get();
 
+        $poolToDelete = $this->deletingId
+            ? IpPool::withCount('layanans')->find($this->deletingId)
+            : null;
+
         return view('livewire.ip-pool.index', [
             'pools' => $pools,
             'routers' => $routers,
+            'poolToDelete' => $poolToDelete,
         ]);
     }
 }

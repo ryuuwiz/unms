@@ -134,6 +134,15 @@ class Router extends Model
     }
 
     /**
+     * Periksa apakah router aman untuk dihapus (tidak memiliki data layanan pelanggan).
+     */
+    public function canBeDeleted(): bool
+    {
+        return ! $this->layanans()->withTrashed()->exists()
+            && ! $this->ipPools()->whereHas('layanans', fn ($q) => $q->withTrashed())->exists();
+    }
+
+    /**
      * Label koneksi untuk API (ip:port).
      */
     public function labelKoneksi(): string

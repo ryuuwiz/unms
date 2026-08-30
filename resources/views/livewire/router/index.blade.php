@@ -132,6 +132,7 @@
                                     icon="trash"
                                     class="text-red-600 hover:text-red-700 dark:text-red-400"
                                     title="Hapus Router"
+                                    wire:target="confirmDelete"
                                 />
                             @endcan
                         </div>
@@ -158,20 +159,81 @@
     @endif
 
     {{-- Modal Konfirmasi Hapus --}}
-    <flux:modal name="confirm-delete" class="max-w-md">
-        <div class="space-y-4">
+    <flux:modal name="confirm-delete-router" wire:close="cancelDelete" class="max-w-lg">
+        <div class="space-y-5">
             <div>
                 <flux:heading size="lg">Hapus Router</flux:heading>
                 <flux:subheading>
-                    Apakah Anda yakin ingin menghapus router ini? Tindakan ini permanen.
+                    Apakah Anda yakin ingin menghapus router <strong>{{ $routerToDelete?->nama_router }}</strong>?
                 </flux:subheading>
             </div>
-            <div class="flex justify-end gap-3">
+
+            @if ($routerToDelete && ($routerToDelete->layanans_count > 0 || ! $routerToDelete->canBeDeleted()))
+                <div class="space-y-4 rounded-xl border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+                    <div class="flex items-start gap-2.5 text-amber-800 dark:text-amber-300">
+                        <flux:icon name="exclamation-triangle" class="size-5 shrink-0 mt-0.5" />
+                        <div class="text-xs">
+                            <p class="font-semibold">Perhatian: Router memiliki data relasi aktif</p>
+                            <p class="mt-0.5 text-amber-700 dark:text-amber-400">
+                                Router ini masih terhubung dengan <strong>{{ $routerToDelete->layanans_count }}</strong> data layanan pelanggan.
+                            </p>
+                        </div>
+                    </div>
+
+                    @if ($otherRouters->isNotEmpty())
+                        <div class="space-y-3 pt-1">
+                            <flux:field>
+                                <flux:label>Pindahkan Layanan ke Router</flux:label>
+                                <flux:select wire:model.live="targetRouterId" placeholder="Pilih router tujuan...">
+                                    @foreach ($otherRouters as $other)
+                                        <flux:select.option value="{{ $other->id }}">
+                                            {{ $other->nama_router }} ({{ $other->ip_address }})
+                                        </flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                                <flux:description>Layanan pelanggan akan dialihkan ke router ini sebelum router dihapus.</flux:description>
+                            </flux:field>
+
+                            <div class="pt-2 border-t border-amber-200/60 dark:border-amber-800/60">
+                                <flux:checkbox
+                                    wire:model.live="confirmForceDelete"
+                                    label="Atau hapus permanen seluruh data layanan pelanggan pada router ini"
+                                    description="Jika dicentang, layanan pelanggan tidak dipindahkan melainkan dihapus permanen."
+                                />
+                            </div>
+                        </div>
+                    @else
+                        <div class="pt-1">
+                            <flux:checkbox
+                                wire:model.live="confirmForceDelete"
+                                label="Saya mengerti bahwa seluruh data layanan pelanggan pada router ini akan dihapus permanen."
+                            />
+                        </div>
+                    @endif
+                </div>
+            @else
+                <p class="text-sm text-zinc-600 dark:text-zinc-400">
+                    Router ini tidak memiliki data layanan pelanggan yang terhubung dan aman untuk dihapus.
+                </p>
+            @endif
+
+            <div class="flex justify-end gap-3 pt-2">
                 <flux:modal.close>
-                    <flux:button variant="ghost" wire:click="$set('deletingId', null)">Batal</flux:button>
+                    <flux:button variant="ghost">Batal</flux:button>
                 </flux:modal.close>
-                <flux:button wire:click="deleteRouter" variant="danger">Hapus</flux:button>
+                <flux:button
+                    wire:click="deleteRouter"
+                    variant="danger"
+                    wire:loading.attr="disabled"
+                    :disabled="$routerToDelete && ($routerToDelete->layanans_count > 0 || ! $routerToDelete->canBeDeleted()) && ($otherRouters->isEmpty() && ! $confirmForceDelete)"
+                >
+                    Hapus Router
+                </flux:button>
             </div>
         </div>
     </flux:modal>
 </div>
+
+
+
+

@@ -103,6 +103,14 @@ class IpPool extends Model
     }
 
     /**
+     * Periksa apakah IP Pool aman untuk dihapus (tidak digunakan oleh layanan pelanggan).
+     */
+    public function canBeDeleted(): bool
+    {
+        return ! $this->layanans()->withTrashed()->exists();
+    }
+
+    /**
      * Dapatkan alamat IP Gateway (host pertama) dari network pool ini (misal: "10.0.0.1").
      */
     public function getGatewayAddress(): string
