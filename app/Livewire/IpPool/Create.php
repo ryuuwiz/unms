@@ -21,15 +21,15 @@ class Create extends Component
 
     public string $ip_network = '';
 
-    public int $cidr = 24;
+    public ?int $cidr = 24;
 
     public string $rentang_ip_awal = '';
 
     public string $rentang_ip_akhir = '';
 
-    public int $priority_tx = 8;
+    public ?int $priority_tx = 8;
 
-    public int $priority_rx = 8;
+    public ?int $priority_rx = 8;
 
     public function mount(): void
     {

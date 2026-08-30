@@ -24,7 +24,7 @@ class Show extends Component
 
     public string $metode = 'manual_admin';
 
-    public float $jumlah_dibayar = 0.0;
+    public ?float $jumlah_dibayar = 0.0;
 
     public string $referensi_transaksi = '';
 

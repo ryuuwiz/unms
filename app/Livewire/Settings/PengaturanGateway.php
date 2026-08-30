@@ -38,11 +38,11 @@ class PengaturanGateway extends Component
     public string $ipaymu_api_key = '';
 
     // General & Fee Settings (Standar Riset Industri: VA Rp 4.000, QRIS 0.70%)
-    public float $fee_va_nominal = 4000.0;
+    public ?float $fee_va_nominal = 4000.0;
 
-    public float $fee_qris_persen = 0.70;
+    public ?float $fee_qris_persen = 0.70;
 
-    public float $fee_qris_nominal = 0.0;
+    public ?float $fee_qris_nominal = 0.0;
 
     public bool $bebankan_ke_pelanggan = true;
 

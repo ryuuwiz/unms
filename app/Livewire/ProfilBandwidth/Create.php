@@ -35,7 +35,7 @@ class Create extends Component
 
     public ?int $limit_rate_rx = null;
 
-    public int $priority = 8;
+    public ?int $priority = 8;
 
     public bool $useBurst = false;
 

@@ -18,7 +18,7 @@ class Create extends Component
 
     public ?int $perumahan_id = null;
 
-    public int $kapasitas_port = 8;
+    public ?int $kapasitas_port = 8;
 
     public string $keterangan = '';
 

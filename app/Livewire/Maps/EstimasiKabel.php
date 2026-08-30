@@ -22,11 +22,11 @@ class EstimasiKabel extends Component
 
     public string $search = '';
 
-    public int $limit = 5;
+    public ?int $limit = 5;
 
-    public float $faktor = 1.3;
+    public ?float $faktor = 1.3;
 
-    public int $reserve = 25;
+    public ?int $reserve = 25;
 
     /**
      * @var array<int, array{

@@ -26,7 +26,7 @@ class Edit extends Component
 
     public ?float $harga = null;
 
-    public int $masa_aktif_nilai = 1;
+    public ?int $masa_aktif_nilai = 1;
 
     public string $masa_aktif_satuan = 'bulan';
 

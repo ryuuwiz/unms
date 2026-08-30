@@ -30,7 +30,7 @@ class Index extends Component
 
     public string $tipe_pengingat = 'sebelum_jatuh_tempo';
 
-    public int $hari_offset = 3;
+    public ?int $hari_offset = 3;
 
     public string $jam_eksekusi = '08:30';
 

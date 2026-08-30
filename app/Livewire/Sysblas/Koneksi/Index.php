@@ -35,7 +35,7 @@ class Index extends Component
 
     public string $api_secret = '';
 
-    public int $limit_per_menit = 25;
+    public ?int $limit_per_menit = 25;
 
     public bool $is_default = false;
 

@@ -57,7 +57,7 @@ class Show extends Component
 
     public string $bayarMetode = 'manual_admin';
 
-    public float $bayarJumlah = 0.0;
+    public ?float $bayarJumlah = 0.0;
 
     public string $bayarReferensi = '';
 
