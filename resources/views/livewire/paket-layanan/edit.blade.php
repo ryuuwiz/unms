@@ -15,7 +15,8 @@
 
         <flux:field>
             <flux:label>Profil Bandwidth</flux:label>
-            <flux:select wire:model="profil_bandwidth_id" placeholder="Pilih profil bandwidth...">
+            <flux:select wire:model.live="profil_bandwidth_id" placeholder="Pilih profil bandwidth...">
+                <flux:select.option value="">-- Pilih Profil Bandwidth --</flux:select.option>
                 @foreach ($profils as $profil)
                     <flux:select.option value="{{ $profil->id }}">
                         {{ $profil->nama_bandwidth }} ({{ $profil->labelKecepatan() }})

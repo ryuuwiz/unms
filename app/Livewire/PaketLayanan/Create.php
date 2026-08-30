@@ -60,6 +60,7 @@ class Create extends Component
             'nama_paket.required' => 'Nama paket wajib diisi.',
             'nama_paket.unique' => 'Nama paket sudah terdaftar.',
             'profil_bandwidth_id.required' => 'Profil bandwidth wajib dipilih.',
+            'profil_bandwidth_id.exists' => 'Profil bandwidth yang dipilih tidak valid.',
             'harga.required' => 'Harga paket wajib diisi.',
         ];
     }

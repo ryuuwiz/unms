@@ -79,6 +79,30 @@ test('validation prevents duplicate paket name', function () {
         ->assertHasErrors(['nama_paket' => 'unique']);
 });
 
+test('validation requires profil bandwidth to be selected on create', function () {
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class)
+        ->set('nama_paket', 'Paket Baru')
+        ->set('profil_bandwidth_id', null)
+        ->set('harga', 200000)
+        ->call('save')
+        ->assertHasErrors(['profil_bandwidth_id' => 'required']);
+});
+
+test('validation requires profil bandwidth to be selected on edit', function () {
+    $paket = PaketLayanan::factory()->create([
+        'nama_paket' => 'Paket Awal',
+        'profil_bandwidth_id' => $this->profilBandwidth->id,
+        'harga' => 150000,
+    ]);
+
+    Livewire::actingAs($this->adminUser)
+        ->test(Edit::class, ['paketLayanan' => $paket])
+        ->set('profil_bandwidth_id', null)
+        ->call('save')
+        ->assertHasErrors(['profil_bandwidth_id' => 'required']);
+});
+
 test('admin can edit existing paket layanan', function () {
     $paket = PaketLayanan::factory()->create([
         'nama_paket' => 'Paket Awal',
