@@ -46,16 +46,26 @@ server {
     proxy_temp_file_write_size 256k;
   }
   
-  location ~* ^/flux/(flux|editor)(\.min)?\.(js|css)$ {
-    expires off;
-    try_files $uri $uri/ /index.php?$query_string;
-  }
-
   location ~* ^.+\.(css|js|jpg|jpeg|gif|png|ico|gz|svg|svgz|ttf|otf|woff|woff2|eot|mp4|ogg|ogv|webm|webp|zip|swf|map)$ {
     add_header Access-Control-Allow-Origin "*";
     add_header alt-svc 'h3=":443"; ma=86400';
     expires max;
     access_log off;
+    try_files $uri @proxy;
+  }
+
+  location @proxy {
+    {{varnish_proxy_pass}}
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_hide_header X-Varnish;
+    proxy_redirect off;
+    proxy_max_temp_file_size 0;
+    proxy_connect_timeout      720;
+    proxy_send_timeout         720;
+    proxy_read_timeout         720;
   }
 
   if (-f $request_filename) {
@@ -69,8 +79,19 @@ server {
   server_name buroq.gobilling.id;
   {{root}}
 
-  try_files $uri $uri/ /index.php?$args;
   index index.php index.html;
+
+  location ~* ^/flux/(flux|editor)(\.min)?\.(js|css)$ {
+    expires off;
+    try_files $uri $uri/ /index.php?$query_string;
+  }
+
+  location ~* ^.+\.(css|js|jpg|jpeg|gif|png|ico|gz|svg|svgz|ttf|otf|woff|woff2|eot|mp4|ogg|ogv|webm|webp|zip|swf|map)$ {
+    add_header Access-Control-Allow-Origin "*";
+    expires max;
+    access_log off;
+    try_files $uri /index.php?$query_string;
+  }
 
   location ~ \.php$ {
     include fastcgi_params;
@@ -85,16 +106,9 @@ server {
     fastcgi_pass 127.0.0.1:{{php_fpm_port}};
     fastcgi_param PHP_VALUE "{{php_settings}}";
   }
-  
-  location ~* ^/flux/(flux|editor)(\.min)?\.(js|css)$ {
-    expires off;
-    try_files $uri $uri/ /index.php?$query_string;
-  }
-  
-  location ~* ^.+\.(css|js|jpg|jpeg|gif|png|ico|gz|svg|svgz|ttf|otf|woff|woff2|eot|mp4|ogg|ogv|webm|webp|zip|swf|map)$ {
-    add_header Access-Control-Allow-Origin "*";
-    expires max;
-    access_log off;
+
+  location / {
+    try_files $uri $uri/ /index.php?$args;
   }
 
   if (-f $request_filename) {
