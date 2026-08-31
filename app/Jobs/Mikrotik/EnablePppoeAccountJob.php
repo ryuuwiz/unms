@@ -31,7 +31,7 @@ class EnablePppoeAccountJob implements ShouldQueue
     public function __construct(
         public LayananPelanggan $layanan
     ) {
-        $this->onQueue('mikrotik');
+        $this->onQueue('mikrotik-high');
     }
 
     public function handle(MikrotikService $mikrotikService): void

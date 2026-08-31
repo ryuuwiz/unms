@@ -12,18 +12,18 @@ Schedule::command('mikrotik:provisi-router --clean-orphans')
     ->withoutOverlapping(60)
     ->runInBackground();
 
-// Periodic Auto-Recovery for PPP Secrets & Profiles
-Schedule::command('mikrotik:recover-ppp')
-    ->everyTenMinutes()
-    ->withoutOverlapping(10)
+// Periodic Fast Auto-Recovery for PPP Secrets & Profiles (Asynchronous per-router queue)
+Schedule::command('mikrotik:recover-ppp --async')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(15)
     ->runInBackground();
 
 Schedule::command('xendit:cek-va-expired')->hourly();
 
-// Periodic Health Check / System Resource Ping
+// Periodic Health Check / System Resource Ping (Non-blocking queue)
 Schedule::command('mikrotik:ping')
     ->everyFiveMinutes()
-    ->withoutOverlapping(10)
+    ->withoutOverlapping(5)
     ->runInBackground();
 
 // Pengingat Tagihan WhatsApp Otomatis (Setiap jam memeriksa aturan aktif)

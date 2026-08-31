@@ -29,7 +29,7 @@ class ProvisionRouterJob implements ShouldQueue
         public bool $force = false,
         public bool $cleanOrphans = false
     ) {
-        $this->onQueue('mikrotik');
+        $this->onQueue('mikrotik-low');
     }
 
     public function handle(MikrotikService $mikrotikService): void

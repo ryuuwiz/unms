@@ -33,7 +33,7 @@ class SyncBandwidthProfileToRoutersJob implements ShouldQueue
     public function __construct(
         public ProfilBandwidth $profil
     ) {
-        $this->onQueue('mikrotik');
+        $this->onQueue('mikrotik-low');
     }
 
     public function handle(MikrotikService $mikrotikService): void

@@ -70,7 +70,7 @@ test('suspending service dispatches DisablePppoeAccountJob', function () {
     );
 
     Queue::assertPushed(DisablePppoeAccountJob::class, function ($job) {
-        return $job->layanan->id === $this->layanan->id && $job->queue === 'mikrotik';
+        return $job->layanan->id === $this->layanan->id && $job->queue === 'mikrotik-high';
     });
 });
 
@@ -86,7 +86,7 @@ test('activating suspended service dispatches EnablePppoeAccountJob', function (
     );
 
     Queue::assertPushed(EnablePppoeAccountJob::class, function ($job) {
-        return $job->layanan->id === $this->layanan->id && $job->queue === 'mikrotik';
+        return $job->layanan->id === $this->layanan->id && $job->queue === 'mikrotik-high';
     });
 });
 

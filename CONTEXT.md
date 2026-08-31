@@ -89,6 +89,18 @@ _Avoid_: Switch, Gateway Umum
 Blok alokasi alamat IP (Network, CIDR, Range IP) yang terikat pada Router untuk distribusi IP pelanggan.
 _Avoid_: Subnet Bebas, DHCP Range
 
+**Antrean Prioritas MikroTik (`mikrotik-high`)**:
+Antrean antarmuka Horizon khusus untuk provisi instan dan siklus hidup pelanggan real-time (tambah akun, ubah paket, isolir, buka isolir) dengan alokasi proses worker terisolasi tanpa jeda.
+_Avoid_: Antrean Campur, Single Queue Mikrotik, Mikrotik Low Saja
+
+**Antrean Background MikroTik (`mikrotik-low`)**:
+Antrean antarmuka Horizon untuk pemeliharaan berkala berulang (health check ping, validasi massal PPP secret, sinkronisasi pool/profil) dengan mekanisme non-blocking dan auto-scaling.
+_Avoid_: Background Queue Bebas, Single Queue Mikrotik
+
+**Rekonsiliasi Cepat PPP In-Memory**:
+Strategi sinkronisasi berkala PPP Secret di RouterOS yang membaca seluruh data dalam 1x bulk query, membandingkan data di RAM PHP (0 ms), dan hanya mengirim perintah mutasi secara targeted pada entri yang tidak sinkron tanpa query baca berulang per akun.
+_Avoid_: Query Nested Per Akun, Loop Sinkron Monolitik, Reconcile Lambat
+
 **Kota**:
 Entitas tingkat administratif kota/kabupaten dalam cakupan operasional ISP.
 _Avoid_: City, Daerah

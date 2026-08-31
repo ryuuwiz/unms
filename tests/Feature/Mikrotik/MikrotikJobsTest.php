@@ -7,6 +7,7 @@ use App\Jobs\Mikrotik\DisablePppoeAccountJob;
 use App\Jobs\Mikrotik\EnablePppoeAccountJob;
 use App\Jobs\Mikrotik\PingRouterJob;
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
+use App\Jobs\Mikrotik\RecoverPppRouterJob;
 use App\Jobs\Mikrotik\SyncBandwidthProfileToRoutersJob;
 use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
 use App\Models\IpPool;
@@ -134,7 +135,7 @@ test('PingRouterJob tests connection and logs success', function () {
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            6
+            3
         )
         ->andReturn(['status' => 'success']);
 
@@ -143,6 +144,33 @@ test('PingRouterJob tests connection and logs success', function () {
 
     $log = MikrotikJobLog::where('router_id', $this->router->id)
         ->where('job_type', MikrotikJobType::Ping)
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->status)->toBe(MikrotikJobStatus::Success);
+});
+
+test('RecoverPppRouterJob runs autoRecoverPppSecrets on mikrotik-low queue', function () {
+    $mockService = Mockery::mock(MikrotikService::class);
+    $mockService->shouldReceive('autoRecoverPppSecrets')
+        ->once()
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id))
+        ->andReturn([
+            'profiles' => ['total' => 1, 'synced' => 1, 'errors' => []],
+            'secrets' => ['total_checked' => 1, 'recovered' => 1, 'already_synced' => 0, 'disabled' => 0, 'duplicates_removed' => 0, 'errors' => []],
+            'total_checked' => 1,
+            'recovered' => 1,
+            'already_synced' => 0,
+            'disabled' => 0,
+            'duplicates_removed' => 0,
+            'errors' => [],
+        ]);
+
+    $job = new RecoverPppRouterJob($this->router);
+    $job->handle($mockService);
+
+    $log = MikrotikJobLog::where('router_id', $this->router->id)
+        ->where('job_type', MikrotikJobType::ReconcilePppoe)
         ->first();
 
     expect($log)->not->toBeNull()

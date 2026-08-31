@@ -4,6 +4,7 @@ namespace App\Jobs\Mikrotik;
 
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
+use App\Enums\StatusRouter;
 use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
@@ -20,21 +21,16 @@ class PingRouterJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 2;
+    public int $tries = 1;
 
-    public int $timeout = 15;
+    public int $timeout = 10;
 
     public int $uniqueFor = 300;
-
-    /**
-     * @var array<int, int>
-     */
-    public array $backoff = [10, 30];
 
     public function __construct(
         public Router $router
     ) {
-        $this->onQueue('mikrotik');
+        $this->onQueue('mikrotik-low');
     }
 
     /**
@@ -47,6 +43,8 @@ class PingRouterJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(MikrotikService $mikrotikService): void
     {
+        $wasOffline = ($this->router->status_koneksi !== StatusRouter::Online);
+
         $log = MikrotikJobLog::create([
             'router_id' => $this->router->id,
             'job_type' => MikrotikJobType::Ping,
@@ -55,13 +53,18 @@ class PingRouterJob implements ShouldBeUnique, ShouldQueue
         ]);
 
         try {
-            $result = $mikrotikService->testConnection($this->router, 6);
+            $result = $mikrotikService->testConnection($this->router, 3);
 
             $log->update([
                 'status' => MikrotikJobStatus::Success,
                 'finished_at' => Carbon::now(),
                 'payload' => $result,
             ]);
+
+            // Auto-trigger recovery bila router baru pulih dari status Offline
+            if ($wasOffline) {
+                RecoverPppRouterJob::dispatch($this->router);
+            }
         } catch (Throwable $e) {
             $log->update([
                 'status' => MikrotikJobStatus::Failed,

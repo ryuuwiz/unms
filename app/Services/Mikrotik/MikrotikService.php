@@ -28,7 +28,7 @@ class MikrotikService
      *
      * @throws MikrotikConnectionException
      */
-    public function getClient(Router $router, int $timeout = 10, int $socketTimeout = 15): Client
+    public function getClient(Router $router, int $timeout = 10, int $socketTimeout = 15, int $attempts = 1, int $delay = 1): Client
     {
         try {
             $config = new Config([
@@ -38,8 +38,8 @@ class MikrotikService
                 'port' => (int) $router->port,
                 'timeout' => $timeout,
                 'socket_timeout' => $socketTimeout,
-                'attempts' => 2,
-                'delay' => 1,
+                'attempts' => $attempts,
+                'delay' => $delay,
                 'throw_timeout_exception' => false,
                 'socket_options' => [
                     'tcp_nodelay' => true,
@@ -63,10 +63,12 @@ class MikrotikService
      *
      * @throws MikrotikException
      */
-    public function testConnection(Router $router, int $timeout = 6, ?Client $client = null): array
+    public function testConnection(Router $router, int $timeout = 3, ?Client $client = null): array
     {
+        $previousStatus = $router->status_koneksi;
+
         try {
-            $client = $client ?? $this->getClient($router, $timeout);
+            $client = $client ?? $this->getClient($router, $timeout, $timeout, 1);
             $query = new Query('/system/resource/print');
             $response = $client->query($query)->read();
 
@@ -96,19 +98,21 @@ class MikrotikService
                 'routeros_version' => $version,
             ]);
 
-            MikrotikJobLog::create([
-                'router_id' => $router->id,
-                'job_type' => MikrotikJobType::TestConnection,
-                'status' => MikrotikJobStatus::Success,
-                'attempt_count' => 1,
-                'payload' => [
-                    'version' => $version,
-                    'cpu_load' => $cpuLoad,
-                    'uptime' => $uptime,
-                    'board_name' => $boardName,
-                ],
-                'finished_at' => Carbon::now(),
-            ]);
+            if ($previousStatus !== StatusRouter::Online) {
+                MikrotikJobLog::create([
+                    'router_id' => $router->id,
+                    'job_type' => MikrotikJobType::TestConnection,
+                    'status' => MikrotikJobStatus::Success,
+                    'attempt_count' => 1,
+                    'payload' => [
+                        'version' => $version,
+                        'cpu_load' => $cpuLoad,
+                        'uptime' => $uptime,
+                        'board_name' => $boardName,
+                    ],
+                    'finished_at' => Carbon::now(),
+                ]);
+            }
 
             return [
                 'status' => 'success',
@@ -500,9 +504,10 @@ class MikrotikService
      */
     public function disablePppoeSecret(Router $router, LayananPelanggan $layanan, bool $disconnectActive = true, ?Client $client = null): bool
     {
+        $username = $layanan->ppp_username;
+
         try {
             $client = $client ?? $this->getClient($router);
-            $username = $layanan->ppp_username;
 
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
             $existing = $client->query($findQuery)->read();

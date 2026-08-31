@@ -33,7 +33,7 @@ class CleanupPppSecretOnOldRouterJob implements ShouldQueue
         public readonly string $pppUsername,
         public readonly ?int $layananPelangganId = null,
     ) {
-        $this->onQueue('mikrotik');
+        $this->onQueue('mikrotik-high');
     }
 
     public function handle(MikrotikService $mikrotikService): void

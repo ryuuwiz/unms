@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\Mikrotik\PingRouterJob;
+use App\Jobs\Mikrotik\RecoverPppRouterJob;
 use Illuminate\Support\Str;
 
 return [
@@ -98,6 +99,8 @@ return [
     */
 
     'waits' => [
+        'redis:mikrotik-high' => 30,
+        'redis:mikrotik-low' => 120,
         'redis:default' => 60,
     ],
 
@@ -134,6 +137,7 @@ return [
 
     'silenced' => [
         PingRouterJob::class,
+        RecoverPppRouterJob::class,
     ],
 
     'silenced_tags' => [
@@ -198,9 +202,21 @@ return [
     */
 
     'defaults' => [
-        'supervisor-1' => [
+        'supervisor-high' => [
             'connection' => 'redis',
-            'queue' => ['default', 'mikrotik', 'wa-blast'],
+            'queue' => ['mikrotik-high'],
+            'balance' => 'simple',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 30,
+            'nice' => 0,
+        ],
+        'supervisor-low' => [
+            'connection' => 'redis',
+            'queue' => ['mikrotik-low', 'default', 'wa-blast'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
@@ -215,7 +231,10 @@ return [
 
     'environments' => [
         'production' => [
-            'supervisor-1' => [
+            'supervisor-high' => [
+                'maxProcesses' => 3,
+            ],
+            'supervisor-low' => [
                 'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
@@ -223,7 +242,10 @@ return [
         ],
 
         'local' => [
-            'supervisor-1' => [
+            'supervisor-high' => [
+                'maxProcesses' => 2,
+            ],
+            'supervisor-low' => [
                 'maxProcesses' => 3,
             ],
         ],

@@ -32,7 +32,7 @@ class DisablePppoeAccountJob implements ShouldQueue
         public LayananPelanggan $layanan,
         public bool $disconnectActive = true
     ) {
-        $this->onQueue('mikrotik');
+        $this->onQueue('mikrotik-high');
     }
 
     public function handle(MikrotikService $mikrotikService): void

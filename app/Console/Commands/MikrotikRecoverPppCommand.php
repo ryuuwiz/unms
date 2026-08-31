@@ -4,11 +4,13 @@ namespace App\Console\Commands;
 
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
+use App\Jobs\Mikrotik\RecoverPppRouterJob;
 use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class MikrotikRecoverPppCommand extends Command
@@ -21,7 +23,8 @@ class MikrotikRecoverPppCommand extends Command
     protected $signature = 'mikrotik:recover-ppp
                             {--router= : ID Router tertentu}
                             {--force : Paksa sinkronisasi ulang seluruh profil dan akun PPP}
-                            {--clean-orphans : Hapus akun PPP Secret di MikroTik yang tidak terdaftar di UNMS}';
+                            {--clean-orphans : Hapus akun PPP Secret di MikroTik yang tidak terdaftar di UNMS}
+                            {--async : Jalankan via antrean mikrotik-low di background secara asynchronous}';
 
     /**
      * The console command description.
@@ -42,6 +45,7 @@ class MikrotikRecoverPppCommand extends Command
         $routerId = $this->option('router');
         $force = (bool) $this->option('force');
         $cleanOrphans = (bool) $this->option('clean-orphans');
+        $async = (bool) $this->option('async');
 
         $query = Router::query()
             ->when($routerId, fn ($q) => $q->where('id', $routerId));
@@ -58,6 +62,26 @@ class MikrotikRecoverPppCommand extends Command
             $this->warn('Tidak ada router yang terdaftar di UNMS.');
 
             return self::SUCCESS;
+        }
+
+        if ($async) {
+            $this->info("Mendispatch job auto-recovery untuk {$routers->count()} router ke antrean mikrotik-low...");
+            try {
+                foreach ($routers as $router) {
+                    RecoverPppRouterJob::dispatch($router, $force, $cleanOrphans);
+                }
+                $this->info('Seluruh job recovery router berhasil dimasukkan ke antrean.');
+
+                return self::SUCCESS;
+            } catch (Throwable $e) {
+                $this->error("Gagal mendispatch job auto-recovery: {$e->getMessage()}");
+                Log::error("Gagal mendispatch job auto-recovery ke antrean mikrotik-low: {$e->getMessage()}", [
+                    'exception' => $e,
+                ]);
+                report($e);
+
+                return self::FAILURE;
+            }
         }
 
         $this->info("Menjalankan pipeline auto-recovery untuk {$routers->count()} router...");
@@ -147,16 +171,35 @@ class MikrotikRecoverPppCommand extends Command
                 $this->info("  ✅ Sukses auto-recover {$router->nama_router}");
             } catch (Throwable $e) {
                 $failedCount++;
-                $this->error("  ❌ Gagal auto-recover {$router->nama_router}: {$e->getMessage()}");
+                $errorMessage = $e->getMessage();
+                $this->error("  ❌ Gagal auto-recover {$router->nama_router}: {$errorMessage}");
 
-                MikrotikJobLog::create([
+                Log::error("Gagal auto-recover PPP pada router {$router->nama_router} ({$router->ip_address}:{$router->port}): {$errorMessage}", [
                     'router_id' => $router->id,
-                    'job_type' => MikrotikJobType::ReconcilePppoe,
-                    'status' => MikrotikJobStatus::Failed,
-                    'attempt_count' => 1,
-                    'error_message' => $e->getMessage(),
-                    'finished_at' => Carbon::now(),
+                    'router_name' => $router->nama_router,
+                    'ip_address' => $router->ip_address,
+                    'port' => $router->port,
+                    'exception_class' => get_class($e),
+                    'exception' => $e,
                 ]);
+
+                report($e);
+
+                try {
+                    MikrotikJobLog::create([
+                        'router_id' => $router->id,
+                        'job_type' => MikrotikJobType::ReconcilePppoe,
+                        'status' => MikrotikJobStatus::Failed,
+                        'attempt_count' => 1,
+                        'error_message' => $errorMessage,
+                        'finished_at' => Carbon::now(),
+                    ]);
+                } catch (Throwable $logEx) {
+                    Log::warning("Gagal menyimpan MikrotikJobLog untuk router {$router->nama_router}: {$logEx->getMessage()}", [
+                        'router_id' => $router->id,
+                        'exception' => $logEx,
+                    ]);
+                }
 
                 $results[] = [
                     'Router' => $router->nama_router,
@@ -182,6 +225,6 @@ class MikrotikRecoverPppCommand extends Command
             $this->warn("⚠️ Gagal    : {$failedCount} router");
         }
 
-        return $failedCount > 0 && $successCount === 0 ? self::FAILURE : self::SUCCESS;
+        return self::SUCCESS;
     }
 }
