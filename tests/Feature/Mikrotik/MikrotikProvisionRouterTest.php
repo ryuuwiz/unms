@@ -5,6 +5,7 @@ use App\Enums\MikrotikJobType;
 use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
 use App\Jobs\Mikrotik\ProvisionRouterJob;
+use App\Jobs\Mikrotik\RecoverPppRouterJob;
 use App\Jobs\Mikrotik\SyncBandwidthProfileToRoutersJob;
 use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
 use App\Models\IpPool;
@@ -176,6 +177,21 @@ test('mikrotik:provisi-router command runs successfully', function () {
         ->assertSuccessful();
 });
 
+test('mikrotik:provisi-router command with --async dispatches RecoverPppRouterJob to queue', function () {
+    Queue::fake();
+
+    $this->artisan('mikrotik:provisi-router', ['--async' => true, '--clean-orphans' => true])
+        ->expectsOutputToContain('Mendispatch job provisi & recovery')
+        ->expectsOutputToContain('Seluruh job recovery & provisi router berhasil dimasukkan ke antrean')
+        ->assertSuccessful();
+
+    Queue::assertPushed(RecoverPppRouterJob::class, function ($job) {
+        return $job->router->id === $this->router->id
+            && $job->cleanOrphans === true
+            && $job->force === false;
+    });
+});
+
 test('IpPoolObserver triggers SyncIpPoolToRouterJob when router is online', function () {
     Queue::fake();
 
@@ -227,4 +243,31 @@ test('autoRecoverPppSecrets removes duplicate secrets in RouterOS', function () 
 
     expect($stats['duplicates_removed'])->toBe(1)
         ->and($stats['already_synced'])->toBe(1);
+});
+
+test('cleanOrphanedPppSecrets does not delete secret if registered concurrently in database', function () {
+    $mockClient = Mockery::mock(Client::class);
+
+    $mockService = Mockery::mock(MikrotikService::class)->makePartial();
+    $mockService->shouldReceive('getClient')->andReturn($mockClient);
+
+    // MikroTik has a secret
+    $mockClient->shouldReceive('query')->andReturnSelf();
+    $mockClient->shouldReceive('read')->andReturn([
+        ['.id' => '*10', 'name' => 'BF2308202601_99999', 'comment' => 'UNMS: Test Layanan', 'profile' => 'Home-20M', 'disabled' => 'false'],
+    ]);
+
+    // LayananPelanggan exists in DB (simulating concurrent registration)
+    LayananPelanggan::factory()->create([
+        'router_id' => $this->router->id,
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'ppp_username' => 'BF2308202601_99999',
+        'status' => StatusLayanan::Aktif,
+    ]);
+
+    $stats = $mockService->cleanOrphanedPppSecrets($this->router, executeDelete: true);
+
+    expect($stats['deleted'])->toBe(0)
+        ->and($stats['orphans_count'])->toBe(0);
 });

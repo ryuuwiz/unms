@@ -16,6 +16,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
@@ -46,44 +47,48 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(MikrotikService $mikrotikService): void
     {
+        $lock = Cache::lock("mikrotik:router:{$this->router->id}", 120);
+
         try {
-            if ($this->force) {
-                $result = $mikrotikService->provisionRouterFull(
-                    router: $this->router,
-                    force: true,
-                    cleanOrphans: $this->cleanOrphans
-                );
-            } else {
-                $result = $mikrotikService->autoRecoverPppSecrets($this->router);
+            $lock->block(15, function () use ($mikrotikService) {
+                if ($this->force) {
+                    $result = $mikrotikService->provisionRouterFull(
+                        router: $this->router,
+                        force: true,
+                        cleanOrphans: $this->cleanOrphans
+                    );
+                } else {
+                    $result = $mikrotikService->autoRecoverPppSecrets($this->router);
 
-                if ($this->cleanOrphans) {
-                    $orphanStats = $mikrotikService->cleanOrphanedPppSecrets($this->router, true);
-                    $result['orphans'] = $orphanStats;
+                    if ($this->cleanOrphans) {
+                        $orphanStats = $mikrotikService->cleanOrphanedPppSecrets($this->router, true);
+                        $result['orphans'] = $orphanStats;
+                    }
+
+                    $recoveredCount = $result['recovered'] ?? 0;
+                    $disabledCount = $result['disabled'] ?? 0;
+                    $duplicatesRemoved = $result['duplicates_removed'] ?? 0;
+                    $errors = $result['errors'] ?? [];
+
+                    $shouldLog = $this->cleanOrphans
+                        || ($recoveredCount > 0)
+                        || ($disabledCount > 0)
+                        || ($duplicatesRemoved > 0)
+                        || (! empty($errors));
+
+                    if ($shouldLog) {
+                        MikrotikJobLog::create([
+                            'router_id' => $this->router->id,
+                            'job_type' => MikrotikJobType::ReconcilePppoe,
+                            'status' => empty($errors) ? MikrotikJobStatus::Success : MikrotikJobStatus::Failed,
+                            'attempt_count' => 1,
+                            'payload' => $result,
+                            'error_message' => ! empty($errors) ? implode('; ', $errors) : null,
+                            'finished_at' => Carbon::now(),
+                        ]);
+                    }
                 }
-
-                $recoveredCount = $result['recovered'] ?? 0;
-                $disabledCount = $result['disabled'] ?? 0;
-                $duplicatesRemoved = $result['duplicates_removed'] ?? 0;
-                $errors = $result['errors'] ?? [];
-
-                $shouldLog = $this->cleanOrphans
-                    || ($recoveredCount > 0)
-                    || ($disabledCount > 0)
-                    || ($duplicatesRemoved > 0)
-                    || (! empty($errors));
-
-                if ($shouldLog) {
-                    MikrotikJobLog::create([
-                        'router_id' => $this->router->id,
-                        'job_type' => MikrotikJobType::ReconcilePppoe,
-                        'status' => empty($errors) ? MikrotikJobStatus::Success : MikrotikJobStatus::Failed,
-                        'attempt_count' => 1,
-                        'payload' => $result,
-                        'error_message' => ! empty($errors) ? implode('; ', $errors) : null,
-                        'finished_at' => Carbon::now(),
-                    ]);
-                }
-            }
+            });
         } catch (Throwable $e) {
             MikrotikJobLog::create([
                 'router_id' => $this->router->id,

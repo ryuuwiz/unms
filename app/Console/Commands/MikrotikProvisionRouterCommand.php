@@ -2,9 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\Mikrotik\RecoverPppRouterJob;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class MikrotikProvisionRouterCommand extends Command
@@ -17,7 +19,8 @@ class MikrotikProvisionRouterCommand extends Command
     protected $signature = 'mikrotik:provisi-router
                             {--router= : ID Router tertentu}
                             {--force : Paksa provisi ulang seluruh layanan meskipun sudah terprovisi}
-                            {--clean-orphans : Hapus akun PPP Secret di MikroTik yang tidak terdaftar di UNMS}';
+                            {--clean-orphans : Hapus akun PPP Secret di MikroTik yang tidak terdaftar di UNMS}
+                            {--async : Jalankan via antrean mikrotik-low di background secara asynchronous}';
 
     /**
      * The console command description.
@@ -38,6 +41,7 @@ class MikrotikProvisionRouterCommand extends Command
         $routerId = $this->option('router');
         $force = (bool) $this->option('force');
         $cleanOrphans = (bool) $this->option('clean-orphans');
+        $async = (bool) $this->option('async');
 
         $query = Router::query()
             ->when($routerId, fn ($q) => $q->where('id', $routerId));
@@ -54,6 +58,26 @@ class MikrotikProvisionRouterCommand extends Command
             $this->warn('Tidak ada router yang terdaftar di UNMS.');
 
             return self::SUCCESS;
+        }
+
+        if ($async) {
+            $this->info("Mendispatch job provisi & recovery untuk {$routers->count()} router ke antrean mikrotik-low...");
+            try {
+                foreach ($routers as $router) {
+                    RecoverPppRouterJob::dispatch($router, $force, $cleanOrphans);
+                }
+                $this->info('Seluruh job recovery & provisi router berhasil dimasukkan ke antrean.');
+
+                return self::SUCCESS;
+            } catch (Throwable $e) {
+                $this->error("Gagal mendispatch job provisi router: {$e->getMessage()}");
+                Log::error("Gagal mendispatch job provisi router ke antrean mikrotik-low: {$e->getMessage()}", [
+                    'exception' => $e,
+                ]);
+                report($e);
+
+                return self::FAILURE;
+            }
         }
 
         $this->info("Menjalankan pipeline provisi untuk {$routers->count()} router...");

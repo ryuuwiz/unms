@@ -1137,6 +1137,16 @@ class MikrotikService
                     $orphans[$orphanLabel] = true;
 
                     if ($executeDelete && $secretId && $isUnmsTagged) {
+                        // Double check real-time database state to prevent race conditions with concurrent registrations on other replicas
+                        $existsInDb = LayananPelanggan::query()
+                            ->where('router_id', $router->id)
+                            ->where('ppp_username', $name)
+                            ->exists();
+
+                        if ($existsInDb) {
+                            continue;
+                        }
+
                         try {
                             $removeQuery = (new Query('/ppp/secret/remove'))->equal('.id', $secretId);
                             $client->query($removeQuery)->read();
