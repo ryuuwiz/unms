@@ -5,7 +5,7 @@ namespace App\Livewire\Settings;
 use App\Enums\Wa\KategoriTemplateWa;
 use App\Models\User;
 use App\Models\WaTemplate;
-use App\Services\Wablas\WablasClient;
+use App\Services\Whatsapp\WhatsappClient;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -50,13 +50,13 @@ class WhatsappSettings extends Component
     // State Filter Kategori Template
     public string $filterKategori = '';
 
-    public function mount(WablasClient $client): void
+    public function mount(WhatsappClient $client): void
     {
         $this->authorize('viewAny', User::class);
         $this->refreshDeviceInfo($client);
     }
 
-    public function refreshDeviceInfo(WablasClient $client): void
+    public function refreshDeviceInfo(WhatsappClient $client): void
     {
         $this->isCheckingDevice = true;
         try {
@@ -75,7 +75,7 @@ class WhatsappSettings extends Component
         }
     }
 
-    public function kirimPesanUjiCoba(WablasClient $client): void
+    public function kirimPesanUjiCoba(WhatsappClient $client): void
     {
         $this->validate([
             'testPhone' => ['required', 'string', 'min:9', 'max:20'],

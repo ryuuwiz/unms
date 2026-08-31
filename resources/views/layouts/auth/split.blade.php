@@ -14,7 +14,7 @@
                 <a href="{{ route('home') }}" class="relative z-20 flex items-center gap-3 text-lg font-medium" wire:navigate>
                     <span class="flex h-10 w-auto items-center justify-center rounded-md">
                         @if ($company->logo_url)
-                            <img src="{{ $company->logo_url }}" alt="{{ $brandName }}" class="h-9 w-auto max-w-[160px] object-contain" />
+                            <img src="{{ $company->logo_url }}" alt="{{ $brandName }}" class="h-9 w-auto max-w-[160px] object-contain" style="max-height: 36px; max-width: 160px;" />
                         @else
                             <x-app-logo-icon class="me-2 h-7 fill-current text-white" />
                         @endif

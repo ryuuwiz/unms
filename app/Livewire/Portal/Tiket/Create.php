@@ -13,7 +13,7 @@ use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
 use App\Notifications\TicketBaruDariPortalNotification;
-use App\Services\Wablas\WablasService;
+use App\Services\Whatsapp\WhatsappService;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -155,8 +155,8 @@ class Create extends Component
         $pelanggan = $ticket->pelanggan;
         if ($pelanggan && ! empty($pelanggan->no_hp)) {
             try {
-                /** @var WablasService $wablasService */
-                $wablasService = app(WablasService::class);
+                /** @var WhatsappService $wablasService */
+                $wablasService = app(WhatsappService::class);
                 $params = $wablasService->buildTicketParams($ticket);
                 $wablasService->antrikanPesan(
                     noHp: $pelanggan->no_hp,

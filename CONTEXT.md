@@ -206,7 +206,7 @@ Entri Histori Tiket yang ditandai `is_internal = true` — hanya terlihat oleh s
 _Avoid_: Menyembunyikan Semua Histori dari Pelanggan, Menampilkan Catatan Teknis Mentah Tanpa Filter
 
 **Notifikasi Portal Pelanggan**:
-Sistem notifikasi in-app berbasis Laravel Database Notifications untuk Akun Pelanggan di Portal Pelanggan, ditampilkan melalui ikon bell di navbar portal. Dipicu oleh setiap perubahan status tiket milik pelanggan. Auto-ditandai dibaca saat pelanggan membuka halaman detail tiket terkait; tombol "Tandai Semua Dibaca" tersedia. Dirancang untuk dapat diperluas ke kanal WhatsApp (WAblas API) di masa mendatang.
+Sistem notifikasi in-app berbasis Laravel Database Notifications untuk Akun Pelanggan di Portal Pelanggan, ditampilkan melalui ikon bell di navbar portal. Dipicu oleh setiap perubahan status tiket milik pelanggan. Auto-ditandai dibaca saat pelanggan membuka halaman detail tiket terkait; tombol "Tandai Semua Dibaca" tersedia. Dirancang untuk dapat diperluas ke kanal WhatsApp (WAHA API) di masa mendatang.
 _Avoid_: Email Notification Portal, Push Notification Terpisah, Polling Manual Tanpa Bell Icon
 
 **Target SLA**:

@@ -8,7 +8,7 @@ use App\Enums\Ticket\StatusTicket;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
-use App\Services\Wablas\WablasService;
+use App\Services\Whatsapp\WhatsappService;
 use Exception;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
@@ -191,8 +191,8 @@ class Show extends Component
         // Jika catatan publik, kirim notifikasi WhatsApp ke Pelanggan
         if (! $this->catatanIsInternal && $this->ticket->pelanggan && ! empty($this->ticket->pelanggan->no_hp)) {
             try {
-                /** @var WablasService $wablasService */
-                $wablasService = app(WablasService::class);
+                /** @var WhatsappService $wablasService */
+                $wablasService = app(WhatsappService::class);
                 $params = $wablasService->buildTicketParams($this->ticket, trim($this->catatanProses));
                 $wablasService->antrikanPesan(
                     noHp: $this->ticket->pelanggan->no_hp,

@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\Wa\StatusAntrianWa;
 use App\Models\AntrianWaBlast;
 use App\Models\Sysblas;
-use App\Services\Wablas\WablasClient;
+use App\Services\Whatsapp\WhatsappClient;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -56,7 +56,7 @@ class ProsesAntrianWaCommand extends Command
 
         foreach ($grouped as $sysblasId => $items) {
             $sysblas = $items->first()->sysblas ?? Sysblas::getDefault();
-            $client = $sysblas ? $sysblas->makeClient() : app(WablasClient::class);
+            $client = $sysblas ? $sysblas->makeClient() : app(WhatsappClient::class);
 
             // Chunk per 50 pesan untuk pengiriman batch API WABLAS v2
             foreach ($items->chunk(50) as $chunk) {

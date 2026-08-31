@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\Wablas\WablasWebhookService;
+use App\Services\Whatsapp\WhatsappWebhookService;
 use Illuminate\Console\Command;
 
 class WablasSimulateWebhookCommand extends Command
@@ -28,7 +28,7 @@ class WablasSimulateWebhookCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(WablasWebhookService $webhookService): int
+    public function handle(WhatsappWebhookService $webhookService): int
     {
         $type = strtolower($this->argument('type'));
         $phone = $this->option('phone') ?? '08970919525';

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Wablas;
+namespace App\Services\Whatsapp;
 
 use App\Enums\StatusInvoice;
 use App\Enums\StatusWebhookLog;
@@ -15,10 +15,10 @@ use App\Models\WebhookLog;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
-class WablasWebhookService
+class WhatsappWebhookService
 {
     public function __construct(
-        protected WablasService $wablasService
+        protected WhatsappService $wablasService
     ) {}
 
     /**
@@ -87,7 +87,7 @@ class WablasWebhookService
      */
     public function handleTrackingStatus(array $payload): void
     {
-        $phone = WablasClient::normalizePhoneNumber($payload['phone'] ?? $payload['sender'] ?? null);
+        $phone = WhatsappClient::normalizePhoneNumber($payload['phone'] ?? $payload['sender'] ?? null);
         $statusStr = strtolower((string) ($payload['status'] ?? ''));
         $note = (string) ($payload['note'] ?? $payload['message'] ?? '');
         $messageId = $payload['id'] ?? null;
@@ -132,7 +132,7 @@ class WablasWebhookService
     public function handleIncomingMessage(array $payload): ?string
     {
         $rawPhone = (string) ($payload['phone'] ?? $payload['sender'] ?? '');
-        $phone = WablasClient::normalizePhoneNumber($rawPhone);
+        $phone = WhatsappClient::normalizePhoneNumber($rawPhone);
         $messageText = trim((string) ($payload['message'] ?? ''));
 
         if (empty($phone) || empty($messageText)) {

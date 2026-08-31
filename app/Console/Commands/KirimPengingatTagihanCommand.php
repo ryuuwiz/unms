@@ -6,7 +6,7 @@ use App\Enums\StatusInvoice;
 use App\Enums\Wa\TipePengingatTagihan;
 use App\Models\AturanPengingatTagihan;
 use App\Models\Invoice;
-use App\Services\Wablas\WablasService;
+use App\Services\Whatsapp\WhatsappService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -29,7 +29,7 @@ class KirimPengingatTagihanCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(WablasService $wablasService): int
+    public function handle(WhatsappService $wablasService): int
     {
         $this->info('Memulai pemrosesan pengingat tagihan otomatis via WhatsApp...');
 

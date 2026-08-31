@@ -7,6 +7,7 @@ enum SysblasProvider: string
     case Wablas = 'wablas';
     case Gowa = 'gowa';
     case Sms = 'sms';
+    case Waha = 'waha';
 
     /**
      * Label tampilan nama provider.
@@ -17,6 +18,7 @@ enum SysblasProvider: string
             self::Wablas => 'WABLAS (WhatsApp v2)',
             self::Gowa => 'GOWA Gateway',
             self::Sms => 'SMS Gateway',
+            self::Waha => 'WAHA (WhatsApp HTTP API)',
         };
     }
 
@@ -29,6 +31,7 @@ enum SysblasProvider: string
             self::Wablas => 'emerald',
             self::Gowa => 'blue',
             self::Sms => 'amber',
+            self::Waha => 'green',
         };
     }
 }

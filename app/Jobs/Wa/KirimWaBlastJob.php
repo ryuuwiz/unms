@@ -4,7 +4,7 @@ namespace App\Jobs\Wa;
 
 use App\Models\AntrianWaBlast;
 use App\Models\Sysblas;
-use App\Services\Wablas\WablasClient;
+use App\Services\Whatsapp\WhatsappClient;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -36,7 +36,7 @@ class KirimWaBlastJob implements ShouldQueue
         return [30, 120, 300];
     }
 
-    public function handle(WablasClient $client): void
+    public function handle(WhatsappClient $client): void
     {
         // Pastikan record masih ada dan belum berstatus terkirim
         if (! $this->antrian->exists || $this->antrian->status->value === 'terkirim') {

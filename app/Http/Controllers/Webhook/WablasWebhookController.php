@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
-use App\Services\Wablas\WablasWebhookService;
+use App\Services\Whatsapp\WhatsappWebhookService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class WablasWebhookController extends Controller
 {
     public function __construct(
-        protected WablasWebhookService $webhookService
+        protected WhatsappWebhookService $webhookService
     ) {}
 
     /**

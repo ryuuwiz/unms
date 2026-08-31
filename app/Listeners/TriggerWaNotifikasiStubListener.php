@@ -3,7 +3,7 @@
 namespace App\Listeners;
 
 use App\Events\InvoicePaidEvent;
-use App\Services\Wablas\WablasService;
+use App\Services\Whatsapp\WhatsappService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 
@@ -21,8 +21,8 @@ class TriggerWaNotifikasiStubListener implements ShouldQueue
 
         if ($pelanggan && ! empty($pelanggan->no_hp)) {
             try {
-                /** @var WablasService $wablasService */
-                $wablasService = app(WablasService::class);
+                /** @var WhatsappService $wablasService */
+                $wablasService = app(WhatsappService::class);
                 $params = $wablasService->buildPaymentParams($invoice, $event->pembayaran);
 
                 $wablasService->antrikanPesan(

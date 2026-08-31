@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Wablas;
+namespace App\Services\Whatsapp;
 
 use App\Enums\Wa\StatusAntrianWa;
 use App\Jobs\Wa\KirimWaBlastJob;
@@ -15,10 +15,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
-class WablasService
+class WhatsappService
 {
     public function __construct(
-        protected WablasClient $client
+        protected WhatsappClient $client
     ) {}
 
     /**
@@ -88,7 +88,7 @@ class WablasService
             }
         }
 
-        $normalizedPhone = WablasClient::normalizePhoneNumber($noHp);
+        $normalizedPhone = WhatsappClient::normalizePhoneNumber($noHp);
         $isValidPhone = ! empty($normalizedPhone);
 
         $targetSysblas = $sysblas ?? Sysblas::getDefault();

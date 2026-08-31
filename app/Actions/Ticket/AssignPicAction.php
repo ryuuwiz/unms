@@ -6,7 +6,7 @@ use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
 use App\Notifications\TicketDiassignNotification;
-use App\Services\Wablas\WablasService;
+use App\Services\Whatsapp\WhatsappService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -60,8 +60,8 @@ class AssignPicAction
         // Kirim WhatsApp disposisi ke teknisi jika memiliki nomor HP
         if ($pic && ! empty($pic->phone)) {
             try {
-                /** @var WablasService $wablasService */
-                $wablasService = app(WablasService::class);
+                /** @var WhatsappService $wablasService */
+                $wablasService = app(WhatsappService::class);
                 $params = $wablasService->buildTicketParams($ticket, $catatan);
                 $wablasService->antrikanPesan(
                     noHp: $pic->phone,

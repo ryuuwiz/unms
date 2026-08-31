@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Sysblas\SysblasProvider;
-use App\Services\Wablas\WablasClient;
+use App\Services\Whatsapp\WhatsappClient;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,7 +20,9 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property SysblasProvider $provider
  * @property string|null $nomor
  * @property string $url_api
- * @property string $api_token
+ * @property string|null $username
+ * @property string|null $password
+ * @property string|null $api_token
  * @property string|null $api_secret
  * @property int $limit_per_menit
  * @property bool $is_default
@@ -34,6 +36,8 @@ use Spatie\Activitylog\Support\LogOptions;
     'provider',
     'nomor',
     'url_api',
+    'username',
+    'password',
     'api_token',
     'api_secret',
     'limit_per_menit',
@@ -133,13 +137,13 @@ class Sysblas extends Model
     /**
      * Instansiasi HTTP API Client untuk koneksi ini.
      */
-    public function makeClient(): WablasClient
+    public function makeClient(): WhatsappClient
     {
-        return new WablasClient(
-            host: $this->url_api ?: (string) config('services.wablas.host', 'https://tegal.wablas.com'),
-            number: $this->nomor ?: (string) config('services.wablas.number', ''),
-            token: $this->api_token ?: (string) config('services.wablas.token', ''),
-            secret: $this->api_secret ?: (string) config('services.wablas.secret', '')
+        return new WhatsappClient(
+            host: $this->url_api ?: 'https://waha.gobilling.id',
+            number: $this->nomor ?: '',
+            username: $this->username ?: '',
+            password: $this->password ?: ''
         );
     }
 }

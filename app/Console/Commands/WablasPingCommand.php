@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\Wablas\WablasClient;
+use App\Services\Whatsapp\WhatsappClient;
 use Illuminate\Console\Command;
 
 class WablasPingCommand extends Command
@@ -24,7 +24,7 @@ class WablasPingCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(WablasClient $client): int
+    public function handle(WhatsappClient $client): int
     {
         $this->info('Memeriksa status gateway WABLAS...');
 
