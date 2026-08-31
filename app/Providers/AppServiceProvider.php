@@ -16,6 +16,7 @@ use App\Models\ProfilBandwidth;
 use App\Observers\IpPoolObserver;
 use App\Observers\LayananPelangganObserver;
 use App\Observers\ProfilBandwidthObserver;
+use App\Services\Whatsapp\WhatsappClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Date;
@@ -34,7 +35,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(WhatsappClient::class, function () {
+            return WhatsappClient::forSysblas();
+        });
     }
 
     /**
@@ -99,13 +102,17 @@ class AppServiceProvider extends ServiceProvider
                 );
             }
 
-            return Route::get(
-                'vendor/livewire/livewire.js',
-                fn () => response()->file(public_path('vendor/livewire/livewire.js'), [
-                    'Content-Type' => 'application/javascript',
-                    'Cache-Control' => 'public, max-age=31536000, immutable',
-                ])
-            );
+            if (file_exists(public_path('vendor/livewire/livewire.js'))) {
+                return Route::get(
+                    'vendor/livewire/livewire.js',
+                    fn () => response()->file(public_path('vendor/livewire/livewire.js'), [
+                        'Content-Type' => 'application/javascript',
+                        'Cache-Control' => 'public, max-age=31536000, immutable',
+                    ])
+                );
+            }
+
+            return Route::get('vendor/livewire/livewire.js', $handle);
         });
     }
 

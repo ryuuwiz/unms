@@ -9,6 +9,7 @@ use App\Enums\Wa\StatusAntrianWa;
 use App\Models\AntrianWaBlast;
 use App\Models\Invoice;
 use App\Models\Pelanggan;
+use App\Models\Sysblas;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\WebhookLog;
@@ -18,11 +19,11 @@ use Illuminate\Support\Facades\Log;
 class WhatsappWebhookService
 {
     public function __construct(
-        protected WhatsappService $wablasService
+        protected WhatsappService $whatsappService
     ) {}
 
     /**
-     * Proses payload webhook WABLAS (Tracking status atau Pesan Masuk).
+     * Proses payload webhook WhatsApp (WAHA atau WABLAS).
      *
      * @param  array<string, mixed>  $payload
      * @return array{status: bool, type: string, message: string}
@@ -32,10 +33,21 @@ class WhatsappWebhookService
         $log = $this->logWebhook($payload);
 
         try {
-            // Deteksi tipe webhook berdasarkan struktur payload
+            // 1. Deteksi format event WAHA (event-driven)
+            if (isset($payload['event']) && isset($payload['payload'])) {
+                $result = $this->handleWahaEvent($payload);
+                $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
+
+                return $result;
+            }
+
+            // 2. Deteksi format WABLAS: Inbound chat / Pesan masuk
             if (isset($payload['message']) && (isset($payload['phone']) || isset($payload['sender']))) {
-                // Inbound chat / Pesan masuk
-                $reply = $this->handleIncomingMessage($payload);
+                $reply = $this->handleIncomingMessage([
+                    'phone' => $payload['phone'] ?? $payload['sender'] ?? '',
+                    'message' => $payload['message'] ?? '',
+                    'raw' => $payload,
+                ]);
                 $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
 
                 return [
@@ -45,8 +57,8 @@ class WhatsappWebhookService
                 ];
             }
 
+            // 3. Deteksi format WABLAS: Tracking status pengiriman (DLR)
             if (isset($payload['status']) && (isset($payload['phone']) || isset($payload['id']))) {
-                // Tracking status pengiriman (DLR)
                 $this->handleTrackingStatus($payload);
                 $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
 
@@ -70,7 +82,7 @@ class WhatsappWebhookService
                 'catatan_error' => $e->getMessage(),
             ]);
 
-            Log::error('WABLAS Webhook Processing Error: '.$e->getMessage(), ['payload' => $payload]);
+            Log::error('WhatsApp Webhook Processing Error: '.$e->getMessage(), ['payload' => $payload]);
 
             return [
                 'status' => false,
@@ -81,7 +93,147 @@ class WhatsappWebhookService
     }
 
     /**
-     * Update status pengiriman pada AntrianWaBlast berdasarkan tracking DLR WABLAS.
+     * Tangani event terstruktur dari WAHA API.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{status: bool, type: string, message: string}
+     */
+    protected function handleWahaEvent(array $data): array
+    {
+        $event = (string) ($data['event'] ?? '');
+        $session = (string) ($data['session'] ?? 'default');
+        $payload = (array) ($data['payload'] ?? []);
+
+        switch ($event) {
+            case 'message.ack':
+                $this->handleWahaMessageAck($payload, $session);
+
+                return [
+                    'status' => true,
+                    'type' => 'message_ack',
+                    'message' => 'Status ACK pengiriman pesan WAHA berhasil diperbarui.',
+                ];
+
+            case 'session.status':
+                $status = (string) ($payload['status'] ?? 'UNKNOWN');
+                $this->handleWahaSessionStatus($session, $status);
+
+                return [
+                    'status' => true,
+                    'type' => 'session_status',
+                    'message' => "Status session '{$session}' diperbarui: {$status}.",
+                ];
+
+            case 'message':
+            case 'message.any':
+                // Abaikan pesan yang dikirim oleh bot sendiri
+                if (! empty($payload['fromMe'])) {
+                    return [
+                        'status' => true,
+                        'type' => 'outbound_ignored',
+                        'message' => 'Pesan keluar (fromMe) diabaikan.',
+                    ];
+                }
+
+                $from = (string) ($payload['from'] ?? '');
+                $rawPhone = explode('@', $from)[0] ?? $from;
+                $body = (string) ($payload['body'] ?? '');
+
+                $reply = $this->handleIncomingMessage([
+                    'phone' => $rawPhone,
+                    'message' => $body,
+                    'session' => $session,
+                    'raw' => $data,
+                ]);
+
+                return [
+                    'status' => true,
+                    'type' => 'incoming_message',
+                    'message' => $reply ? 'Pesan masuk WAHA diproses dan dibalas.' : 'Pesan masuk WAHA dicatat.',
+                ];
+
+            default:
+                return [
+                    'status' => true,
+                    'type' => 'unhandled_event',
+                    'message' => "Event WAHA '{$event}' diakui tanpa aksi lanjutan.",
+                ];
+        }
+    }
+
+    /**
+     * Update status AntrianWaBlast berdasarkan event WAHA message.ack.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    protected function handleWahaMessageAck(array $payload, string $session): void
+    {
+        $to = (string) ($payload['to'] ?? $payload['from'] ?? '');
+        $rawPhone = explode('@', $to)[0] ?? $to;
+        $phone = WhatsappClient::normalizePhoneNumber($rawPhone);
+        $ack = $payload['ack'] ?? null;
+        $ackName = strtolower((string) ($payload['ackName'] ?? ''));
+
+        $query = AntrianWaBlast::query()->latest('id');
+
+        if ($phone) {
+            $query->where('no_hp_tujuan', $phone);
+        }
+
+        $antrian = $query->where('created_at', '>=', Carbon::now()->subDays(3))->first();
+
+        if (! $antrian) {
+            return;
+        }
+
+        $existingLog = (array) ($antrian->response_log ?? []);
+        $existingLog['waha_ack'] = [
+            'ack' => $ack,
+            'ackName' => $ackName,
+            'session' => $session,
+            'payload' => $payload,
+            'received_at' => Carbon::now()->toIso8601String(),
+        ];
+
+        // WAHA ACK values: 1 = SERVER/SENT, 2 = DEVICE/DELIVERED, 3 = READ, 4 = PLAYED, -1/0/FAILED = ERROR
+        if ($ack >= 1 || in_array($ackName, ['server', 'device', 'read', 'played', 'delivery'], true)) {
+            $antrian->update([
+                'status' => StatusAntrianWa::Terkirim,
+                'dikirim_pada' => $antrian->dikirim_pada ?? Carbon::now(),
+                'response_log' => $existingLog,
+                'pesan_error' => null,
+            ]);
+        } elseif ($ack < 0 || in_array($ackName, ['error', 'failed'], true)) {
+            $antrian->update([
+                'status' => StatusAntrianWa::Gagal,
+                'pesan_error' => "Gagal terkirim via WAHA ACK: {$ackName}",
+                'response_log' => $existingLog,
+            ]);
+        }
+    }
+
+    /**
+     * Tangani perubahan status session WAHA.
+     */
+    protected function handleWahaSessionStatus(string $sessionName, string $status): void
+    {
+        $sysblas = Sysblas::query()
+            ->where('session_name', $sessionName)
+            ->first();
+
+        if (! $sysblas) {
+            return;
+        }
+
+        if ($status === 'WORKING') {
+            $sysblas->update(['is_aktif' => true]);
+        } elseif (in_array($status, ['STOPPED', 'FAILED'], true)) {
+            Log::warning("WAHA Session '{$sessionName}' berstatus {$status}.");
+        }
+    }
+
+    /**
+     * Update status pengiriman pada AntrianWaBlast berdasarkan tracking DLR WABLAS legacy.
      *
      * @param  array<string, mixed>  $payload
      */
@@ -90,7 +242,6 @@ class WhatsappWebhookService
         $phone = WhatsappClient::normalizePhoneNumber($payload['phone'] ?? $payload['sender'] ?? null);
         $statusStr = strtolower((string) ($payload['status'] ?? ''));
         $note = (string) ($payload['note'] ?? $payload['message'] ?? '');
-        $messageId = $payload['id'] ?? null;
 
         $query = AntrianWaBlast::query()->latest('id');
 
@@ -98,7 +249,6 @@ class WhatsappWebhookService
             $query->where('no_hp_tujuan', $phone);
         }
 
-        // Cari antrean dalam 3 hari terakhir yang relevan
         $antrian = $query->where('created_at', '>=', Carbon::now()->subDays(3))->first();
 
         if (! $antrian) {
@@ -146,10 +296,10 @@ class WhatsappWebhookService
             ->orWhere('no_hp', '0'.substr($phone, 2))
             ->first();
 
-        // 1. Jika ada kata kunci interaktif, balas secara otomatis
+        // 1. Jika ada kata kunci interaktif, buat balasan otomatis
         $replyMessage = $this->generateInteractiveReply($messageText, $pelanggan);
 
-        // 2. Jika pelanggan memiliki tiket aktif (bukan Selesai/Dibatalkan), catat histori chat ke tiket
+        // 2. Jika pelanggan memiliki tiket aktif, catat histori chat ke tiket
         if ($pelanggan) {
             $activeTicket = Ticket::query()
                 ->where('pelanggan_id', $pelanggan->id)
@@ -172,7 +322,7 @@ class WhatsappWebhookService
 
         // Kirim auto-reply jika ada pesan balasan
         if ($replyMessage) {
-            $this->wablasService->antrikanPesanKustom(
+            $this->whatsappService->antrikanPesanKustom(
                 noHp: $phone,
                 pesan: $replyMessage,
                 referensi: $pelanggan,
@@ -190,10 +340,10 @@ class WhatsappWebhookService
     {
         $upper = strtoupper(trim($text));
 
-        // Keyword TAGIHAN / INFO TAGIHAN / CEK TAGIHAN
+        // Keyword TAGIHAN / INFO TAGIHAN / CEK TAGIHAN / BAYAR
         if (str_contains($upper, 'TAGIHAN') || str_contains($upper, 'BAYAR') || str_contains($upper, 'INVOICE')) {
             if (! $pelanggan) {
-                return 'Halo! Nomor WhatsApp Anda belum terdaftar sebagai pelanggan kami. Silahkan hubungi Customer Service untuk informasi layanan.';
+                return 'Halo! Nomor WhatsApp Anda belum terdaftar sebagai pelanggan kami. Silahkan hubungi Customer Service untuk informasi pendaftaran layanan.';
             }
 
             $unpaidInvoices = Invoice::query()
@@ -211,11 +361,12 @@ class WhatsappWebhookService
 
             foreach ($unpaidInvoices as $inv) {
                 $tglJatuhTempo = $inv->tanggal_jatuh_tempo?->format('d/m/Y') ?? '-';
-                $nominal = number_format($inv->jumlah, 0, ',', '.');
-                $msg .= "• *{$inv->no_invoice}* : Rp {$nominal} (Jatuh Tempo: {$tglJatuhTempo})\n";
+                $nominal = number_format($inv->jumlah_setelah_promo ?? $inv->jumlah, 0, ',', '.');
+                $linkBayar = $inv->xendit_invoice_url ?? route('portal.invoice.show', $inv->id);
+                $msg .= "• *{$inv->no_invoice}* : Rp {$nominal} (Jatuh Tempo: {$tglJatuhTempo})\n  Link Bayar: {$linkBayar}\n";
             }
 
-            $msg .= "\n*Total Tagihan:* Rp ".number_format($totalNominal, 0, ',', '.')."\n\nSilahkan lakukan pembayaran melalui portal pelanggan atau link pembayaran yang telah kami kirimkan.";
+            $msg .= "\n*Total Tagihan:* Rp ".number_format($totalNominal, 0, ',', '.')."\n\nSilahkan lakukan pembayaran melalui link pembayaran di atas atau via Portal Pelanggan.";
 
             return $msg;
         }
@@ -223,7 +374,7 @@ class WhatsappWebhookService
         // Keyword TIKET / GANGGUAN / KENDALA
         if (str_contains($upper, 'TIKET') || str_contains($upper, 'STATUS TIKET') || str_contains($upper, 'GANGGUAN') || str_contains($upper, 'RUSAK')) {
             if (! $pelanggan) {
-                return 'Halo! Untuk pelaporan kendala atau tiket gangguan, mohon sebutkan ID Pelanggan atau hubungi Helpdesk kami.';
+                return 'Halo! Untuk pelaporan kendala atau tiket gangguan, mohon sebutkan No. Registrasi Pelanggan atau hubungi Helpdesk kami.';
             }
 
             $activeTickets = Ticket::query()
@@ -233,7 +384,7 @@ class WhatsappWebhookService
                 ->get();
 
             if ($activeTickets->isEmpty()) {
-                return "Halo Bapak/Ibu *{$pelanggan->namaLengkap()}*,\n\nSaat ini *tidak ada tiket gangguan aktif* untuk layanan Anda. Jika mengalami kendala koneksi, silahkan sampaikan detail kendala Anda di sini agar tim teknisi kami dapat segera menindaklanjuti.";
+                return "Halo Bapak/Ibu *{$pelanggan->namaLengkap()}*,\n\nSaat ini *tidak ada tiket gangguan aktif* untuk layanan Anda. Jika mengalami kendala koneksi, silahkan sampaikan detail kendala Anda di sini agar tim teknisi kami segera menindaklanjuti.";
             }
 
             $msg = "Halo Bapak/Ibu *{$pelanggan->namaLengkap()}*,\n\nStatus tiket penanganan Anda saat ini:\n";
@@ -253,7 +404,7 @@ class WhatsappWebhookService
         if ($upper === 'MENU' || $upper === 'BANTUAN' || $upper === 'INFO' || $upper === 'HELP') {
             $nama = $pelanggan ? $pelanggan->namaLengkap() : 'Pelanggan';
 
-            return "Halo *{$nama}*,\n\nSelamat datang di Layanan Otomatis WhatsApp.\nKetik kata kunci berikut untuk info cepat:\n\n1. *TAGIHAN* - Untuk cek tagihan & status pembayaran\n2. *TIKET* - Untuk cek status penanganan kendala\n3. *BANTUAN* - Untuk panduan bantuan\n\nUntuk berbicara langsung dengan Customer Service, silahkan tinggalkan pesan Anda.";
+            return "Halo *{$nama}*,\n\nSelamat datang di Layanan Otomatis WhatsApp.\nKetik kata kunci berikut untuk info cepat:\n\n1. *TAGIHAN* - Untuk cek tagihan & link pembayaran\n2. *TIKET* - Untuk cek status penanganan kendala\n3. *BANTUAN* - Untuk panduan bantuan\n\nUntuk berbicara langsung dengan Customer Service, silahkan tinggalkan pesan Anda di sini.";
         }
 
         return null;
@@ -267,15 +418,19 @@ class WhatsappWebhookService
     protected function logWebhook(array $payload): ?WebhookLog
     {
         try {
+            $eventType = isset($payload['event'])
+                ? "waha.{$payload['event']}"
+                : (isset($payload['message']) ? 'wablas.incoming_message' : 'wablas.tracking');
+
             return WebhookLog::create([
-                'event_type' => isset($payload['message']) ? 'wablas.incoming_message' : 'wablas.tracking',
+                'event_type' => $eventType,
                 'xendit_event_id' => $payload['id'] ?? null,
                 'payload' => $payload,
                 'status_proses' => StatusWebhookLog::Diterima,
                 'diterima_pada' => Carbon::now(),
             ]);
         } catch (\Throwable $e) {
-            Log::warning('Gagal mencatat WebhookLog WABLAS: '.$e->getMessage());
+            Log::warning('Gagal mencatat WebhookLog WhatsApp: '.$e->getMessage());
 
             return null;
         }

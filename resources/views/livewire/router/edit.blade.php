@@ -97,11 +97,8 @@
     {{-- Riwayat Job Integrasi Router Ini --}}
     @if ($router->jobLogs->isNotEmpty())
         <div class="space-y-3 pt-6">
-            <div class="flex items-center justify-between">
+            <div>
                 <flux:heading size="lg">Riwayat Log Router Ini</flux:heading>
-                <flux:link :href="route('mikrotik.logs.index', ['filterRouter' => $router->id])" wire:navigate class="text-xs text-indigo-600 dark:text-indigo-400">
-                    Lihat Semua Log Router &rarr;
-                </flux:link>
             </div>
             <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
                 <table class="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">

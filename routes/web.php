@@ -13,7 +13,6 @@ use App\Livewire\Laporan;
 use App\Livewire\LayananPelanggan;
 use App\Livewire\Maps\EstimasiKabel;
 use App\Livewire\Maps\Lokasi;
-use App\Livewire\Mikrotik\LogIndex;
 use App\Livewire\Odp\Edit;
 use App\Livewire\PaketLayanan;
 use App\Livewire\Pelanggan;
@@ -232,13 +231,6 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-    // ─── Log Integrasi MikroTik ────────────────────────────────────
-    Route::prefix('mikrotik')->name('mikrotik.')->group(function () {
-        Route::middleware('permission:router.lihat')->group(function () {
-            Route::get('/logs', LogIndex::class)->name('logs.index');
-        });
-    });
-
     // ─── IP Pool ──────────────────────────────────────────────────
     Route::prefix('ip-pool')->name('ip-pool.')->group(function () {
         Route::middleware('permission:ip_pool.buat')->group(function () {
@@ -336,7 +328,8 @@ Route::middleware('xendit.token')->group(function () {
     Route::post('/webhook/xendit/qris', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.qris');
 });
 
-// ─── Webhook WABLAS (Public & CSRF-Exempt) ───────────────────────
+// ─── Webhook WhatsApp / WAHA / WABLAS (Public & CSRF-Exempt) ───────────────────────
+Route::post('/webhook/whatsapp', [WablasWebhookController::class, 'handle'])->name('webhook.whatsapp');
 Route::post('/webhook/wablas', [WablasWebhookController::class, 'handle'])->name('webhook.wablas');
 Route::post('/webhook/wablas/tracking', [WablasWebhookController::class, 'tracking'])->name('webhook.wablas.tracking');
 Route::post('/webhook/wablas/message', [WablasWebhookController::class, 'message'])->name('webhook.wablas.message');

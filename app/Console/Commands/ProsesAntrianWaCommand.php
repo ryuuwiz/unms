@@ -68,7 +68,9 @@ class ProsesAntrianWaCommand extends Command
                     ];
                 }
 
-                $result = $client->sendBatchMessages($batchPayload);
+                $delay = $sysblas ? ($sysblas->delay_detik ?? 3) : 3;
+                $jitter = $sysblas ? ($sysblas->jitter_detik ?? 2) : 2;
+                $result = $client->sendBatchMessages($batchPayload, $delay, $jitter);
 
                 foreach ($chunk as $antrian) {
                     if ($result['success']) {

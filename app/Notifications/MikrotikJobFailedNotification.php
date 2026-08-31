@@ -36,7 +36,7 @@ class MikrotikJobFailedNotification extends Notification
             'job_type' => $this->jobLog->job_type->value,
             'title' => "Integrasi MikroTik Gagal: {$jobLabel}",
             'message' => "Job {$jobLabel} pada router {$routerName} gagal setelah {$this->jobLog->attempt_count} percobaan. Error: {$this->jobLog->error_message}",
-            'url' => route('mikrotik.logs.index', ['router_id' => $this->jobLog->router_id]),
+            'url' => route('router.edit', $this->jobLog->router_id),
         ];
     }
 }

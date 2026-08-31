@@ -176,7 +176,7 @@ class TicketSeeder extends Seeder
             // 2. Tiket Pemasangan Baru (Menunggu Konfirmasi & Perlu Aktivasi MikroTik)
             [
                 'jenis' => JenisTicket::Pemasangan,
-                'pelanggan_email' => 'yanti.susanti@example.com',
+                'pelanggan_email' => 'citra.lestari@example.com',
                 'pakai_layanan' => false,
                 'prioritas' => PrioritasTicket::Sedang,
                 'divisi' => DivisiTicket::Teknisi,
@@ -211,7 +211,7 @@ class TicketSeeder extends Seeder
             // 3. Tiket Pemasangan Baru (Selesai dengan Flag Perlu Aktivasi)
             [
                 'jenis' => JenisTicket::Pemasangan,
-                'pelanggan_email' => 'zainal.abidin@example.com',
+                'pelanggan_email' => 'citra.lestari@example.com',
                 'pakai_layanan' => false,
                 'prioritas' => PrioritasTicket::Tinggi,
                 'divisi' => DivisiTicket::Teknisi,
@@ -282,7 +282,7 @@ class TicketSeeder extends Seeder
             // 5. Tiket Gangguan Baru (Belum Ditugaskan / Menunggu PIC)
             [
                 'jenis' => JenisTicket::Gangguan,
-                'pelanggan_email' => 'eka.pratama@example.com',
+                'pelanggan_email' => 'budi.santoso@example.com',
                 'pakai_layanan' => true,
                 'prioritas' => PrioritasTicket::Tinggi,
                 'divisi' => DivisiTicket::Noc,
@@ -328,7 +328,7 @@ class TicketSeeder extends Seeder
             // 7. Tiket Pencabutan (Selesai)
             [
                 'jenis' => JenisTicket::Pencabutan,
-                'pelanggan_email' => 'chandra.wijaya@example.com',
+                'pelanggan_email' => 'ahmad.fauzi@example.com',
                 'pakai_layanan' => true,
                 'prioritas' => PrioritasTicket::Rendah,
                 'divisi' => DivisiTicket::Teknisi,
@@ -369,7 +369,7 @@ class TicketSeeder extends Seeder
             // 8. Tiket Batal (Dibatalkan oleh Sales)
             [
                 'jenis' => JenisTicket::Pemasangan,
-                'pelanggan_email' => 'arya.saloka@example.com',
+                'pelanggan_email' => 'citra.lestari@example.com',
                 'pakai_layanan' => false,
                 'prioritas' => PrioritasTicket::Sedang,
                 'divisi' => DivisiTicket::Teknisi,

@@ -118,7 +118,7 @@ class PelangganSeeder extends Seeder
                 ['pelanggan_id' => $pelanggan->id],
                 [
                     'email' => $pelanggan->email,
-                    'password' => '12345678', // Auto-hashed
+                    'password' => 'password', // Auto-hashed
                     'email_verified_at' => now(),
                 ]
             );
@@ -168,7 +168,7 @@ class PelangganSeeder extends Seeder
             $pppUsername = LayananPelanggan::generatePppUsername($pelanggan);
 
             $isExpired = ($item['status_pelanggan'] === StatusPelanggan::Expired);
-            $mulaiTanggal = Carbon::now()->subMonths(2)->startOfMonth()->addDays(2);
+            $mulaiTanggal = Carbon::now()->startOfMonth()->subMonths(2)->addDays(2);
             $expiredTanggal = $isExpired
                 ? Carbon::now()->subDays(5)
                 : Carbon::now()->endOfMonth();
@@ -202,7 +202,7 @@ class PelangganSeeder extends Seeder
             // 5. Generate Siklus Invoice & Pembayaran (hanya untuk pelanggan Aktif & Expired)
             if ($item['status_pelanggan'] === StatusPelanggan::Aktif) {
                 // Invoice Bulan M-2 (Lunas)
-                $tglTerbitM2 = Carbon::now()->subMonths(2)->startOfMonth();
+                $tglTerbitM2 = Carbon::now()->startOfMonth()->subMonths(2);
                 $invM2 = $this->createInvoiceRecord(
                     $pelanggan,
                     $layanan,
@@ -215,7 +215,7 @@ class PelangganSeeder extends Seeder
                 $this->createPaymentRecord($invM2, MetodePembayaran::Transfer, $tglTerbitM2->copy()->addDays(3), $admin->id);
 
                 // Invoice Bulan M-1 (Lunas)
-                $tglTerbitM1 = Carbon::now()->subMonths(1)->startOfMonth();
+                $tglTerbitM1 = Carbon::now()->startOfMonth()->subMonths(1);
                 $invM1 = $this->createInvoiceRecord(
                     $pelanggan,
                     $layanan,
@@ -239,7 +239,7 @@ class PelangganSeeder extends Seeder
                 );
             } elseif ($item['status_pelanggan'] === StatusPelanggan::Expired) {
                 // Pelanggan Expired: Invoice Bulan Lalu Lunas, Invoice Bulan Ini Kadaluarsa / Menunggak
-                $tglTerbitM1 = Carbon::now()->subMonths(1)->startOfMonth();
+                $tglTerbitM1 = Carbon::now()->startOfMonth()->subMonths(1);
                 $invM1 = $this->createInvoiceRecord(
                     $pelanggan,
                     $layanan,
@@ -276,8 +276,9 @@ class PelangganSeeder extends Seeder
         int $adminId,
         ?Promo $promo = null
     ): Invoice {
-        $existing = Invoice::where('pelanggan_id', $pelanggan->id)
-            ->where('tanggal_terbit', $tanggalTerbit->toDateString())
+        $periode = $tanggalTerbit->format('Y-m');
+        $existing = Invoice::where('layanan_pelanggan_id', $layanan->id)
+            ->where('periode_tagihan', $periode)
             ->first();
 
         if ($existing) {
@@ -299,7 +300,7 @@ class PelangganSeeder extends Seeder
         $metode = ($status === StatusInvoice::Lunas) ? MetodePembayaran::Transfer : null;
 
         $invoice = Invoice::create([
-            'periode_tagihan' => $tanggalTerbit->format('Y-m'),
+            'periode_tagihan' => $periode,
             'pelanggan_id' => $pelanggan->id,
             'layanan_pelanggan_id' => $layanan->id,
             'jumlah' => $harga,
@@ -353,54 +354,21 @@ class PelangganSeeder extends Seeder
     }
 
     /**
-     * Data realistis 30 pelanggan UNMS terdistribusi ke 6 status.
+     * Data realistis 3 pelanggan dummy UNMS untuk testing.
      *
      * @return array<int, array{nama_depan: string, nama_belakang: string, email: string, no_hp: string, tipe: TipePelanggan, status_pelanggan: StatusPelanggan, status_layanan: StatusLayanan}>
      */
     private function daftarPelanggan(): array
     {
         return [
-            // 18 Pelanggan Aktif
-            ['nama_depan' => 'Ahmad', 'nama_belakang' => 'Fauzi', 'email' => 'ahmad.fauzi@example.com', 'no_hp' => '081223344001', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Budi', 'nama_belakang' => 'Santoso', 'email' => 'budi.santoso@example.com', 'no_hp' => '081223344002', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Citra', 'nama_belakang' => 'Lestari', 'email' => 'citra.lestari@example.com', 'no_hp' => '081223344003', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Dedi', 'nama_belakang' => 'Kurniawan', 'email' => 'dedi.kurniawan@example.com', 'no_hp' => '081223344004', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Eka', 'nama_belakang' => 'Pratama', 'email' => 'eka.pratama@example.com', 'no_hp' => '081223344005', 'tipe' => TipePelanggan::Bisnis, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Fajar', 'nama_belakang' => 'Nugraha', 'email' => 'fajar.nugraha@example.com', 'no_hp' => '081223344006', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Gita', 'nama_belakang' => 'Gutawa', 'email' => 'gita.gutawa@example.com', 'no_hp' => '081223344007', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Hendra', 'nama_belakang' => 'Setiawan', 'email' => 'hendra.setiawan@example.com', 'no_hp' => '081223344008', 'tipe' => TipePelanggan::Bisnis, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Indah', 'nama_belakang' => 'Permatasari', 'email' => 'indah.permata@example.com', 'no_hp' => '081223344009', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Joko', 'nama_belakang' => 'Widodo', 'email' => 'joko.widodo.net@example.com', 'no_hp' => '081223344010', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Kiki', 'nama_belakang' => 'Amalia', 'email' => 'kiki.amalia@example.com', 'no_hp' => '081223344011', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Lukman', 'nama_belakang' => 'Hakim', 'email' => 'lukman.hakim@example.com', 'no_hp' => '081223344012', 'tipe' => TipePelanggan::Bisnis, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Maya', 'nama_belakang' => 'Sari', 'email' => 'maya.sari@example.com', 'no_hp' => '081223344013', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Niko', 'nama_belakang' => 'Al-Hakim', 'email' => 'niko.alhakim@example.com', 'no_hp' => '081223344014', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Oki', 'nama_belakang' => 'Setiana', 'email' => 'oki.setiana@example.com', 'no_hp' => '081223344015', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Putri', 'nama_belakang' => 'Wulandari', 'email' => 'putri.wulan@example.com', 'no_hp' => '081223344016', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Qori', 'nama_belakang' => 'Sandioriva', 'email' => 'qori.sandio@example.com', 'no_hp' => '081223344017', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
-            ['nama_depan' => 'Rizky', 'nama_belakang' => 'Febian', 'email' => 'rizky.febian@example.com', 'no_hp' => '081223344018', 'tipe' => TipePelanggan::Bisnis, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
+            // 1 Pelanggan Aktif (Siklus Invoice M-2 & M-1 Lunas, M-0 Menunggu Pembayaran)
+            ['nama_depan' => 'Ahmad', 'nama_belakang' => 'Fauzi', 'email' => 'ahmad.fauzi@example.com', 'no_hp' => '081314984970', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Aktif, 'status_layanan' => StatusLayanan::Aktif],
 
-            // 4 Pelanggan Expired (Tunggakan)
-            ['nama_depan' => 'Siti', 'nama_belakang' => 'Nurhaliza', 'email' => 'siti.nurhaliza@example.com', 'no_hp' => '081223344019', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Expired, 'status_layanan' => StatusLayanan::Suspend],
-            ['nama_depan' => 'Taufik', 'nama_belakang' => 'Hidayat', 'email' => 'taufik.hidayat@example.com', 'no_hp' => '081223344020', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Expired, 'status_layanan' => StatusLayanan::Suspend],
-            ['nama_depan' => 'Usman', 'nama_belakang' => 'Harun', 'email' => 'usman.harun@example.com', 'no_hp' => '081223344021', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Expired, 'status_layanan' => StatusLayanan::Suspend],
-            ['nama_depan' => 'Vina', 'nama_belakang' => 'Panduwinata', 'email' => 'vina.pandu@example.com', 'no_hp' => '081223344022', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Expired, 'status_layanan' => StatusLayanan::Suspend],
+            // 1 Pelanggan Expired (Siklus Invoice M-1 Lunas, M-0 Kadaluarsa/Tunggakan Suspend)
+            ['nama_depan' => 'Budi', 'nama_belakang' => 'Santoso', 'email' => 'budi.santoso@example.com', 'no_hp' => '081314984970', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Expired, 'status_layanan' => StatusLayanan::Suspend],
 
-            // 2 Pelanggan Off (Nonaktif / Berhenti)
-            ['nama_depan' => 'Wahyu', 'nama_belakang' => 'Hidayat', 'email' => 'wahyu.hidayat@example.com', 'no_hp' => '081223344023', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::Off, 'status_layanan' => StatusLayanan::Berhenti],
-            ['nama_depan' => 'Xaverius', 'nama_belakang' => 'Tanto', 'email' => 'xaverius.tanto@example.com', 'no_hp' => '081223344024', 'tipe' => TipePelanggan::Bisnis, 'status_pelanggan' => StatusPelanggan::Off, 'status_layanan' => StatusLayanan::Berhenti],
-
-            // 2 Pelanggan Belum Terpasang (Prospek Baru)
-            ['nama_depan' => 'Yanti', 'nama_belakang' => 'Susanti', 'email' => 'yanti.susanti@example.com', 'no_hp' => '081223344025', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::BelumTerpasang, 'status_layanan' => StatusLayanan::Proses],
-            ['nama_depan' => 'Zainal', 'nama_belakang' => 'Abidin', 'email' => 'zainal.abidin@example.com', 'no_hp' => '081223344026', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::BelumTerpasang, 'status_layanan' => StatusLayanan::Proses],
-
-            // 2 Pelanggan Req. Pemasangan (Survei / Jadwal Pasang)
-            ['nama_depan' => 'Arya', 'nama_belakang' => 'Saloka', 'email' => 'arya.saloka@example.com', 'no_hp' => '081223344027', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::ReqPemasangan, 'status_layanan' => StatusLayanan::Proses],
-            ['nama_depan' => 'Bella', 'nama_belakang' => 'Saphira', 'email' => 'bella.saphira@example.com', 'no_hp' => '081223344028', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::ReqPemasangan, 'status_layanan' => StatusLayanan::Proses],
-
-            // 2 Pelanggan Pemasangan Selesai (Teknisi Selesai Pasang, Siap Aktivasi)
-            ['nama_depan' => 'Chandra', 'nama_belakang' => 'Wijaya', 'email' => 'chandra.wijaya@example.com', 'no_hp' => '081223344029', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::PemasanganSelesai, 'status_layanan' => StatusLayanan::Proses],
-            ['nama_depan' => 'Dewi', 'nama_belakang' => 'Persik', 'email' => 'dewi.persik@example.com', 'no_hp' => '081223344030', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::PemasanganSelesai, 'status_layanan' => StatusLayanan::Proses],
+            // 1 Pelanggan Req. Pemasangan (Survei / Jadwal Pasang / Tiket Lapangan)
+            ['nama_depan' => 'Citra', 'nama_belakang' => 'Lestari', 'email' => 'citra.lestari@example.com', 'no_hp' => '081314984970', 'tipe' => TipePelanggan::Rumah, 'status_pelanggan' => StatusPelanggan::ReqPemasangan, 'status_layanan' => StatusLayanan::Proses],
         ];
     }
 }

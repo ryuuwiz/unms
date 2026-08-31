@@ -5,6 +5,7 @@ namespace App\Livewire\Sysblas\Koneksi;
 use App\Enums\Sysblas\SysblasProvider;
 use App\Models\Sysblas;
 use App\Models\User;
+use App\Services\Whatsapp\WhatsappClient;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -31,11 +32,23 @@ class Index extends Component
 
     public string $url_api = 'https://tegal.wablas.com';
 
-    public string $api_token = '';
+    public string $username = '';
 
-    public string $api_secret = '';
+    public string $password = '';
+
+    public string $session_name = 'default';
+
+    public ?string $api_token = '';
+
+    public ?string $api_secret = '';
 
     public ?int $limit_per_menit = 25;
+
+    public ?int $delay_detik = 3;
+
+    public ?int $jitter_detik = 2;
+
+    public bool $is_typing_simulation = true;
 
     public bool $is_default = false;
 
@@ -55,6 +68,21 @@ class Index extends Component
 
     public bool $isPinging = false;
 
+    // State Modal QR Code Pairing
+    public bool $showQrModal = false;
+
+    public ?int $qrSysblasId = null;
+
+    public ?Sysblas $qrSysblas = null;
+
+    public ?string $qrCodeImage = null;
+
+    public string $qrSessionStatus = 'UNKNOWN';
+
+    public string $qrMessage = '';
+
+    public bool $isLoadingQr = false;
+
     // State Modal Test Kirim Pesan
     public bool $showTestSendModal = false;
 
@@ -68,6 +96,11 @@ class Index extends Component
 
     public bool $isSendingTest = false;
 
+    /** @var array<int, array<string, mixed>> */
+    public array $wahaAvailableSessions = [];
+
+    public bool $isLoadingSessions = false;
+
     public function mount(): void
     {
         $this->authorize('viewAny', User::class);
@@ -79,6 +112,17 @@ class Index extends Component
         $this->showModal = true;
     }
 
+    public function updatedProvider(string $value): void
+    {
+        if (! $this->editingId) {
+            if ($value === SysblasProvider::Waha->value) {
+                $this->url_api = 'https://waha.gobilling.id';
+            } elseif ($value === SysblasProvider::Wablas->value) {
+                $this->url_api = 'https://tegal.wablas.com';
+            }
+        }
+    }
+
     public function openEditModal(int $id): void
     {
         $sysblas = Sysblas::findOrFail($id);
@@ -86,11 +130,17 @@ class Index extends Component
         $this->editingId = $sysblas->id;
         $this->nama = $sysblas->nama;
         $this->provider = $sysblas->provider->value;
+        $this->session_name = $sysblas->session_name ?: 'default';
         $this->nomor = $sysblas->nomor ?? '';
-        $this->url_api = $sysblas->url_api;
-        $this->api_token = $sysblas->api_token;
+        $this->url_api = $sysblas->url_api ?? '';
+        $this->username = $sysblas->username ?? '';
+        $this->password = $sysblas->password ?? '';
+        $this->api_token = $sysblas->api_token ?? '';
         $this->api_secret = $sysblas->api_secret ?? '';
         $this->limit_per_menit = $sysblas->limit_per_menit;
+        $this->delay_detik = $sysblas->delay_detik ?? 3;
+        $this->jitter_detik = $sysblas->jitter_detik ?? 2;
+        $this->is_typing_simulation = (bool) ($sysblas->is_typing_simulation ?? true);
         $this->is_default = (bool) $sysblas->is_default;
         $this->is_aktif = (bool) $sysblas->is_aktif;
         $this->keterangan = $sysblas->keterangan ?? '';
@@ -103,11 +153,22 @@ class Index extends Component
         $this->validate([
             'nama' => ['required', 'string', 'max:255'],
             'provider' => ['required', Rule::enum(SysblasProvider::class)],
+            'session_name' => ['nullable', 'string', 'max:100'],
             'nomor' => ['nullable', 'string', 'max:50'],
             'url_api' => ['required', 'url', 'max:255'],
-            'api_token' => ['required', 'string', 'max:255'],
+            'username' => ['nullable', 'string', 'max:255'],
+            'password' => ['nullable', 'string', 'max:255'],
+            'api_token' => [
+                Rule::requiredIf(fn () => $this->provider !== SysblasProvider::Waha->value),
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'api_secret' => ['nullable', 'string', 'max:255'],
             'limit_per_menit' => ['required', 'integer', 'min:1', 'max:300'],
+            'delay_detik' => ['required', 'integer', 'min:0', 'max:60'],
+            'jitter_detik' => ['required', 'integer', 'min:0', 'max:30'],
+            'is_typing_simulation' => ['required', 'boolean'],
             'is_default' => ['required', 'boolean'],
             'is_aktif' => ['required', 'boolean'],
             'keterangan' => ['nullable', 'string', 'max:500'],
@@ -117,22 +178,30 @@ class Index extends Component
             'url_api.url' => 'Format URL API tidak valid.',
             'api_token.required' => 'Token / API Key wajib diisi.',
             'limit_per_menit.min' => 'Limit minimal 1 pesan per menit.',
+            'delay_detik.min' => 'Jeda minimal tidak boleh negatif.',
+            'jitter_detik.min' => 'Jeda acak tidak boleh negatif.',
         ]);
 
-        $token = trim($this->api_token);
+        $token = $this->api_token ? trim($this->api_token) : null;
         $secret = $this->api_secret ? trim($this->api_secret) : null;
-        if ($secret === $token) {
+        if ($secret && $secret === $token) {
             $secret = null;
         }
 
         $data = [
             'nama' => trim($this->nama),
             'provider' => $this->provider,
+            'session_name' => $this->session_name ? trim($this->session_name) : 'default',
+            'username' => $this->username ? trim($this->username) : null,
+            'password' => $this->password ? trim($this->password) : null,
             'nomor' => $this->nomor ? trim($this->nomor) : null,
             'url_api' => rtrim(trim($this->url_api), '/'),
             'api_token' => $token,
             'api_secret' => $secret,
             'limit_per_menit' => $this->limit_per_menit,
+            'delay_detik' => $this->delay_detik ?? 3,
+            'jitter_detik' => $this->jitter_detik ?? 2,
+            'is_typing_simulation' => $this->is_typing_simulation,
             'is_aktif' => $this->is_aktif,
             'keterangan' => $this->keterangan ? trim($this->keterangan) : null,
         ];
@@ -228,6 +297,191 @@ class Index extends Component
         }
     }
 
+    public function restartSessionAndPing(int $id): void
+    {
+        $sysblas = Sysblas::findOrFail($id);
+        $client = $sysblas->makeClient();
+        $result = $client->restartSession();
+
+        if ($result['success']) {
+            Flux::toast(variant: 'success', text: "Session '{$sysblas->session_name}' berhasil direstart. Memeriksa status...");
+        } else {
+            Flux::toast(variant: 'danger', text: "Gagal restart session: {$result['message']}");
+        }
+
+        $this->eksekusiPing();
+    }
+
+    public function openQrModal(int $id): void
+    {
+        $this->qrSysblasId = $id;
+        $this->qrSysblas = Sysblas::findOrFail($id);
+        $this->qrCodeImage = null;
+        $this->qrSessionStatus = 'UNKNOWN';
+        $this->qrMessage = 'Memeriksa status session...';
+        $this->showQrModal = true;
+
+        $this->refreshQrStatus();
+    }
+
+    public function refreshQrStatus(): void
+    {
+        if (! $this->qrSysblasId) {
+            return;
+        }
+
+        $this->qrSysblas = Sysblas::find($this->qrSysblasId);
+        if (! $this->qrSysblas) {
+            return;
+        }
+
+        $this->isLoadingQr = true;
+        try {
+            $client = $this->qrSysblas->makeClient();
+            $info = $client->getDeviceInfo();
+            $status = $info['session_status'] ?? ($info['connected'] ? 'WORKING' : 'UNKNOWN');
+            $this->qrSessionStatus = $status;
+            $this->qrMessage = $info['message'] ?? '';
+
+            if ($status === 'WORKING') {
+                $this->qrCodeImage = null;
+                $this->qrSysblas->update(['is_aktif' => true]);
+            } else {
+                $qrResult = $client->getQrCode();
+                if ($qrResult['success'] && ! empty($qrResult['qr'])) {
+                    $this->qrCodeImage = $qrResult['qr'];
+                    $this->qrMessage = 'Silahkan scan QR Code berikut dengan aplikasi WhatsApp Anda.';
+                } else {
+                    $this->qrMessage = $qrResult['message'];
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->qrMessage = 'Error: '.$e->getMessage();
+            $this->qrSessionStatus = 'ERROR';
+        } finally {
+            $this->isLoadingQr = false;
+        }
+    }
+
+    public function startSession(int $id): void
+    {
+        $sysblas = Sysblas::findOrFail($id);
+        $client = $sysblas->makeClient();
+        $result = $client->startSession();
+
+        if ($result['success']) {
+            Flux::toast(variant: 'success', text: "Session '{$sysblas->session_name}' berhasil dijalankan.");
+        } else {
+            Flux::toast(variant: 'danger', text: "Gagal start session: {$result['message']}");
+        }
+
+        if ($this->showQrModal && $this->qrSysblasId === $id) {
+            $this->refreshQrStatus();
+        }
+    }
+
+    public function stopSession(int $id): void
+    {
+        $sysblas = Sysblas::findOrFail($id);
+        $client = $sysblas->makeClient();
+        $result = $client->stopSession();
+
+        if ($result['success']) {
+            Flux::toast(variant: 'success', text: "Session '{$sysblas->session_name}' berhasil dihentikan.");
+        } else {
+            Flux::toast(variant: 'danger', text: "Gagal stop session: {$result['message']}");
+        }
+
+        if ($this->showQrModal && $this->qrSysblasId === $id) {
+            $this->refreshQrStatus();
+        }
+    }
+
+    public function restartSession(int $id): void
+    {
+        $sysblas = Sysblas::findOrFail($id);
+        $client = $sysblas->makeClient();
+        $result = $client->restartSession();
+
+        if ($result['success']) {
+            Flux::toast(variant: 'success', text: "Session '{$sysblas->session_name}' berhasil direstart.");
+        } else {
+            Flux::toast(variant: 'danger', text: "Gagal restart session: {$result['message']}");
+        }
+
+        if ($this->showQrModal && $this->qrSysblasId === $id) {
+            $this->refreshQrStatus();
+        }
+    }
+
+    public function logoutSession(int $id): void
+    {
+        $sysblas = Sysblas::findOrFail($id);
+        $client = $sysblas->makeClient();
+        $result = $client->logoutSession();
+
+        if ($result['success']) {
+            Flux::toast(variant: 'success', text: "Session '{$sysblas->session_name}' berhasil logout.");
+        } else {
+            Flux::toast(variant: 'danger', text: "Gagal logout session: {$result['message']}");
+        }
+
+        if ($this->showQrModal && $this->qrSysblasId === $id) {
+            $this->refreshQrStatus();
+        }
+    }
+
+    public function tarikSesiWaha(): void
+    {
+        if ($this->provider !== SysblasProvider::Waha->value) {
+            return;
+        }
+
+        $this->isLoadingSessions = true;
+        try {
+            $client = new WhatsappClient(
+                host: $this->url_api ?: 'https://waha.gobilling.id',
+                number: $this->nomor ?: '',
+                username: $this->username ?: '',
+                password: $this->password ?: '',
+                apiKey: $this->api_token ?: null,
+                sessionName: $this->session_name ?: 'default',
+                provider: 'waha'
+            );
+
+            $sessions = $client->listSessions();
+            $this->wahaAvailableSessions = $sessions;
+
+            if (! empty($sessions)) {
+                Flux::toast(variant: 'success', text: 'Ditemukan '.count($sessions).' session pada server WAHA.');
+
+                // Auto-select session pertama yang WORKING
+                $workingSession = collect($sessions)->firstWhere('connected', true) ?? $sessions[0];
+                if (empty($this->session_name) || $this->session_name === 'default') {
+                    $this->session_name = $workingSession['name'];
+                }
+                if (! empty($workingSession['phone']) && empty($this->nomor)) {
+                    $this->nomor = $workingSession['phone'];
+                }
+            } else {
+                Flux::toast(variant: 'warning', text: 'Tidak ada session ditemukan di server WAHA.');
+            }
+        } catch (\Throwable $e) {
+            Flux::toast(variant: 'danger', text: 'Gagal mengambil session dari WAHA: '.$e->getMessage());
+        } finally {
+            $this->isLoadingSessions = false;
+        }
+    }
+
+    public function pilihSesiWaha(string $sessionName, ?string $phone = null): void
+    {
+        $this->session_name = $sessionName;
+        if ($phone && (empty($this->nomor) || $this->nomor === '08970919525')) {
+            $this->nomor = $phone;
+        }
+        Flux::toast(variant: 'success', text: "Session '{$sessionName}' dipilih.");
+    }
+
     public function openTestSendModal(int $id): void
     {
         $this->testSysblasId = $id;
@@ -273,11 +527,17 @@ class Index extends Component
         $this->editingId = null;
         $this->nama = '';
         $this->provider = 'wablas';
+        $this->session_name = 'default';
         $this->nomor = '';
         $this->url_api = 'https://tegal.wablas.com';
+        $this->username = '';
+        $this->password = '';
         $this->api_token = '';
         $this->api_secret = '';
         $this->limit_per_menit = 25;
+        $this->delay_detik = 3;
+        $this->jitter_detik = 2;
+        $this->is_typing_simulation = true;
         $this->is_default = false;
         $this->is_aktif = true;
         $this->keterangan = '';

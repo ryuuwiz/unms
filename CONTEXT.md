@@ -340,3 +340,20 @@ _Avoid_: Manual User Registration di Database, Hardcoded Admin Password, Setup S
 Bundel seeder data master esensial (`ProductionSeeder`) yang mencakup RBAC Permissions & Roles (`RolesAndPermissionsSeeder`), Profil Perusahaan Default (`PerusahaanSeeder`), Template Notifikasi WhatsApp (`WaTemplateSeeder`), dan Aturan Pengingat Jatuh Tempo (`AturanPengingatTagihanSeeder`) tanpa menyertakan data uji coba (mock users/pelanggan fiktif).
 _Avoid_: Full db:seed di Produksi, Pencampuran Dummy Data dengan Master RBAC
 
+**WAHA Gateway**:
+Infrastruktur layanan WhatsApp HTTP API (WhatsApp HTTP API v2026.8.1) terpadu sebagai penyedia gateway pesan utama untuk notifikasi tagihan billing, pesan broadcast massal, dan konfirmasi pembayaran.
+_Avoid_: Gateway Pihak Ketiga Tak Terkelola, Wablas Saja
+
+**WAHA Session Pairing**:
+Mekanisme otentikasi dan penautan akun WhatsApp Web staf secara langsung melalui modal pemindaian QR Code di antarmuka portal backoffice GOBILLING dengan pendeteksian status sesi real-time (`WORKING`, `SCAN_QR_CODE`, `STOPPED`).
+_Avoid_: Login Manual ke Swagger Eksternal, Hardcoded Single Session
+
+**DLR Message Ack Tracking**:
+Pelacakan siklus hidup pengiriman pesan keluar WhatsApp berbasis webhook `message.ack` secara granular (`Menunggu` $\rightarrow$ `Terkirim/Server` $\rightarrow$ `Tersampaikan/Device` $\rightarrow$ `Dibaca/Read` $\rightarrow$ `Gagal`) yang dicatat pada tabel antrian blast.
+_Avoid_: Blind Blast Tanpa Tracking, Status Sent Statis
+
+**Pengingat Tagihan Otomatis WhatsApp**:
+Sistem pengingat tagihan terjadwal (`invoice:kirim-pengingat`) yang berjalan setiap jam untuk mengevaluasi aturan pengingat aktif, mengantrikan pesan notifikasi berformat template dinamis dengan link pembayaran gateway langsung ke antrean `wa-blast` Horizon dengan perlindungan pembatasan laju (*rate limiting*).
+_Avoid_: Pengiriman Manual Satu Per Satu, Blast Tanpa Antrean Terisolasi
+
+

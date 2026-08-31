@@ -126,13 +126,6 @@ return [
                     'permission' => 'router.lihat',
                 ],
                 [
-                    'title' => 'Log Integrasi',
-                    'icon' => 'queue-list',
-                    'route' => 'mikrotik.logs.index',
-                    'active' => 'mikrotik.logs.*',
-                    'permission' => 'router.lihat',
-                ],
-                [
                     'title' => 'IP Pool',
                     'icon' => 'circle-stack',
                     'route' => 'ip-pool.index',

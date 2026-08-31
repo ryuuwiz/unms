@@ -2,13 +2,16 @@
 
 namespace App\Services\Whatsapp;
 
+use App\Enums\Sysblas\SysblasProvider;
 use App\Models\Sysblas;
-use Exception;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use App\Services\Whatsapp\Contracts\WhatsappGatewayDriverInterface;
+use App\Services\Whatsapp\Drivers\WablasDriver;
+use App\Services\Whatsapp\Drivers\WahaDriver;
 
 class WhatsappClient
 {
+    protected WhatsappGatewayDriverInterface $driver;
+
     protected string $host;
 
     protected string $number;
@@ -17,19 +20,49 @@ class WhatsappClient
 
     protected string $password;
 
+    protected ?string $apiKey;
+
     protected string $sessionName;
 
     public function __construct(
         ?string $host = null,
         ?string $number = null,
         ?string $username = null,
-        ?string $password = null
+        ?string $password = null,
+        ?string $apiKey = null,
+        ?string $sessionName = 'default',
+        ?string $provider = 'waha',
+        public int $delaySeconds = 3,
+        public int $jitterSeconds = 2,
+        public bool $simulateTyping = true
     ) {
         $this->host = rtrim($host ?? (string) config('services.wablas.host', 'https://waha.gobilling.id'), '/');
         $this->number = $number ?? (string) config('services.wablas.number', '');
         $this->username = $username ?? '';
         $this->password = $password ?? '';
-        $this->sessionName = 'default';
+        $this->apiKey = $apiKey ?: null;
+        $this->sessionName = $sessionName ?: 'default';
+
+        if ($provider === SysblasProvider::Wablas->value || $provider === SysblasProvider::Gowa->value) {
+            $this->driver = new WablasDriver(
+                host: $this->host,
+                token: $this->apiKey,
+                secret: $this->password,
+                number: $this->number
+            );
+        } else {
+            $this->driver = new WahaDriver(
+                host: $this->host,
+                number: $this->number,
+                username: $this->username,
+                password: $this->password,
+                apiKey: $this->apiKey,
+                sessionName: $this->sessionName,
+                delaySeconds: $this->delaySeconds,
+                jitterSeconds: $this->jitterSeconds,
+                simulateTyping: $this->simulateTyping
+            );
+        }
     }
 
     public static function forSysblas(?Sysblas $sysblas = null): self
@@ -37,15 +70,21 @@ class WhatsappClient
         $target = $sysblas ?? Sysblas::getDefault();
 
         if ($target) {
-            return $target->makeClient();
+            return new self(
+                host: $target->url_api ?: 'https://waha.gobilling.id',
+                number: $target->nomor ?: '',
+                username: $target->username ?: '',
+                password: $target->password ?: '',
+                apiKey: $target->api_token ?: null,
+                sessionName: $target->session_name ?: 'default',
+                provider: $target->provider->value,
+                delaySeconds: $target->delay_detik ?? 3,
+                jitterSeconds: $target->jitter_detik ?? 2,
+                simulateTyping: $target->is_typing_simulation ?? true
+            );
         }
 
         return new self;
-    }
-
-    public function pingConnection(): array
-    {
-        return $this->getDeviceInfo();
     }
 
     public static function normalizePhoneNumber(?string $phone): ?string
@@ -75,67 +114,23 @@ class WhatsappClient
 
     public function sendMessage(string $phone, string $message): array
     {
-        $normalizedPhone = static::normalizePhoneNumber($phone);
-
-        if (! $normalizedPhone) {
-            return [
-                'success' => false,
-                'status' => 'failed',
-                'message' => "Nomor telepon '{$phone}' tidak valid untuk format WhatsApp Indonesia.",
-                'data' => [],
-            ];
-        }
-
-        $url = "{$this->host}/api/sendText";
-
-        try {
-            $payload = [
-                'chatId' => "{$normalizedPhone}@c.us",
-                'text' => $message,
-                'session' => $this->sessionName,
-            ];
-
-            $response = Http::withBasicAuth($this->username, $this->password)
-                ->withHeaders([
-                    'Accept' => 'application/json',
-                    'Content-Type' => 'application/json',
-                ])->timeout(15)->post($url, $payload);
-
-            $json = $response->json() ?? [];
-            $isSuccess = $response->successful();
-
-            return [
-                'success' => $isSuccess,
-                'status' => $isSuccess ? 'success' : 'failed',
-                'message' => $isSuccess ? 'Pesan berhasil dikirim via WAHA' : "HTTP {$response->status()}",
-                'data' => $json,
-            ];
-        } catch (Exception $e) {
-            Log::error('WAHA API Send Message Exception: '.$e->getMessage(), [
-                'phone' => $normalizedPhone,
-                'host' => $this->host,
-            ]);
-
-            return [
-                'success' => false,
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'data' => [],
-            ];
-        }
+        return $this->driver->sendMessage($phone, $message);
     }
 
-    public function sendBatchMessages(array $messages): array
+    public function sendBatchMessages(array $messages, ?int $delaySeconds = null, ?int $jitterSeconds = null): array
     {
-        // WAHA doesn't have a native batch API in the free tier typically,
-        // so we loop through and send individually, or use a bulk endpoint if available.
-        // We'll simulate batch by sending individually but quickly.
-
         $results = [];
         $hasSuccess = false;
+        $delay = $delaySeconds ?? $this->delaySeconds;
+        $jitter = $jitterSeconds ?? $this->jitterSeconds;
 
-        foreach ($messages as $item) {
+        foreach ($messages as $index => $item) {
             if (! empty($item['phone']) && ! empty($item['message'])) {
+                if ($index > 0 && $delay > 0) {
+                    $sleepTime = $delay + ($jitter > 0 ? rand(0, $jitter) : 0);
+                    sleep($sleepTime);
+                }
+
                 $res = $this->sendMessage($item['phone'], $item['message']);
                 $results[] = $res;
                 if ($res['success']) {
@@ -161,57 +156,73 @@ class WhatsappClient
         ];
     }
 
+    public function startTyping(string $phone): bool
+    {
+        return $this->driver->startTyping($phone);
+    }
+
+    public function stopTyping(string $phone): bool
+    {
+        return $this->driver->stopTyping($phone);
+    }
+
+    public function sendSeen(string $phone): bool
+    {
+        return $this->driver->sendSeen($phone);
+    }
+
+    public function pingConnection(): array
+    {
+        return $this->driver->pingConnection();
+    }
+
     public function getDeviceInfo(): array
     {
-        $url = rtrim($this->host, '/').'/api/sessions';
+        return $this->driver->getDeviceInfo();
+    }
 
-        try {
-            $response = Http::withBasicAuth($this->username, $this->password)
-                ->withHeaders([
-                    'Accept' => 'application/json',
-                ])->timeout(15)->get($url);
+    public function getQrCode(): array
+    {
+        return $this->driver->getQrCode();
+    }
 
-            $json = $response->json() ?? [];
+    public function startSession(): array
+    {
+        return $this->driver->startSession();
+    }
 
-            if ($response->successful() && is_array($json)) {
-                $connected = false;
-                $sessionInfo = [];
+    public function stopSession(): array
+    {
+        return $this->driver->stopSession();
+    }
 
-                foreach ($json as $session) {
-                    if (($session['name'] ?? '') === $this->sessionName) {
-                        $sessionInfo = $session;
-                        $connected = ($session['status'] ?? '') === 'WORKING';
-                        break;
-                    }
-                }
+    public function restartSession(): array
+    {
+        return $this->driver->restartSession();
+    }
 
-                return [
-                    'connected' => $connected,
-                    'phone' => $this->number,
-                    'quota' => 'Unlimited',
-                    'expired_at' => '-',
-                    'message' => $connected ? 'Device terhubung' : 'Device tidak terhubung',
-                    'raw' => $json,
-                ];
-            }
+    public function logoutSession(): array
+    {
+        return $this->driver->logoutSession();
+    }
 
-            return [
-                'connected' => false,
-                'phone' => $this->number,
-                'quota' => '-',
-                'expired_at' => null,
-                'message' => "Gagal mengambil status device (HTTP {$response->status()})",
-                'raw' => $json,
-            ];
-        } catch (Exception $e) {
-            return [
-                'connected' => false,
-                'phone' => $this->number,
-                'quota' => '-',
-                'expired_at' => null,
-                'message' => 'Koneksi ke host WAHA gagal: '.$e->getMessage(),
-                'raw' => [],
-            ];
-        }
+    public function checkNumberStatus(string $phone): array
+    {
+        return $this->driver->checkNumberStatus($phone);
+    }
+
+    /**
+     * Dapatkan daftar seluruh session yang tersedia di gateway.
+     *
+     * @return array<int, array{name: string, status: string, phone: ?string, pushName: ?string, connected: bool, raw: array<string, mixed>}>
+     */
+    public function listSessions(): array
+    {
+        return $this->driver->listSessions();
+    }
+
+    public function getDriver(): WhatsappGatewayDriverInterface
+    {
+        return $this->driver;
     }
 }

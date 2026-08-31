@@ -160,3 +160,108 @@ test('webhook incoming message pelanggan mencatat pesan masuk ke histori tiket a
     expect($histori)->not->toBeNull()
         ->and($histori->catatan)->toContain('Kabel FO di depan rumah');
 });
+
+test('webhook waha message.ack berhasil memperbarui status antrian_wa_blast', function () {
+    $sysblas = Sysblas::first();
+
+    $antrian = AntrianWaBlast::create([
+        'sysblas_id' => $sysblas->id,
+        'no_hp_tujuan' => '6281234567890',
+        'pesan' => 'Pesan Tagihan WAHA',
+        'jenis' => 'tagihan',
+        'tanggal_kirim' => Carbon::today(),
+        'status' => StatusAntrianWa::Diproses,
+    ]);
+
+    $payload = [
+        'id' => 'evt_01acktest',
+        'event' => 'message.ack',
+        'session' => 'default',
+        'payload' => [
+            'id' => 'false_6281234567890@c.us_ABCDEF',
+            'to' => '6281234567890@c.us',
+            'ack' => 2,
+            'ackName' => 'DEVICE',
+        ],
+    ];
+
+    $response = $this->postJson(route('webhook.whatsapp'), $payload);
+
+    $response->assertOk()
+        ->assertJson([
+            'status' => true,
+            'type' => 'message_ack',
+        ]);
+
+    expect($antrian->fresh()->status)->toBe(StatusAntrianWa::Terkirim)
+        ->and($antrian->fresh()->response_log)->toHaveKey('waha_ack');
+});
+
+test('webhook waha session.status working mengaktifkan sysblas connection', function () {
+    $sysblas = Sysblas::first();
+    $sysblas->update(['is_aktif' => false, 'session_name' => 'default']);
+
+    $payload = [
+        'id' => 'evt_01status',
+        'event' => 'session.status',
+        'session' => 'default',
+        'payload' => [
+            'status' => 'WORKING',
+        ],
+    ];
+
+    $response = $this->postJson(route('webhook.whatsapp'), $payload);
+
+    $response->assertOk()
+        ->assertJson([
+            'status' => true,
+            'type' => 'session_status',
+        ]);
+
+    expect($sysblas->fresh()->is_aktif)->toBeTrue();
+});
+
+test('webhook waha message inbound membalas info tagihan pelanggan', function () {
+    $pelanggan = Pelanggan::factory()->create([
+        'nama_depan' => 'Joko',
+        'nama_belakang' => 'Widodo',
+        'no_hp' => '081388887777',
+    ]);
+
+    Invoice::factory()->create([
+        'pelanggan_id' => $pelanggan->id,
+        'no_invoice' => 'INV-2026-WAHA-01',
+        'jumlah' => 175000,
+        'status' => StatusInvoice::MenungguPembayaran,
+        'tanggal_jatuh_tempo' => Carbon::tomorrow(),
+    ]);
+
+    $payload = [
+        'id' => 'evt_01msg',
+        'event' => 'message',
+        'session' => 'default',
+        'payload' => [
+            'id' => 'msg_waha_123',
+            'from' => '6281388887777@c.us',
+            'body' => 'Tolong cek TAGIHAN saya min',
+            'fromMe' => false,
+        ],
+    ];
+
+    $response = $this->postJson(route('webhook.whatsapp'), $payload);
+
+    $response->assertOk()
+        ->assertJson([
+            'status' => true,
+            'type' => 'incoming_message',
+        ]);
+
+    $autoReply = AntrianWaBlast::where('no_hp_tujuan', '6281388887777')
+        ->where('jenis', 'webhook_autoreply')
+        ->first();
+
+    expect($autoReply)->not->toBeNull()
+        ->and($autoReply->pesan)->toContain('Joko Widodo')
+        ->and($autoReply->pesan)->toContain('INV-2026-WAHA-01')
+        ->and($autoReply->pesan)->toContain('175.000');
+});

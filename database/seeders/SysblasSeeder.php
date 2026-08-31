@@ -13,23 +13,28 @@ class SysblasSeeder extends Seeder
      */
     public function run(): void
     {
-        $defaultNumber = config('services.wablas.number', '08970919525');
-        $defaultHost = config('services.wablas.host', 'https://tegal.wablas.com');
-        $defaultToken = config('services.wablas.token', 'test_token');
-        $defaultSecret = config('services.wablas.secret', 'test_secret');
+        $defaultNumber = config('services.waha.number') ?: '08970919525';
+        $defaultHost = config('services.waha.host') ?: 'https://waha.gobilling.id';
+        $defaultSession = config('services.waha.session') ?: 'gobilling';
+        $defaultApiKey = config('services.waha.api_key') ?: '137ae04e09ee4c668430c660db0741f9';
+        $defaultUsername = config('services.waha.username') ?: 'admin';
+        $defaultPassword = config('services.waha.password') ?: '81f6bafc11b34793b4349034cbb60178';
 
         Sysblas::updateOrCreate(
             ['nomor' => $defaultNumber],
             [
-                'nama' => 'WABLAS Utama (Billing & Tiket)',
-                'provider' => SysblasProvider::Wablas,
+                'nama' => 'WAHA Utama (GOBILLING)',
+                'provider' => SysblasProvider::Waha,
+                'session_name' => $defaultSession,
                 'url_api' => $defaultHost,
-                'api_token' => $defaultToken,
-                'api_secret' => $defaultSecret,
-                'limit_per_menit' => 25,
+                'username' => $defaultUsername,
+                'password' => $defaultPassword,
+                'api_token' => $defaultApiKey,
+                'api_secret' => null,
+                'limit_per_menit' => 60,
                 'is_default' => true,
                 'is_aktif' => true,
-                'keterangan' => 'Koneksi gateway WhatsApp WABLAS utama untuk pengingat tagihan dan notifikasi tiket.',
+                'keterangan' => 'Koneksi gateway WhatsApp WAHA utama (session: gobilling) untuk billing, blast notifikasi, dan tiket kendala.',
             ]
         );
     }

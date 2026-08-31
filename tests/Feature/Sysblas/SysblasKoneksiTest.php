@@ -29,39 +29,52 @@ test('halaman koneksi api sysblas dapat diakses staf berwenang', function () {
         ->assertSee('SysBlast - Koneksi API Gateway');
 });
 
-test('staf dapat menambah koneksi sysblas baru', function () {
+test('staf dapat menambah koneksi sysblas baru dengan pengaturan anti-ban', function () {
     Livewire::actingAs($this->admin)
         ->test(Index::class)
-        ->set('nama', 'WABLAS CS 2')
-        ->set('provider', SysblasProvider::Wablas->value)
+        ->set('nama', 'WAHA CS Anti-Ban')
+        ->set('provider', SysblasProvider::Waha->value)
         ->set('nomor', '081234567899')
-        ->set('url_api', 'https://tegal.wablas.com')
-        ->set('api_token', 'token_cs2_secret')
-        ->set('api_secret', 'secret_cs2')
-        ->set('limit_per_menit', 30)
+        ->set('url_api', 'https://waha.gobilling.id')
+        ->set('username', 'admin')
+        ->set('password', 'secret')
+        ->set('limit_per_menit', 20)
+        ->set('delay_detik', 4)
+        ->set('jitter_detik', 3)
+        ->set('is_typing_simulation', true)
         ->set('is_default', false)
         ->set('is_aktif', true)
-        ->set('keterangan', 'Koneksi khusus chat CS')
+        ->set('keterangan', 'Koneksi WAHA aman anti-ban')
         ->call('simpan')
         ->assertHasNoErrors();
 
-    expect(Sysblas::where('nama', 'WABLAS CS 2')->exists())->toBeTrue()
-        ->and(Sysblas::where('nama', 'WABLAS CS 2')->first()->limit_per_menit)->toBe(30);
+    $created = Sysblas::where('nama', 'WAHA CS Anti-Ban')->first();
+    expect($created)->not->toBeNull()
+        ->and($created->limit_per_menit)->toBe(20)
+        ->and($created->delay_detik)->toBe(4)
+        ->and($created->jitter_detik)->toBe(3)
+        ->and($created->is_typing_simulation)->toBeTrue();
 });
 
-test('staf dapat memperbarui koneksi sysblas', function () {
+test('staf dapat memperbarui koneksi sysblas dan pengaturan rate limit', function () {
     $sysblas = Sysblas::first();
 
     Livewire::actingAs($this->admin)
         ->test(Index::class)
         ->call('openEditModal', $sysblas->id)
         ->set('nama', 'WABLAS Utama Updated')
-        ->set('limit_per_menit', 45)
+        ->set('limit_per_menit', 15)
+        ->set('delay_detik', 5)
+        ->set('jitter_detik', 2)
+        ->set('is_typing_simulation', true)
         ->call('simpan')
         ->assertHasNoErrors();
 
     expect($sysblas->fresh()->nama)->toBe('WABLAS Utama Updated')
-        ->and($sysblas->fresh()->limit_per_menit)->toBe(45);
+        ->and($sysblas->fresh()->limit_per_menit)->toBe(15)
+        ->and($sysblas->fresh()->delay_detik)->toBe(5)
+        ->and($sysblas->fresh()->jitter_detik)->toBe(2)
+        ->and($sysblas->fresh()->is_typing_simulation)->toBeTrue();
 });
 
 test('staf dapat menyetel koneksi sebagai default tunggal', function () {
@@ -76,38 +89,85 @@ test('staf dapat menyetel koneksi sebagai default tunggal', function () {
         ->and($first->fresh()->is_default)->toBeFalse();
 });
 
+test('staf dapat membuka dan memperbarui koneksi yang memiliki api_token null', function () {
+    $sysblas = Sysblas::create([
+        'nama' => 'WAHA Gateway',
+        'provider' => SysblasProvider::Waha,
+        'nomor' => '081234567890',
+        'url_api' => 'https://waha.gobilling.id',
+        'username' => 'admin',
+        'password' => 'secret123',
+        'api_token' => null,
+        'api_secret' => null,
+        'limit_per_menit' => 60,
+        'is_default' => false,
+        'is_aktif' => true,
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->call('openEditModal', $sysblas->id)
+        ->assertSet('api_token', '')
+        ->assertSet('username', 'admin')
+        ->assertSet('password', 'secret123')
+        ->set('nama', 'WAHA Gateway Updated')
+        ->call('simpan')
+        ->assertHasNoErrors();
+
+    expect($sysblas->fresh()->nama)->toBe('WAHA Gateway Updated')
+        ->and($sysblas->fresh()->api_token)->toBeNull();
+});
+
 test('staf dapat melakukan ping tes status koneksi gateway', function () {
+    $sysblas = Sysblas::create([
+        'nama' => 'WAHA Ping Test',
+        'provider' => SysblasProvider::Waha,
+        'session_name' => 'default',
+        'url_api' => 'https://waha.gobilling.id',
+        'username' => 'admin',
+        'password' => 'pass123',
+        'api_token' => 'token_ping',
+        'limit_per_menit' => 60,
+        'is_default' => true,
+        'is_aktif' => true,
+    ]);
+
     Http::fake([
-        'https://tegal.wablas.com/api/device/info*' => Http::response([
-            'status' => true,
-            'message' => 'Device terhubung',
-            'data' => [
-                'phone' => '628970919525',
-                'status' => 'connected',
-                'quota' => 2500,
-                'active_period' => '2027-01-01',
+        'https://waha.gobilling.id/api/sessions*' => Http::response([
+            [
+                'name' => 'default',
+                'status' => 'WORKING',
             ],
         ], 200),
     ]);
-
-    $sysblas = Sysblas::first();
 
     Livewire::actingAs($this->admin)
         ->test(Index::class)
         ->call('openPingModal', $sysblas->id)
         ->assertSet('pingResult.connected', true)
-        ->assertSet('pingResult.quota', 2500);
+        ->assertSet('pingResult.quota', 'Unlimited');
 });
 
 test('staf dapat mengirim pesan uji coba dari modal tes pesan', function () {
-    Http::fake([
-        'https://tegal.wablas.com/api/v2/send-message*' => Http::response([
-            'status' => true,
-            'message' => 'Pesan berhasil',
-        ], 200),
+    $sysblas = Sysblas::create([
+        'nama' => 'WAHA Send Test',
+        'provider' => SysblasProvider::Waha,
+        'session_name' => 'default',
+        'url_api' => 'https://waha.gobilling.id',
+        'username' => 'admin',
+        'password' => 'pass123',
+        'api_token' => 'token_send',
+        'limit_per_menit' => 60,
+        'is_default' => false,
+        'is_aktif' => true,
     ]);
 
-    $sysblas = Sysblas::first();
+    Http::fake([
+        'https://waha.gobilling.id/api/sendText*' => Http::response([
+            'success' => true,
+            'status' => 'success',
+        ], 200),
+    ]);
 
     Livewire::actingAs($this->admin)
         ->test(Index::class)
@@ -126,4 +186,127 @@ test('staf dapat menghapus koneksi non-default', function () {
         ->call('hapus', $nonDefault->id);
 
     expect(Sysblas::find($nonDefault->id))->toBeNull();
+});
+
+test('staf dapat membuka modal pairing qr code dan memuat qr session waha', function () {
+    $sysblas = Sysblas::create([
+        'nama' => 'WAHA QR Test',
+        'provider' => SysblasProvider::Waha,
+        'session_name' => 'billing-cs',
+        'url_api' => 'https://waha.gobilling.id',
+        'username' => 'admin',
+        'password' => 'pass123',
+        'limit_per_menit' => 60,
+        'is_default' => false,
+        'is_aktif' => false,
+    ]);
+
+    Http::fake([
+        'https://waha.gobilling.id/api/sessions*' => Http::response([
+            [
+                'name' => 'billing-cs',
+                'status' => 'SCAN_QR_CODE',
+            ],
+        ], 200),
+        'https://waha.gobilling.id/api/billing-cs/auth/qr*' => Http::response('fake-png-binary-data', 200, [
+            'Content-Type' => 'image/png',
+        ]),
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->call('openQrModal', $sysblas->id)
+        ->assertSet('showQrModal', true)
+        ->assertSet('qrSessionStatus', 'SCAN_QR_CODE')
+        ->assertSet('qrCodeImage', 'data:image/png;base64,'.base64_encode('fake-png-binary-data'));
+});
+
+test('staf dapat mengontrol siklus hidup session waha start dan stop', function () {
+    $sysblas = Sysblas::create([
+        'nama' => 'WAHA Lifecycle Test',
+        'provider' => SysblasProvider::Waha,
+        'session_name' => 'test-session',
+        'url_api' => 'https://waha.gobilling.id',
+        'username' => 'admin',
+        'password' => 'pass123',
+        'limit_per_menit' => 60,
+        'is_default' => false,
+        'is_aktif' => false,
+    ]);
+
+    Http::fake([
+        'https://waha.gobilling.id/api/sessions/start*' => Http::response(['success' => true], 200),
+        'https://waha.gobilling.id/api/sessions/stop*' => Http::response(['success' => true], 200),
+        'https://waha.gobilling.id/api/sessions*' => Http::response([
+            [
+                'name' => 'test-session',
+                'status' => 'STARTING',
+            ],
+        ], 200),
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->call('startSession', $sysblas->id)
+        ->call('stopSession', $sysblas->id)
+        ->assertHasNoErrors();
+});
+
+test('waha driver melakukan simulasi typing presence dan pengiriman teks', function () {
+    $sysblas = Sysblas::create([
+        'nama' => 'WAHA Presence Test',
+        'provider' => SysblasProvider::Waha,
+        'session_name' => 'default',
+        'url_api' => 'https://waha.gobilling.id',
+        'username' => 'admin',
+        'password' => 'pass123',
+        'limit_per_menit' => 20,
+        'delay_detik' => 1,
+        'jitter_detik' => 0,
+        'is_typing_simulation' => true,
+        'is_default' => true,
+        'is_aktif' => true,
+    ]);
+
+    Http::fake([
+        'https://waha.gobilling.id/api/startTyping*' => Http::response(['success' => true], 200),
+        'https://waha.gobilling.id/api/stopTyping*' => Http::response(['success' => true], 200),
+        'https://waha.gobilling.id/api/sendText*' => Http::response(['success' => true, 'id' => 'waha_msg_123'], 200),
+    ]);
+
+    $client = $sysblas->makeClient();
+    $result = $client->sendMessage('081234567890', 'Pesan uji coba anti-ban');
+
+    expect($result['success'])->toBeTrue()
+        ->and($result['status'])->toBe('success');
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/api/startTyping'));
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/api/stopTyping'));
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/api/sendText'));
+});
+
+test('waha driver menangani response http 429 rate limit dengan aman', function () {
+    $sysblas = Sysblas::create([
+        'nama' => 'WAHA 429 Test',
+        'provider' => SysblasProvider::Waha,
+        'session_name' => 'default',
+        'url_api' => 'https://waha.gobilling.id',
+        'limit_per_menit' => 20,
+        'is_typing_simulation' => false,
+        'is_default' => false,
+        'is_aktif' => true,
+    ]);
+
+    Http::fake([
+        'https://waha.gobilling.id/api/sendText*' => Http::response([
+            'message' => 'Rate limit exceeded',
+        ], 429),
+    ]);
+
+    $client = $sysblas->makeClient();
+    $result = $client->sendMessage('081234567890', 'Pesan saat rate limit');
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['status'])->toBe('rate_limited')
+        ->and($result['message'])->toContain('429');
 });

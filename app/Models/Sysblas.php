@@ -18,6 +18,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $id
  * @property string $nama
  * @property SysblasProvider $provider
+ * @property string $session_name
  * @property string|null $nomor
  * @property string $url_api
  * @property string|null $username
@@ -25,6 +26,9 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $api_token
  * @property string|null $api_secret
  * @property int $limit_per_menit
+ * @property int $delay_detik
+ * @property int $jitter_detik
+ * @property bool $is_typing_simulation
  * @property bool $is_default
  * @property bool $is_aktif
  * @property string|null $keterangan
@@ -34,6 +38,7 @@ use Spatie\Activitylog\Support\LogOptions;
 #[Fillable([
     'nama',
     'provider',
+    'session_name',
     'nomor',
     'url_api',
     'username',
@@ -41,6 +46,9 @@ use Spatie\Activitylog\Support\LogOptions;
     'api_token',
     'api_secret',
     'limit_per_menit',
+    'delay_detik',
+    'jitter_detik',
+    'is_typing_simulation',
     'is_default',
     'is_aktif',
     'keterangan',
@@ -68,6 +76,9 @@ class Sysblas extends Model
         return [
             'provider' => SysblasProvider::class,
             'limit_per_menit' => 'integer',
+            'delay_detik' => 'integer',
+            'jitter_detik' => 'integer',
+            'is_typing_simulation' => 'boolean',
             'is_default' => 'boolean',
             'is_aktif' => 'boolean',
         ];
@@ -143,7 +154,13 @@ class Sysblas extends Model
             host: $this->url_api ?: 'https://waha.gobilling.id',
             number: $this->nomor ?: '',
             username: $this->username ?: '',
-            password: $this->password ?: ''
+            password: $this->password ?: '',
+            apiKey: $this->api_token ?: null,
+            sessionName: $this->session_name ?: 'default',
+            provider: $this->provider->value,
+            delaySeconds: $this->delay_detik ?? 3,
+            jitterSeconds: $this->jitter_detik ?? 2,
+            simulateTyping: $this->is_typing_simulation ?? true
         );
     }
 }
