@@ -9,6 +9,7 @@ use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Router;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -91,8 +92,8 @@ class Edit extends Component
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'ip_pool_id' => $this->jenis_koneksi === 'pppoe'
-                ? ['required', 'integer', 'exists:ip_pool,id']
-                : ['nullable', 'integer', 'exists:ip_pool,id'],
+                ? ['required', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)]
+                : ['nullable', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)],
             'ip_static' => $this->jenis_koneksi === 'ip_static'
                 ? ['required', 'ipv4']
                 : ['nullable', 'ipv4'],
@@ -158,7 +159,7 @@ class Edit extends Component
             'router_id.required' => 'Router wajib dipilih.',
             'router_id.exists' => 'Router yang dipilih tidak valid.',
             'ip_pool_id.required' => 'IP Pool wajib dipilih untuk koneksi PPPoE.',
-            'ip_pool_id.exists' => 'IP Pool yang dipilih tidak valid.',
+            'ip_pool_id.exists' => 'IP Pool yang dipilih tidak valid atau tidak terdaftar pada router terpilih.',
             'ip_static.required' => 'Alamat IP Statis wajib diisi untuk koneksi IP Static.',
             'ip_static.ipv4' => 'Format Alamat IP Statis tidak valid (contoh: 192.168.1.50).',
             'ppp_username.required' => 'Username PPP wajib diisi.',

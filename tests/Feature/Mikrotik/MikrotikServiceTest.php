@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\JenisKoneksi;
 use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
 use App\Exceptions\MikrotikConnectionException;
@@ -83,6 +84,26 @@ test('createOrUpdatePppoeSecret throws MikrotikException if paket or profil is m
 
     expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan))
         ->toThrow(MikrotikException::class, 'tidak memiliki paket layanan atau profil bandwidth');
+});
+
+test('createOrUpdatePppoeSecret throws MikrotikException if PPPoE connection has no IP Pool', function () {
+    $router = Router::factory()->online()->create();
+    $pelanggan = Pelanggan::factory()->create();
+    $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Home-10M']);
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'router_id' => $router->id,
+        'pelanggan_id' => $pelanggan->id,
+        'paket_layanan_id' => $paket->id,
+        'ip_pool_id' => null,
+        'jenis_koneksi' => JenisKoneksi::Pppoe,
+        'ppp_username' => "{$pelanggan->no_reg}_12345",
+        'ppp_password_terenkripsi' => 'secret123',
+    ]);
+
+    expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan))
+        ->toThrow(MikrotikException::class, 'wajib memiliki alokasi IP Pool yang valid');
 });
 
 test('ensurePppProfile throws MikrotikException if nama_bandwidth is empty', function () {

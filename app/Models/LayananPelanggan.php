@@ -177,10 +177,8 @@ class LayananPelanggan extends Model
     /**
      * Tentukan nilai remote-address yang harus dikirim ke PPP Secret RouterOS.
      *
-     * Prioritas: ip_static (jika ada) → nama IP Pool (ip_pool_id) → null.
-     * Field remote-address pada /ppp/secret RouterOS HANYA menerima alamat IP valid (IP Statis).
-     * Jika pelanggan menggunakan alokasi dinamis via IP Pool, RouterOS secara otomatis
-     * mengalokasikan IP dari IP Pool terkait pada subnet tersebut (remote-address dibiarkan kosong/null).
+     * Prioritas: ip_static (jika jenis IP Static) → nama IP Pool (ipPool->nama_pool untuk PPPoE dinamis) → null.
+     * RouterOS secara otomatis menyewakan IP dinamis dari pool terkait jika remote-address diset nama pool.
      */
     public function resolveRemoteAddress(): ?string
     {
@@ -188,7 +186,7 @@ class LayananPelanggan extends Model
             return $this->ip_static;
         }
 
-        return null;
+        return $this->ipPool?->nama_pool;
     }
 
     /**

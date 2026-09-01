@@ -2,6 +2,7 @@
 
 namespace App\Services\Mikrotik;
 
+use App\Enums\JenisKoneksi;
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\ProvisioningStatus;
@@ -254,19 +255,30 @@ class MikrotikService
                 throw new MikrotikException("Layanan {$username} tidak memiliki paket layanan atau profil bandwidth yang valid di UNMS. Provisi dibatalkan.");
             }
 
+            // 3. Strict Guard: Pastikan IP Pool terdefinisi untuk PPPoE dinamis
+            if ($layanan->jenis_koneksi === JenisKoneksi::Pppoe && ! $layanan->ipPool) {
+                throw new MikrotikException("Layanan {$username} dengan jenis koneksi PPPoE wajib memiliki alokasi IP Pool yang valid dari router terkait. Provisi dibatalkan.");
+            }
+
             $client = $client ?? $this->getClient($router);
+
+            // 4. Auto-Ensure IP Pool di RouterOS jika layanan terhubung ke IP Pool router terkait
+            if ($layanan->ipPool && $layanan->ipPool->router_id === $router->id) {
+                $this->syncIpPool($router, $layanan->ipPool, $client);
+            }
+
             $profileName = $this->ensurePppProfile($router, $profil, $client);
 
             $pelangganNama = $layanan->pelanggan ? $layanan->pelanggan->nama_depan.' '.$layanan->pelanggan->nama_belakang : 'Pelanggan';
             $comment = "UNMS: {$layanan->site_id} - {$pelangganNama}";
 
-            // 3. Tentukan local-address (Gateway) dan remote-address (IP Pool / IP Statis)
+            // 5. Tentukan local-address (Gateway) dan remote-address (IP Pool / IP Statis)
             $remoteAddress = $layanan->resolveRemoteAddress();
             $localAddress = $layanan->resolveLocalAddress();
 
             $isDisabled = ($layanan->status === StatusLayanan::Suspend) ? 'yes' : 'no';
 
-            // 4. Cek apakah secret sudah ada di RouterOS
+            // 6. Cek apakah secret sudah ada di RouterOS
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
             $existing = $client->query($findQuery)->read();
 

@@ -141,12 +141,12 @@ test('resolveRemoteAddress returns ip_static when present', function () {
     expect($this->layanan->resolveRemoteAddress())->toBe('192.168.1.100');
 });
 
-test('resolveRemoteAddress returns null when no ip_static even with ip_pool', function () {
+test('resolveRemoteAddress returns nama_pool when no ip_static but ip_pool present', function () {
     $this->layanan->ip_static = null;
     $this->layanan->ip_pool_id = $this->poolLama->id;
     $this->layanan->setRelation('ipPool', $this->poolLama);
 
-    expect($this->layanan->resolveRemoteAddress())->toBeNull();
+    expect($this->layanan->resolveRemoteAddress())->toBe($this->poolLama->nama_pool);
 });
 
 test('resolveRemoteAddress returns null when neither ip_static nor ip_pool', function () {

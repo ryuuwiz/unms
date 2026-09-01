@@ -136,6 +136,25 @@ test('validasi gagal jika ip_pool_id kosong pada koneksi pppoe', function () {
         ->assertHasErrors(['ip_pool_id' => 'required']);
 });
 
+test('validasi gagal jika ip_pool_id dari router lain dipilih pada create', function () {
+    $routerLain = Router::factory()->online()->create();
+    $poolRouterLain = IpPool::factory()->create(['router_id' => $routerLain->id]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Create::class)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('paket_layanan_id', $this->paket->id)
+        ->call('nextStep')
+        ->set('router_id', $this->router->id)
+        ->set('jenis_koneksi', 'pppoe')
+        ->set('ip_pool_id', $poolRouterLain->id)
+        ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
+        ->set('ppp_password', 'secret123')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->call('save')
+        ->assertHasErrors(['ip_pool_id']);
+});
+
 test('sistem dengan 1 router online otomatis auto-select router_id dan ip_pool_id', function () {
     Livewire::actingAs($this->admin)
         ->test(Create::class)
@@ -283,6 +302,26 @@ test('admin can edit layanan pelanggan and switch to ip_static', function () {
     expect($layanan->jenis_koneksi)->toBe(JenisKoneksi::IpStatic)
         ->and($layanan->ip_static)->toBe('10.20.30.40')
         ->and($layanan->ip_pool_id)->toBeNull();
+});
+
+test('validasi gagal jika ip_pool_id dari router lain dipilih pada edit', function () {
+    $routerLain = Router::factory()->online()->create();
+    $poolRouterLain = IpPool::factory()->create(['router_id' => $routerLain->id]);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+        'ip_pool_id' => $this->ipPool->id,
+        'jenis_koneksi' => JenisKoneksi::Pppoe,
+        'ppp_username' => "{$this->pelanggan->no_reg}_00001",
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Edit::class, ['layananPelanggan' => $layanan])
+        ->set('ip_pool_id', $poolRouterLain->id)
+        ->call('save')
+        ->assertHasErrors(['ip_pool_id']);
 });
 
 test('can list and filter layanans by status', function () {
