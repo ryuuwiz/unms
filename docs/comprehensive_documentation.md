@@ -141,6 +141,8 @@ erDiagram
 
 ### 3.2 Step-by-Step Installation Runbook
 
+> 💡 **Looking for Docker or Dokploy deployment?** See the full [Docker & Deployment Guide](file:///C:/Ryu/Projects/unms/docs/docker-deployment-guide.md) for turn-key containerization, local dev (`docker-compose.yml`), Dokploy PaaS (`docker-compose.dokploy.yml`), and production VPS configurations.
+
 #### 1. Clone Repository & Install Dependencies
 ```bash
 git clone <repository-url> unms

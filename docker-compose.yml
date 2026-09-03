@@ -1,0 +1,207 @@
+name: gobilling-dev
+
+services:
+  # ----------------------------------------------------------------------------
+  # PHP-FPM Backend Service
+  # ----------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: dev
+      args:
+        WWWUSER: ${WWWUSER:-1000}
+        WWWGROUP: ${WWWGROUP:-1000}
+    image: gobilling-app:dev
+    container_name: gobilling_app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - .:/var/www/html
+    environment:
+      - WWWUSER=${WWWUSER:-1000}
+      - LARAVEL_SAIL=1
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gobilling-network
+
+  # ----------------------------------------------------------------------------
+  # Nginx Web Server
+  # ----------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: gobilling_nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:80"
+    volumes:
+      - .:/var/www/html:ro
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - gobilling-network
+
+  # ----------------------------------------------------------------------------
+  # Laravel Horizon Worker Service
+  # ----------------------------------------------------------------------------
+  horizon:
+    image: gobilling-app:dev
+    container_name: gobilling_horizon
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: php artisan horizon
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    depends_on:
+      app:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gobilling-network
+    stop_grace_period: 60s
+
+  # ----------------------------------------------------------------------------
+  # Laravel Task Scheduler Service
+  # ----------------------------------------------------------------------------
+  scheduler:
+    image: gobilling-app:dev
+    container_name: gobilling_scheduler
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: php artisan schedule:work
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    depends_on:
+      app:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - gobilling-network
+
+  # ----------------------------------------------------------------------------
+  # Vite Frontend Asset Dev Server (Tailwind v4 / HMR)
+  # ----------------------------------------------------------------------------
+  vite:
+    image: node:22-alpine
+    container_name: gobilling_vite
+    restart: unless-stopped
+    working_dir: /app
+    ports:
+      - "${VITE_PORT:-5173}:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    networks:
+      - gobilling-network
+
+  # ----------------------------------------------------------------------------
+  # MySQL 8.4 LTS Database Service
+  # ----------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.4
+    container_name: gobilling_mysql
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_DB_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD:-secret}"
+      MYSQL_DATABASE: "${DB_DATABASE:-gobilling}"
+      MYSQL_USER: "${DB_USERNAME:-gobilling}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:-secret}"
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+    volumes:
+      - gobilling_db_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+    networks:
+      - gobilling-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD:-secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # Redis 7 Cache & Queue Broker
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: gobilling_redis
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_REDIS_PORT:-6379}:6379"
+    volumes:
+      - gobilling_redis_data:/data
+    networks:
+      - gobilling-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # Mailpit Local Email Catcher
+  # ----------------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: gobilling_mailpit
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_MAILPIT_PORT:-1025}:1025"
+      - "${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
+    networks:
+      - gobilling-network
+
+  # ----------------------------------------------------------------------------
+  # WAHA (WhatsApp HTTP API) Service
+  # ----------------------------------------------------------------------------
+  waha:
+    image: devlikeapro/waha:latest
+    container_name: gobilling_waha
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_WAHA_PORT:-3000}:3000"
+    environment:
+      WAHA_ZIP_LOGS: "true"
+      WAHA_PRINT_QR: "false"
+      WAHA_DASHBOARD_ENABLED: "true"
+      WAHA_DASHBOARD_USERNAME: "${WAHA_USERNAME:-admin}"
+      WAHA_DASHBOARD_PASSWORD: "${WAHA_PASSWORD:-secret}"
+      WHATSAPP_API_KEY: "${WAHA_API_KEY:-137ae04e09ee4c668430c660db0741f9}"
+    volumes:
+      - gobilling_waha_sessions:/app/.sessions
+    networks:
+      - gobilling-network
+
+networks:
+  gobilling-network:
+    driver: bridge
+
+volumes:
+  gobilling_db_data:
+    driver: local
+  gobilling_redis_data:
+    driver: local
+  gobilling_waha_sessions:
+    driver: local
