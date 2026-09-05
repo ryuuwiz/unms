@@ -299,3 +299,17 @@ test('user without delete permission cannot delete router', function () {
 
     expect(Router::find($router->id))->not->toBeNull();
 });
+
+test('handles invalid encrypted password gracefully without throwing DecryptException', function () {
+    $router = Router::factory()->create();
+
+    DB::table('router')->where('id', $router->id)->update([
+        'password_terenkripsi' => 'invalid_encrypted_data',
+    ]);
+
+    $router->refresh();
+
+    expect($router->password_terenkripsi)->toBeNull();
+    expect($router->toArray()['password_terenkripsi'])->toBeNull();
+});
+

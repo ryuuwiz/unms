@@ -15,6 +15,7 @@ use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 
@@ -237,3 +238,32 @@ test('can switch to audit tab and render activity logs', function () {
         ->assertSee('Log Aktivitas Data Pelanggan')
         ->assertSee('Memperbarui data pelanggan');
 });
+
+test('handles invalid encrypted nik gracefully without throwing DecryptException', function () {
+    $pelangganInvalid = Pelanggan::factory()->create();
+
+    // Simulasikan ciphertext rusak / MAC tidak valid langsung pada level database
+    $invalidPayload = base64_encode(json_encode([
+        'iv' => base64_encode(random_bytes(16)),
+        'value' => base64_encode('corrupted_ciphertext_data'),
+        'mac' => hash_hmac('sha256', 'wrong_data', 'wrong_key'),
+        'tag' => '',
+    ]));
+
+    DB::table('pelanggan')->where('id', $pelangganInvalid->id)->update([
+        'nik' => $invalidPayload,
+    ]);
+
+    $pelangganInvalid->refresh();
+
+    // Verifikasi bahwa model tidak melempar DecryptException tetapi mengembalikan null
+    expect($pelangganInvalid->nik)->toBeNull();
+    expect($pelangganInvalid->toArray()['nik'])->toBeNull();
+
+    // Verifikasi tampilan detail pelanggan Livewire tetap render 200 OK
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $pelangganInvalid])
+        ->assertOk()
+        ->assertSee('—');
+});
+

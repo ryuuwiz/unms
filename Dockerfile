@@ -17,21 +17,19 @@ RUN apk add --no-cache \
     libzip \
     icu-libs
 
-# Install mlocati PHP extension installer script
-ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+# Install mlocati PHP extension installer script from official image
+COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
 
 # Install PHP extensions required by Laravel, Horizon, Mikrotik RouterOS, Spatie & Excel
 RUN install-php-extensions \
     pdo_mysql \
     redis \
     pcntl \
-    posix \
     bcmath \
     sockets \
     intl \
     gd \
     zip \
-    opcache \
     exif
 
 WORKDIR /var/www/html
@@ -87,6 +85,7 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+COPY --from=composer-builder /app/vendor ./vendor
 
 RUN npm run build
 

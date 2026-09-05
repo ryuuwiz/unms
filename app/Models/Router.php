@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusRouter;
+use App\Models\Concerns\GracefullyDecryptsAttributes;
 use Database\Factories\RouterFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -57,7 +58,7 @@ use Spatie\Activitylog\Support\LogOptions;
 class Router extends Model
 {
     /** @use HasFactory<RouterFactory> */
-    use HasFactory, LogsActivity;
+    use GracefullyDecryptsAttributes, HasFactory, LogsActivity;
 
     protected $table = 'router';
 

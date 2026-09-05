@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\JenisKoneksi;
 use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
+use App\Models\Concerns\GracefullyDecryptsAttributes;
 use Database\Factories\LayananPelangganFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -75,7 +76,7 @@ use Spatie\Activitylog\Support\LogOptions;
 class LayananPelanggan extends Model
 {
     /** @use HasFactory<LayananPelangganFactory> */
-    use HasFactory, LogsActivity, SoftDeletes;
+    use GracefullyDecryptsAttributes, HasFactory, LogsActivity, SoftDeletes;
 
     protected $table = 'layanan_pelanggan';
 

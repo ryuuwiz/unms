@@ -464,3 +464,20 @@ test('admin dapat memfilter layanan berdasarkan status EXPIRED di Data Registras
         ->assertSee($this->pelanggan->nama_depan)
         ->assertDontSee($pelangganAktif->nama_depan);
 });
+
+test('handles invalid encrypted ppp password gracefully without throwing DecryptException', function () {
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+    ]);
+
+    DB::table('layanan_pelanggan')->where('id', $layanan->id)->update([
+        'ppp_password_terenkripsi' => 'invalid_encrypted_data',
+    ]);
+
+    $layanan->refresh();
+
+    expect($layanan->ppp_password_terenkripsi)->toBeNull();
+    expect($layanan->toArray()['ppp_password_terenkripsi'])->toBeNull();
+});

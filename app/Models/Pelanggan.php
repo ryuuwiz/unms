@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\StatusPelanggan;
 use App\Enums\TipePelanggan;
+use App\Models\Concerns\GracefullyDecryptsAttributes;
 use Database\Factories\PelangganFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -72,7 +73,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class Pelanggan extends Model implements HasMedia
 {
     /** @use HasFactory<PelangganFactory> */
-    use HasFactory, InteractsWithMedia, LogsActivity, SoftDeletes;
+    use GracefullyDecryptsAttributes, HasFactory, InteractsWithMedia, LogsActivity, SoftDeletes;
 
     protected $table = 'pelanggan';
 
