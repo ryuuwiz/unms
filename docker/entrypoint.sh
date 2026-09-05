@@ -44,10 +44,25 @@ if [ ! -f /var/www/html/database/database.sqlite ]; then
     fi
 fi
 
-# Warn if APP_KEY is unset in production
+# Ensure APP_KEY exists so Laravel never crashes with MissingAppKeyException
 if [ -z "$APP_KEY" ]; then
-    echo "[entrypoint] WARNING: APP_KEY is empty. Ensure APP_KEY is configured in your Dokploy environment."
+    if [ -f /var/www/html/.env ] && grep -q "^APP_KEY=base64:" /var/www/html/.env; then
+        export APP_KEY=$(grep "^APP_KEY=" /var/www/html/.env | head -n 1 | cut -d '=' -f2-)
+    fi
 fi
+
+if [ -z "$APP_KEY" ]; then
+    echo "[entrypoint] WARNING: APP_KEY is empty! Auto-generating encryption key for application stability..."
+    if [ ! -f /var/www/html/.env ]; then
+        touch /var/www/html/.env
+        chown www-data:www-data /var/www/html/.env
+    fi
+    php artisan key:generate --force || true
+    if grep -q "^APP_KEY=base64:" /var/www/html/.env 2>/dev/null; then
+        export APP_KEY=$(grep "^APP_KEY=" /var/www/html/.env | head -n 1 | cut -d '=' -f2-)
+    fi
+fi
+
 
 
 # Wait for database if DB_HOST is configured and DB_CONNECTION is not sqlite

@@ -14,20 +14,30 @@ services:
     stop_signal: SIGTERM
     stop_grace_period: 60s
     environment:
-      - APP_ENV=production
-      - APP_DEBUG=false
-      - APP_URL=https://${APP_DOMAIN:-buroq.gobilling.id}
-      - DB_CONNECTION=mysql
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - QUEUE_CONNECTION=redis
-      - SESSION_DRIVER=redis
-      - CACHE_STORE=redis
+      - APP_NAME=${APP_NAME:-GOBILLING}
+      - APP_ENV=${APP_ENV:-production}
+      - APP_KEY=${APP_KEY:-}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_URL=${APP_URL:-https://${APP_DOMAIN:-buroq.gobilling.id}}
+      - DB_CONNECTION=${DB_CONNECTION:-mysql}
+      - DB_HOST=${DB_HOST:-mysql}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_DATABASE=${DB_DATABASE:-gobilling}
+      - DB_USERNAME=${DB_USERNAME:-gobilling}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - REDIS_CLIENT=${REDIS_CLIENT:-phpredis}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - QUEUE_CONNECTION=${QUEUE_CONNECTION:-redis}
+      - SESSION_DRIVER=${SESSION_DRIVER:-redis}
+      - CACHE_STORE=${CACHE_STORE:-redis}
       - RUN_MIGRATIONS=${RUN_MIGRATIONS:-true}
       - CREATE_STORAGE_LINK=true
       - CACHE_ON_STARTUP=${CACHE_ON_STARTUP:-true}
+      - WAHA_HOST=${WAHA_HOST:-http://waha:3000}
+      - WAHA_SESSION=${WAHA_SESSION:-gobilling}
+      - WAHA_API_KEY=${WAHA_API_KEY:-}
     env_file:
       - .env
     volumes:
@@ -67,10 +77,10 @@ services:
     container_name: gobilling_mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret_root}
       MYSQL_DATABASE: ${DB_DATABASE:-gobilling}
       MYSQL_USER: ${DB_USERNAME:-gobilling}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
