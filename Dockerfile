@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # -----------------------------------------------------------------------------
 # Stage 1: Base PHP-FPM Runtime
 # -----------------------------------------------------------------------------
@@ -15,7 +13,15 @@ RUN apk add --no-cache \
     libjpeg-turbo \
     freetype \
     libzip \
-    icu-libs
+    icu-libs \
+    supervisor \
+    nginx
+
+# Configure Nginx & Supervisor
+RUN mkdir -p /run/nginx /var/log/supervisor \
+    && sed -i 's/user nginx;/user www-data;/' /etc/nginx/nginx.conf \
+    && ln -sf /dev/stdout /var/log/nginx/access.log \
+    && ln -sf /dev/stderr /var/log/nginx/error.log
 
 # Install mlocati PHP extension installer script from official image
 COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
@@ -37,6 +43,12 @@ WORKDIR /var/www/html
 # Copy global PHP tuning configuration
 COPY docker/php/php.ini $PHP_INI_DIR/conf.d/99-custom.ini
 
+# Copy Nginx server configuration
+COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
+
+# Copy Supervisord configuration
+COPY docker/supervisor/supervisord.conf /etc/supervisord.conf
+
 # Copy entrypoint script and ensure executable permissions
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
@@ -49,8 +61,10 @@ FROM base AS dev
 # Copy Composer binary into development container
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+EXPOSE 80 9000
+
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["php-fpm"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
 
 # -----------------------------------------------------------------------------
 # Stage 3: Composer Builder (Production Dependencies)
@@ -110,5 +124,7 @@ COPY --from=node-builder /app/public/build /var/www/html/public/build
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
+EXPOSE 80 9000
+
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["php-fpm"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

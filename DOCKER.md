@@ -57,19 +57,16 @@ docker compose exec -u www-data app bash
 docker compose exec -u 0 app bash
 ```
 
-### Viewing Container Logs
+### Viewing Container Logs & Process Status
 ```bash
 # Tail all container logs:
-docker compose logs -f
+docker compose logs -f app
 
-# Tail only Laravel Horizon queue worker logs:
-docker compose logs -f horizon
+# Inspect supervisor sub-processes (nginx, php-fpm, horizon, scheduler):
+docker compose exec app supervisorctl status
 
-# Tail task scheduler logs:
-docker compose logs -f scheduler
-
-# Tail Nginx access and error logs:
-docker compose logs -f nginx
+# Restart an individual process without restarting the container:
+docker compose exec app supervisorctl restart horizon
 ```
 
 ### Database Migrations & Seeds
@@ -133,7 +130,7 @@ The production configuration uses `docker-compose.prod.yml`, which features:
    ```bash
    git pull origin main
    docker compose -f docker-compose.prod.yml build
-   docker compose -f docker-compose.prod.yml up -d --no-deps app horizon scheduler nginx
+   docker compose -f docker-compose.prod.yml up -d --no-deps app
    docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
    docker compose -f docker-compose.prod.yml exec app php artisan horizon:terminate
    docker image prune -f
@@ -141,22 +138,19 @@ The production configuration uses `docker-compose.prod.yml`, which features:
 
 ---
 
-## 5. Architectural Considerations: One-Process-Per-Container vs. Supervisord
+## 5. Architectural Pattern: Unified Application Container (Supervisord)
 
-### Our Architecture: One-Process-Per-Container (Recommended)
-This repository defaults to separate containers for `app` (PHP-FPM), `horizon` (Queue Worker), and `scheduler` (Task Scheduler).
+The `app` container is built with a unified multi-process runtime using **Supervisord**:
+* **Nginx:** Handles HTTP termination, Livewire/Flux static asset streaming, and FastCGI proxy to PHP-FPM on `127.0.0.1:9000`.
+* **PHP-FPM:** Executes Laravel application code with master process privilege separation.
+* **Laravel Horizon:** Manages Redis queue workers and supervisors with `user: www-data`.
+* **Laravel Task Scheduler:** Runs `php artisan schedule:work` with `user: www-data`.
 
-**Advantages:**
-1. **Clean Log Streams:** `docker compose logs -f horizon` isolates worker logs from HTTP request logs.
-2. **Independent Scaling & Resource Limits:** You can constrain memory limits on the scheduler without affecting PHP-FPM or allocate more CPU cores to Horizon for MikroTik heavy syncs.
-3. **Resilience:** If a high-memory PDF export or worker crash occurs in Horizon, PHP-FPM continues serving web traffic without disruption.
-4. **Standard Container Lifecycle:** Container exit codes accurately trigger health checks and alerts.
-
-### Alternative: Single-Container with Supervisord
-If your team deploys to a small VPS or PaaS that charges per container and requires a single-container deployment:
-* You can install `supervisor` via apk in the Dockerfile.
-* Configure `/etc/supervisor/conf.d/supervisord.conf` to manage `php-fpm`, `php artisan horizon`, and cron together.
-* **Tradeoff:** Log files get mixed together, Docker cannot report the health status of individual sub-processes, and high worker load can starve PHP-FPM for resources.
+**Advantages of the Unified Container Model:**
+1. **Simplified Topology:** Only 4 containers to manage (`app`, `redis`, `mysql`, `mailpit`), reducing memory overhead and container clutter.
+2. **Co-located Static Assets:** Nginx serves `/var/www/html/public` assets directly from the same filesystem without shared volume synchronization overhead.
+3. **Controlled Signal Propagation:** Supervisord receives `SIGTERM` on container shutdown, gracefully telling Horizon, Scheduler, PHP-FPM, and Nginx to drain and terminate.
+4. **Independent Process Control:** Any individual process can be inspected or restarted on the fly via `docker compose exec app supervisorctl restart <program>`.
 
 ---
 

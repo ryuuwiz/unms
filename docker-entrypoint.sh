@@ -9,7 +9,8 @@ mkdir -p \
     /var/www/html/storage/framework/sessions \
     /var/www/html/storage/framework/views \
     /var/www/html/storage/logs \
-    /var/www/html/bootstrap/cache
+    /var/www/html/bootstrap/cache \
+    /var/log/supervisor
 
 # Fix permissions for storage and cache if running as root
 if [ "$(id -u)" = "0" ]; then
@@ -88,7 +89,7 @@ echo "[entrypoint] Ready. Executing command: $@"
 # Note: php-fpm master process must start as root to open /proc/self/fd/2 (stderr),
 # after which it drops privileges to user www-data for worker processes via www.conf.
 case "$1" in
-    *php-fpm*)
+    *php-fpm*|*supervisord*)
         exec "$@"
         ;;
     *)
