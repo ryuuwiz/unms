@@ -17,11 +17,12 @@ RUN apk add --no-cache \
     supervisor \
     nginx
 
-# Configure Nginx & Supervisor
+# Configure Nginx, Supervisor & PHP-FPM
 RUN mkdir -p /run/nginx /var/log/supervisor \
     && sed -i 's/user nginx;/user www-data;/' /etc/nginx/nginx.conf \
     && ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log
+    && ln -sf /dev/stderr /var/log/nginx/error.log \
+    && echo "clear_env = no" >> /usr/local/etc/php-fpm.d/zz-docker.conf
 
 # Install mlocati PHP extension installer script from official image
 COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
@@ -120,9 +121,12 @@ COPY --from=composer-builder /app/vendor /var/www/html/vendor
 # Copy compiled frontend assets
 COPY --from=node-builder /app/public/build /var/www/html/public/build
 
-# Set ownership and directory permissions for www-data
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+# Set ownership and directory permissions for www-data and ensure sqlite fallback file exists
+RUN mkdir -p /var/www/html/database \
+    && touch /var/www/html/database/database.sqlite \
+    && chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
+    && chmod 664 /var/www/html/database/database.sqlite
 
 # Expose standard HTTP port
 EXPOSE 80
