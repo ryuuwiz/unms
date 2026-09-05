@@ -28,10 +28,27 @@ run_as_app() {
     fi
 }
 
+# Sensible production defaults
+export DB_CONNECTION="${DB_CONNECTION:-mysql}"
+export CACHE_STORE="${CACHE_STORE:-redis}"
+export QUEUE_CONNECTION="${QUEUE_CONNECTION:-redis}"
+export SESSION_DRIVER="${SESSION_DRIVER:-redis}"
+
+# Safety net: Ensure SQLite database file exists if SQLite is ever called (prevents crashes with "database.sqlite does not exist")
+mkdir -p /var/www/html/database
+if [ ! -f /var/www/html/database/database.sqlite ]; then
+    touch /var/www/html/database/database.sqlite
+    if [ "$(id -u)" = "0" ]; then
+        chown www-data:www-data /var/www/html/database/database.sqlite
+        chmod 664 /var/www/html/database/database.sqlite
+    fi
+fi
+
 # Warn if APP_KEY is unset in production
 if [ -z "$APP_KEY" ]; then
     echo "[entrypoint] WARNING: APP_KEY is empty. Ensure APP_KEY is configured in your Dokploy environment."
 fi
+
 
 # Wait for database if DB_HOST is configured and DB_CONNECTION is not sqlite
 DB_CONN="${DB_CONNECTION:-mysql}"
@@ -68,11 +85,17 @@ if [ -n "$REDIS_HOST" ] && [ "$QUEUE_CONNECTION" = "redis" ]; then
     echo "[entrypoint] Redis is reachable."
 fi
 
+# Clear any stale cached configuration from previous builds
+if [ -f /var/www/html/artisan ]; then
+    run_as_app php artisan config:clear || true
+fi
+
 # Discover package manifests cleanly for production (prevents cached dev providers from crashing boot)
 if [ -f /var/www/html/artisan ]; then
     echo "[entrypoint] Discovering packages..."
     run_as_app php artisan package:discover --ansi || true
 fi
+
 
 # In production or when explicitly enabled, create storage symlink
 if [ "$APP_ENV" = "production" ] || [ "$CREATE_STORAGE_LINK" = "true" ]; then
