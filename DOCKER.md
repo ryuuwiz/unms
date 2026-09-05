@@ -95,50 +95,110 @@ docker compose exec app php artisan test --compact
 
 ---
 
-## 4. Production Deployment
+## 4. Self-Hosting with Dokploy (Production Domain: buroq.gobilling.id)
 
-The production configuration uses `docker-compose.prod.yml`, which features:
-* **Multi-stage optimized production image:** No dev dependencies, OPcache enabled with `validate_timestamps=0`, pre-compiled Vite 8 & Tailwind v4 assets.
-* **Network Isolation:** MySQL and Redis ports are not exposed to the host machine.
-* **Reverse Proxy Friendly:** Nginx binds to `127.0.0.1:${APP_PORT:-8080}` to receive traffic from Traefik, Cloudflare Tunnel, or Host Nginx.
-* **Persistent Uploads:** The `storage/` directory is mapped to a dedicated named volume (`app_storage`).
+The project uses a single, production-hardened `docker-compose.yml` that Dokploy can detect and deploy automatically without any custom compose path configuration.
 
-### Production Deployment Steps
+### Deployment Steps in Dokploy:
 
-1. Configure `.env` on your production server:
-   ```bash
-   cp .env.docker.example .env
-   # Set APP_ENV=production, APP_DEBUG=false, strong DB_PASSWORD and DB_ROOT_PASSWORD
+1. **Create Service in Dokploy**:
+   - Go to your Project/Environment in the Dokploy dashboard.
+   - Click **Create Service** $\rightarrow$ select **Compose**.
+   - Set Name: `gobilling`.
+
+2. **Configure Git Repository**:
+   - **Source**: Select **Git / GitHub**.
+   - **Repository**: Your repository URL.
+   - **Branch**: `main` (or your production release branch).
+   - **Compose Path**: Leave as default (`docker-compose.yml`).
+
+3. **Configure Environment Variables in Dokploy**:
+   In the **Environment** tab of the service, enter the production values (from `.env.docker.example`):
+   ```dotenv
+   APP_NAME="GOBILLING"
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_KEY=base64:YOUR_APP_KEY_HERE
+   APP_URL=https://buroq.gobilling.id
+   APP_DOMAIN=buroq.gobilling.id
+   DOKPLOY_ROUTER_NAME=gobilling
+
+   # Internal Docker Network Database (MySQL 8.4)
+   DB_CONNECTION=mysql
+   DB_HOST=mysql
+   DB_PORT=3306
+   DB_DATABASE=gobilling
+   DB_USERNAME=gobilling
+   DB_PASSWORD=YOUR_STRONG_DB_PASSWORD
+   DB_ROOT_PASSWORD=YOUR_STRONG_DB_ROOT_PASSWORD
+
+   # Internal Redis Broker
+   REDIS_CLIENT=phpredis
+   REDIS_HOST=redis
+   REDIS_PORT=6379
+   SESSION_DRIVER=redis
+   CACHE_STORE=redis
+   QUEUE_CONNECTION=redis
+
+   # Auto-migrate and cache on deployment
+   RUN_MIGRATIONS=true
+   CACHE_ON_STARTUP=true
+
+   # WhatsApp Gateway (WAHA Internal)
+   WAHA_HOST=http://waha:3000
+   WAHA_SESSION=gobilling
+   WAHA_API_KEY=YOUR_WAHA_SECRET_KEY
    ```
 
-2. Build and start the production stack:
+4. **Deploy**:
+   - Click **Deploy**. Dokploy executes `docker compose up -d --build`.
+   - The production multi-stage image is built, MySQL and Redis health checks verify readiness, `docker/entrypoint.sh` executes migrations and warms caches, and Traefik automatically issues Let's Encrypt SSL certificates for `https://buroq.gobilling.id`.
+
+5. **First-time Initialization**:
+   In Dokploy's service **Terminal** (or via SSH host terminal):
    ```bash
-   docker compose -f docker-compose.prod.yml up -d --build
+   docker exec -it gobilling_app php artisan app:install
    ```
 
-3. Run production migrations:
-   ```bash
-   docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
+   DB_HOST=mysql
+   DB_PORT=3306
+   DB_DATABASE=gobilling
+   DB_USERNAME=gobilling
+   DB_PASSWORD=YOUR_STRONG_DB_PASSWORD
+   DB_ROOT_PASSWORD=YOUR_STRONG_DB_ROOT_PASSWORD
+
+   # Internal Redis Broker
+   REDIS_CLIENT=phpredis
+   REDIS_HOST=redis
+   REDIS_PORT=6379
+   SESSION_DRIVER=redis
+   CACHE_STORE=redis
+   QUEUE_CONNECTION=redis
+
+   # Auto-migrate and cache on deployment
+   RUN_MIGRATIONS=true
+   CACHE_ON_STARTUP=true
+
+   # WhatsApp Gateway (WAHA Internal)
+   WAHA_HOST=http://waha:3000
+   WAHA_SESSION=gobilling
+   WAHA_API_KEY=YOUR_WAHA_SECRET_KEY
    ```
 
-4. First-time installation:
-   ```bash
-   docker compose -f docker-compose.prod.yml exec app php artisan app:install --force
-   ```
+4. **Deploy**:
+   - Click **Deploy**. Dokploy will pull the code, build the optimized multi-stage production image, start MySQL, Redis, WAHA, and App, execute migrations via `docker/entrypoint.sh`, and attach Traefik.
+   - Traefik automatically routes traffic for `https://buroq.gobilling.id` to container port 80 and provisions a Let's Encrypt SSL certificate.
 
-5. Zero-downtime update script pattern:
+5. **First-time Initialization**:
+   In Dokploy's terminal or via SSH:
    ```bash
-   git pull origin main
-   docker compose -f docker-compose.prod.yml build
-   docker compose -f docker-compose.prod.yml up -d --no-deps app
-   docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
-   docker compose -f docker-compose.prod.yml exec app php artisan horizon:terminate
-   docker image prune -f
+   docker exec -it gobilling_app php artisan app:install
    ```
 
 ---
 
 ## 5. Architectural Pattern: Unified Application Container (Supervisord)
+
 
 The `app` container is built with a unified multi-process runtime using **Supervisord**:
 * **Nginx:** Handles HTTP termination, Livewire/Flux static asset streaming, and FastCGI proxy to PHP-FPM on `127.0.0.1:9000`.

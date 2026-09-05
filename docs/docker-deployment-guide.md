@@ -87,9 +87,7 @@ unms/
 │   │   └── www.conf                # Pool PHP-FPM dynamic (50 worker, clear_env=no)
 │   └── mysql/
 │       └── my.cnf                  # Konfigurasi MySQL 8.4 utf8mb4 & tuning InnoDB
-├── docker-compose.yml              # Stack lengkap Local Development
-├── docker-compose.prod.yml         # Stack Produksi Standalone VPS (di belakang reverse proxy)
-├── docker-compose.dokploy.yml      # Stack Produksi Dokploy (dengan label Traefik & dokploy-network)
+├── docker-compose.yml              # Stack Produksi Dokploy (dengan label Traefik & dokploy-network)
 ├── .env.docker.example             # Template variabel environment siap pakai untuk Docker
 └── .dockerignore                   # Optimasi build context (mengabaikan node_modules, vendor, dll.)
 ```
@@ -159,7 +157,7 @@ docker compose exec app php artisan horizon:terminate
 
 ## 4. Panduan Deployment di Dokploy
 
-Dokploy adalah panel PaaS open-source berbasis Docker dan Traefik. Repositori ini telah dilengkapi dengan file [`docker-compose.dokploy.yml`](file:///C:/Ryu/Projects/unms/docker-compose.dokploy.yml) yang terintegrasi secara native dengan jaringan Traefik Dokploy.
+Dokploy adalah panel PaaS open-source berbasis Docker dan Traefik. Repositori ini telah dikonfigurasi dengan file tunggal `docker-compose.yml` yang terintegrasi secara native dengan jaringan Traefik Dokploy tanpa perlu pengaturan khusus.
 
 ### Langkah 1: Buat Layanan Baru di Dokploy
 1. Masuk ke dashboard **Dokploy**.
@@ -172,10 +170,7 @@ Dokploy adalah panel PaaS open-source berbasis Docker dan Traefik. Repositori in
    - **Source**: Pilih **Git**.
    - **Repository**: Masukkan URL repositori Git Anda.
    - **Branch**: Pilih `main` (atau branch rilis produksi).
-   - **Compose Path**: Ketik secara spesifik:
-     ```text
-     docker-compose.dokploy.yml
-     ```
+   - **Compose Path**: Biarkan default (`docker-compose.yml`).
 
 ### Langkah 3: Konfigurasi Environment Variables di Dokploy
 Masuk ke tab **Environment** pada Dokploy dan masukkan variabel produksi. Dokploy secara otomatis menyimpannya ke file `.env`:
@@ -186,10 +181,10 @@ APP_NAME=GOBILLING
 APP_ENV=production
 APP_KEY=base64:MASUKKAN_APP_KEY_PRODUKSI_ANDA_DISINI
 APP_DEBUG=false
-APP_URL=https://billing.domainanda.com
+APP_URL=https://buroq.gobilling.id
 
 # Domain Traefik Dokploy (SSL Otomatis Let's Encrypt)
-APP_DOMAIN=billing.domainanda.com
+APP_DOMAIN=buroq.gobilling.id
 DOKPLOY_ROUTER_NAME=gobilling
 
 # Database Internal MySQL (Docker)

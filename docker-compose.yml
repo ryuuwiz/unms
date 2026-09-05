@@ -1,101 +1,149 @@
 services:
   # ---------------------------------------------------------------------------
-  # Application Core (PHP 8.5-FPM + Nginx + Horizon + Scheduler via Supervisord)
+  # Application Core (Production PHP 8.5-FPM + Nginx + Horizon + Scheduler via Supervisord)
   # ---------------------------------------------------------------------------
   app:
     build:
       context: .
       dockerfile: Dockerfile
-      target: dev
-    image: unms-app:dev
+      target: prod
+    image: ${APP_IMAGE:-gobilling-app:prod}
     container_name: gobilling_app
     restart: unless-stopped
     working_dir: /var/www/html
-    ports:
-      - "${APP_PORT:-8000}:80"
-    volumes:
-      - .:/var/www/html
-      - ./docker/nginx/default.conf:/etc/nginx/http.d/default.conf:ro
-      - ./docker/supervisor/supervisord.conf:/etc/supervisord.conf:ro
-    environment:
-      - APP_ENV=${APP_ENV:-local}
-      - DB_HOST=mysql
-      - REDIS_HOST=redis
-    env_file:
-      - .env
     stop_signal: SIGTERM
     stop_grace_period: 60s
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=https://${APP_DOMAIN:-buroq.gobilling.id}
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - QUEUE_CONNECTION=redis
+      - SESSION_DRIVER=redis
+      - CACHE_STORE=redis
+      - RUN_MIGRATIONS=${RUN_MIGRATIONS:-true}
+      - CREATE_STORAGE_LINK=true
+      - CACHE_ON_STARTUP=${CACHE_ON_STARTUP:-true}
+    env_file:
+      - .env
+    volumes:
+      - app_storage:/var/www/html/storage
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:80/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${DOKPLOY_ROUTER_NAME:-gobilling}.rule=Host(`${APP_DOMAIN:-buroq.gobilling.id}`)"
+      - "traefik.http.routers.${DOKPLOY_ROUTER_NAME:-gobilling}.entrypoints=websecure"
+      - "traefik.http.routers.${DOKPLOY_ROUTER_NAME:-gobilling}.tls=true"
+      - "traefik.http.routers.${DOKPLOY_ROUTER_NAME:-gobilling}.tls.certresolver=letsencrypt"
+      - "traefik.http.services.${DOKPLOY_ROUTER_NAME:-gobilling}.loadbalancer.server.port=80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
     networks:
       - gobilling_network
+      - dokploy-network
 
   # ---------------------------------------------------------------------------
-  # Database (MySQL 8.4 LTS)
+  # Database (MySQL 8.4 LTS - Internal Network Only)
   # ---------------------------------------------------------------------------
   mysql:
     image: mysql:8.4
     container_name: gobilling_mysql
     restart: unless-stopped
-    ports:
-      - "${FORWARD_DB_PORT:-3306}:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-secret_root}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_DATABASE:-gobilling}
       MYSQL_USER: ${DB_USERNAME:-gobilling}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD || exit 1"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 15s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
     networks:
       - gobilling_network
 
   # ---------------------------------------------------------------------------
-  # In-Memory Cache & Queue Broker (Redis 7)
+  # In-Memory Cache & Horizon Queue Broker (Redis 7 - Internal Network Only)
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
     container_name: gobilling_redis
     restart: unless-stopped
-    ports:
-      - "${FORWARD_REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
     networks:
       - gobilling_network
 
   # ---------------------------------------------------------------------------
-  # Local Mail Catcher (Mailpit)
+  # WhatsApp Engine / Gateway (WAHA - Internal Network Only)
   # ---------------------------------------------------------------------------
-  mailpit:
-    image: axllent/mailpit:latest
-    container_name: gobilling_mailpit
+  waha:
+    image: devlikeapro/waha:latest
+    container_name: gobilling_waha
     restart: unless-stopped
-    ports:
-      - "${FORWARD_MAILPIT_PORT:-1025}:1025"
-      - "${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
+    environment:
+      WHATSAPP_HOOK_URL: https://${APP_DOMAIN:-buroq.gobilling.id}/api/whatsapp/webhook
+      WAHA_DASHBOARD_USERNAME: ${WAHA_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_PASSWORD:-secret}
+      WAHA_API_KEY: ${WAHA_API_KEY:-}
+    volumes:
+      - waha_sessions:/app/.sessions
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
     networks:
       - gobilling_network
 
 networks:
   gobilling_network:
     driver: bridge
+  dokploy-network:
+    external: true
 
 volumes:
+  app_storage:
+    driver: local
   mysql_data:
     driver: local
   redis_data:
+    driver: local
+  waha_sessions:
     driver: local

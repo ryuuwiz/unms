@@ -28,11 +28,17 @@ run_as_app() {
     fi
 }
 
+# Warn if APP_KEY is unset in production
+if [ -z "$APP_KEY" ]; then
+    echo "[entrypoint] WARNING: APP_KEY is empty. Ensure APP_KEY is configured in your Dokploy environment."
+fi
+
 # Wait for database if DB_HOST is configured and DB_CONNECTION is not sqlite
-if [ -n "$DB_HOST" ] && [ "$DB_CONNECTION" != "sqlite" ]; then
+DB_CONN="${DB_CONNECTION:-mysql}"
+if [ -n "$DB_HOST" ] && [ "$DB_CONN" != "sqlite" ]; then
     DB_PORT="${DB_PORT:-3306}"
     echo "[entrypoint] Waiting for database at ${DB_HOST}:${DB_PORT}..."
-    max_retries=30
+    max_retries=45
     count=0
     while ! nc -z "$DB_HOST" "$DB_PORT" >/dev/null 2>&1; do
         count=$((count + 1))
@@ -62,6 +68,12 @@ if [ -n "$REDIS_HOST" ] && [ "$QUEUE_CONNECTION" = "redis" ]; then
     echo "[entrypoint] Redis is reachable."
 fi
 
+# Discover package manifests cleanly for production (prevents cached dev providers from crashing boot)
+if [ -f /var/www/html/artisan ]; then
+    echo "[entrypoint] Discovering packages..."
+    run_as_app php artisan package:discover --ansi || true
+fi
+
 # In production or when explicitly enabled, create storage symlink
 if [ "$APP_ENV" = "production" ] || [ "$CREATE_STORAGE_LINK" = "true" ]; then
     if [ ! -L /var/www/html/public/storage ]; then
@@ -84,10 +96,21 @@ if [ "$CACHE_ON_STARTUP" = "true" ]; then
     run_as_app php artisan view:cache || true
 fi
 
+# Disable Horizon or Scheduler supervisor workers if requested (useful for multi-container horizontal scale)
+if [ "$DISABLE_HORIZON" = "true" ]; then
+    echo "[entrypoint] Disabling Horizon supervisor program..."
+    sed -i '/\[program:horizon\]/,/\[program:/ s/autostart=true/autostart=false/' /etc/supervisord.conf 2>/dev/null || true
+fi
+
+if [ "$DISABLE_SCHEDULER" = "true" ]; then
+    echo "[entrypoint] Disabling Scheduler supervisor program..."
+    sed -i '/\[program:scheduler\]/,/\[program:/ s/autostart=true/autostart=false/' /etc/supervisord.conf 2>/dev/null || true
+fi
+
 echo "[entrypoint] Ready. Executing command: $@"
 
-# Note: php-fpm master process must start as root to open /proc/self/fd/2 (stderr),
-# after which it drops privileges to user www-data for worker processes via www.conf.
+# Note: php-fpm and supervisord master processes must start as root to handle sockets and log descriptors,
+# after which workers run as unprivileged user www-data.
 case "$1" in
     *php-fpm*|*supervisord*)
         exec "$@"

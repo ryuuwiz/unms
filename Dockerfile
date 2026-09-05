@@ -124,7 +124,13 @@ COPY --from=node-builder /app/public/build /var/www/html/public/build
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-EXPOSE 80 9000
+# Expose standard HTTP port
+EXPOSE 80
+
+# Health check using Laravel 11/12/13 native /up endpoint
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -f http://127.0.0.1:80/up || exit 1
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+

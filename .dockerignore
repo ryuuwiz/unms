@@ -19,6 +19,12 @@ storage/framework/sessions/*
 !storage/framework/sessions/.gitignore
 storage/framework/views/*
 !storage/framework/views/.gitignore
+bootstrap/cache/*.php
+!bootstrap/cache/.gitignore
+*.sqlite
+*.sqlite-*
+*.sql
+docker-compose*.override.yml
 tests
 docs
 *.md
