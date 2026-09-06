@@ -30,6 +30,7 @@
         "ext-gd": "*",
         "ext-pcntl": "*",
         "ext-sockets": "*",
+        "ext-zip": "*",
         "xendit/xendit-php": "^7.0"
     },
     "require-dev": {
