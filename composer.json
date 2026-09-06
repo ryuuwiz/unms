@@ -9,7 +9,7 @@
     ],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
         "barryvdh/laravel-dompdf": "^3.1",
         "evilfreelancer/routeros-api-php": "^1.7",
         "lab404/laravel-impersonate": "^1.7",
