@@ -1,141 +1,118 @@
-# -----------------------------------------------------------------------------
-# Stage 1: Base PHP-FPM Runtime
-# -----------------------------------------------------------------------------
-FROM php:8.5-fpm-alpine AS base
+# syntax=docker/dockerfile:1.7
 
-# Install essential system dependencies
-RUN apk add --no-cache \
-    bash \
-    curl \
-    su-exec \
-    netcat-openbsd \
-    libpng \
-    libjpeg-turbo \
-    freetype \
-    libzip \
-    icu-libs \
-    supervisor \
-    nginx
-
-# Configure Nginx, Supervisor & PHP-FPM
-RUN mkdir -p /run/nginx /var/log/supervisor \
-    && sed -i 's/user nginx;/user www-data;/' /etc/nginx/nginx.conf \
-    && ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log \
-    && echo "clear_env = no" >> /usr/local/etc/php-fpm.d/zz-docker.conf
-
-# Install mlocati PHP extension installer script from official image
-COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
-
-# Install PHP extensions required by Laravel, Horizon, Mikrotik RouterOS, Spatie & Excel
-RUN install-php-extensions \
-    pdo_mysql \
-    pdo_sqlite \
-    redis \
-    pcntl \
-    bcmath \
-    sockets \
-    intl \
-    gd \
-    zip \
-    exif
-
-WORKDIR /var/www/html
-
-# Copy global PHP tuning configuration
-COPY docker/php/php.ini $PHP_INI_DIR/conf.d/99-custom.ini
-
-# Copy Nginx server configuration
-COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
-
-# Copy Supervisord configuration
-COPY docker/supervisor/supervisord.conf /etc/supervisord.conf
-
-# Copy entrypoint script and ensure executable permissions
-COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-# -----------------------------------------------------------------------------
-# Stage 2: Development Runtime
-# -----------------------------------------------------------------------------
-FROM base AS dev
-
-# Copy Composer binary into development container
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-EXPOSE 80 9000
-
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
-
-# -----------------------------------------------------------------------------
-# Stage 3: Composer Builder (Production Dependencies)
-# -----------------------------------------------------------------------------
-FROM composer:2 AS composer-builder
+##############################
+# Stage 1: PHP deps (composer)
+##############################
+FROM composer:2 AS vendor
 
 WORKDIR /app
 
 COPY composer.json composer.lock ./
 
+# Install deps without running scripts/artisan (app code not copied yet).
+# --no-dev / --no-scripts kept apart from final optimize step below.
 RUN composer install \
     --no-dev \
-    --no-interaction \
-    --prefer-dist \
-    --optimize-autoloader \
     --no-scripts \
-    --ignore-platform-reqs
+    --no-autoloader \
+    --prefer-dist \
+    --no-interaction
 
 COPY . .
 
-RUN composer dump-autoload --optimize --no-dev --no-scripts
+RUN composer dump-autoload --optimize --no-dev --classmap-authoritative \
+    && composer run-script post-autoload-dump --no-dev || true
 
-# -----------------------------------------------------------------------------
-# Stage 4: Node Builder (Vite 8 & Tailwind v4 Assets)
-# -----------------------------------------------------------------------------
-FROM node:24-alpine AS node-builder
+##############################
+# Stage 2: Frontend assets
+##############################
+# NOTE: glibc-based image on purpose. package.json pins native optional deps
+# as "*-linux-x64-gnu" (tailwindcss oxide, lightningcss, rollup) — building
+# on node:*-alpine (musl) will fail to resolve/run these native binaries.
+FROM node:22-bookworm-slim AS frontend
 
 WORKDIR /app
 
-COPY package*.json ./
-
+COPY package.json package-lock.json* ./
 RUN npm ci
 
 COPY . .
-COPY --from=composer-builder /app/vendor ./vendor
+# Pull in vendor so any composer-published assets vite may need are present
+COPY --from=vendor /app/vendor ./vendor
 
 RUN npm run build
 
-# -----------------------------------------------------------------------------
-# Stage 5: Production Runtime
-# -----------------------------------------------------------------------------
-FROM base AS prod
+##############################
+# Stage 3: Runtime (PHP-FPM)
+##############################
+FROM php:8.4-fpm-alpine AS runtime
 
-# Copy production OPcache settings
-COPY docker/php/opcache.ini $PHP_INI_DIR/conf.d/opcache.ini
+ARG APP_ENV=production
+ENV APP_ENV=${APP_ENV} \
+    COMPOSER_ALLOW_SUPERUSER=1
 
-# Copy full application source code
-COPY . /var/www/html
+RUN apk add --no-cache \
+        bash \
+        curl \
+        icu-libs \
+        libzip \
+        libpng \
+        libjpeg-turbo \
+        freetype \
+        oniguruma \
+        tzdata \
+        mysql-client \
+    && apk add --no-cache --virtual .build-deps \
+        icu-dev \
+        libzip-dev \
+        libpng-dev \
+        libjpeg-turbo-dev \
+        freetype-dev \
+        oniguruma-dev \
+        curl-dev \
+        $PHPIZE_DEPS \
+    && docker-php-ext-configure gd --with-jpeg --with-freetype \
+    && docker-php-ext-install -j"$(nproc)" \
+        pdo_mysql \
+        mbstring \
+        curl \
+        bcmath \
+        intl \
+        zip \
+        gd \
+        opcache \
+        pcntl \
+        exif \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .build-deps \
+    && apk add --no-cache fcgi \
+    && curl -sSL https://raw.githubusercontent.com/renatomefi/php-fpm-healthcheck/master/php-fpm-healthcheck \
+        -o /usr/local/bin/php-fpm-healthcheck \
+    && chmod +x /usr/local/bin/php-fpm-healthcheck
 
-# Copy optimized production vendor dependencies
-COPY --from=composer-builder /app/vendor /var/www/html/vendor
+WORKDIR /var/www/html
 
-# Copy compiled frontend assets
-COPY --from=node-builder /app/public/build /var/www/html/public/build
+# App code + vendor from build stages
+COPY --chown=www-data:www-data . .
+COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
+COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
 
-# Set ownership and directory permissions for www-data and ensure sqlite fallback file exists
-RUN mkdir -p /var/www/html/database \
-    && touch /var/www/html/database/database.sqlite \
-    && chown -R www-data:www-data /var/www/html \
-    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
-    && chmod 664 /var/www/html/database/database.sqlite
+# PHP/OPcache production config
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-app.ini
+COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/99-opcache.ini
+COPY docker/php/fpm-pool.conf /usr/local/etc/php-fpm.d/zz-app.conf
 
-# Expose standard HTTP port
-EXPOSE 80
+RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
-# Health check using Laravel 11/12/13 native /up endpoint
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -f http://127.0.0.1:80/up || exit 1
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+USER www-data
 
+EXPOSE 9000
+
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["php-fpm"]
