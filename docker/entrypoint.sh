@@ -34,14 +34,36 @@ export CACHE_STORE="${CACHE_STORE:-redis}"
 export QUEUE_CONNECTION="${QUEUE_CONNECTION:-redis}"
 export SESSION_DRIVER="${SESSION_DRIVER:-redis}"
 
-# Safety net: Ensure SQLite database file exists if SQLite is ever called (prevents crashes with "database.sqlite does not exist")
+# Prevent accidental SQLite / database cache/session driver leak when running in container with MySQL and Redis services
+if [ "$DB_CONNECTION" = "sqlite" ] && [ -n "$DB_HOST" ]; then
+    echo "[entrypoint] Warning: DB_CONNECTION was set to 'sqlite' but DB_HOST='${DB_HOST}' is configured. Overriding DB_CONNECTION to 'mysql'."
+    export DB_CONNECTION="mysql"
+fi
+
+if [ -n "$REDIS_HOST" ]; then
+    if [ "$CACHE_STORE" = "database" ] || [ "$CACHE_STORE" = "file" ] || [ -z "$CACHE_STORE" ]; then
+        echo "[entrypoint] Notice: Setting CACHE_STORE='redis' since REDIS_HOST='${REDIS_HOST}' is configured."
+        export CACHE_STORE="redis"
+    fi
+    if [ "$SESSION_DRIVER" = "database" ] || [ -z "$SESSION_DRIVER" ]; then
+        echo "[entrypoint] Notice: Setting SESSION_DRIVER='redis' since REDIS_HOST='${REDIS_HOST}' is configured."
+        export SESSION_DRIVER="redis"
+    fi
+    if [ "$QUEUE_CONNECTION" = "database" ] || [ -z "$QUEUE_CONNECTION" ]; then
+        echo "[entrypoint] Notice: Setting QUEUE_CONNECTION='redis' since REDIS_HOST='${REDIS_HOST}' is configured."
+        export QUEUE_CONNECTION="redis"
+    fi
+fi
+
+# Safety net: Ensure SQLite database file and directory exist with correct permissions if SQLite is ever used
 mkdir -p /var/www/html/database
 if [ ! -f /var/www/html/database/database.sqlite ]; then
     touch /var/www/html/database/database.sqlite
-    if [ "$(id -u)" = "0" ]; then
-        chown www-data:www-data /var/www/html/database/database.sqlite
-        chmod 664 /var/www/html/database/database.sqlite
-    fi
+fi
+if [ "$(id -u)" = "0" ]; then
+    chown -R www-data:www-data /var/www/html/database
+    chmod -R 775 /var/www/html/database
+    chmod 664 /var/www/html/database/database.sqlite
 fi
 
 # Ensure APP_KEY exists so Laravel never crashes with MissingAppKeyException

@@ -40,7 +40,8 @@ services:
       - WAHA_SESSION=${WAHA_SESSION:-gobilling}
       - WAHA_API_KEY=${WAHA_API_KEY:-}
     env_file:
-      - .env
+      - path: .env
+        required: false
     volumes:
       - app_storage:/var/www/html/storage
     depends_on:

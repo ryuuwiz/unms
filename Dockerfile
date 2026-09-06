@@ -30,6 +30,7 @@ COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensio
 # Install PHP extensions required by Laravel, Horizon, Mikrotik RouterOS, Spatie & Excel
 RUN install-php-extensions \
     pdo_mysql \
+    pdo_sqlite \
     redis \
     pcntl \
     bcmath \
