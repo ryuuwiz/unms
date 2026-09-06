@@ -46,12 +46,12 @@ return [
 
         'mysql' => [
             'driver' => 'mysql',
-            'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE', 'laravel'),
-            'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
+            'url' => env('DB_URL', env('DATABASE_URL', env('MYSQL_URL'))),
+            'host' => (env('DB_HOST') === 'mysql' && env('MYSQLHOST')) ? env('MYSQLHOST') : env('DB_HOST', env('MYSQLHOST', '127.0.0.1')),
+            'port' => env('DB_PORT', env('MYSQLPORT', '3306')),
+            'database' => (env('DB_DATABASE') === 'gobilling' && env('MYSQLDATABASE')) ? env('MYSQLDATABASE') : env('DB_DATABASE', env('MYSQLDATABASE', 'gobilling')),
+            'username' => (env('DB_USERNAME') === 'gobilling' && env('MYSQLUSER')) ? env('MYSQLUSER') : env('DB_USERNAME', env('MYSQLUSER', 'root')),
+            'password' => (env('DB_PASSWORD') === 'secret' && env('MYSQLPASSWORD')) ? env('MYSQLPASSWORD') : env('DB_PASSWORD', env('MYSQLPASSWORD', '')),
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
@@ -155,10 +155,10 @@ return [
 
         'default' => [
             'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
-            'username' => env('REDIS_USERNAME'),
-            'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
+            'host' => (env('REDIS_HOST') === 'redis' && env('REDISHOST')) ? env('REDISHOST') : env('REDIS_HOST', env('REDISHOST', '127.0.0.1')),
+            'username' => env('REDIS_USERNAME', env('REDISUSER')),
+            'password' => env('REDIS_PASSWORD', env('REDISPASSWORD')),
+            'port' => env('REDIS_PORT', env('REDISPORT', '6379')),
             'database' => env('REDIS_DB', '0'),
             'max_retries' => env('REDIS_MAX_RETRIES', 3),
             'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
@@ -168,10 +168,10 @@ return [
 
         'cache' => [
             'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
-            'username' => env('REDIS_USERNAME'),
-            'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
+            'host' => (env('REDIS_HOST') === 'redis' && env('REDISHOST')) ? env('REDISHOST') : env('REDIS_HOST', env('REDISHOST', '127.0.0.1')),
+            'username' => env('REDIS_USERNAME', env('REDISUSER')),
+            'password' => env('REDIS_PASSWORD', env('REDISPASSWORD')),
+            'port' => env('REDIS_PORT', env('REDISPORT', '6379')),
             'database' => env('REDIS_CACHE_DB', '1'),
             'max_retries' => env('REDIS_MAX_RETRIES', 3),
             'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),

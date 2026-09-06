@@ -29,6 +29,7 @@
         "ext-exif": "*",
         "ext-gd": "*",
         "ext-pcntl": "*",
+        "ext-pdo_mysql": "*",
         "ext-sockets": "*",
         "ext-zip": "*",
         "xendit/xendit-php": "^7.0"
