@@ -26,6 +26,7 @@
         "spatie/laravel-activitylog": "^5.1",
         "spatie/laravel-medialibrary": "^11.23",
         "spatie/laravel-permission": "^8.3",
+        "ext-sockets": "*",
         "xendit/xendit-php": "^7.0"
     },
     "require-dev": {
