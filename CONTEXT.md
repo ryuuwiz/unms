@@ -2,6 +2,56 @@
 
 GOBILLING (formerly UNMS) ISP Network & Billing Management System staff application context and ubiquitous language.
 
+
+## Agent Documentation & Context Protocol
+
+When exploring, designing, or implementing features across GOBILLING domain models, agents MUST utilize **Laravel Boost** and **Context7** MCP tools to ensure version-accurate syntax and adherence to current package conventions:
+
+### 1. Laravel Boost MCP Tooling Protocol
+For Laravel core features, Eloquent operations, first-party packages, and internal database introspection:
+- **`search-docs`**: Run scoped, topic-based queries before writing or modifying code:
+  - Core Framework: `search-docs(queries=['routing', 'rate limiting', 'events'], packages=['laravel/framework'])`
+  - Horizon Queues: `search-docs(queries=['supervisor configuration', 'timeout', 'failed jobs'], packages=['laravel/horizon'])`
+  - Roles & Permissions: `search-docs(queries=['assignRole', 'givePermissionTo', 'middleware'], packages=['spatie/laravel-permission'])`
+  - Media Management: `search-docs(queries=['conversions', 'collections', 'responsive images'], packages=['spatie/laravel-medialibrary'])`
+  - Activity Logging: `search-docs(queries=['logOnlyDirty', 'causedBy', 'attribute_changes'], packages=['spatie/laravel-activitylog'])`
+  - Excel Import/Export: `search-docs(queries=['FromQuery', 'WithChunkReading', 'WithBatchInserts'], packages=['maatwebsite/excel'])`
+  - Livewire 4 & Flux: `search-docs(queries=['wire:model', 'form validation', 'flux component'], packages=['livewire/livewire', 'livewire/flux'])`
+- **`database-schema`**: Inspect actual table schema and indexes before generating migrations, queries, or spatial calculations (key tables: `pelanggan`, `layanan_pelanggan`, `odp`, `odp_ports`, `invoices`, `tickets`).
+- **`database-query`**: Execute read-only SELECT queries to verify data during debugging instead of raw tinker commands.
+- **`browser-logs`**: Inspect recent client-side errors, Livewire lifecycle failures, or hydration exceptions.
+- **`get-absolute-url`**: Resolve canonical URLs (host, scheme, port) when generating or testing links.
+- **`record-rule`**: Record durable architectural conventions and discovered traps into `.ai/rules`.
+
+### 2. Context7 MCP Tooling Protocol
+For external libraries, cloud services, payment gateway SDKs, container specifications, and styling engines:
+- **`resolve-library-id`**: Resolve the exact library identifier (e.g. `resolve-library-id(libraryName='Docker Compose', query='specification')`).
+- **`query-docs`**: Query documentation scoped to a specific concept.
+- **Canonical Context7 Project Library IDs**:
+  - **Docker Compose Spec**: `/docker/compose` (Latest Compose Specification v2+, deploy resources, logging, healthcheck)
+  - **FrankenPHP Runtime**: `/dunglas/frankenphp` (Caddyfile directives, worker mode, HTTP/3, compression)
+  - **Livewire 4**: `/websites/livewire_laravel_4_x` or `/livewire/livewire` (Full-stack reactivity)
+  - **Laravel 13 Framework**: `/websites/laravel_13_x` or `/laravel/docs` (L13 modern features)
+  - **Tailwind CSS v4**: `/tailwindlabs/tailwindcss` (Vite `@theme` configuration and utility classes)
+  - **Xendit Payment Gateway**: `/xendit/xendit-php` (Invoices, Virtual Accounts, webhook verification)
+  - **Spatie Permission**: `/spatie/laravel-permission` (RBAC, role hierarchies, Blade directives)
+  - **Spatie MediaLibrary**: `/spatie/laravel-medialibrary` (Media collections & storage)
+  - **Spatie Activitylog**: `/spatie/laravel-activitylog` (Audit trail models, log options)
+  - **Maatwebsite Excel**: `/maatwebsite/excel` (Spreadsheet handling, chunk imports, queued exports)
+
+### 3. Domain & Ecosystem Reference Matrix
+
+| Domain Area | Key Dependencies | Laravel Boost Tooling | Context7 Library ID | Relevant Skill |
+| :--- | :--- | :--- | :--- | :--- |
+| **Jaringan & MikroTik** | `evilfreelancer/routeros-api-php`, `laravel/horizon` | `search-docs` (`laravel/horizon`) | `/laravel/horizon` | `configuring-horizon` |
+| **Keuangan & Billing** | `xendit/xendit-php`, `barryvdh/laravel-dompdf` | `database-schema` (`invoices`) | `/xendit/xendit-php` | `laravel-best-practices` |
+| **Pelanggan & Layanan** | `spatie/laravel-medialibrary`, `spatie/laravel-activitylog` | `search-docs` (`spatie/laravel-medialibrary`, `spatie/laravel-activitylog`) | `/spatie/laravel-medialibrary` | `medialibrary-development` |
+| **Otentikasi & Staf** | `laravel/fortify`, `spatie/laravel-permission` | `search-docs` (`spatie/laravel-permission`) | `/spatie/laravel-permission` | `fortify-development`, `laravel-permission-development` |
+| **Portal & Reaktivitas** | `livewire/livewire`, `livewire/flux`, Tailwind v4 | `search-docs` (`livewire/livewire`, `livewire/flux`) | `/websites/livewire_laravel_4_x` | `livewire-development`, `fluxui-development` |
+| **Maps & Estimasi Kabel**| MySQL 8.4 Spatial GIS, Leaflet.js | `database-schema` (`odp`, `odp_ports`), `database-query` | `/docker/compose` | `domain-modeling` |
+| **Laporan & Ekspor** | `maatwebsite/excel` | `search-docs` (`maatwebsite/excel`) | `/maatwebsite/excel` | `laravel-excel` |
+| **Kontainer Produksi** | FrankenPHP 8.4, Caddy, Dokploy, Traefik | `get-absolute-url`, env config | `/docker/compose` | `docker-expert` |
+
 ## Language
 
 **Dashboard**:
@@ -43,6 +93,7 @@ _Avoid_: User, Staff Account, Member
 
 **Peran**:
 Kumpulan izin (permissions) yang diberikan kepada pengguna untuk membatasi akses fitur tertentu.
+_Technical Reference_: Spatie Permission (`spatie/laravel-permission`), Laravel Boost: `search-docs(packages=['spatie/laravel-permission'])`, Context7: `/spatie/laravel-permission`.
 _Avoid_: Role, Group, Level
 
 **Pelanggan**:
@@ -91,10 +142,12 @@ _Avoid_: Subnet Bebas, DHCP Range
 
 **Antrean Prioritas MikroTik (`mikrotik-high`)**:
 Antrean antarmuka Horizon khusus untuk provisi instan dan siklus hidup pelanggan real-time (tambah akun, ubah paket, isolir, buka isolir) dengan alokasi proses worker terisolasi tanpa jeda.
+_Technical Reference_: Laravel Horizon (`laravel/horizon`), Laravel Boost: `search-docs(packages=['laravel/horizon'])`, Context7: `/laravel/horizon`.
 _Avoid_: Antrean Campur, Single Queue Mikrotik, Mikrotik Low Saja
 
 **Antrean Background MikroTik (`mikrotik-low`)**:
 Antrean antarmuka Horizon untuk pemeliharaan berkala berulang (health check ping, validasi massal PPP secret, sinkronisasi pool/profil) dengan mekanisme non-blocking dan auto-scaling.
+_Technical Reference_: Laravel Horizon (`laravel/horizon`), Laravel Boost: `search-docs(packages=['laravel/horizon'])`, Context7: `/laravel/horizon`.
 _Avoid_: Background Queue Bebas, Single Queue Mikrotik
 
 **Rekonsiliasi Cepat PPP In-Memory**:
@@ -147,6 +200,7 @@ _Avoid_: User Pelanggan, Akun Web Bebas
 
 **Transaksi Payment Gateway**:
 Catatan transaksi penerbitan tagihan digital ke payment gateway (seperti Xendit, iPaymu) dengan identitas `external_id` unik untuk penjaminan idempotensi dan riwayat sesi pembayaran.
+_Technical Reference_: Xendit PHP SDK (`xendit/xendit-php`), Context7: `/xendit/xendit-php`.
 _Avoid_: Billing Gateway, Tagihan Xendit Saja, Order ID Bebas
 
 **Link Pembayaran Gateway**:
@@ -187,6 +241,7 @@ _Avoid_: Ticket ID Bebas, No Aduan, Kode Masalah
 
 **Histori Tiket**:
 Catatan log kronologis *immutable* (hanya-baca) yang merekam setiap transisi status, pergantian PIC, dan catatan penanganan teknis.
+_Technical Reference_: Spatie Activitylog (`spatie/laravel-activitylog`), Laravel Boost: `search-docs(packages=['spatie/laravel-activitylog'])`, Context7: `/spatie/laravel-activitylog`.
 _Avoid_: Riwayat Bebas, Log Tiket Manual, Catatan Lepas
 
 **PIC (Person in Charge)**:
@@ -223,6 +278,7 @@ _Avoid_: Hardcoded Single Company, Multi Database Terpisah Tanpa Pola
 
 **Berkas Media (Media Library)**:
 Pengelolaan berkas digital (logo instansi, foto identitas/KTP, foto dokumentasi teknis tiket, dan bukti transfer pembayaran) yang terpusat melalui relasi polimorfik Spatie MediaLibrary dengan penanganan otomatis konversi gambar, mime checking, dan siklus hidup berkas.
+_Technical Reference_: Spatie MediaLibrary (`spatie/laravel-medialibrary`), Laravel Boost: `search-docs(packages=['spatie/laravel-medialibrary'])`, Context7: `/spatie/laravel-medialibrary`.
 _Avoid_: File Path Manual Bebas, Upload Lepas Tanpa Relasi
 
 **Kartu Metrik (Stat Card)**:
@@ -231,6 +287,7 @@ _Avoid_: Box Angka Bebas, Card Mentah, Stat Lepas
 
 **Grafik Analitik (Chart Component)**:
 Komponen visualisasi data interaktif berbasis ApexCharts yang terintegrasi dengan Alpine.js dan Livewire 4, mendukung tema dark-mode otomatis untuk menampilkan tren pendapatan 12-bulan, proporsi paket layanan, dan beban tiket operasional.
+_Technical Reference_: Livewire 4 (`livewire/livewire`) & Flux UI (`livewire/flux`), Laravel Boost: `search-docs(packages=['livewire/livewire', 'livewire/flux'])`, Context7: `/websites/livewire_laravel_4_x`.
 _Avoid_: Gambar Grafik Statis, Chart Canvas Tanpa Reaktivitas
 
 **Collection Rate**:
@@ -298,6 +355,7 @@ _Avoid_: Google Maps API Berbayar, Peta Statis Gambar, Peta Tanpa Clustering
 
 **Estimasi Kabel**:
 Kalkulator geospasial non-destruktif (*transient calculator*) untuk mencari kandidat ODP terdekat dari titik koordinat survey/pelanggan dan menghitung estimasi panjang kabel drop fisik yang dibutuhkan menggunakan kombinasi formula spasial MySQL `ST_Distance_Sphere` dan faktor koreksi lapangan.
+_Technical Reference_: MySQL 8.4 Spatial GIS (`ST_Distance_Sphere`), Laravel Boost: `database-schema` (`odp`, `odp_ports`), `database-query`.
 _Avoid_: Jarak Udara Mentah Tanpa Slack, Routing Pathfinding Berat, Kalkulator Tersimpan Permanen
 
 **Faktor Pengali Kabel**:
@@ -310,6 +368,7 @@ _Avoid_: Kabel Pas-Pasan Tanpa Cadangan, Estimasi Tanpa Slack
 
 **Import ODP Geospasial (KML & GeoJSON)**:
 Fasilitas unggah dan konversi berkas geospasial standar industri (.kml dari Google Earth atau .geojson dari QGIS/CAD) untuk mengekstraksi titik koordinat ODP, nama, dan deskripsi secara massal dengan tinjauan data (*preview table*) sebelum disimpan dan di-generate port-nya secara otomatis.
+_Technical Reference_: Maatwebsite Excel (`maatwebsite/excel`), Laravel Boost: `search-docs(packages=['maatwebsite/excel'])`, Context7: `/maatwebsite/excel`.
 _Avoid_: Input Manual Satu Per Satu untuk Proyek Baru, Format CSV Polos Saja
 
 **Layer Coverage GeoJSON (Polygon Cakupan)**:
@@ -342,6 +401,7 @@ _Avoid_: Full db:seed di Produksi, Pencampuran Dummy Data dengan Master RBAC
 
 **WAHA Gateway**:
 Infrastruktur layanan WhatsApp HTTP API (WhatsApp HTTP API v2026.8.1) terpadu sebagai penyedia gateway pesan utama untuk notifikasi tagihan billing, pesan broadcast massal, dan konfirmasi pembayaran.
+_Technical Reference_: WhatsApp HTTP API (`devlikeapro/waha`), Internal Docker Compose service `waha`.
 _Avoid_: Gateway Pihak Ketiga Tak Terkelola, Wablas Saja
 
 **WAHA Session Pairing**:

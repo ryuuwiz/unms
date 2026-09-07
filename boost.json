@@ -1,12 +1,24 @@
 {
     "agents": [
-        "antigravity"
+        "antigravity",
+        "copilot",
+        "codex",
+        "claude_code",
+        "kiro",
+        "opencode",
+        "zed"
     ],
     "cloud": false,
     "guidelines": true,
     "mcp": true,
     "nightwatch": false,
-    "sail": false,
+    "packages": [
+        "maatwebsite/excel",
+        "spatie/laravel-activitylog",
+        "spatie/laravel-medialibrary",
+        "spatie/laravel-permission"
+    ],
+    "sail": true,
     "skills": [
         "infer-conventions",
         "fortify-development",
@@ -15,6 +27,9 @@
         "configuring-horizon",
         "fluxui-development",
         "livewire-development",
-        "tailwindcss-development"
+        "tailwindcss-development",
+        "laravel-excel",
+        "medialibrary-development",
+        "laravel-permission-development"
     ]
 }
