@@ -14,15 +14,14 @@ RUN apk add --no-cache \
 RUN set -ex; \
     ARCH=$(uname -m); \
     case "$ARCH" in \
-        x86_64) SUPERCRONIC_ARCH="amd64"; SUPERCRONIC_SHA1="71b0d589a263d1001bc4f4d783013db57ea82b70" ;; \
-        aarch64) SUPERCRONIC_ARCH="arm64"; SUPERCRONIC_SHA1="d4826b527d42cf38a8dd6e568d4f4cd9a405566f" ;; \
+        x86_64) SUPERCRONIC_ARCH="amd64"; SUPERCRONIC_SHA1="71b0d58cc53f6bd72cf2f293e09e294b79c666d8" ;; \
+        aarch64) SUPERCRONIC_ARCH="arm64"; SUPERCRONIC_SHA1="e0f0c06ebc5627e43b25475711e694450489ab00" ;; \
         *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
     esac; \
     SUPERCRONIC_URL="https://github.com/aptible/supercronic/releases/download/v0.2.33/supercronic-linux-${SUPERCRONIC_ARCH}"; \
-    curl -fsSLO "$SUPERCRONIC_URL"; \
-    echo "${SUPERCRONIC_SHA1}  supercronic-linux-${SUPERCRONIC_ARCH}" | sha1sum -c -; \
-    chmod +x "supercronic-linux-${SUPERCRONIC_ARCH}"; \
-    mv "supercronic-linux-${SUPERCRONIC_ARCH}" /usr/local/bin/supercronic
+    curl -fsSL "$SUPERCRONIC_URL" -o /usr/local/bin/supercronic; \
+    echo "${SUPERCRONIC_SHA1}  /usr/local/bin/supercronic" | sha1sum -c -; \
+    chmod +x /usr/local/bin/supercronic
 
 # Install required PHP extensions for Laravel, Livewire, DomPDF, and Mikrotik RouterOS API
 RUN install-php-extensions \
