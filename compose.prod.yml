@@ -111,17 +111,15 @@ services:
         init: true
         stop_grace_period: 60s
         healthcheck:
-            test: ["CMD-SHELL", "php artisan horizon:status | grep -q 'running' || exit 1"]
+            test: ["CMD-SHELL", "php artisan horizon:status || exit 1"]
             interval: 15s
-            timeout: 5s
-            retries: 3
-            start_period: 20s
+            timeout: 10s
+            retries: 5
+            start_period: 60s
         environment:
             <<: *app-environment
             CONTAINER_ROLE: horizon
         depends_on:
-            app:
-                condition: service_healthy
             mysql:
                 condition: service_healthy
                 restart: true
@@ -132,9 +130,9 @@ services:
             resources:
                 limits:
                     cpus: "${HORIZON_CPU_LIMIT:-1.5}"
-                    memory: "${HORIZON_MEMORY_LIMIT:-512M}"
+                    memory: "${HORIZON_MEMORY_LIMIT:-1024M}"
                 reservations:
-                    memory: "${HORIZON_MEMORY_RESERVATION:-128M}"
+                    memory: "${HORIZON_MEMORY_RESERVATION:-256M}"
 
     scheduler:
         <<: *app-base
@@ -151,8 +149,6 @@ services:
             <<: *app-environment
             CONTAINER_ROLE: scheduler
         depends_on:
-            app:
-                condition: service_healthy
             mysql:
                 condition: service_healthy
                 restart: true

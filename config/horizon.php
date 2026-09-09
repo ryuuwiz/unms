@@ -241,6 +241,17 @@ return [
             ],
         ],
 
+        'prod' => [
+            'supervisor-high' => [
+                'maxProcesses' => 3,
+            ],
+            'supervisor-low' => [
+                'maxProcesses' => 10,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+        ],
+
         'local' => [
             'supervisor-high' => [
                 'maxProcesses' => 2,

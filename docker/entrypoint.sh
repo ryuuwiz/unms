@@ -7,16 +7,12 @@ echo "==> Initializing GOBILLING container process..."
 rm -f bootstrap/cache/*.php
 
 ROLE="${CONTAINER_ROLE:-app}"
-if [ "$1" = "php" ] && [ "$2" = "artisan" ] && [ "$3" = "horizon" ]; then
-    ROLE="horizon"
-elif [ "$1" = "supercronic" ] || [ "$1" = "scheduler" ] || ([ "$1" = "php" ] && [ "$2" = "artisan" ] && [ "$3" = "schedule:work" ]); then
-    ROLE="scheduler"
-    if [ "$1" = "scheduler" ] || ([ "$1" = "php" ] && [ "$2" = "artisan" ] && [ "$3" = "schedule:work" ]); then
-        set -- supercronic /etc/crontabs/laravel-cron
-    fi
-elif [ "$1" = "horizon" ]; then
+if [ "$1" = "php" ] && [ "$2" = "artisan" ] && [ "$3" = "horizon" ] || [ "$ROLE" = "horizon" ]; then
     ROLE="horizon"
     set -- php artisan horizon
+elif [ "$1" = "supercronic" ] || [ "$ROLE" = "scheduler" ] || ([ "$1" = "php" ] && [ "$2" = "artisan" ] && [ "$3" = "schedule:work" ]); then
+    ROLE="scheduler"
+    set -- supercronic /etc/crontabs/laravel-cron
 fi
 
 # Ensure storage and cache directories exist with proper write permissions
@@ -100,11 +96,11 @@ wait_for_redis
 case "$ROLE" in
     horizon)
         echo "==> Running as Horizon Queue Worker..."
-        exec "$@"
+        exec php artisan horizon
         ;;
     scheduler)
         echo "==> Running as Supercronic Scheduled Tasks Daemon..."
-        exec "$@"
+        exec supercronic /etc/crontabs/laravel-cron
         ;;
     app|*)
         echo "==> Running as Application Web Server..."
