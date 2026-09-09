@@ -9,14 +9,14 @@ rm -f bootstrap/cache/*.php
 ROLE="${CONTAINER_ROLE:-app}"
 if [ "$1" = "php" ] && [ "$2" = "artisan" ] && [ "$3" = "horizon" ]; then
     ROLE="horizon"
-elif [ "$1" = "php" ] && [ "$2" = "artisan" ] && [ "$3" = "schedule:work" ]; then
+elif [ "$1" = "supercronic" ] || [ "$1" = "scheduler" ] || ([ "$1" = "php" ] && [ "$2" = "artisan" ] && [ "$3" = "schedule:work" ]); then
     ROLE="scheduler"
+    if [ "$1" = "scheduler" ] || ([ "$1" = "php" ] && [ "$2" = "artisan" ] && [ "$3" = "schedule:work" ]); then
+        set -- supercronic /etc/crontabs/laravel-cron
+    fi
 elif [ "$1" = "horizon" ]; then
     ROLE="horizon"
     set -- php artisan horizon
-elif [ "$1" = "scheduler" ]; then
-    ROLE="scheduler"
-    set -- php artisan schedule:work
 fi
 
 # Ensure storage and cache directories exist with proper write permissions
@@ -103,7 +103,7 @@ case "$ROLE" in
         exec "$@"
         ;;
     scheduler)
-        echo "==> Running as Scheduled Tasks Daemon..."
+        echo "==> Running as Supercronic Scheduled Tasks Daemon..."
         exec "$@"
         ;;
     app|*)

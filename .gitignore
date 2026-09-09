@@ -25,6 +25,5 @@ yarn-error.log
 /.vscode
 /.zed
 /graphify-out
-composer.lock
+yarn.lock
 bun.lock
-package-lock.json

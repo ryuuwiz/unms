@@ -1,0 +1,2 @@
+# Laravel scheduler cron specification for Supercronic
+* * * * * php /var/www/html/artisan schedule:run --no-interaction

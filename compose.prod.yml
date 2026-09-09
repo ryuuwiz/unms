@@ -139,10 +139,10 @@ services:
     scheduler:
         <<: *app-base
         container_name: gobilling_scheduler
-        command: ["php", "artisan", "schedule:work"]
+        command: ["supercronic", "/etc/crontabs/laravel-cron"]
         init: true
         healthcheck:
-            test: ["CMD-SHELL", "pgrep -f 'schedule:work' || exit 1"]
+            test: ["CMD-SHELL", "pgrep -f 'supercronic' || exit 1"]
             interval: 15s
             timeout: 5s
             retries: 3

@@ -32,3 +32,6 @@ Schedule::command('mikrotik:ping')
 // Pengingat Tagihan WhatsApp Otomatis (Setiap jam memeriksa aturan aktif)
 Schedule::command('invoice:kirim-pengingat')->hourly()->onOneServer();
 Schedule::command('wa:proses-antrian')->everyFiveMinutes()->onOneServer();
+
+// Horizon metrics snapshot for throughput and queue wait time dashboard
+Schedule::command('horizon:snapshot')->everyFiveMinutes()->onOneServer();

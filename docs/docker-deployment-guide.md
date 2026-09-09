@@ -54,7 +54,7 @@ GOBILLING dibangun dengan arsitektur decoupled berbasis **FrankenPHP** (Caddy We
 - **`horizon`**: Daemon worker `php artisan horizon` dengan isolasi supervisor:
   - `supervisor-high`: Khusus antrean prioritas instan `mikrotik-high` (provisi akun, isolir, buka isolir).
   - `supervisor-low`: Auto-scaling worker untuk `mikrotik-low`, `default`, dan blast notifikasi `wa-blast`.
-- **`scheduler`**: Kontainer daemon scheduler `php artisan schedule:work` yang mengeksekusi rekonsiliasi MikroTik harian, pembuatan tagihan otomatis, cek isolir jatuh tempo, dan pengecekan kedaluwarsa VA Xendit.
+- **`scheduler`**: Kontainer daemon scheduler berbasis Supercronic (`supercronic /etc/crontabs/laravel-cron`) yang mengeksekusi `schedule:run` setiap menit secara andal untuk rekonsiliasi MikroTik harian, pembuatan tagihan otomatis, cek isolir jatuh tempo, snapshot metrik Horizon, dan pengecekan kedaluwarsa VA Xendit.
 - **`mysql`**: Database MySQL 8.4 LTS dengan dukungan query geospasial GIS (`ST_Distance_Sphere` untuk Estimasi Kabel & ODP).
 - **`redis`**: Broker in-memory Redis 7 Alpine untuk queue Horizon, cache aplikasi, atomic lock `onOneServer()`, dan sesi.
 - **`rustfs`**: S3-compatible High-Performance Object Storage untuk berkas bukti bayar, PDF invoice, dan avatar pelanggan melalui `spatie/laravel-medialibrary`.

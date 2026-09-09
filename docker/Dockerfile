@@ -10,6 +10,20 @@ RUN apk add --no-cache \
     netcat-openbsd \
     libcap
 
+# Install Supercronic for reliable containerized cron scheduling
+RUN set -ex; \
+    ARCH=$(uname -m); \
+    case "$ARCH" in \
+        x86_64) SUPERCRONIC_ARCH="amd64"; SUPERCRONIC_SHA1="71b0d589a263d1001bc4f4d783013db57ea82b70" ;; \
+        aarch64) SUPERCRONIC_ARCH="arm64"; SUPERCRONIC_SHA1="d4826b527d42cf38a8dd6e568d4f4cd9a405566f" ;; \
+        *) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;; \
+    esac; \
+    SUPERCRONIC_URL="https://github.com/aptible/supercronic/releases/download/v0.2.33/supercronic-linux-${SUPERCRONIC_ARCH}"; \
+    curl -fsSLO "$SUPERCRONIC_URL"; \
+    echo "${SUPERCRONIC_SHA1}  supercronic-linux-${SUPERCRONIC_ARCH}" | sha1sum -c -; \
+    chmod +x "supercronic-linux-${SUPERCRONIC_ARCH}"; \
+    mv "supercronic-linux-${SUPERCRONIC_ARCH}" /usr/local/bin/supercronic
+
 # Install required PHP extensions for Laravel, Livewire, DomPDF, and Mikrotik RouterOS API
 RUN install-php-extensions \
     pdo_mysql \
@@ -118,8 +132,9 @@ COPY --from=composer-builder /app/vendor /var/www/html/vendor
 # Copy compiled frontend assets
 COPY --from=node-builder /app/public/build /var/www/html/public/build
 
-# Copy production Caddyfile and Entrypoint script
+# Copy production Caddyfile, crontab, and Entrypoint script
 COPY docker/Caddyfile /etc/caddy/Caddyfile
+COPY docker/crontab /etc/crontabs/laravel-cron
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Set directory permissions and executable flags
