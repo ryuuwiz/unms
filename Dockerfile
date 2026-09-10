@@ -15,16 +15,35 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         unzip \
-        libzip-dev \
         libicu-dev \
+        libzip-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        libonig-dev \
+        libxml2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Uses mlocati/docker-php-extension-installer so the platform-req
-# check during `composer install` matches the runtime extension set
+# Mirrors the runtime stage's extension set so composer's platform-req
+# check (ext-mbstring, ext-pdo_mysql, etc. declared by Laravel and its
+# dependencies) passes during `composer install` — a mismatch here is
+# the most common cause of a silent "exit code: 2" from this step.
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
-RUN install-php-extensions zip intl bcmath
+RUN install-php-extensions \
+        pdo_mysql \
+        mysqli \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        zip \
+        intl \
+        opcache \
+        redis \
+        sockets
 
 COPY database/ database/
 COPY composer.json composer.lock ./
