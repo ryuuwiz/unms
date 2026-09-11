@@ -16,6 +16,7 @@ use App\Models\MikrotikJobLog;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RouterOS\Client;
@@ -1365,6 +1366,11 @@ class MikrotikService
     /**
      * Ambil status realtime PPP Secret & sesi aktif untuk suatu akun username di router.
      *
+     * Hasil di-cache singkat (lihat config('mikrotik.status_cache_ttl')) supaya beberapa
+     * admin yang membuka halaman pelanggan yang sama dalam waktu berdekatan tidak membuka
+     * koneksi live baru ke RouterOS untuk masing-masing request. Gunakan refreshPppStatus()
+     * untuk memaksa fetch ulang yang melewati cache.
+     *
      * @return array{
      *     is_connected: bool,
      *     status_label: string,
@@ -1382,8 +1388,39 @@ class MikrotikService
      */
     public function getPppStatus(Router $router, string $username): array
     {
+        return Cache::remember(
+            $this->pppStatusCacheKey($router, $username),
+            now()->addSeconds(config('mikrotik.status_cache_ttl', 20)),
+            fn () => $this->fetchLivePppStatus($router, $username)
+        );
+    }
+
+    /**
+     * Paksa fetch ulang status realtime PPP, melewati cache dari getPppStatus().
+     *
+     * @return array<string, mixed>
+     */
+    public function refreshPppStatus(Router $router, string $username): array
+    {
+        Cache::forget($this->pppStatusCacheKey($router, $username));
+
+        return $this->getPppStatus($router, $username);
+    }
+
+    private function pppStatusCacheKey(Router $router, string $username): string
+    {
+        return "ppp-status:{$router->id}:{$username}";
+    }
+
+    /**
+     * Ambil status realtime PPP Secret & sesi aktif dari RouterOS secara live (tanpa cache).
+     *
+     * @return array<string, mixed>
+     */
+    private function fetchLivePppStatus(Router $router, string $username): array
+    {
         try {
-            $client = $this->getClient($router, 3);
+            $client = $this->getClient($router, config('mikrotik.status_timeout', 3));
 
             // 1. Ambil data Secret
             $secretQuery = (new Query('/ppp/secret/print'))->where('name', $username);

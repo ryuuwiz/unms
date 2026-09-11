@@ -311,9 +311,24 @@ class Show extends Component
         Flux::toast(variant: 'success', text: "Dokumen {$fileName} berhasil dihapus.");
     }
 
+    /**
+     * Paksa refresh status realtime PPP seluruh layanan pelanggan, melewati cache
+     * dari MikrotikService::getPppStatus() (lihat loadPppStatuses()).
+     */
     public function refreshPppStatus(MikrotikService $mikrotikService): void
     {
-        $this->loadPppStatuses($mikrotikService);
+        $pelanggan = Pelanggan::with(['layanans.router'])->findOrFail($this->pelangganId);
+
+        $this->pppStatuses = [];
+
+        foreach ($pelanggan->layanans as $layanan) {
+            if ($layanan->router && ! empty($layanan->ppp_username)) {
+                $this->pppStatuses[$layanan->id] = $mikrotikService->refreshPppStatus(
+                    $layanan->router,
+                    $layanan->ppp_username
+                );
+            }
+        }
 
         Flux::toast(
             text: 'Status realtime PPP berhasil diperbarui dari MikroTik.',

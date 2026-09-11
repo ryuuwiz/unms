@@ -4,11 +4,13 @@ use App\Enums\StatusInvoice;
 use App\Models\AntrianWaBlast;
 use App\Models\Invoice;
 use App\Models\Pelanggan;
+use App\Notifications\InvoiceReminderNotification;
 use App\Services\Whatsapp\WhatsappClient;
 use Database\Seeders\AturanPengingatTagihanSeeder;
 use Database\Seeders\WaTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
@@ -83,4 +85,31 @@ test('command invoice:kirim-pengingat berhasil memasukkan tagihan ke antrian ses
         ->assertSuccessful();
 
     expect(AntrianWaBlast::count())->toBe(4);
+});
+
+test('command invoice:kirim-pengingat mengirim email pengingat ke pelanggan yang memiliki email dan skip yang tidak', function () {
+    Notification::fake();
+
+    $pelangganDenganEmail = Pelanggan::factory()->create(['no_hp' => '081111111111', 'email' => 'pelanggan@example.com']);
+    $pelangganTanpaEmail = Pelanggan::factory()->create(['no_hp' => '082222222222', 'email' => null]);
+
+    $today = Carbon::today();
+
+    Invoice::factory()->create([
+        'pelanggan_id' => $pelangganDenganEmail->id,
+        'status' => StatusInvoice::MenungguPembayaran,
+        'tanggal_jatuh_tempo' => $today->copy()->addDays(3),
+    ]);
+
+    Invoice::factory()->create([
+        'pelanggan_id' => $pelangganTanpaEmail->id,
+        'status' => StatusInvoice::MenungguPembayaran,
+        'tanggal_jatuh_tempo' => $today->copy()->addDays(3),
+    ]);
+
+    $this->artisan('invoice:kirim-pengingat', ['--force' => true])
+        ->assertSuccessful();
+
+    Notification::assertSentTo($pelangganDenganEmail, InvoiceReminderNotification::class);
+    Notification::assertNothingSentTo($pelangganTanpaEmail);
 });

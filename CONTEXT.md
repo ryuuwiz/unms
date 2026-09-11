@@ -412,8 +412,13 @@ _Avoid_: Login Manual ke Swagger Eksternal, Hardcoded Single Session
 Pelacakan siklus hidup pengiriman pesan keluar WhatsApp berbasis webhook `message.ack` secara granular (`Menunggu` $\rightarrow$ `Terkirim/Server` $\rightarrow$ `Tersampaikan/Device` $\rightarrow$ `Dibaca/Read` $\rightarrow$ `Gagal`) yang dicatat pada tabel antrian blast.
 _Avoid_: Blind Blast Tanpa Tracking, Status Sent Statis
 
-**Pengingat Tagihan Otomatis WhatsApp**:
-Sistem pengingat tagihan terjadwal (`invoice:kirim-pengingat`) yang berjalan setiap jam untuk mengevaluasi aturan pengingat aktif, mengantrikan pesan notifikasi berformat template dinamis dengan link pembayaran gateway langsung ke antrean `wa-blast` Horizon dengan perlindungan pembatasan laju (*rate limiting*).
-_Avoid_: Pengiriman Manual Satu Per Satu, Blast Tanpa Antrean Terisolasi
+**Pengingat Tagihan Otomatis**:
+Sistem pengingat tagihan terjadwal (`invoice:kirim-pengingat`) yang berjalan setiap jam untuk mengevaluasi aturan pengingat aktif dan mengirimkan notifikasi berformat template dinamis dengan link pembayaran ke dua kanal sekaligus: WhatsApp (antrean `wa-blast` Horizon dengan perlindungan pembatasan laju) dan Email (notification queue standar, langsung ke `Pelanggan.email` jika terisi).
+_Avoid_: Pengiriman Manual Satu Per Satu, Blast Tanpa Antrean Terisolasi, Pengingat WhatsApp Saja
+
+**Notifikasi Email Invoice**:
+Email transaksional yang dikirim ke `Pelanggan.email` (bukan email akun Portal Pelanggan) untuk dua peristiwa: pengingat jatuh tempo tagihan dan konfirmasi pembayaran lunas, berisi link ke halaman invoice Portal Pelanggan tanpa lampiran PDF. Dikirim via SMTP Mailpit di lingkungan lokal; dilewati (skip + log) jika pelanggan tidak memiliki email.
+_Technical Reference_: `App\Notifications\InvoiceReminderNotification`, `App\Notifications\InvoicePaymentConfirmedNotification`
+_Avoid_: SMS Gateway (dihapus, tidak pernah diimplementasikan), Email ke Akun Portal Pelanggan
 
 

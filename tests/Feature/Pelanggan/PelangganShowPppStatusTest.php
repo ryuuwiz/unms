@@ -156,7 +156,10 @@ test('refreshPppStatus action updates live PPP status', function () {
     $mockService = Mockery::mock(MikrotikService::class);
     $this->app->instance(MikrotikService::class, $mockService);
 
-    $mockService->shouldReceive('getPppStatus')
+    // refreshPppStatus() di Show sekarang memanggil MikrotikService::refreshPppStatus()
+    // (bypass cache), bukan getPppStatus(), supaya tombol "Segarkan Status PPP" benar-benar
+    // memaksa fetch ulang alih-alih menampilkan hasil cache.
+    $mockService->shouldReceive('refreshPppStatus')
         ->andReturn([
             'is_connected' => true,
             'status_label' => 'Connected',

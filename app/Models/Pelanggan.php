@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -73,7 +74,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 class Pelanggan extends Model implements HasMedia
 {
     /** @use HasFactory<PelangganFactory> */
-    use GracefullyDecryptsAttributes, HasFactory, InteractsWithMedia, LogsActivity, SoftDeletes;
+    use GracefullyDecryptsAttributes, HasFactory, InteractsWithMedia, LogsActivity, Notifiable, SoftDeletes;
 
     protected $table = 'pelanggan';
 

@@ -6,9 +6,11 @@ use App\Enums\StatusInvoice;
 use App\Enums\Wa\TipePengingatTagihan;
 use App\Models\AturanPengingatTagihan;
 use App\Models\Invoice;
+use App\Notifications\InvoiceReminderNotification;
 use App\Services\Whatsapp\WhatsappService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class KirimPengingatTagihanCommand extends Command
 {
@@ -24,14 +26,14 @@ class KirimPengingatTagihanCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Kirim pengingat tagihan otomatis via WhatsApp sesuai aturan aktif dan tanggal jatuh tempo';
+    protected $description = 'Kirim pengingat tagihan otomatis via WhatsApp dan Email sesuai aturan aktif dan tanggal jatuh tempo';
 
     /**
      * Execute the console command.
      */
     public function handle(WhatsappService $whatsappService): int
     {
-        $this->info('Memulai pemrosesan pengingat tagihan otomatis via WhatsApp...');
+        $this->info('Memulai pemrosesan pengingat tagihan otomatis via WhatsApp dan Email...');
 
         $now = Carbon::now();
         $today = Carbon::today();
@@ -97,6 +99,14 @@ class KirimPengingatTagihanCommand extends Command
                 if ($antrian && $antrian->wasRecentlyCreated) {
                     $countRule++;
                     $totalAntreanBaru++;
+                }
+
+                if (! empty($pelanggan->email)) {
+                    try {
+                        $pelanggan->notify(new InvoiceReminderNotification($invoice, $params));
+                    } catch (\Throwable $e) {
+                        Log::error("Gagal mengirim email pengingat tagihan invoice {$invoice->no_invoice}: ".$e->getMessage());
+                    }
                 }
             }
 
