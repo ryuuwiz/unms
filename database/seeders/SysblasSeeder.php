@@ -31,7 +31,7 @@ class SysblasSeeder extends Seeder
                 'password' => $defaultPassword,
                 'api_token' => $defaultApiKey,
                 'api_secret' => null,
-                'limit_per_menit' => 60,
+                'limit_per_menit' => 4,
                 'is_default' => true,
                 'is_aktif' => true,
                 'keterangan' => 'Koneksi gateway WhatsApp WAHA utama (session: gobilling) untuk billing, blast notifikasi, dan tiket kendala.',

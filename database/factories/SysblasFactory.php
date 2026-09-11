@@ -26,7 +26,7 @@ class SysblasFactory extends Factory
             'url_api' => 'http://localhost:3000',
             'username' => $this->faker->userName(),
             'password' => $this->faker->password(),
-            'limit_per_menit' => 25,
+            'limit_per_menit' => 4,
             'is_default' => false,
             'is_aktif' => true,
             'keterangan' => $this->faker->sentence(),

@@ -43,9 +43,9 @@ class Index extends Component
 
     public ?string $api_secret = '';
 
-    public ?int $limit_per_menit = 25;
+    public ?int $limit_per_menit = 4;
 
-    public ?int $delay_detik = 300;
+    public ?int $delay_detik = 15;
 
     public ?int $jitter_detik = 2;
 
@@ -142,7 +142,7 @@ class Index extends Component
         $this->api_token = $sysblas->api_token ?? '';
         $this->api_secret = $sysblas->api_secret ?? '';
         $this->limit_per_menit = $sysblas->limit_per_menit;
-        $this->delay_detik = $sysblas->delay_detik ?? 300;
+        $this->delay_detik = $sysblas->delay_detik ?? 15;
         $this->jitter_detik = $sysblas->jitter_detik ?? 2;
         $this->is_typing_simulation = (bool) ($sysblas->is_typing_simulation ?? true);
         $this->is_default = (bool) $sysblas->is_default;
@@ -179,7 +179,7 @@ class Index extends Component
                 'max:255',
             ],
             'api_secret' => ['nullable', 'string', 'max:255'],
-            'limit_per_menit' => ['required', 'integer', 'min:1', 'max:300'],
+            'limit_per_menit' => ['required', 'integer', 'min:1', 'max:20'],
             'delay_detik' => ['required', 'integer', 'min:0', 'max:3600'],
             'jitter_detik' => ['required', 'integer', 'min:0', 'max:30'],
             'is_typing_simulation' => ['required', 'boolean'],
@@ -194,6 +194,7 @@ class Index extends Component
             'username.required' => 'Username Basic Auth GOWA wajib diisi.',
             'password.required' => 'Password Basic Auth GOWA wajib diisi.',
             'limit_per_menit.min' => 'Limit minimal 1 pesan per menit.',
+            'limit_per_menit.max' => 'Limit maksimal 20 pesan per menit untuk mencegah nomor WhatsApp diblokir (anti-ban).',
             'delay_detik.min' => 'Jeda minimal tidak boleh negatif.',
             'jitter_detik.min' => 'Jeda acak tidak boleh negatif.',
         ]);
@@ -215,7 +216,7 @@ class Index extends Component
             'api_token' => $token,
             'api_secret' => $secret,
             'limit_per_menit' => $this->limit_per_menit,
-            'delay_detik' => $this->delay_detik ?? 300,
+            'delay_detik' => $this->delay_detik ?? 15,
             'jitter_detik' => $this->jitter_detik ?? 2,
             'is_typing_simulation' => $this->is_typing_simulation,
             'is_aktif' => $this->is_aktif,
@@ -626,8 +627,8 @@ class Index extends Component
         $this->password = '';
         $this->api_token = '';
         $this->api_secret = '';
-        $this->limit_per_menit = 25;
-        $this->delay_detik = 300;
+        $this->limit_per_menit = 4;
+        $this->delay_detik = 15;
         $this->jitter_detik = 2;
         $this->is_typing_simulation = true;
         $this->is_default = false;

@@ -56,6 +56,29 @@ test('staf dapat menambah koneksi sysblas baru dengan pengaturan anti-ban', func
         ->and($created->is_typing_simulation)->toBeTrue();
 });
 
+test('validasi menolak limit per menit di atas 20 sebagai pengaman anti-ban', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->set('nama', 'WAHA Limit Kebablasan')
+        ->set('provider', SysblasProvider::Waha->value)
+        ->set('url_api', 'https://waha.gobilling.id')
+        ->set('username', 'admin')
+        ->set('password', 'secret')
+        ->set('limit_per_menit', 21)
+        ->call('simpan')
+        ->assertHasErrors(['limit_per_menit' => 'max']);
+
+    expect(Sysblas::where('nama', 'WAHA Limit Kebablasan')->exists())->toBeFalse();
+});
+
+test('form tambah koneksi baru memakai default batas laju pengiriman dan jeda antar-pesan yang konsisten', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->call('openCreateModal')
+        ->assertSet('limit_per_menit', 4)
+        ->assertSet('delay_detik', 15);
+});
+
 test('staf dapat memperbarui koneksi sysblas dan pengaturan rate limit', function () {
     $sysblas = Sysblas::first();
 
@@ -99,7 +122,7 @@ test('staf dapat membuka dan memperbarui koneksi yang memiliki api_token null', 
         'password' => 'secret123',
         'api_token' => null,
         'api_secret' => null,
-        'limit_per_menit' => 60,
+        'limit_per_menit' => 4,
         'is_default' => false,
         'is_aktif' => true,
     ]);

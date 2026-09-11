@@ -430,10 +430,10 @@
                             wire:model="limit_per_menit"
                             label="Limit (MSG/Menit)"
                             min="1"
-                            max="300"
+                            max="20"
                             required
                         />
-                        <flux:description>Maksimal per 60 dtk.</flux:description>
+                        <flux:description>Maksimal per 60 dtk. Rekomendasi: 4/menit.</flux:description>
                         @error('limit_per_menit') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
@@ -446,7 +446,7 @@
                             max="3600"
                             required
                         />
-                        <flux:description>Jarak antar pesan. Rekomendasi: 300 dtk (5 menit) agar tidak banned.</flux:description>
+                        <flux:description>Jarak antar pesan. Rekomendasi: 15 dtk, konsisten dengan Limit di samping.</flux:description>
                         @error('delay_detik') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
                     </div>
 

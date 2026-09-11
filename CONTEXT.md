@@ -412,6 +412,26 @@ _Avoid_: Login Manual ke Swagger Eksternal, Hardcoded Single Session
 Pelacakan siklus hidup pengiriman pesan keluar WhatsApp berbasis webhook `message.ack` secara granular (`Menunggu` $\rightarrow$ `Terkirim/Server` $\rightarrow$ `Tersampaikan/Device` $\rightarrow$ `Dibaca/Read` $\rightarrow$ `Gagal`) yang dicatat pada tabel antrian blast.
 _Avoid_: Blind Blast Tanpa Tracking, Status Sent Statis
 
+**Koneksi Gateway WhatsApp (Sysblas)**:
+Entitas konfigurasi satu akun/nomor pengirim WhatsApp (WAHA atau GOWA) yang menyimpan kredensial, provider, dan parameter throughput-nya sendiri, memungkinkan beberapa nomor WhatsApp berjalan independen dalam satu instalasi (misal nomor billing terpisah dari nomor pengaduan tiket).
+_Technical Reference_: Model `App\Models\Sysblas`, tabel `sysblas` (nama tabel warisan dari provider WABLAS lama; provider aktual kini WAHA/GOWA).
+_Avoid_: Akun WhatsApp, Gateway WA Tunggal
+
+**Batas Laju Pengiriman (Send Rate Limit)**:
+Plafon jumlah percobaan pengiriman per Koneksi Gateway WhatsApp dalam jendela 60 detik — dihitung dari setiap percobaan kirim, bukan hanya yang sukses; percobaan yang berujung gagal permanen tetap mengonsumsi plafon ini.
+_Technical Reference_: Kolom `limit_per_menit` pada `Sysblas`, `RateLimiter::hit()`/`tooManyAttempts()` di `KirimWaBlastJob`.
+_Avoid_: Batas Pesan, Quota Blast
+
+**Jeda Antar-Pesan (Inter-Message Cooldown)**:
+Jarak waktu minimum wajib (dengan variasi acak/jitter) antara dua pengiriman berurutan pada Koneksi Gateway WhatsApp yang sama, ditegakkan lebih dulu daripada Batas Laju Pengiriman, sebagai mekanisme anti-ban utama agar pola pengiriman tidak terdeteksi sebagai bot. Kedua mekanisme wajib dikonfigurasi konsisten terhadap satu target throughput yang sama — jeda yang lebih longgar dari `60 / limit_per_menit` detik membuat Batas Laju Pengiriman tidak pernah tercapai dan menjadi tidak berefek.
+_Technical Reference_: Kolom `delay_detik` & `jitter_detik` pada `Sysblas`, Cache slot `sysblas-next-send-slot-*` di `KirimWaBlastJob`.
+_Avoid_: Delay, Sleep Pengiriman
+
+**Penyapu Antrean Macet (Stalled Queue Sweeper)**:
+Command terjadwal yang hanya men-dispatch ulang baris antrian blast berstatus `Menunggu` yang tertinggal kembali ke job pengiriman ber-rate-limit, tanpa pernah mengirim pesan secara langsung — menjamin satu-satunya jalur pengiriman nyata tetap menghormati Batas Laju Pengiriman dan Jeda Antar-Pesan.
+_Technical Reference_: `wa:proses-antrian` (`App\Console\Commands\ProsesAntrianWaCommand`), men-dispatch `KirimWaBlastJob`.
+_Avoid_: Batch Sender Kedua, Jalur Kirim Paralel
+
 **Pengingat Tagihan Otomatis**:
 Sistem pengingat tagihan terjadwal (`invoice:kirim-pengingat`) yang berjalan setiap jam untuk mengevaluasi aturan pengingat aktif dan mengirimkan notifikasi berformat template dinamis dengan link pembayaran ke dua kanal sekaligus: WhatsApp (antrean `wa-blast` Horizon dengan perlindungan pembatasan laju) dan Email (notification queue standar, langsung ke `Pelanggan.email` jika terisi).
 _Avoid_: Pengiriman Manual Satu Per Satu, Blast Tanpa Antrean Terisolasi, Pengingat WhatsApp Saja
