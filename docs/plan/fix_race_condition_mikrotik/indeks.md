@@ -12,7 +12,8 @@ Track B — Realtime PPP Status
 1	Lazy load + isolasi exception	sprint-b1-lazy-load-isolasi-exception.md	— (paralel dengan Track A)	Kecil-menengah
 2	Cache layer + configurable timeout	sprint-b2-cache-layer-ppp-status.md	Setelah B1	Kecil-menengah
 3	Batch query (kondisional)	sprint-b3-cek-kelayakan-batch-query.md	Setelah B2, cek data dulu	Kondisional
-4 Sprint B4 — Configurable timeout (quick win, gabung dengan B2)
+4	Monitoring & logging Mikrotik untuk superadmin	sprint-b5-monitoring-mikrotik-superadmin.md	Setelah B1 — butuh sesi grilling sendiri sebelum coding (lihat isi file)	Menengah — perlu keputusan skema & volume data dulu
+5 Sprint B4 — Configurable timeout (quick win, gabung dengan B2)
 Tujuan: Timeout 3 detik hardcoded jadi configurable.
 Bisa digabung ke Sprint B2 kalau mau (kecil).
 File yang disentuh:

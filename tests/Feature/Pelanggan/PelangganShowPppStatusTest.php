@@ -79,6 +79,7 @@ test('detail pelanggan displays Router & Paket Aktif section with connected PPP 
     Livewire::actingAs($this->superAdmin)
         ->test(Show::class, ['pelanggan' => $this->pelanggan->fresh()])
         ->set('activeTab', 'subscriptions')
+        ->call('loadPppStatuses')
         ->assertOk()
         ->assertSee('Router')
         ->assertSee('Paket Aktif')
@@ -116,6 +117,7 @@ test('detail pelanggan displays disconnected status when PPP session is offline'
     Livewire::actingAs($this->superAdmin)
         ->test(Show::class, ['pelanggan' => $this->pelanggan->fresh()])
         ->set('activeTab', 'subscriptions')
+        ->call('loadPppStatuses')
         ->assertOk()
         ->assertSee('Disconnected (Offline)')
         ->assertSee('Belum tersambung (Offline)')
@@ -145,6 +147,7 @@ test('detail pelanggan handles unreachable router gracefully without breaking pa
     Livewire::actingAs($this->superAdmin)
         ->test(Show::class, ['pelanggan' => $this->pelanggan->fresh()])
         ->set('activeTab', 'subscriptions')
+        ->call('loadPppStatuses')
         ->assertOk()
         ->assertSee('Router tidak dapat dihubungi');
 });
@@ -176,4 +179,84 @@ test('refreshPppStatus action updates live PPP status', function () {
         ->assertOk()
         ->assertSee('10.0.0.99')
         ->assertSee('5m 12s');
+});
+
+test('mount tidak memanggil getPppStatus, hanya loadPppStatuses (dipicu wire:init) yang memanggilnya', function () {
+    $mockService = Mockery::mock(MikrotikService::class);
+    $mockService->shouldNotReceive('getPppStatus');
+    $this->app->instance(MikrotikService::class, $mockService);
+
+    // Tidak memanggil ->call('loadPppStatuses') di sini — memverifikasi mount() saja
+    // (termasuk saat activeTab langsung 'subscriptions') tidak memicu koneksi ke Mikrotik.
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan->fresh()])
+        ->set('activeTab', 'subscriptions')
+        ->assertOk();
+});
+
+test('satu layanan gagal terhubung ke router tidak menghalangi layanan lain menampilkan status sukses', function () {
+    $layananSukses = $this->layanan;
+
+    $routerLain = Router::factory()->online()->create([
+        'nama_router' => 'Router-Core-02',
+        'ip_address' => '192.168.80.93',
+        'port' => 8728,
+    ]);
+
+    $layananGagal = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'router_id' => $routerLain->id,
+        'paket_layanan_id' => $this->paket->id,
+        'ppp_username' => 'BF2408202601_00098',
+        'ppp_password_terenkripsi' => 'unms9977',
+        'site_id' => 'SITE-TEST98',
+        'status' => StatusLayanan::Aktif,
+    ]);
+
+    $mockService = Mockery::mock(MikrotikService::class);
+    $this->app->instance(MikrotikService::class, $mockService);
+
+    $mockService->shouldReceive('getPppStatus')
+        ->withArgs(fn ($router, $username) => $username === $layananSukses->ppp_username)
+        ->andReturn([
+            'is_connected' => true,
+            'status_label' => 'Connected',
+            'profile' => 'Profile-Home-20M',
+            'service' => 'pppoe',
+            'ip_address' => '10.0.0.88',
+            'local_address' => '10.0.0.1',
+            'uptime' => '1h 2m',
+            'caller_id' => null,
+            'last_logged_out' => null,
+            'is_disabled' => false,
+            'router_online' => true,
+            'error_message' => null,
+        ]);
+
+    $mockService->shouldReceive('getPppStatus')
+        ->withArgs(fn ($router, $username) => $username === $layananGagal->ppp_username)
+        ->andReturn([
+            'is_connected' => false,
+            'status_label' => 'Unknown',
+            'profile' => null,
+            'service' => null,
+            'ip_address' => null,
+            'local_address' => null,
+            'uptime' => null,
+            'caller_id' => null,
+            'last_logged_out' => null,
+            'is_disabled' => false,
+            'router_online' => false,
+            'error_message' => 'Connection timed out',
+        ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan->fresh()])
+        ->set('activeTab', 'subscriptions')
+        ->call('loadPppStatuses')
+        ->assertOk()
+        ->assertSee($layananSukses->ppp_username)
+        ->assertSee($layananGagal->ppp_username)
+        ->assertSee('Connected (Online)')
+        ->assertSee('Router tidak dapat dihubungi');
 });

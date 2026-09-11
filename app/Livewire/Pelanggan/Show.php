@@ -84,11 +84,10 @@ class Show extends Component
      */
     public array $pppStatuses = [];
 
-    public function mount(Pelanggan $pelanggan, MikrotikService $mikrotikService): void
+    public function mount(Pelanggan $pelanggan): void
     {
         $this->authorize('view', $pelanggan);
         $this->pelangganId = $pelanggan->id;
-        $this->loadPppStatuses($pelanggan, $mikrotikService);
     }
 
     public function setTab(string $tab): void
@@ -187,8 +186,7 @@ class Show extends Component
             $this->closeBayarModal();
 
             // Refresh ppp status
-            $pelanggan = Pelanggan::with(['layanans.router', 'layanans.paketLayanan.profilBandwidth'])->findOrFail($this->pelangganId);
-            $this->loadPppStatuses($pelanggan, $mikrotikService);
+            $this->loadPppStatuses($mikrotikService);
 
             Flux::toast(variant: 'success', text: "Pembayaran invoice {$invoice->no_invoice} berhasil dicatat & layanan diperpanjang!");
         } catch (Exception $e) {
@@ -315,10 +313,7 @@ class Show extends Component
 
     public function refreshPppStatus(MikrotikService $mikrotikService): void
     {
-        $pelanggan = Pelanggan::with(['layanans.router', 'layanans.paketLayanan.profilBandwidth'])
-            ->findOrFail($this->pelangganId);
-
-        $this->loadPppStatuses($pelanggan, $mikrotikService);
+        $this->loadPppStatuses($mikrotikService);
 
         Flux::toast(
             text: 'Status realtime PPP berhasil diperbarui dari MikroTik.',
@@ -326,15 +321,25 @@ class Show extends Component
         );
     }
 
-    public function loadPppStatuses(Pelanggan $pelanggan, MikrotikService $mikrotikService): void
+    /**
+     * Muat status realtime PPP per layanan dari MikroTik.
+     *
+     * Dipicu via wire:init (lazy, setelah render awal halaman) alih-alih di mount(),
+     * supaya halaman tidak menunggu koneksi live ke RouterOS sebelum dirender.
+     *
+     * getPppStatus() tidak pernah melempar exception ke luar — kegagalan koneksi
+     * per router sudah diisolasi & ditangkap di dalam MikrotikService::getPppStatus()
+     * itu sendiri, yang selalu mengembalikan array dengan 'router_online' => false
+     * dan 'error_message' terisi saat gagal. Jadi tidak perlu try/catch di sini.
+     */
+    public function loadPppStatuses(MikrotikService $mikrotikService): void
     {
+        $pelanggan = Pelanggan::with(['layanans.router', 'layanans.paketLayanan.profilBandwidth'])
+            ->findOrFail($this->pelangganId);
+
         $this->pppStatuses = [];
 
-        $layanans = $pelanggan->relationLoaded('layanans') && $pelanggan->layanans->isNotEmpty()
-            ? $pelanggan->layanans
-            : $pelanggan->layanans()->with(['router', 'paketLayanan.profilBandwidth'])->get();
-
-        foreach ($layanans as $layanan) {
+        foreach ($pelanggan->layanans as $layanan) {
             if ($layanan->router && ! empty($layanan->ppp_username)) {
                 $this->pppStatuses[$layanan->id] = $mikrotikService->getPppStatus(
                     $layanan->router,
@@ -405,7 +410,7 @@ class Show extends Component
         $this->closeUbahPaketModal();
 
         // Refresh ppp status
-        $this->loadPppStatuses($pelanggan, $mikrotikService);
+        $this->loadPppStatuses($mikrotikService);
 
         Flux::toast(
             variant: 'success',

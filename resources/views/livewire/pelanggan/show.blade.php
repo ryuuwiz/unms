@@ -1,4 +1,10 @@
-<div class="space-y-6">
+<div class="space-y-6" wire:init="loadPppStatuses">
+    {{--
+        wire:init diletakkan di root component (bukan di dalam blok tab "subscriptions")
+        karena tab tersebut hanya dirender saat $activeTab === 'subscriptions'. Kalau
+        wire:init dipasang di dalam blok @if yang tidak aktif saat render awal, ia
+        tidak akan pernah terpicu untuk pengguna yang mendarat di tab lain.
+    --}}
     {{-- Header --}}
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex items-center gap-3">
@@ -490,17 +496,25 @@
                                                     {{ $layanan->nama_site }}
                                                 </flux:badge>
                                             @endif
-                                            @if ($isConnected)
-                                                <flux:badge size="sm" color="emerald" class="animate-pulse">
-                                                    <span class="inline-block size-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                                                    Connected (Online)
-                                                </flux:badge>
-                                            @else
+                                            <span wire:loading wire:target="loadPppStatuses" class="contents">
                                                 <flux:badge size="sm" color="zinc">
-                                                    <span class="inline-block size-1.5 rounded-full bg-zinc-400 mr-1.5"></span>
-                                                    Disconnected (Offline)
+                                                    <span class="inline-block size-1.5 rounded-full bg-zinc-400 mr-1.5 animate-pulse"></span>
+                                                    Memuat Status...
                                                 </flux:badge>
-                                            @endif
+                                            </span>
+                                            <span wire:loading.remove wire:target="loadPppStatuses" class="contents">
+                                                @if ($isConnected)
+                                                    <flux:badge size="sm" color="emerald" class="animate-pulse">
+                                                        <span class="inline-block size-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
+                                                        Connected (Online)
+                                                    </flux:badge>
+                                                @else
+                                                    <flux:badge size="sm" color="zinc">
+                                                        <span class="inline-block size-1.5 rounded-full bg-zinc-400 mr-1.5"></span>
+                                                        Disconnected (Offline)
+                                                    </flux:badge>
+                                                @endif
+                                            </span>
                                             @if ($isDisabled)
                                                 <flux:badge size="sm" color="rose">
                                                     Terisolir / Disabled
