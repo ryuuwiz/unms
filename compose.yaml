@@ -26,6 +26,11 @@ services:
             - rustfs
             - mailpit
             - mysql
+        logging:
+            driver: json-file
+            options:
+                max-size: '10m'
+                max-file: '3'
     redis:
         image: 'redis:alpine'
         ports:
@@ -41,6 +46,11 @@ services:
                 - ping
             retries: 3
             timeout: 5s
+        logging:
+            driver: json-file
+            options:
+                max-size: '10m'
+                max-file: '3'
     rustfs:
         image: 'rustfs/rustfs:latest'
         ports:
@@ -71,6 +81,11 @@ services:
             timeout: 10s
             retries: 3
             start_period: 40s
+        logging:
+            driver: json-file
+            options:
+                max-size: '10m'
+                max-file: '3'
     mailpit:
         image: 'axllent/mailpit:latest'
         ports:
@@ -78,6 +93,11 @@ services:
             - '${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025'
         networks:
             - sail
+        logging:
+            driver: json-file
+            options:
+                max-size: '10m'
+                max-file: '3'
     mysql:
         image: 'mysql:8.4'
         ports:
@@ -103,6 +123,11 @@ services:
                 - '-p${DB_PASSWORD}'
             retries: 3
             timeout: 5s
+        logging:
+            driver: json-file
+            options:
+                max-size: '10m'
+                max-file: '3'
 networks:
     sail:
         driver: bridge
