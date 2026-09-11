@@ -41,11 +41,11 @@ return [
         'env' => env('XENDIT_ENV', 'development'),
     ],
 
-    'wablas' => [
-        'number' => env('WABLAS_NUMBER', ''),
-        'host' => rtrim((string) env('WABLAS_HOST', 'https://tegal.wablas.com'), '/'),
-        'token' => env('WABLAS_TOKEN', ''),
-        'secret' => env('WABLAS_SECRET', ''),
+    'gowa' => [
+        'host' => rtrim((string) env('GOWA_HOST', 'http://localhost:3000'), '/'),
+        'username' => env('GOWA_USERNAME', ''),
+        'password' => env('GOWA_PASSWORD', ''),
+        'number' => env('GOWA_NUMBER', ''),
     ],
 
     'waha' => [

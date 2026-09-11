@@ -34,8 +34,8 @@ class WahaDriver implements WhatsappGatewayDriverInterface
         public int $jitterSeconds = 2,
         public bool $simulateTyping = true
     ) {
-        $this->host = rtrim($host ?? (string) config('services.wablas.host', 'https://waha.gobilling.id'), '/');
-        $this->number = $number ?? (string) config('services.wablas.number', '');
+        $this->host = rtrim($host ?? (string) config('services.waha.host', 'https://waha.gobilling.id'), '/');
+        $this->number = $number ?? (string) config('services.waha.number', '');
         $this->username = $username ?? '';
         $this->password = $password ?? '';
         $this->apiKey = $apiKey ?: null;

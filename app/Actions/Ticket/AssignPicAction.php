@@ -60,10 +60,10 @@ class AssignPicAction
         // Kirim WhatsApp disposisi ke teknisi jika memiliki nomor HP
         if ($pic && ! empty($pic->phone)) {
             try {
-                /** @var WhatsappService $wablasService */
-                $wablasService = app(WhatsappService::class);
-                $params = $wablasService->buildTicketParams($ticket, $catatan);
-                $wablasService->antrikanPesan(
+                /** @var WhatsappService $whatsappService */
+                $whatsappService = app(WhatsappService::class);
+                $params = $whatsappService->buildTicketParams($ticket, $catatan);
+                $whatsappService->antrikanPesan(
                     noHp: $pic->phone,
                     kodeTemplate: 'tiket_penugasan_teknisi',
                     params: $params,

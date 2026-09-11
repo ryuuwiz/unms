@@ -128,13 +128,13 @@ class UbahStatusTicketAction
             }
         }
 
-        // Notifikasi WhatsApp ke Pelanggan via WABLAS
+        // Notifikasi WhatsApp ke Pelanggan
         if ($ticket->pelanggan && ! empty($ticket->pelanggan->no_hp)) {
             try {
-                /** @var WhatsappService $wablasService */
-                $wablasService = app(WhatsappService::class);
-                $params = $wablasService->buildTicketParams($ticket, $catatan);
-                $wablasService->antrikanPesan(
+                /** @var WhatsappService $whatsappService */
+                $whatsappService = app(WhatsappService::class);
+                $params = $whatsappService->buildTicketParams($ticket, $catatan);
+                $whatsappService->antrikanPesan(
                     noHp: $ticket->pelanggan->no_hp,
                     kodeTemplate: 'tiket_status_update',
                     params: $params,

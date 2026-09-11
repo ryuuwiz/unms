@@ -5,14 +5,14 @@ namespace App\Console\Commands;
 use App\Services\Whatsapp\WhatsappWebhookService;
 use Illuminate\Console\Command;
 
-class WablasSimulateWebhookCommand extends Command
+class WhatsappSimulateWebhookCommand extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'wablas:simulate-webhook
+    protected $signature = 'whatsapp:simulate-webhook
                             {type : Tipe webhook yang disimulasikan: tracking | message}
                             {--phone= : Nomor WhatsApp pengirim/tujuan}
                             {--message= : Isi teks pesan masuk (untuk type=message)}
@@ -23,7 +23,7 @@ class WablasSimulateWebhookCommand extends Command
      *
      * @var string
      */
-    protected $description = 'Simulasi payload Webhook WABLAS secara lokal';
+    protected $description = 'Simulasi payload webhook WhatsApp (GOWA/WAHA) secara lokal';
 
     /**
      * Execute the console command.

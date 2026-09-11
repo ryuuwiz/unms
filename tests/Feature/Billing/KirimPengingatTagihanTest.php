@@ -4,7 +4,7 @@ use App\Enums\StatusInvoice;
 use App\Models\AntrianWaBlast;
 use App\Models\Invoice;
 use App\Models\Pelanggan;
-use App\Services\Wablas\WablasClient;
+use App\Services\Whatsapp\WhatsappClient;
 use Database\Seeders\AturanPengingatTagihanSeeder;
 use Database\Seeders\WaTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -72,11 +72,11 @@ test('command invoice:kirim-pengingat berhasil memasukkan tagihan ke antrian ses
     // Pastikan 4 invoice terjadwal terdaftar di antrian_wa_blast
     expect(AntrianWaBlast::count())->toBe(4);
 
-    expect(AntrianWaBlast::where('no_hp_tujuan', WablasClient::normalizePhoneNumber($pelangganH3->no_hp))->exists())->toBeTrue()
-        ->and(AntrianWaBlast::where('no_hp_tujuan', WablasClient::normalizePhoneNumber($pelangganH1->no_hp))->exists())->toBeTrue()
-        ->and(AntrianWaBlast::where('no_hp_tujuan', WablasClient::normalizePhoneNumber($pelangganH0->no_hp))->exists())->toBeTrue()
-        ->and(AntrianWaBlast::where('no_hp_tujuan', WablasClient::normalizePhoneNumber($pelangganTunggakan->no_hp))->exists())->toBeTrue()
-        ->and(AntrianWaBlast::where('no_hp_tujuan', WablasClient::normalizePhoneNumber($pelangganAman->no_hp))->exists())->toBeFalse();
+    expect(AntrianWaBlast::where('no_hp_tujuan', WhatsappClient::normalizePhoneNumber($pelangganH3->no_hp))->exists())->toBeTrue()
+        ->and(AntrianWaBlast::where('no_hp_tujuan', WhatsappClient::normalizePhoneNumber($pelangganH1->no_hp))->exists())->toBeTrue()
+        ->and(AntrianWaBlast::where('no_hp_tujuan', WhatsappClient::normalizePhoneNumber($pelangganH0->no_hp))->exists())->toBeTrue()
+        ->and(AntrianWaBlast::where('no_hp_tujuan', WhatsappClient::normalizePhoneNumber($pelangganTunggakan->no_hp))->exists())->toBeTrue()
+        ->and(AntrianWaBlast::where('no_hp_tujuan', WhatsappClient::normalizePhoneNumber($pelangganAman->no_hp))->exists())->toBeFalse();
 
     // Jalankan ulang pada hari yang sama (harus idempotent / tidak ada penambahan baru)
     $this->artisan('invoice:kirim-pengingat', ['--force' => true])

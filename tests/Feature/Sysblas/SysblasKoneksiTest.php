@@ -62,7 +62,7 @@ test('staf dapat memperbarui koneksi sysblas dan pengaturan rate limit', functio
     Livewire::actingAs($this->admin)
         ->test(Index::class)
         ->call('openEditModal', $sysblas->id)
-        ->set('nama', 'WABLAS Utama Updated')
+        ->set('nama', 'WAHA Utama Updated')
         ->set('limit_per_menit', 15)
         ->set('delay_detik', 5)
         ->set('jitter_detik', 2)
@@ -70,7 +70,7 @@ test('staf dapat memperbarui koneksi sysblas dan pengaturan rate limit', functio
         ->call('simpan')
         ->assertHasNoErrors();
 
-    expect($sysblas->fresh()->nama)->toBe('WABLAS Utama Updated')
+    expect($sysblas->fresh()->nama)->toBe('WAHA Utama Updated')
         ->and($sysblas->fresh()->limit_per_menit)->toBe(15)
         ->and($sysblas->fresh()->delay_detik)->toBe(5)
         ->and($sysblas->fresh()->jitter_detik)->toBe(2)
@@ -283,6 +283,67 @@ test('waha driver melakukan simulasi typing presence dan pengiriman teks', funct
     Http::assertSent(fn ($request) => str_contains($request->url(), '/api/startTyping'));
     Http::assertSent(fn ($request) => str_contains($request->url(), '/api/stopTyping'));
     Http::assertSent(fn ($request) => str_contains($request->url(), '/api/sendText'));
+});
+
+test('staf dapat menambah koneksi gowa baru dengan basic auth', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->set('nama', 'GOWA CS Utama')
+        ->set('provider', SysblasProvider::Gowa->value)
+        ->set('nomor', '081234567899')
+        ->set('url_api', 'http://localhost:3000')
+        ->set('username', 'admin')
+        ->set('password', 'secret')
+        ->set('session_name', 'org_1')
+        ->set('limit_per_menit', 20)
+        ->set('delay_detik', 300)
+        ->set('jitter_detik', 3)
+        ->set('is_default', false)
+        ->set('is_aktif', true)
+        ->call('simpan')
+        ->assertHasNoErrors();
+
+    $created = Sysblas::where('nama', 'GOWA CS Utama')->first();
+    expect($created)->not->toBeNull()
+        ->and($created->provider)->toBe(SysblasProvider::Gowa)
+        ->and($created->username)->toBe('admin')
+        ->and($created->password)->toBe('secret')
+        ->and($created->session_name)->toBe('org_1');
+});
+
+test('validasi gagal saat username atau password kosong untuk provider gowa', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->set('nama', 'GOWA Tanpa Auth')
+        ->set('provider', SysblasProvider::Gowa->value)
+        ->set('url_api', 'http://localhost:3000')
+        ->set('username', '')
+        ->set('password', '')
+        ->call('simpan')
+        ->assertHasErrors(['username', 'password']);
+});
+
+test('staf dapat menarik daftar device dari server gowa', function () {
+    Http::fake([
+        'http://localhost:3000/devices' => Http::response([
+            'code' => 'SUCCESS',
+            'message' => 'List devices',
+            'status' => 200,
+            'results' => [
+                ['id' => 'org_1', 'phone_number' => '6281234567890', 'display_name' => 'CS Utama', 'state' => 'logged_in'],
+            ],
+        ], 200),
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->set('provider', SysblasProvider::Gowa->value)
+        ->set('url_api', 'http://localhost:3000')
+        ->set('username', 'admin')
+        ->set('password', 'secret')
+        ->call('tarikDeviceGowa')
+        ->assertSet('session_name', 'org_1')
+        ->assertSet('nomor', '6281234567890');
 });
 
 test('waha driver menangani response http 429 rate limit dengan aman', function () {

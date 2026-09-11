@@ -21,11 +21,11 @@ class TriggerWaNotifikasiStubListener implements ShouldQueue
 
         if ($pelanggan && ! empty($pelanggan->no_hp)) {
             try {
-                /** @var WhatsappService $wablasService */
-                $wablasService = app(WhatsappService::class);
-                $params = $wablasService->buildPaymentParams($invoice, $event->pembayaran);
+                /** @var WhatsappService $whatsappService */
+                $whatsappService = app(WhatsappService::class);
+                $params = $whatsappService->buildPaymentParams($invoice, $event->pembayaran);
 
-                $wablasService->antrikanPesan(
+                $whatsappService->antrikanPesan(
                     noHp: $pelanggan->no_hp,
                     kodeTemplate: 'pembayaran_konfirmasi',
                     params: $params,

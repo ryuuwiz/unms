@@ -16,6 +16,7 @@ use App\Models\MikrotikJobLog;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RouterOS\Client;
 use RouterOS\Config;
@@ -185,33 +186,51 @@ class MikrotikService
             $findQuery = (new Query('/ppp/profile/print'))->where('name', $profileName);
             $existing = $client->query($findQuery)->read();
 
-            if (! empty($existing) && isset($existing[0]['.id'])) {
-                $setQuery = (new Query('/ppp/profile/set'))
-                    ->equal('.id', $existing[0]['.id'])
-                    ->equal('rate-limit', $rateLimit)
-                    ->equal('comment', $comment);
-                $client->query($setQuery)->read();
+            if (empty($existing) || ! isset($existing[0]['.id'])) {
+                try {
+                    $addQuery = (new Query('/ppp/profile/add'))
+                        ->equal('name', $profileName)
+                        ->equal('rate-limit', $rateLimit)
+                        ->equal('comment', $comment);
+                    $res = $client->query($addQuery)->read();
+                    if (isset($res['after']['message'])) {
+                        throw new MikrotikException($res['after']['message']);
+                    }
 
-                // Hapus duplikat profile jika ada lebih dari 1 di RouterOS
-                if (count($existing) > 1) {
-                    for ($i = 1; $i < count($existing); $i++) {
-                        if (isset($existing[$i]['.id'])) {
-                            try {
-                                $client->query((new Query('/ppp/profile/remove'))->equal('.id', $existing[$i]['.id']))->read();
-                            } catch (Throwable $e) {
-                                // Lanjutkan jika duplikat sekunder sudah terhapus
-                            }
+                    return $profileName;
+                } catch (Throwable $e) {
+                    // Race sempit: profile mungkin sudah dibuat proses lain di antara query & create di atas.
+                    // Re-query sekali untuk verifikasi state aktual, baru menyerah kalau memang bukan soal duplikat.
+                    $existing = $client->query($findQuery)->read();
+
+                    if (empty($existing) || ! isset($existing[0]['.id'])) {
+                        throw $e;
+                    }
+
+                    Log::warning('Create PPP profile gagal tapi entry ternyata sudah ada (race sempit), melanjutkan ke update.', [
+                        'profil_bandwidth_id' => $profil->id,
+                        'profile_name' => $profileName,
+                        'router_id' => $router->id,
+                    ]);
+                }
+            }
+
+            $setQuery = (new Query('/ppp/profile/set'))
+                ->equal('.id', $existing[0]['.id'])
+                ->equal('rate-limit', $rateLimit)
+                ->equal('comment', $comment);
+            $client->query($setQuery)->read();
+
+            // Hapus duplikat profile jika ada lebih dari 1 di RouterOS
+            if (count($existing) > 1) {
+                for ($i = 1; $i < count($existing); $i++) {
+                    if (isset($existing[$i]['.id'])) {
+                        try {
+                            $client->query((new Query('/ppp/profile/remove'))->equal('.id', $existing[$i]['.id']))->read();
+                        } catch (Throwable $e) {
+                            // Lanjutkan jika duplikat sekunder sudah terhapus
                         }
                     }
-                }
-            } else {
-                $addQuery = (new Query('/ppp/profile/add'))
-                    ->equal('name', $profileName)
-                    ->equal('rate-limit', $rateLimit)
-                    ->equal('comment', $comment);
-                $res = $client->query($addQuery)->read();
-                if (isset($res['after']['message'])) {
-                    throw new MikrotikException($res['after']['message']);
                 }
             }
 
@@ -282,6 +301,48 @@ class MikrotikService
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
             $existing = $client->query($findQuery)->read();
 
+            if (empty($existing) || ! isset($existing[0]['.id'])) {
+                try {
+                    // Buat secret baru
+                    $addQuery = (new Query('/ppp/secret/add'))
+                        ->equal('name', $username)
+                        ->equal('password', $password)
+                        ->equal('service', 'pppoe')
+                        ->equal('profile', $profileName)
+                        ->equal('comment', $comment)
+                        ->equal('disabled', $isDisabled);
+
+                    if ($remoteAddress !== null) {
+                        $addQuery->equal('remote-address', $remoteAddress);
+                    }
+
+                    if ($localAddress !== null) {
+                        $addQuery->equal('local-address', $localAddress);
+                    }
+
+                    $result = $client->query($addQuery)->read();
+                    if (isset($result['after']['message'])) {
+                        throw new MikrotikException($result['after']['message']);
+                    }
+
+                    $action = 'created';
+                } catch (Throwable $e) {
+                    // Race sempit: secret mungkin sudah dibuat proses lain di antara query & create di atas.
+                    // Re-query sekali untuk verifikasi state aktual, baru menyerah kalau memang bukan soal duplikat.
+                    $existing = $client->query($findQuery)->read();
+
+                    if (empty($existing) || ! isset($existing[0]['.id'])) {
+                        throw $e;
+                    }
+
+                    Log::warning('Create PPP secret gagal tapi entry ternyata sudah ada (race sempit), melanjutkan ke update.', [
+                        'layanan_id' => $layanan->id,
+                        'username' => $username,
+                        'router_id' => $router->id,
+                    ]);
+                }
+            }
+
             if (! empty($existing) && isset($existing[0]['.id'])) {
                 // Update secret eksisting utama
                 $secretId = $existing[0]['.id'];
@@ -341,26 +402,6 @@ class MikrotikService
                         }
                     }
                 }
-            } else {
-                // Buat secret baru
-                $addQuery = (new Query('/ppp/secret/add'))
-                    ->equal('name', $username)
-                    ->equal('password', $password)
-                    ->equal('service', 'pppoe')
-                    ->equal('profile', $profileName)
-                    ->equal('comment', $comment)
-                    ->equal('disabled', $isDisabled);
-
-                if ($remoteAddress !== null) {
-                    $addQuery->equal('remote-address', $remoteAddress);
-                }
-
-                if ($localAddress !== null) {
-                    $addQuery->equal('local-address', $localAddress);
-                }
-
-                $result = $client->query($addQuery)->read();
-                $action = 'created';
             }
 
             if (isset($result['after']['message'])) {

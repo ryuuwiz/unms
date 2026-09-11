@@ -191,10 +191,10 @@ class Show extends Component
         // Jika catatan publik, kirim notifikasi WhatsApp ke Pelanggan
         if (! $this->catatanIsInternal && $this->ticket->pelanggan && ! empty($this->ticket->pelanggan->no_hp)) {
             try {
-                /** @var WhatsappService $wablasService */
-                $wablasService = app(WhatsappService::class);
-                $params = $wablasService->buildTicketParams($this->ticket, trim($this->catatanProses));
-                $wablasService->antrikanPesan(
+                /** @var WhatsappService $whatsappService */
+                $whatsappService = app(WhatsappService::class);
+                $params = $whatsappService->buildTicketParams($this->ticket, trim($this->catatanProses));
+                $whatsappService->antrikanPesan(
                     noHp: $this->ticket->pelanggan->no_hp,
                     kodeTemplate: 'tiket_status_update',
                     params: $params,

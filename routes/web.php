@@ -5,7 +5,7 @@ use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\PelangganMediaController;
 use App\Http\Controllers\Webhook\PaymentWebhookController;
-use App\Http\Controllers\Webhook\WablasWebhookController;
+use App\Http\Controllers\Webhook\WhatsappWebhookController;
 use App\Http\Controllers\Webhook\XenditWebhookController;
 use App\Livewire\Invoice;
 use App\Livewire\IpPool;
@@ -328,11 +328,8 @@ Route::middleware('xendit.token')->group(function () {
     Route::post('/webhook/xendit/qris', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.qris');
 });
 
-// ─── Webhook WhatsApp / WAHA / WABLAS (Public & CSRF-Exempt) ───────────────────────
-Route::post('/webhook/whatsapp', [WablasWebhookController::class, 'handle'])->name('webhook.whatsapp');
-Route::post('/webhook/wablas', [WablasWebhookController::class, 'handle'])->name('webhook.wablas');
-Route::post('/webhook/wablas/tracking', [WablasWebhookController::class, 'tracking'])->name('webhook.wablas.tracking');
-Route::post('/webhook/wablas/message', [WablasWebhookController::class, 'message'])->name('webhook.wablas.message');
+// ─── Webhook WhatsApp / GOWA / WAHA (Public & CSRF-Exempt) ───────────────────────
+Route::post('/webhook/whatsapp', [WhatsappWebhookController::class, 'handle'])->name('webhook.whatsapp');
 
 // ─── Portal Pelanggan (Guard: pelanggan) ─────────────────────────
 Route::prefix('portal')->name('portal.')->group(function () {

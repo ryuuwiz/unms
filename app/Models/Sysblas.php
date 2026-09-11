@@ -158,7 +158,7 @@ class Sysblas extends Model
             apiKey: $this->api_token ?: null,
             sessionName: $this->session_name ?: 'default',
             provider: $this->provider->value,
-            delaySeconds: $this->delay_detik ?? 3,
+            delaySeconds: $this->delay_detik ?? 300,
             jitterSeconds: $this->jitter_detik ?? 2,
             simulateTyping: $this->is_typing_simulation ?? true
         );

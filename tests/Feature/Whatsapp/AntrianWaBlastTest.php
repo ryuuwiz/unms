@@ -5,7 +5,7 @@ use App\Jobs\Wa\KirimWaBlastJob;
 use App\Models\AntrianWaBlast;
 use App\Models\Invoice;
 use App\Models\Pelanggan;
-use App\Services\Wablas\WablasService;
+use App\Services\Whatsapp\WhatsappService;
 use Database\Seeders\WaTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -30,8 +30,8 @@ test('antrikanPesan berhasil membuat record outbox dan mendispatch job queue', f
         'tanggal_jatuh_tempo' => Carbon::now()->addDays(3),
     ]);
 
-    /** @var WablasService $service */
-    $service = app(WablasService::class);
+    /** @var WhatsappService $service */
+    $service = app(WhatsappService::class);
     $params = $service->buildInvoiceParams($invoice);
 
     $antrian = $service->antrikanPesan(
@@ -59,8 +59,8 @@ test('antrikanPesan menerapkan penjaminan idempotensi harian', function () {
     $pelanggan = Pelanggan::factory()->create(['no_hp' => '081298765432']);
     $invoice = Invoice::factory()->create(['pelanggan_id' => $pelanggan->id]);
 
-    /** @var WablasService $service */
-    $service = app(WablasService::class);
+    /** @var WhatsappService $service */
+    $service = app(WhatsappService::class);
     $params = $service->buildInvoiceParams($invoice);
 
     $antrian1 = $service->antrikanPesan(
@@ -89,8 +89,8 @@ test('antrikanPesan menerapkan penjaminan idempotensi harian', function () {
 test('antrikanPesan aman dan menandai status gagal saat nomor hp tidak valid', function () {
     Queue::fake();
 
-    /** @var WablasService $service */
-    $service = app(WablasService::class);
+    /** @var WhatsappService $service */
+    $service = app(WhatsappService::class);
 
     $antrian = $service->antrikanPesanKustom(
         noHp: 'invalid_phone_123',

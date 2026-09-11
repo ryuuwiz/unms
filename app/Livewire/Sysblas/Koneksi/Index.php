@@ -5,6 +5,7 @@ namespace App\Livewire\Sysblas\Koneksi;
 use App\Enums\Sysblas\SysblasProvider;
 use App\Models\Sysblas;
 use App\Models\User;
+use App\Services\Whatsapp\Drivers\GowaDriver;
 use App\Services\Whatsapp\WhatsappClient;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
@@ -26,11 +27,11 @@ class Index extends Component
 
     public string $nama = '';
 
-    public string $provider = 'wablas';
+    public string $provider = 'gowa';
 
     public string $nomor = '';
 
-    public string $url_api = 'https://tegal.wablas.com';
+    public string $url_api = 'http://localhost:3000';
 
     public string $username = '';
 
@@ -44,7 +45,7 @@ class Index extends Component
 
     public ?int $limit_per_menit = 25;
 
-    public ?int $delay_detik = 3;
+    public ?int $delay_detik = 300;
 
     public ?int $jitter_detik = 2;
 
@@ -99,6 +100,9 @@ class Index extends Component
     /** @var array<int, array<string, mixed>> */
     public array $wahaAvailableSessions = [];
 
+    /** @var array<int, array<string, mixed>> */
+    public array $gowaAvailableDevices = [];
+
     public bool $isLoadingSessions = false;
 
     public function mount(): void
@@ -117,8 +121,8 @@ class Index extends Component
         if (! $this->editingId) {
             if ($value === SysblasProvider::Waha->value) {
                 $this->url_api = 'https://waha.gobilling.id';
-            } elseif ($value === SysblasProvider::Wablas->value) {
-                $this->url_api = 'https://tegal.wablas.com';
+            } elseif ($value === SysblasProvider::Gowa->value) {
+                $this->url_api = 'http://localhost:3000';
             }
         }
     }
@@ -138,7 +142,7 @@ class Index extends Component
         $this->api_token = $sysblas->api_token ?? '';
         $this->api_secret = $sysblas->api_secret ?? '';
         $this->limit_per_menit = $sysblas->limit_per_menit;
-        $this->delay_detik = $sysblas->delay_detik ?? 3;
+        $this->delay_detik = $sysblas->delay_detik ?? 300;
         $this->jitter_detik = $sysblas->jitter_detik ?? 2;
         $this->is_typing_simulation = (bool) ($sysblas->is_typing_simulation ?? true);
         $this->is_default = (bool) $sysblas->is_default;
@@ -156,17 +160,27 @@ class Index extends Component
             'session_name' => ['nullable', 'string', 'max:100'],
             'nomor' => ['nullable', 'string', 'max:50'],
             'url_api' => ['required', 'url', 'max:255'],
-            'username' => ['nullable', 'string', 'max:255'],
-            'password' => ['nullable', 'string', 'max:255'],
+            'username' => [
+                Rule::requiredIf(fn () => $this->provider === SysblasProvider::Gowa->value),
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'password' => [
+                Rule::requiredIf(fn () => $this->provider === SysblasProvider::Gowa->value),
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'api_token' => [
-                Rule::requiredIf(fn () => $this->provider !== SysblasProvider::Waha->value),
+                Rule::requiredIf(fn () => ! in_array($this->provider, [SysblasProvider::Waha->value, SysblasProvider::Gowa->value], true)),
                 'nullable',
                 'string',
                 'max:255',
             ],
             'api_secret' => ['nullable', 'string', 'max:255'],
             'limit_per_menit' => ['required', 'integer', 'min:1', 'max:300'],
-            'delay_detik' => ['required', 'integer', 'min:0', 'max:60'],
+            'delay_detik' => ['required', 'integer', 'min:0', 'max:3600'],
             'jitter_detik' => ['required', 'integer', 'min:0', 'max:30'],
             'is_typing_simulation' => ['required', 'boolean'],
             'is_default' => ['required', 'boolean'],
@@ -177,6 +191,8 @@ class Index extends Component
             'url_api.required' => 'URL Base API wajib diisi.',
             'url_api.url' => 'Format URL API tidak valid.',
             'api_token.required' => 'Token / API Key wajib diisi.',
+            'username.required' => 'Username Basic Auth GOWA wajib diisi.',
+            'password.required' => 'Password Basic Auth GOWA wajib diisi.',
             'limit_per_menit.min' => 'Limit minimal 1 pesan per menit.',
             'delay_detik.min' => 'Jeda minimal tidak boleh negatif.',
             'jitter_detik.min' => 'Jeda acak tidak boleh negatif.',
@@ -199,7 +215,7 @@ class Index extends Component
             'api_token' => $token,
             'api_secret' => $secret,
             'limit_per_menit' => $this->limit_per_menit,
-            'delay_detik' => $this->delay_detik ?? 3,
+            'delay_detik' => $this->delay_detik ?? 300,
             'jitter_detik' => $this->jitter_detik ?? 2,
             'is_typing_simulation' => $this->is_typing_simulation,
             'is_aktif' => $this->is_aktif,
@@ -226,8 +242,31 @@ class Index extends Component
             Flux::toast(variant: 'success', text: "Koneksi '{$sysblas->nama}' berhasil ditambahkan.");
         }
 
+        if ($sysblas->provider === SysblasProvider::Gowa) {
+            $this->daftarkanWebhookGowa($sysblas);
+        }
+
         $this->showModal = false;
         $this->resetForm();
+    }
+
+    /**
+     * Daftarkan URL webhook terpadu aplikasi ini ke device GOWA milik koneksi. Best-effort:
+     * kegagalan hanya ditampilkan sebagai peringatan, tidak membatalkan penyimpanan koneksi.
+     */
+    protected function daftarkanWebhookGowa(Sysblas $sysblas): void
+    {
+        try {
+            /** @var GowaDriver $driver */
+            $driver = $sysblas->makeClient()->getDriver();
+            $result = $driver->registerWebhook(route('webhook.whatsapp'), $sysblas->api_secret);
+
+            if (! $result['success']) {
+                Flux::toast(variant: 'warning', text: "Koneksi tersimpan, namun registrasi webhook ke GOWA gagal: {$result['message']}");
+            }
+        } catch (\Throwable $e) {
+            Flux::toast(variant: 'warning', text: 'Koneksi tersimpan, namun registrasi webhook ke GOWA gagal: '.$e->getMessage());
+        }
     }
 
     public function setAsDefault(int $id): void
@@ -482,6 +521,59 @@ class Index extends Component
         Flux::toast(variant: 'success', text: "Session '{$sessionName}' dipilih.");
     }
 
+    /**
+     * Ambil daftar device yang sudah terpasang (paired) di server GOWA. Pairing device baru
+     * dilakukan langsung lewat dashboard GOWA (gowa-ui), bukan dari aplikasi ini — di sini
+     * admin hanya memilih device yang sudah ada untuk dihubungkan ke koneksi ini.
+     */
+    public function tarikDeviceGowa(): void
+    {
+        if ($this->provider !== SysblasProvider::Gowa->value) {
+            return;
+        }
+
+        $this->isLoadingSessions = true;
+        try {
+            $client = new WhatsappClient(
+                host: $this->url_api ?: 'http://localhost:3000',
+                username: $this->username ?: '',
+                password: $this->password ?: '',
+                sessionName: $this->session_name ?: 'default',
+                provider: 'gowa'
+            );
+
+            $devices = $client->listSessions();
+            $this->gowaAvailableDevices = $devices;
+
+            if (! empty($devices)) {
+                Flux::toast(variant: 'success', text: 'Ditemukan '.count($devices).' device pada server GOWA.');
+
+                $workingDevice = collect($devices)->firstWhere('connected', true) ?? $devices[0];
+                if (empty($this->session_name) || $this->session_name === 'default') {
+                    $this->session_name = $workingDevice['name'];
+                }
+                if (! empty($workingDevice['phone']) && empty($this->nomor)) {
+                    $this->nomor = $workingDevice['phone'];
+                }
+            } else {
+                Flux::toast(variant: 'warning', text: 'Tidak ada device ditemukan di server GOWA. Pastikan device sudah dipasangkan (paired) lewat dashboard GOWA.');
+            }
+        } catch (\Throwable $e) {
+            Flux::toast(variant: 'danger', text: 'Gagal mengambil daftar device dari GOWA: '.$e->getMessage());
+        } finally {
+            $this->isLoadingSessions = false;
+        }
+    }
+
+    public function pilihDeviceGowa(string $deviceId, ?string $phone = null): void
+    {
+        $this->session_name = $deviceId;
+        if ($phone && empty($this->nomor)) {
+            $this->nomor = $phone;
+        }
+        Flux::toast(variant: 'success', text: "Device '{$deviceId}' dipilih.");
+    }
+
     public function openTestSendModal(int $id): void
     {
         $this->testSysblasId = $id;
@@ -526,21 +618,23 @@ class Index extends Component
     {
         $this->editingId = null;
         $this->nama = '';
-        $this->provider = 'wablas';
+        $this->provider = 'gowa';
         $this->session_name = 'default';
         $this->nomor = '';
-        $this->url_api = 'https://tegal.wablas.com';
+        $this->url_api = 'http://localhost:3000';
         $this->username = '';
         $this->password = '';
         $this->api_token = '';
         $this->api_secret = '';
         $this->limit_per_menit = 25;
-        $this->delay_detik = 3;
+        $this->delay_detik = 300;
         $this->jitter_detik = 2;
         $this->is_typing_simulation = true;
         $this->is_default = false;
         $this->is_aktif = true;
         $this->keterangan = '';
+        $this->wahaAvailableSessions = [];
+        $this->gowaAvailableDevices = [];
     }
 
     public function render(): View

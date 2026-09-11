@@ -8,6 +8,7 @@ use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -22,11 +23,13 @@ use Throwable;
  * Jika router lama offline, kegagalan dicatat di MikrotikJobLog sebagai Failed
  * tanpa melempar exception agar tidak memblokir proses update layanan.
  */
-class CleanupPppSecretOnOldRouterJob implements ShouldQueue
+class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 1;
+
+    public int $uniqueFor = 300;
 
     public function __construct(
         public readonly int $oldRouterId,
@@ -34,6 +37,11 @@ class CleanupPppSecretOnOldRouterJob implements ShouldQueue
         public readonly ?int $layananPelangganId = null,
     ) {
         $this->onQueue('mikrotik-high');
+    }
+
+    public function uniqueId(): string
+    {
+        return "router:{$this->oldRouterId}:layanan:{$this->layananPelangganId}";
     }
 
     public function handle(MikrotikService $mikrotikService): void

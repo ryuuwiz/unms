@@ -1,18 +1,18 @@
 <section class="w-full">
     @include('partials.settings-heading')
 
-    <x-settings.layout :heading="__('WhatsApp Gateway & Template')" :subheading="__('Pantau status koneksi WABLAS WhatsApp API, lakukan uji coba pesan, dan kelola template pesan otomatis.')">
+    <x-settings.layout :heading="__('WhatsApp Gateway & Template')" :subheading="__('Pantau status koneksi WhatsApp API (GOWA/WAHA), lakukan uji coba pesan, dan kelola template pesan otomatis.')">
         <div class="my-6 w-full max-w-4xl space-y-8">
 
-            {{-- 1. Status Gateway WABLAS --}}
+            {{-- 1. Status Gateway WhatsApp --}}
             <flux:card class="p-6 space-y-5">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-700/60 pb-4">
                     <div>
                         <flux:heading size="lg" class="flex items-center gap-2">
                             <flux:icon name="device-phone-mobile" class="size-5 text-emerald-600 dark:text-emerald-400" />
-                            Status Perangkat WABLAS
+                            Status Perangkat WhatsApp
                         </flux:heading>
-                        <flux:subheading>Informasi koneksi nomor WhatsApp gateway yang dikonfigurasi pada .env.</flux:subheading>
+                        <flux:subheading>Informasi koneksi nomor WhatsApp gateway default (menu Pengaturan &gt; Koneksi WhatsApp).</flux:subheading>
                     </div>
 
                     <flux:button wire:click="refreshDeviceInfo" wire:loading.attr="disabled" variant="subtle" size="xs" icon="arrow-path">
@@ -35,7 +35,7 @@
                     <div class="p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
                         <span class="text-xs text-zinc-500 block">Nomor WhatsApp Gateway</span>
                         <span class="font-bold font-mono text-sm text-zinc-900 dark:text-white">
-                            {{ $deviceInfo['phone'] ?? config('services.wablas.number', '-') }}
+                            {{ $deviceInfo['phone'] ?? \App\Models\Sysblas::getDefault()?->nomor ?? '-' }}
                         </span>
                     </div>
 
@@ -49,7 +49,7 @@
                     <div class="p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
                         <span class="text-xs text-zinc-500 block">Host API Server</span>
                         <span class="font-medium text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate block">
-                            {{ config('services.wablas.host') }}
+                            {{ \App\Models\Sysblas::getDefault()?->url_api ?? config('services.gowa.host') }}
                         </span>
                     </div>
                 </div>

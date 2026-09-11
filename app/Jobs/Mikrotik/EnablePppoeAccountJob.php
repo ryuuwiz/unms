@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\MikrotikJobFailedNotification;
 use App\Services\Mikrotik\MikrotikService;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -17,11 +18,13 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Throwable;
 
-class EnablePppoeAccountJob implements ShouldQueue
+class EnablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
+    public int $uniqueFor = 300;
 
     /**
      * @var array<int, int>
@@ -32,6 +35,11 @@ class EnablePppoeAccountJob implements ShouldQueue
         public LayananPelanggan $layanan
     ) {
         $this->onQueue('mikrotik-high');
+    }
+
+    public function uniqueId(): string
+    {
+        return "router:{$this->layanan->router_id}:layanan:{$this->layanan->id}";
     }
 
     public function handle(MikrotikService $mikrotikService): void

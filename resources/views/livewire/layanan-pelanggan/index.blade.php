@@ -7,9 +7,10 @@
         </div>
         <div class="flex items-center gap-2">
             @can('create', App\Models\LayananPelanggan::class)
-                <flux:button wire:click="provisionAllPending" wire:loading.attr="disabled" variant="subtle" icon="arrow-up-tray"
+                <flux:button wire:click="provisionAllPending" wire:loading.attr="disabled" wire:target="provisionAllPending" variant="subtle" icon="arrow-up-tray"
                     title="Provisi semua akun PPPoE yang berstatus pending ke router">
-                    Provisi Massal
+                    <span wire:loading.remove wire:target="provisionAllPending">Provisi Massal</span>
+                    <span wire:loading wire:target="provisionAllPending">Memprovisi...</span>
                 </flux:button>
                 <flux:button :href="route('layanan-pelanggan.create')" wire:navigate variant="primary" icon="plus">
                     Tambah Registrasi Billing
@@ -102,7 +103,8 @@
                             @can('update', $layanan)
                                 @if ($layanan->provisioning_status !== \App\Enums\ProvisioningStatus::Success)
                                     <flux:button wire:click="provisionLayanan({{ $layanan->id }})"
-                                        wire:loading.attr="disabled" size="sm" variant="ghost" icon="arrow-up-tray"
+                                        wire:loading.attr="disabled" wire:target="provisionLayanan({{ $layanan->id }})"
+                                        size="sm" variant="ghost" icon="arrow-up-tray"
                                         class="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
                                         title="Provisi PPPoE ke MikroTik" />
                                 @endif

@@ -4,6 +4,7 @@ namespace App\Services\Whatsapp;
 
 use App\Enums\StatusInvoice;
 use App\Enums\StatusWebhookLog;
+use App\Enums\Sysblas\SysblasProvider;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\Wa\StatusAntrianWa;
 use App\Models\AntrianWaBlast;
@@ -13,6 +14,7 @@ use App\Models\Sysblas;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\WebhookLog;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -23,7 +25,12 @@ class WhatsappWebhookService
     ) {}
 
     /**
-     * Proses payload webhook WhatsApp (WAHA atau WABLAS).
+     * Proses payload webhook WhatsApp.
+     *
+     * Mendukung format event-driven `{event, session, payload}` (dipakai WAHA maupun GOWA —
+     * keduanya berbasis library whatsmeow dan memakai konvensi nama event yang sama seperti
+     * `message`/`message.ack`) serta format flat legacy `{phone, message}` / `{phone, status}`
+     * (dipakai perintah `whatsapp:simulate-webhook` untuk pengujian lokal).
      *
      * @param  array<string, mixed>  $payload
      * @return array{status: bool, type: string, message: string}
@@ -33,7 +40,7 @@ class WhatsappWebhookService
         $log = $this->logWebhook($payload);
 
         try {
-            // 1. Deteksi format event WAHA (event-driven)
+            // 1. Deteksi format event WAHA/GOWA (event-driven)
             if (isset($payload['event']) && isset($payload['payload'])) {
                 $result = $this->handleWahaEvent($payload);
                 $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
@@ -41,7 +48,7 @@ class WhatsappWebhookService
                 return $result;
             }
 
-            // 2. Deteksi format WABLAS: Inbound chat / Pesan masuk
+            // 2. Deteksi format flat legacy: Inbound chat / Pesan masuk
             if (isset($payload['message']) && (isset($payload['phone']) || isset($payload['sender']))) {
                 $reply = $this->handleIncomingMessage([
                     'phone' => $payload['phone'] ?? $payload['sender'] ?? '',
@@ -57,7 +64,7 @@ class WhatsappWebhookService
                 ];
             }
 
-            // 3. Deteksi format WABLAS: Tracking status pengiriman (DLR)
+            // 3. Deteksi format flat legacy: Tracking status pengiriman (DLR)
             if (isset($payload['status']) && (isset($payload['phone']) || isset($payload['id']))) {
                 $this->handleTrackingStatus($payload);
                 $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
@@ -90,6 +97,53 @@ class WhatsappWebhookService
                 'message' => $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * Cari koneksi Sysblas provider GOWA berdasarkan device_id (session_name) yang dikirim
+     * dalam payload webhook (`session` atau `device_id`).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function resolveGowaSysblas(array $payload): ?Sysblas
+    {
+        $deviceId = (string) ($payload['session'] ?? $payload['device_id'] ?? '');
+        if ($deviceId === '') {
+            return null;
+        }
+
+        return Sysblas::query()
+            ->where('provider', SysblasProvider::Gowa)
+            ->where('session_name', $deviceId)
+            ->first();
+    }
+
+    /**
+     * Verifikasi HMAC-SHA256 signature webhook GOWA memakai `webhook_secret` koneksi
+     * (disimpan pada kolom `api_secret`). Jika koneksi tidak memiliki secret terkonfigurasi,
+     * verifikasi dilewati (tidak ada apa pun untuk dicocokkan).
+     *
+     * Catatan: nama header signature GOWA belum terdokumentasi di openapi.yaml (hanya field
+     * registrasi `webhook_secret` yang tercatat) — nama header di bawah ini perlu dikonfirmasi
+     * ulang terhadap instance GOWA yang benar-benar berjalan dan disesuaikan bila berbeda.
+     */
+    public function verifyGowaSignature(Request $request, Sysblas $sysblas): bool
+    {
+        $secret = (string) ($sysblas->api_secret ?? '');
+        if ($secret === '') {
+            return true;
+        }
+
+        $signatureHeader = (string) ($request->header('X-Gowa-Signature') ?? $request->header('X-Hub-Signature-256') ?? '');
+        $signature = preg_replace('/^sha256=/', '', $signatureHeader) ?? '';
+
+        if ($signature === '') {
+            return false;
+        }
+
+        $expected = hash_hmac('sha256', $request->getContent(), $secret);
+
+        return hash_equals($expected, $signature);
     }
 
     /**
@@ -420,7 +474,7 @@ class WhatsappWebhookService
         try {
             $eventType = isset($payload['event'])
                 ? "waha.{$payload['event']}"
-                : (isset($payload['message']) ? 'wablas.incoming_message' : 'wablas.tracking');
+                : (isset($payload['message']) ? 'whatsapp.incoming_message' : 'whatsapp.tracking');
 
             return WebhookLog::create([
                 'event_type' => $eventType,

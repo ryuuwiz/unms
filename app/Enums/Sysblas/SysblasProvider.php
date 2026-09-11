@@ -4,7 +4,6 @@ namespace App\Enums\Sysblas;
 
 enum SysblasProvider: string
 {
-    case Wablas = 'wablas';
     case Gowa = 'gowa';
     case Sms = 'sms';
     case Waha = 'waha';
@@ -15,7 +14,6 @@ enum SysblasProvider: string
     public function label(): string
     {
         return match ($this) {
-            self::Wablas => 'WABLAS (WhatsApp v2)',
             self::Gowa => 'GOWA Gateway',
             self::Sms => 'SMS Gateway',
             self::Waha => 'WAHA (WhatsApp HTTP API)',
@@ -28,7 +26,6 @@ enum SysblasProvider: string
     public function color(): string
     {
         return match ($this) {
-            self::Wablas => 'emerald',
             self::Gowa => 'blue',
             self::Sms => 'amber',
             self::Waha => 'green',

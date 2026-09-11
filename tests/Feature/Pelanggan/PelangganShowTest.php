@@ -17,6 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -207,6 +208,11 @@ test('can process payment from quick modal in detail pelanggan', function () {
         'tanggal_jatuh_tempo' => Carbon::now()->addDays(7),
     ]);
 
+    // InvoicePaidEvent kini juga terpancar untuk pembayaran manual (lihat BillingService::prosesPembayaranManual),
+    // yang memicu TriggerMikrotikAktivasiStubListener secara sinkron di lingkungan test (QUEUE_CONNECTION=sync).
+    // Test ini fokus pada alur modal pembayaran, bukan hasil provisioning MikroTik.
+    Queue::fake();
+
     Livewire::actingAs($this->superAdmin)
         ->test(Show::class, ['pelanggan' => $this->pelanggan])
         ->call('openBayarModal', $activeInv->id)
@@ -266,4 +272,3 @@ test('handles invalid encrypted nik gracefully without throwing DecryptException
         ->assertOk()
         ->assertSee('—');
 });
-

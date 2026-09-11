@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Enums\Wa\KategoriTemplateWa;
+use App\Models\Sysblas;
 use App\Models\User;
 use App\Models\WaTemplate;
 use App\Services\Whatsapp\WhatsappClient;
@@ -26,7 +27,7 @@ class WhatsappSettings extends Component
     // State Test Message
     public string $testPhone = '';
 
-    public string $testMessage = 'Halo! Ini adalah pesan uji coba integrasi WhatsApp Gateway WABLAS dari GOBILLING.';
+    public string $testMessage = 'Halo! Ini adalah pesan uji coba integrasi WhatsApp Gateway GOWA dari GOBILLING.';
 
     public bool $isSendingTest = false;
 
@@ -56,15 +57,24 @@ class WhatsappSettings extends Component
         $this->refreshDeviceInfo($client);
     }
 
+    /**
+     * Dapatkan client aktif: koneksi Sysblas default bila ada (mis. koneksi GOWA yang sedang
+     * dipakai), jatuh ke $client bawaan container (provider WAHA) bila belum ada koneksi.
+     */
+    protected function resolveClient(WhatsappClient $client): WhatsappClient
+    {
+        return Sysblas::getDefault()?->makeClient() ?? $client;
+    }
+
     public function refreshDeviceInfo(WhatsappClient $client): void
     {
         $this->isCheckingDevice = true;
         try {
-            $this->deviceInfo = $client->getDeviceInfo();
+            $this->deviceInfo = $this->resolveClient($client)->getDeviceInfo();
         } catch (\Throwable $e) {
             $this->deviceInfo = [
                 'connected' => false,
-                'phone' => config('services.wablas.number', '-'),
+                'phone' => Sysblas::getDefault()?->nomor ?? '-',
                 'quota' => '-',
                 'expired_at' => null,
                 'message' => 'Gagal terhubung: '.$e->getMessage(),
@@ -88,7 +98,7 @@ class WhatsappSettings extends Component
         $this->isSendingTest = true;
 
         try {
-            $result = $client->sendMessage($this->testPhone, $this->testMessage);
+            $result = $this->resolveClient($client)->sendMessage($this->testPhone, $this->testMessage);
 
             if ($result['success']) {
                 Flux::toast(variant: 'success', text: "Pesan uji coba berhasil dikirim ke {$this->testPhone}!");

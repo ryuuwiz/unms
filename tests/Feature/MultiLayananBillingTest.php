@@ -172,6 +172,11 @@ test('pembayaran invoice layanan A melunasi tagihan layanan A tanpa mengubah sta
         'tanggal_expired' => '2026-09-01',
     ]);
 
+    // InvoicePaidEvent kini juga terpancar untuk pembayaran manual (lihat BillingService::prosesPembayaranManual),
+    // yang memicu TriggerMikrotikAktivasiStubListener secara sinkron di lingkungan test (QUEUE_CONNECTION=sync).
+    // Test ini fokus pada isolasi status invoice antar layanan, bukan hasil provisioning MikroTik.
+    Queue::fake();
+
     $billingService = app(BillingService::class);
     $invoiceHome = $billingService->generateInvoice($layananHome, $this->admin->id, null, null, '2026-09');
     $invoiceOffice = $billingService->generateInvoice($layananOffice, $this->admin->id, null, null, '2026-09');

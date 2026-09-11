@@ -19,12 +19,13 @@ class SysblasFactory extends Factory
     public function definition(): array
     {
         return [
-            'nama' => 'WABLAS '.$this->faker->words(2, true),
-            'provider' => SysblasProvider::Wablas,
+            'nama' => 'GOWA '.$this->faker->words(2, true),
+            'provider' => SysblasProvider::Gowa,
+            'session_name' => 'device_'.$this->faker->unique()->numerify('###'),
             'nomor' => '08'.$this->faker->numerify('##########'),
-            'url_api' => 'https://tegal.wablas.com',
-            'api_token' => 'token_'.$this->faker->sha1(),
-            'api_secret' => 'secret_'.$this->faker->sha1(),
+            'url_api' => 'http://localhost:3000',
+            'username' => $this->faker->userName(),
+            'password' => $this->faker->password(),
             'limit_per_menit' => 25,
             'is_default' => false,
             'is_aktif' => true,

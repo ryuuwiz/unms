@@ -6,6 +6,7 @@ use App\Enums\MasaAktifSatuan;
 use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
+use App\Events\InvoicePaidEvent;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\Pembayaran;
@@ -98,7 +99,9 @@ class BillingService
      */
     public function prosesPembayaranManual(Invoice $invoice, array $payload, ?User $actor = null): Pembayaran
     {
-        return DB::transaction(function () use ($invoice, $payload, $actor) {
+        $eventToDispatch = null;
+
+        $pembayaran = DB::transaction(function () use ($invoice, $payload, $actor, &$eventToDispatch) {
             /** @var Invoice $lockedInvoice */
             $lockedInvoice = Invoice::where('id', $invoice->id)->lockForUpdate()->firstOrFail();
 
@@ -147,9 +150,9 @@ class BillingService
 
                 $currentExpired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
 
-                // Jika tanggal_expired masih di masa depan -> akumulatif dari expired lama
-                // Jika sudah lewat atau belum ada -> hitung dari tanggal bayar
-                $baseDate = ($currentExpired && $currentExpired->isFuture())
+                // PRD 4.2 Condition 1: layanan masih Aktif → perpanjang akumulatif dari expired lama
+                // PRD 4.2 Condition 2: layanan non-aktif (suspend/diblokir) → reset dari tanggal bayar
+                $baseDate = ($currentExpired && $layanan->status === StatusLayanan::Aktif)
                     ? $currentExpired->copy()
                     : $dibayarPada->copy()->startOfDay();
 
@@ -165,7 +168,18 @@ class BillingService
                 ]);
             }
 
+            // Siapkan event untuk dipancarkan setelah commit DB (lihat pola serupa di
+            // PaymentGatewayManager::processWebhook()), agar notifikasi WA pembayaran juga
+            // terkirim untuk pembayaran manual/kasir, bukan hanya via payment gateway online.
+            $eventToDispatch = new InvoicePaidEvent($lockedInvoice, $pembayaran);
+
             return $pembayaran;
         });
+
+        if ($eventToDispatch) {
+            event($eventToDispatch);
+        }
+
+        return $pembayaran;
     }
 }

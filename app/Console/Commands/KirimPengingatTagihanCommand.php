@@ -29,7 +29,7 @@ class KirimPengingatTagihanCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(WhatsappService $wablasService): int
+    public function handle(WhatsappService $whatsappService): int
     {
         $this->info('Memulai pemrosesan pengingat tagihan otomatis via WhatsApp...');
 
@@ -84,8 +84,8 @@ class KirimPengingatTagihanCommand extends Command
                     continue;
                 }
 
-                $params = $wablasService->buildInvoiceParams($invoice);
-                $antrian = $wablasService->antrikanPesan(
+                $params = $whatsappService->buildInvoiceParams($invoice);
+                $antrian = $whatsappService->antrikanPesan(
                     noHp: $pelanggan->no_hp,
                     kodeTemplate: $rule->template->kode,
                     params: $params,

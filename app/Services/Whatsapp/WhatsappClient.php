@@ -5,7 +5,7 @@ namespace App\Services\Whatsapp;
 use App\Enums\Sysblas\SysblasProvider;
 use App\Models\Sysblas;
 use App\Services\Whatsapp\Contracts\WhatsappGatewayDriverInterface;
-use App\Services\Whatsapp\Drivers\WablasDriver;
+use App\Services\Whatsapp\Drivers\GowaDriver;
 use App\Services\Whatsapp\Drivers\WahaDriver;
 
 class WhatsappClient
@@ -32,26 +32,34 @@ class WhatsappClient
         ?string $apiKey = null,
         ?string $sessionName = 'default',
         ?string $provider = 'waha',
-        public int $delaySeconds = 3,
+        public int $delaySeconds = 300,
         public int $jitterSeconds = 2,
         public bool $simulateTyping = true
     ) {
-        $this->host = rtrim($host ?? (string) config('services.wablas.host', 'https://waha.gobilling.id'), '/');
-        $this->number = $number ?? (string) config('services.wablas.number', '');
+        $providerValue = $provider ?: SysblasProvider::Waha->value;
+        $defaultHost = $providerValue === SysblasProvider::Gowa->value
+            ? (string) config('services.gowa.host', 'http://localhost:3000')
+            : (string) config('services.waha.host', 'https://waha.gobilling.id');
+        $defaultNumber = $providerValue === SysblasProvider::Gowa->value
+            ? (string) config('services.gowa.number', '')
+            : (string) config('services.waha.number', '');
+
+        $this->host = rtrim($host ?? $defaultHost, '/');
+        $this->number = $number ?? $defaultNumber;
         $this->username = $username ?? '';
         $this->password = $password ?? '';
         $this->apiKey = $apiKey ?: null;
         $this->sessionName = $sessionName ?: 'default';
 
-        if ($provider === SysblasProvider::Wablas->value || $provider === SysblasProvider::Gowa->value) {
-            $this->driver = new WablasDriver(
+        $this->driver = match ($providerValue) {
+            SysblasProvider::Gowa->value => new GowaDriver(
                 host: $this->host,
-                token: $this->apiKey,
-                secret: $this->password,
+                username: $this->username,
+                password: $this->password,
+                deviceId: $this->sessionName,
                 number: $this->number
-            );
-        } else {
-            $this->driver = new WahaDriver(
+            ),
+            default => new WahaDriver(
                 host: $this->host,
                 number: $this->number,
                 username: $this->username,
@@ -61,8 +69,8 @@ class WhatsappClient
                 delaySeconds: $this->delaySeconds,
                 jitterSeconds: $this->jitterSeconds,
                 simulateTyping: $this->simulateTyping
-            );
-        }
+            ),
+        };
     }
 
     public static function forSysblas(?Sysblas $sysblas = null): self
@@ -78,7 +86,7 @@ class WhatsappClient
                 apiKey: $target->api_token ?: null,
                 sessionName: $target->session_name ?: 'default',
                 provider: $target->provider->value,
-                delaySeconds: $target->delay_detik ?? 3,
+                delaySeconds: $target->delay_detik ?? 300,
                 jitterSeconds: $target->jitter_detik ?? 2,
                 simulateTyping: $target->is_typing_simulation ?? true
             );

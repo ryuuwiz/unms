@@ -14,6 +14,7 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -43,6 +44,21 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
     public function uniqueId(): string
     {
         return (string) $this->router->id;
+    }
+
+    /**
+     * Prevent this full-router-sync job from overlapping itself for the same router,
+     * e.g. a scheduled run still processing when a manual --async run fires.
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping("mikrotik-router-{$this->router->id}"))
+                ->releaseAfter(180)
+                ->expireAfter(600),
+        ];
     }
 
     public function handle(MikrotikService $mikrotikService): void

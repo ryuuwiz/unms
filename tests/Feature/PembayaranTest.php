@@ -4,6 +4,7 @@ use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
 use App\Enums\UserStatus;
+use App\Events\InvoicePaidEvent;
 use App\Livewire\Invoice\Show;
 use App\Livewire\Pembayaran\Index;
 use App\Models\Invoice;
@@ -18,6 +19,8 @@ use App\Services\Billing\BillingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -96,6 +99,11 @@ test('admin recording payment on expired/suspended service resets expiry from pa
         'status' => StatusLayanan::Suspend,
     ]);
 
+    // InvoicePaidEvent kini juga terpancar untuk pembayaran manual (lihat BillingService::prosesPembayaranManual),
+    // yang memicu TriggerMikrotikAktivasiStubListener secara sinkron di lingkungan test (QUEUE_CONNECTION=sync).
+    // Test ini fokus pada perhitungan tanggal expired, bukan hasil provisioning MikroTik.
+    Queue::fake();
+
     $billingService = app(BillingService::class);
     $billingService->prosesPembayaranManual(
         invoice: $this->invoice,
@@ -126,4 +134,24 @@ test('idempotency guard prevents duplicate payment on already paid invoice', fun
         ],
         actor: $this->adminUser
     ))->toThrow(Exception::class);
+});
+
+test('pembayaran manual memancarkan InvoicePaidEvent agar notifikasi WA konfirmasi pembayaran terkirim', function () {
+    Event::fake([InvoicePaidEvent::class]);
+
+    $billingService = app(BillingService::class);
+    $pembayaran = $billingService->prosesPembayaranManual(
+        invoice: $this->invoice,
+        payload: [
+            'metode' => 'manual_admin',
+            'jumlah_dibayar' => 200000,
+            'referensi_transaksi' => 'KASIR-EVENT-001',
+        ],
+        actor: $this->adminUser
+    );
+
+    Event::assertDispatched(InvoicePaidEvent::class, function (InvoicePaidEvent $event) use ($pembayaran) {
+        return $event->invoice->id === $this->invoice->id
+            && $event->pembayaran->id === $pembayaran->id;
+    });
 });

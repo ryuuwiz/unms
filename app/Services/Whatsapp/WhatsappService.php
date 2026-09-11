@@ -38,7 +38,7 @@ class WhatsappService
         $template = WaTemplate::where('kode', $kodeTemplate)->first();
 
         if (! $template || ! $template->is_aktif) {
-            Log::warning("WABLAS Template '{$kodeTemplate}' tidak ditemukan atau non-aktif.");
+            Log::warning("WhatsApp Template '{$kodeTemplate}' tidak ditemukan atau non-aktif.");
 
             return null;
         }

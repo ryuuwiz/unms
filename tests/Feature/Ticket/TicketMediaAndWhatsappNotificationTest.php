@@ -17,7 +17,7 @@ use App\Models\Pelanggan;
 use App\Models\Pembayaran;
 use App\Models\Ticket;
 use App\Models\User;
-use App\Services\Wablas\WablasClient;
+use App\Services\Whatsapp\WhatsappClient;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Database\Seeders\WaTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,7 +69,7 @@ test('pembuatan tiket baru dengan lampiran foto berhasil menyimpan media dan men
         ->and($ticket->getFirstMedia('foto_kendala'))->not->toBeNull();
 
     // Verifikasi antrean WA ke pelanggan
-    $normalizedPelangganPhone = WablasClient::normalizePhoneNumber($this->pelanggan->no_hp);
+    $normalizedPelangganPhone = WhatsappClient::normalizePhoneNumber($this->pelanggan->no_hp);
     $antrianPelanggan = AntrianWaBlast::where('no_hp_tujuan', $normalizedPelangganPhone)
         ->where('jenis', 'tiket_dibuat')
         ->first();
@@ -94,7 +94,7 @@ test('penugasan teknisi mengantrikan pesan wa disposisi ke nomor hp teknisi', fu
         catatan: 'Harap bawa tangga dan OPM ke lokasi.'
     );
 
-    $normalizedTeknisiPhone = WablasClient::normalizePhoneNumber($this->teknisi->phone);
+    $normalizedTeknisiPhone = WhatsappClient::normalizePhoneNumber($this->teknisi->phone);
     $antrianTeknisi = AntrianWaBlast::where('no_hp_tujuan', $normalizedTeknisiPhone)
         ->first();
 
@@ -119,7 +119,7 @@ test('perubahan status tiket mengantrikan pesan wa update ke pelanggan', functio
         catatan: 'Teknisi sedang melakukan penyambungan splicing FO.'
     );
 
-    $normalizedPelangganPhone = WablasClient::normalizePhoneNumber($this->pelanggan->no_hp);
+    $normalizedPelangganPhone = WhatsappClient::normalizePhoneNumber($this->pelanggan->no_hp);
     $antrian = AntrianWaBlast::where('no_hp_tujuan', $normalizedPelangganPhone)
         ->where('jenis', 'like', 'tiket_status_diproses%')
         ->first();
@@ -149,7 +149,7 @@ test('penambahan catatan dengan foto pengerjaan mengunggah media dan mengirim wa
     expect($histori)->not->toBeNull()
         ->and($histori->getFirstMedia('foto_pengerjaan'))->not->toBeNull();
 
-    $normalizedPelangganPhone = WablasClient::normalizePhoneNumber($this->pelanggan->no_hp);
+    $normalizedPelangganPhone = WhatsappClient::normalizePhoneNumber($this->pelanggan->no_hp);
     $antrian = AntrianWaBlast::where('no_hp_tujuan', $normalizedPelangganPhone)
         ->where('jenis', "tiket_catatan_{$histori->id}")
         ->first();
@@ -175,7 +175,7 @@ test('event invoice lunas otomatis mengantrikan pesan wa kuitansi konfirmasi bay
     $listener = new TriggerWaNotifikasiStubListener;
     $listener->handle(new InvoicePaidEvent($invoice, $pembayaran));
 
-    $normalizedPelangganPhone = WablasClient::normalizePhoneNumber($this->pelanggan->no_hp);
+    $normalizedPelangganPhone = WhatsappClient::normalizePhoneNumber($this->pelanggan->no_hp);
     $antrian = AntrianWaBlast::where('no_hp_tujuan', $normalizedPelangganPhone)
         ->where('jenis', 'pembayaran_konfirmasi')
         ->first();

@@ -3,7 +3,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl font-bold text-zinc-900 dark:text-white">SysBlast - Koneksi API Gateway</h1>
-            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Kelola koneksi WABLAS / WhatsApp / SMS gateway, API key, batas laju pesan, dan status perangkat.</p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Kelola koneksi GOWA / WAHA / SMS gateway, API key, batas laju pesan, dan status perangkat.</p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
             <flux:button wire:click="openCreateModal" variant="primary" icon="plus" size="sm">
@@ -104,7 +104,7 @@
                                     {{ $koneksi->limit_per_menit }} <span class="text-[10px] font-normal text-zinc-400">msg/min</span>
                                 </div>
                                 <div class="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center justify-center gap-1" title="Jeda minimal + variasi acak">
-                                    <span>Jeda: {{ $koneksi->delay_detik ?? 3 }}s+{{ $koneksi->jitter_detik ?? 2 }}s</span>
+                                    <span>Jeda: {{ $koneksi->delay_detik ?? 300 }}s+{{ $koneksi->jitter_detik ?? 2 }}s</span>
                                     @if($koneksi->is_typing_simulation)
                                         <span class="inline-block size-1.5 rounded-full bg-emerald-500" title="Simulasi Mengetik Aktif"></span>
                                     @endif
@@ -185,7 +185,7 @@
                     <flux:input
                         wire:model="nama"
                         label="Nama / Label Koneksi"
-                        placeholder="Contoh: WABLAS CS Utama"
+                        placeholder="Contoh: GOWA CS Utama"
                         required
                     />
                     @error('nama') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
@@ -216,12 +216,91 @@
                     <flux:input
                         wire:model="url_api"
                         label="URL Base API Gateway"
-                        placeholder="https://tegal.wablas.com"
+                        placeholder="http://localhost:3000"
                         required
                     />
                     @error('url_api') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
                 </div>
             </div>
+
+            @if($provider === 'gowa')
+                <div class="p-3.5 bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/80 dark:border-blue-800/60 rounded-xl space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-blue-800 dark:text-blue-300 font-semibold text-xs">
+                            <flux:icon name="server" class="size-4" />
+                            <span>Device GOWA Terhubung</span>
+                        </div>
+                        <flux:button
+                            type="button"
+                            wire:click="tarikDeviceGowa"
+                            variant="subtle"
+                            size="xs"
+                            icon="arrow-path"
+                            class="text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900"
+                            wire:loading.attr="disabled"
+                        >
+                            <span wire:loading.remove wire:target="tarikDeviceGowa">Tarik Device GOWA</span>
+                            <span wire:loading wire:target="tarikDeviceGowa">Mengambil...</span>
+                        </flux:button>
+                    </div>
+                    <p class="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        Pairing device baru dilakukan langsung lewat dashboard GOWA — di sini hanya memilih device yang sudah terpasang (paired).
+                    </p>
+
+                    @if(!empty($gowaAvailableDevices))
+                        <div class="space-y-1.5 pt-1">
+                            <div class="text-[11px] text-zinc-500">Device terdeteksi di server:</div>
+                            <div class="flex flex-wrap gap-1.5">
+                                @foreach($gowaAvailableDevices as $dev)
+                                    <button
+                                        type="button"
+                                        wire:click="pilihDeviceGowa('{{ $dev['name'] }}', '{{ $dev['phone'] ?? '' }}')"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors {{ $session_name === $dev['name'] ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:border-blue-500' }}"
+                                    >
+                                        <span class="size-2 rounded-full {{ $dev['connected'] ? 'bg-emerald-400' : 'bg-amber-400' }}"></span>
+                                        <strong>{{ $dev['name'] }}</strong>
+                                        <span class="opacity-80 text-[10px]">({{ $dev['status'] }}{{ !empty($dev['pushName']) ? ' - ' . $dev['pushName'] : '' }})</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <flux:input
+                            wire:model="session_name"
+                            label="Device ID"
+                            placeholder="default"
+                            required
+                        />
+                        <flux:description>ID device pada server GOWA (header X-Device-Id).</flux:description>
+                        @error('session_name') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <flux:input
+                            wire:model="username"
+                            label="Username Basic Auth"
+                            placeholder="Contoh: admin"
+                            required
+                        />
+                        @error('username') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <flux:input
+                            wire:model="password"
+                            label="Password Basic Auth"
+                            placeholder="Password GOWA..."
+                            type="password"
+                            required
+                        />
+                        @error('password') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+            @endif
 
             @if($provider === 'waha')
                 <div class="p-3.5 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-800/60 rounded-xl space-y-2.5">
@@ -297,27 +376,42 @@
                 </div>
             @endif
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <flux:input
-                        wire:model="api_token"
-                        label="API Token / Key{{ $provider === 'waha' ? ' (Opsional)' : '' }}"
-                        placeholder="{{ $provider === 'waha' ? 'Opsional untuk WAHA...' : 'Token API dari provider...' }}"
-                        type="password"
-                    />
-                    @error('api_token') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
-                </div>
+            @unless(in_array($provider, ['waha', 'gowa']))
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <flux:input
+                            wire:model="api_token"
+                            label="API Token / Key"
+                            placeholder="Token API dari provider..."
+                            type="password"
+                        />
+                        @error('api_token') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
+                    </div>
 
+                    <div>
+                        <flux:input
+                            wire:model="api_secret"
+                            label="API Secret Key (Opsional)"
+                            placeholder="Secret Key jika ada..."
+                            type="password"
+                        />
+                        @error('api_secret') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+            @endunless
+
+            @if($provider === 'gowa')
                 <div>
                     <flux:input
                         wire:model="api_secret"
-                        label="API Secret Key (Opsional)"
-                        placeholder="Secret Key jika ada..."
+                        label="Webhook Secret (Opsional)"
+                        placeholder="Dipakai untuk verifikasi signature HMAC webhook GOWA..."
                         type="password"
                     />
+                    <flux:description>Dikirim sebagai `webhook_secret` saat registrasi webhook, dan dipakai untuk verifikasi HMAC saat event diterima.</flux:description>
                     @error('api_secret') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
                 </div>
-            </div>
+            @endif
 
             <!-- Proteksi Batas Laju & Anti-Ban -->
             <div class="p-3.5 bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-800/60 rounded-xl space-y-3">
@@ -349,10 +443,10 @@
                             wire:model="delay_detik"
                             label="Jeda Minimal (Detik)"
                             min="0"
-                            max="60"
+                            max="3600"
                             required
                         />
-                        <flux:description>Jarak antar pesan.</flux:description>
+                        <flux:description>Jarak antar pesan. Rekomendasi: 300 dtk (5 menit) agar tidak banned.</flux:description>
                         @error('delay_detik') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
                     </div>
 

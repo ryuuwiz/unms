@@ -58,7 +58,7 @@ class ProsesAntrianWaCommand extends Command
             $sysblas = $items->first()->sysblas ?? Sysblas::getDefault();
             $client = $sysblas ? $sysblas->makeClient() : app(WhatsappClient::class);
 
-            // Chunk per 50 pesan untuk pengiriman batch API WABLAS v2
+            // Chunk per 50 pesan untuk pengiriman batch API gateway WhatsApp
             foreach ($items->chunk(50) as $chunk) {
                 $batchPayload = [];
                 foreach ($chunk as $antrian) {

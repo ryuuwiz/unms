@@ -48,7 +48,7 @@ class KirimWaBlastJob implements ShouldQueue
         $sysblas = $this->antrian->sysblas ?? Sysblas::getDefault();
         $targetClient = $sysblas ? $sysblas->makeClient() : $client;
         $maxAttempts = $sysblas ? max(1, $sysblas->limit_per_menit) : 25;
-        $delaySeconds = $sysblas ? max(1, $sysblas->delay_detik ?? 3) : 3;
+        $delaySeconds = $sysblas ? max(1, $sysblas->delay_detik ?? 300) : 300;
         $jitterSeconds = $sysblas ? max(0, $sysblas->jitter_detik ?? 2) : 2;
 
         $gatewayId = $sysblas ? $sysblas->id : 'default';

@@ -173,10 +173,10 @@ class Create extends Component
 
             if (! empty($ticket->pic->phone)) {
                 try {
-                    /** @var WhatsappService $wablasService */
-                    $wablasService = app(WhatsappService::class);
-                    $params = $wablasService->buildTicketParams($ticket);
-                    $wablasService->antrikanPesan(
+                    /** @var WhatsappService $whatsappService */
+                    $whatsappService = app(WhatsappService::class);
+                    $params = $whatsappService->buildTicketParams($ticket);
+                    $whatsappService->antrikanPesan(
                         noHp: $ticket->pic->phone,
                         kodeTemplate: 'tiket_penugasan_teknisi',
                         params: $params,
@@ -193,10 +193,10 @@ class Create extends Component
         $pelanggan = $ticket->pelanggan;
         if ($pelanggan && ! empty($pelanggan->no_hp)) {
             try {
-                /** @var WhatsappService $wablasService */
-                $wablasService = app(WhatsappService::class);
-                $params = $wablasService->buildTicketParams($ticket);
-                $wablasService->antrikanPesan(
+                /** @var WhatsappService $whatsappService */
+                $whatsappService = app(WhatsappService::class);
+                $params = $whatsappService->buildTicketParams($ticket);
+                $whatsappService->antrikanPesan(
                     noHp: $pelanggan->no_hp,
                     kodeTemplate: 'tiket_dibuat',
                     params: $params,
