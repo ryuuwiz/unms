@@ -23,6 +23,7 @@ app/Services/Mikrotik/MikrotikService.php
 config/mikrotik.php
 Tugas: Ganti getClient($router, 3) jadi getClient($router, config('mikrotik.status_timeout', 3)).
 Estimasi: sangat kecil, ~15 menit — sarankan digabung ke B2 daripada jadi sprint terpisah agar tidak overhead.
+Status: Selesai — sudah diimplementasikan sebagai bagian dari Sprint B2 (config/mikrotik.php:status_timeout, dipakai di MikrotikService::fetchLivePppStatus(), dites di tests/Feature/Mikrotik/MikrotikServiceCacheTest.php). Diverifikasi ulang terhadap kode aktual, tidak perlu dikerjakan lagi.
 
 Urutan pengerjaan disarankan
 Minggu 1: A1 → A3 (paralel)  +  B1 (paralel, tim/sesi berbeda)
