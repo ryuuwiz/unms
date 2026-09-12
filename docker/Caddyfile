@@ -1,0 +1,33 @@
+:80 {
+	root * /var/www/html/public
+	encode gzip
+
+	log {
+		output stdout
+	}
+	log_skip /favicon.ico
+	log_skip /robots.txt
+
+	header {
+		X-Frame-Options "SAMEORIGIN"
+		X-Content-Type-Options "nosniff"
+	}
+
+	request_body {
+		max_size 100MB
+	}
+
+	# Deny access to dotfiles (.env, .git, ...) except /.well-known/*.
+	@dotfiles path_regexp \/\.(?!well-known)
+	respond @dotfiles 404
+
+	# Non-existent paths (including Livewire Flux's dynamic asset routes,
+	# e.g. /flux/flux.js) fall through to index.php automatically.
+	php_fastcgi 127.0.0.1:9000 {
+		env HTTPS on
+		env SERVER_PORT 443
+		read_timeout 300s
+	}
+
+	file_server
+}

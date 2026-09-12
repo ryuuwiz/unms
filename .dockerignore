@@ -10,6 +10,7 @@ storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
 storage/app/public/*
+bootstrap/cache/*.php
 public/build
 public/storage
 tests

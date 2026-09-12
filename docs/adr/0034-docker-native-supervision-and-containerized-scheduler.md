@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0036
+---
+
 # Docker-Native Process Supervision & Containerized Supercronic Scheduler
 
 Pada arsitektur produksi berbasis Docker (Dokploy/FrankenPHP), kami memutuskan untuk mengandalkan orkestrasi supervisor native Docker (`restart: unless-stopped` dan signal forwarding) untuk mengawasi proses master Laravel Horizon daripada memasang Linux OS `supervisord` di dalam kontainer, serta mengganti perintah pengembangan `schedule:work` dengan runner crontab khusus kontainer `supercronic`.

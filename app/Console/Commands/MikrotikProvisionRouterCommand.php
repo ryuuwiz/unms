@@ -20,7 +20,8 @@ class MikrotikProvisionRouterCommand extends Command
                             {--router= : ID Router tertentu}
                             {--force : Paksa provisi ulang seluruh layanan meskipun sudah terprovisi}
                             {--clean-orphans : Hapus akun PPP Secret di MikroTik yang tidak terdaftar di UNMS}
-                            {--async : Jalankan via antrean mikrotik-low di background secara asynchronous}';
+                            {--async : Jalankan via antrean mikrotik-low di background secara asynchronous}
+                            {--dry-run : Simulasi audit drift tanpa mengubah apapun di router (hanya berlaku bersama --async, karena mode sync selalu memakai provisionRouterFull(); tidak bisa digabung dengan --force)}';
 
     /**
      * The console command description.
@@ -42,6 +43,19 @@ class MikrotikProvisionRouterCommand extends Command
         $force = (bool) $this->option('force');
         $cleanOrphans = (bool) $this->option('clean-orphans');
         $async = (bool) $this->option('async');
+        $dryRun = (bool) $this->option('dry-run');
+
+        if ($dryRun && $force) {
+            $this->error('--dry-run tidak bisa digabung dengan --force: mode force selalu menjalankan provisionRouterFull() secara nyata ke router.');
+
+            return self::FAILURE;
+        }
+
+        if ($dryRun && ! $async) {
+            $this->error('--dry-run pada command ini hanya didukung bersama --async: mode sync selalu memakai pipeline provisionRouterFull() yang di luar scope audit drift. Gunakan "mikrotik:recover-ppp --dry-run" untuk mode sync, atau tambahkan --async.');
+
+            return self::FAILURE;
+        }
 
         $query = Router::query()
             ->when($routerId, fn ($q) => $q->where('id', $routerId));
@@ -62,9 +76,12 @@ class MikrotikProvisionRouterCommand extends Command
 
         if ($async) {
             $this->info("Mendispatch job provisi & recovery untuk {$routers->count()} router ke antrean mikrotik-low...");
+            if ($dryRun) {
+                $this->warn('Mode DRY-RUN aktif: job akan mensimulasikan tanpa mengubah apapun di router, hasil dicatat ke log.');
+            }
             try {
                 foreach ($routers as $router) {
-                    RecoverPppRouterJob::dispatch($router, $force, $cleanOrphans);
+                    RecoverPppRouterJob::dispatch($router, $force, $cleanOrphans, $dryRun);
                 }
                 $this->info('Seluruh job recovery & provisi router berhasil dimasukkan ke antrean.');
 

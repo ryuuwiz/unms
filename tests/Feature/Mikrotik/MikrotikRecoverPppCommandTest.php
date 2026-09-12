@@ -48,7 +48,7 @@ test('mikrotik:recover-ppp command runs successfully for all routers and logs to
 
     $mockService->shouldReceive('autoRecoverPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id))
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any(), Mockery::any())
         ->andReturn([
             'profiles' => ['total' => 1, 'synced' => 1, 'errors' => []],
             'secrets' => [
@@ -88,7 +88,7 @@ test('mikrotik:recover-ppp command with --router option targets only the specifi
 
     $mockService->shouldReceive('autoRecoverPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id))
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any(), Mockery::any())
         ->andReturn([
             'profiles' => ['total' => 1, 'synced' => 1, 'errors' => []],
             'secrets' => [
@@ -179,7 +179,7 @@ test('mikrotik:recover-ppp logs meaningfully and handles router failure graceful
 
     $mockService->shouldReceive('autoRecoverPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id))
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any(), Mockery::any())
         ->andThrow(new RuntimeException('Connection refused: unable to connect to router'));
 
     $this->artisan('mikrotik:recover-ppp')
@@ -210,12 +210,12 @@ test('mikrotik:recover-ppp continues processing remaining routers when one route
 
     $mockService->shouldReceive('autoRecoverPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id))
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any(), Mockery::any())
         ->andThrow(new RuntimeException('Connection timed out'));
 
     $mockService->shouldReceive('autoRecoverPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $otherRouter->id))
+        ->with(Mockery::on(fn ($r) => $r->id === $otherRouter->id), Mockery::any(), Mockery::any())
         ->andReturn([
             'profiles' => ['total' => 1, 'synced' => 1, 'errors' => []],
             'secrets' => [
@@ -292,7 +292,7 @@ test('mikrotik:recover-ppp survives database error during MikrotikJobLog creatio
 
     $mockService->shouldReceive('autoRecoverPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id))
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any(), Mockery::any())
         ->andThrow(new RuntimeException('Network unreachable'));
 
     // Force MikrotikJobLog creation to throw by mocking or triggering an issue

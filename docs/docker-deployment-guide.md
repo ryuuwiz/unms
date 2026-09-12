@@ -1,6 +1,8 @@
 # GOBILLING / UNMS — Docker & Deployment Guide
 
-Dokumentasi resmi panduan kontainerisasi Docker, deployment lokal (Laravel Sail), dan deployment produksi berbasis **Dokploy** (FrankenPHP, Horizon, Scheduler, MySQL 8.4, Redis 7, RustFS S3, dan WAHA) untuk sistem GOBILLING (ISP Billing & Network Management System).
+Dokumentasi resmi panduan kontainerisasi Docker, deployment lokal (Laravel Sail), dan deployment produksi berbasis **Dokploy** (Caddy + PHP-FPM, Horizon, Scheduler dalam satu kontainer/servis, MySQL 8.4, Redis 7, RustFS S3, dan WAHA) untuk sistem GOBILLING (ISP Billing & Network Management System).
+
+Lihat `docs/adr/0036-single-service-dokploy-deployment.md` untuk rasionale arsitektur single-service ini (menggantikan desain decoupled `app`/`horizon`/`scheduler` sebelumnya di ADR-0001/ADR-0034).
 
 ---
 
@@ -17,48 +19,44 @@ Dokumentasi resmi panduan kontainerisasi Docker, deployment lokal (Laravel Sail)
 
 ## 1. Arsitektur & Topologi Kontainer
 
-GOBILLING dibangun dengan arsitektur decoupled berbasis **FrankenPHP** (Caddy Web Server + PHP 8.4 runtime) yang memisahkan traffic HTTP, antrean latar belakang (Queue Worker), penjadwalan berkala (Scheduler), object storage, dan WhatsApp gateway ke dalam kontainer terisolasi:
+GOBILLING berjalan sebagai **satu servis Dokploy, satu image, satu kontainer** per replica. Caddy, PHP-FPM, Laravel Horizon, dan scheduler (`schedule:run` loop) semuanya diawasi oleh satu proses `supervisord` di dalam kontainer yang sama. MySQL, Redis, RustFS (S3), dan WAHA berjalan sebagai servis Dokploy terpisah di luar image ini.
 
 ```text
                           [ Internet Traffic / Users ]
                                        │
                                        ▼
                    [ Dokploy Ingress / Traefik Reverse Proxy ]
-                     │ Port 80/443 (SSL)          │ Port 9000 (SSL)
+                     │ Port 80 (SSL)              │ Port 9000 (SSL)
                      │ (Host: app.domain.id)      │ (Host: s3.domain.id)
                      ▼                            ▼
-        ┌─────────────────────────┐    ┌─────────────────────────┐
-        │      gobilling_app      │    │     gobilling_rustfs    │
-        │(FrankenPHP 8.4 / Caddy) │    │ (S3 MinIO Compatibility)│
-        └────────────┬────────────┘    └────────────┬────────────┘
-                     │                              │
-   ┌─────────────────┼──────────────────────────────┴──────────────────┐
-   │                 │                              │                  │
-   ▼                 ▼                              ▼                  ▼
-┌─────────────────┐ ┌─────────────┐        ┌────────────────────┐ ┌───────────┐
-│gobilling_horizon│ │  scheduler  │        │  gobilling_mysql   │ │   redis   │
-│(Laravel Horizon)│ │(Cron Daemon)│        │    (MySQL 8.4)     │ │ (Redis 7) │
-└────────┬────────┘ └─────────────┘        └────────────────────┘ └───────────┘
-         │
-         ├─── Outbound TCP 8728/8729 ──► [ Perangkat MikroTik RouterOS ]
-         │
-         ▼ Internal HTTP (Port 3000)
-┌─────────────────┐
-│ gobilling_waha  │ ──► [ WhatsApp Web Engine / Gateway ]
-│ (WAHA Sessions) │
-└─────────────────┘
+        ┌─────────────────────────────┐ ┌─────────────────────────┐
+        │        gobilling_app        │ │     gobilling_rustfs    │
+        │  (1 image, replicas: N)     │ │ (S3 MinIO Compatibility)│
+        │  supervisord ─┬─ caddy      │ └────────────┬────────────┘
+        │               ├─ php-fpm    │              │
+        │               ├─ horizon    │              │
+        │               └─ schedule   │              │
+        └───────────────┬──────────────┘              │
+                        │                              │
+   ┌────────────────────┼──────────────────────────────┴──────────────────┐
+   │                    │                              │                  │
+   ▼                    ▼                              ▼                  ▼
+┌────────────────┐ ┌───────────┐               ┌────────────────────┐ ┌───────────┐
+│  gobilling_mysql │ │   redis   │               │   (n/a — folded    │ │gobilling_waha│
+│    (MySQL 8.4)   │ │ (Redis 7) │               │   into gobilling_app)│ │(WA Sessions)│
+└────────────────┘ └───────────┘               └────────────────────┘ └───────────┘
 ```
 
 ### Komponen Layanan:
-- **`app`**: Server web FrankenPHP 8.4 dengan Caddy bawaan yang melayani request HTTP backend Laravel 13, Livewire 4, dan Flux UI. Mendukung kompresi gzip/zstd dan batas request body 64MB.
-- **`horizon`**: Daemon worker `php artisan horizon` dengan isolasi supervisor:
-  - `supervisor-high`: Khusus antrean prioritas instan `mikrotik-high` (provisi akun, isolir, buka isolir).
-  - `supervisor-low`: Auto-scaling worker untuk `mikrotik-low`, `default`, dan blast notifikasi `wa-blast`.
-- **`scheduler`**: Kontainer daemon scheduler berbasis Supercronic (`supercronic /etc/crontabs/laravel-cron`) yang mengeksekusi `schedule:run` setiap menit secara andal untuk rekonsiliasi MikroTik harian, pembuatan tagihan otomatis, cek isolir jatuh tempo, snapshot metrik Horizon, dan pengecekan kedaluwarsa VA Xendit.
-- **`mysql`**: Database MySQL 8.4 LTS dengan dukungan query geospasial GIS (`ST_Distance_Sphere` untuk Estimasi Kabel & ODP).
-- **`redis`**: Broker in-memory Redis 7 Alpine untuk queue Horizon, cache aplikasi, atomic lock `onOneServer()`, dan sesi.
-- **`rustfs`**: S3-compatible High-Performance Object Storage untuk berkas bukti bayar, PDF invoice, dan avatar pelanggan melalui `spatie/laravel-medialibrary`.
-- **`waha`**: WhatsApp HTTP API (Core Chromium) untuk pairing sesi staf dan transmisi notifikasi tagihan real-time. Berjalan secara privat di dalam internal docker network.
+- **`gobilling_app`**: Satu-satunya servis aplikasi Dokploy. Kontainernya menjalankan Caddy (web server, port 80), PHP-FPM (backend Laravel 13/Livewire 4/Flux), Horizon (`mikrotik-high`/`mikrotik-low`/`default`/`wa-blast` queue workers), dan loop scheduler (`schedule:run` setiap menit) — semuanya diawasi oleh `supervisord` (lihat `docker/supervisord.conf`, `docker/supervisor.d/*.conf`).
+  - **Tanpa file `.env` komit**: seluruh konfigurasi berasal dari environment variable kontainer sungguhan yang di-inject Dokploy (lihat `.env.docker.example`). Laravel me-load `.env` secara *immutable* — variabel proses sungguhan selalu menang atas isi file `.env` mana pun untuk key yang sama, tapi key yang *tidak* di-set di Dokploy akan diam-diam jatuh ke isi file `.env` jika ada. `docker/entrypoint.sh` sengaja membuat `.env` kosong (bukan menyalin `.env.example` yang berisi default local-dev seperti `APP_ENV=local`/`DB_HOST=127.0.0.1`) dan akan **gagal boot (exit 1)** jika `APP_KEY` tidak di-set di environment Dokploy — mencegah container berjalan diam-diam dengan konfigurasi lokal yang salah.
+  - Dockerfile juga membekukan default aman via `ENV APP_ENV=production APP_DEBUG=false LOG_CHANNEL=stderr` sebagai lantai minimum; environment variable Dokploy tetap selalu menang di atasnya.
+  - Setiap perintah terjadwal di `routes/console.php` menggunakan `->onOneServer()` (Redis distributed lock) agar aman dijalankan di 2+ replica tanpa duplikasi eksekusi.
+  - Migrasi database saat boot dijalankan lewat `php artisan app:migrate-once` (dibungkus `Cache::lock()`), bukan `migrate --force` langsung, agar aman terhadap boot replica konkuren saat rolling deploy.
+- **`mysql`**: Database MySQL 8.4 LTS dengan dukungan query geospasial GIS (`ST_Distance_Sphere` untuk Estimasi Kabel & ODP), dikelola sebagai servis Dokploy terpisah.
+- **`redis`**: Broker in-memory Redis 7 untuk queue Horizon, cache aplikasi, `onOneServer()` lock, dan sesi.
+- **`rustfs`**: S3-compatible Object Storage untuk berkas bukti bayar, PDF invoice, dan avatar pelanggan melalui `spatie/laravel-medialibrary`.
+- **`waha`**: WhatsApp HTTP API (Core Chromium) untuk pairing sesi staf dan transmisi notifikasi tagihan real-time.
 
 ---
 
@@ -66,14 +64,17 @@ GOBILLING dibangun dengan arsitektur decoupled berbasis **FrankenPHP** (Caddy We
 
 ```text
 unms/
+├── Dockerfile                       # Multi-stage: vendor (composer) -> frontend (vite) -> runtime (caddy+php-fpm+horizon+scheduler)
 ├── docker/
-│   ├── Dockerfile                  # Multi-stage: base -> composer-builder -> node-builder -> production
-│   ├── Caddyfile                   # Konfigurasi Caddy FrankenPHP (gzip/zstd, 64M upload, Livewire cache headers)
-│   └── entrypoint.sh               # Entrypoint cerdas (wait MySQL/Redis, izin storage, cache warm, auto-migrate)
-├── docker-compose.yml              # Stack Produksi Dokploy (Traefik labels, dokploy-network, decoupled services)
-├── compose.yaml                    # Stack Development Lokal via Laravel Sail
-├── .env.docker.example             # Template variabel environment produksi siap pakai untuk Dokploy
-└── .dockerignore                   # Optimasi build context Docker (mengabaikan node_modules, vendor, dll.)
+│   ├── Caddyfile                    # Konfigurasi Caddy (gzip, 100M upload, Livewire cache headers)
+│   ├── entrypoint.sh                # Entrypoint (cache clear, migrate-once, config/route/view cache, storage:link)
+│   ├── php.ini                      # Runtime php.ini overrides (opcache, memory_limit, dll.)
+│   ├── www.conf                     # PHP-FPM pool config
+│   ├── supervisord.conf             # Root supervisord config
+│   └── supervisor.d/                # Per-process supervisor programs (caddy, php-fpm, horizon, schedule)
+├── compose.yaml                     # Stack Development Lokal via Laravel Sail (bukan untuk produksi)
+├── .env.docker.example              # Template variabel environment produksi siap pakai untuk Dokploy
+└── .dockerignore                    # Optimasi build context Docker (mengabaikan node_modules, vendor, dll.)
 ```
 
 ---
@@ -100,20 +101,21 @@ cp .env.example .env
 
 ## 4. Panduan Deployment di Dokploy
 
-Dokploy adalah panel PaaS open-source berbasis Docker dan Traefik. Repositori ini telah dikonfigurasi dengan file `docker-compose.yml` yang terintegrasi secara native dengan jaringan Traefik Dokploy.
+Dokploy adalah panel PaaS open-source berbasis Docker dan Traefik. Repositori ini menyediakan satu `Dockerfile` yang dibangun langsung oleh Dokploy sebagai satu servis aplikasi (bukan Docker Compose multi-servis).
 
 ### Langkah 1: Buat Layanan Baru di Dokploy
 1. Masuk ke dashboard **Dokploy**.
 2. Pilih Project / Environment yang diinginkan.
-3. Klik **Create Service** $\rightarrow$ pilih tipe **Compose**.
+3. Klik **Create Service** $\rightarrow$ pilih tipe **Application** (bukan Compose), sumber **Dockerfile**.
 4. Beri nama layanan (misalnya `gobilling`).
 
-### Langkah 2: Konfigurasi Git & Compose Path
+### Langkah 2: Konfigurasi Git & Build Path
 1. Pada tab **General**:
    - **Source**: Pilih **Git**.
    - **Repository**: Masukkan URL repositori Git Anda.
    - **Branch**: Pilih `main` (atau branch rilis produksi).
-   - **Compose Path**: Biarkan default (`docker-compose.yml`).
+   - **Dockerfile Path**: Biarkan default (`Dockerfile` di root repo).
+2. Pastikan servis-servis eksternal (`mysql`, `redis`, `rustfs`, `waha`) sudah dibuat/berjalan terlebih dahulu di Dokploy dan berada di jaringan internal yang sama, sehingga `DB_HOST`, `REDIS_HOST`, `AWS_ENDPOINT`, dan `WAHA_HOST` dapat resolve ke nama servis tersebut.
 
 ### Langkah 3: Konfigurasi Environment Variables di Dokploy
 Masuk ke tab **Environment** pada Dokploy dan salin seluruh isi dari template [`.env.docker.example`](file:///home/ryuuwiz/code/unms/.env.docker.example). Pastikan mengisi:
@@ -126,12 +128,12 @@ Masuk ke tab **Environment** pada Dokploy dan salin seluruh isi dari template [`
 
 ### Langkah 4: Klik Deploy
 1. Klik tombol **Deploy** di Dokploy.
-2. Dokploy otomatis membangun image multi-stage (PHP 8.4, Composer, Vite).
-3. Kontainer `app` akan menunggu MySQL dan Redis siap, menjalankan migrasi database (`migrate --force`), membuat symlink storage, menghangatkan cache (`optimize`), dan menjalankan FrankenPHP.
+2. Dokploy membangun image multi-stage (`vendor` → `frontend` → `runtime`).
+3. Saat boot, `entrypoint.sh` menjalankan `php artisan app:migrate-once` (migrasi dengan lock, aman untuk 2+ replica), membuat symlink storage, menghangatkan cache (`config:cache`, `route:cache`, `view:cache`, `event:cache`), lalu menjalankan `supervisord` (Caddy + PHP-FPM + Horizon + scheduler).
 4. Traefik otomatis menerbitkan sertifikat SSL Let's Encrypt untuk `APP_DOMAIN` dan `RUSTFS_DOMAIN`.
 
 ### Langkah 5: Inisialisasi Akun Superadmin Pertama Kali
-Buka tab **Terminal** pada kontainer `app` (atau jalankan via SSH host server):
+Buka tab **Terminal** pada kontainer `gobilling_app` (atau jalankan via SSH host server):
 ```bash
 docker exec -it gobilling_app php artisan app:install
 ```
@@ -147,10 +149,10 @@ docker exec -it gobilling_app php artisan app:install
 | `APP_URL` | `https://buroq.gobilling.id` | URL canonical utama web GOBILLING. |
 | `APP_DOMAIN` | `buroq.gobilling.id` | Domain router Traefik untuk layanan web app. |
 | `RUSTFS_DOMAIN` | `s3.buroq.gobilling.id` | Subdomain router Traefik untuk S3 Object Storage RustFS. |
+| `LOG_CHANNEL` | `stderr` | Log Laravel dikirim ke stdout/stderr (terlihat di Dokploy log viewer) alih-alih `storage/logs/laravel.log` yang hilang setiap redeploy. |
 | `DB_CONNECTION` | `mysql` | Driver database. |
-| `DB_HOST` | `mysql` | Host kontainer database MySQL di jaringan internal. |
-| `REDIS_HOST` | `redis` | Host kontainer Redis di jaringan internal. |
-| `RUN_MIGRATIONS` | `true` | Otomatis menjalankan `migrate --force` saat kontainer `app` boot. |
+| `DB_HOST` | `mysql` | Host servis database MySQL Dokploy (eksternal, di luar image ini). |
+| `REDIS_HOST` | `redis` | Host servis Redis Dokploy (eksternal, di luar image ini). |
 | `FILESYSTEM_DISK` | `s3` | Driver storage S3 untuk integrasi dengan RustFS. |
 | `WAHA_HOST` | `http://waha:3000` | URL internal endpoint engine WhatsApp WAHA. |
 | `WAHA_API_KEY` | *(token rahasia)* | Kunci otentikasi API WAHA. |
@@ -174,6 +176,8 @@ docker exec -i gobilling_mysql mysql -u gobilling -pSECRET gobilling < backup.sq
 docker exec -it gobilling_app php artisan horizon:status
 ```
 
+Sistem juga menjalankan `horizon:monitor-health` terjadwal setiap 5 menit yang otomatis mengirim notifikasi ke pengguna `super_admin`/`noc` jika Horizon berhenti, dipause, atau tidak menyelesaikan job apapun dalam 15 menit terakhir.
+
 ### Pairing WhatsApp Web (WAHA)
 1. Buka antarmuka GOBILLING pada menu **Integrasi / Gateway WA**.
 2. Klik tombol **Pairing Sesi**.
@@ -190,13 +194,22 @@ docker exec -it -u 0 gobilling_app chown -R www-data:www-data /var/www/html/stor
 ```
 
 ### 2. Horizon Worker Menolak Berhenti / Hang Saat Deploy
-Konfigurasi kontainer menyertakan `stop_grace_period: 60s` agar Horizon dapat menyelesaikan job MikroTik yang aktif secara aman. Untuk memicu restart tanpa merestart kontainer:
+Konfigurasi `docker/supervisor.d/horizon.conf` menyertakan `stopwaitsecs=60` agar Horizon dapat menyelesaikan job MikroTik yang aktif secara aman sebelum diberhentikan. Untuk memicu restart tanpa merestart kontainer:
 ```bash
 docker exec -it gobilling_app php artisan horizon:terminate
 ```
 
-### 3. Koneksi API MikroTik Gagal dari Dalam Kontainer
+### 3. PHP-FPM Terputus Paksa Saat Redeploy
+`docker/supervisor.d/php-fpm.conf` menetapkan `stopsignal=QUIT` (sinyal graceful-shutdown asli PHP-FPM) dan `stopwaitsecs=300` agar request yang sedang berjalan (maksimum `max_execution_time` di `php.ini`) sempat selesai sebelum kontainer dimatikan.
+
+### 4. Koneksi API MikroTik Gagal dari Dalam Kontainer
 Pastikan port TCP 8728/8729 ke IP RouterOS MikroTik dapat dijangkau dari host Dokploy (misal via tunnel VPN WireGuard). Uji koneksi dari dalam kontainer `app`:
 ```bash
 docker exec -it gobilling_app nc -zv IP_ROUTER_MIKROTIK 8728
 ```
+
+### 5. Migrasi Tidak Berjalan Saat 2+ Replica Boot Bersamaan
+Ini normal — `php artisan app:migrate-once` menggunakan `Cache::lock()` sehingga hanya satu replica yang benar-benar menjalankan migrasi; replica lain akan mencatat pesan "Could not acquire migration lock ... Skipping." dan tetap boot normal.
+
+### 6. Kontainer Langsung Exit dengan Pesan "APP_KEY is not set"
+Ini disengaja: `docker/entrypoint.sh` menolak boot jika `APP_KEY` tidak ada di environment variable kontainer, karena image ini tidak lagi menyalin `.env.example` (yang berisi konfigurasi local-dev) sebagai fallback. Pastikan `APP_KEY` (hasil `php artisan key:generate --show`) sudah diisi di tab **Environment** Dokploy sebelum deploy.

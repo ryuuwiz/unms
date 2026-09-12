@@ -818,6 +818,11 @@ class MikrotikService
      * 3. Sinkronisasikan status isolir (disabled).
      * 4. Hapus entri duplikat di RouterOS.
      *
+     * Jika $dryRun = true, tidak ada perubahan nyata yang dikirim ke router untuk poin 2 & 3 —
+     * setiap drift yang terdeteksi hanya dicatat ke log & 'dry_run_changes' (lihat Sprint A5:
+     * docs/plan/fix_race_condition_mikrotik/sprint-a5-audit-drift-detection.md). Sinkronisasi IP Pool,
+     * profil bandwidth (poin 1), dan penghapusan duplikat (poin 4) di luar scope dry-run ini dan tetap berjalan normal.
+     *
      * @return array{
      *     profiles: array{total: int, synced: int, errors: array<string>},
      *     secrets: array{
@@ -833,12 +838,14 @@ class MikrotikService
      *     already_synced: int,
      *     disabled: int,
      *     duplicates_removed: int,
-     *     errors: array<string>
+     *     errors: array<string>,
+     *     dry_run: bool,
+     *     dry_run_changes: array<int, array<string, mixed>>
      * }
      *
      * @throws MikrotikException
      */
-    public function autoRecoverPppSecrets(Router $router, ?Client $client = null): array
+    public function autoRecoverPppSecrets(Router $router, ?Client $client = null, bool $dryRun = false): array
     {
         $client = $client ?? $this->getClient($router);
 
@@ -912,6 +919,7 @@ class MikrotikService
         $alreadySynced = 0;
         $disabledCount = 0;
         $errors = [];
+        $dryRunChanges = [];
 
         foreach ($layanans as $layanan) {
             $username = trim((string) $layanan->ppp_username);
@@ -932,25 +940,58 @@ class MikrotikService
 
             // Periksa apakah secret hilang, profile berbeda, password berbeda, remote-address, atau local-address tidak sesuai
             $needsRecovery = false;
+            $driftReason = null;
 
             if ($remote === null) {
                 // Secret hilang dari RouterOS
                 $needsRecovery = true;
+                $driftReason = 'secret_missing';
             } elseif (($remote['profile'] ?? '') !== $expectedProfile) {
                 // Profile di RouterOS tidak sesuai
                 $needsRecovery = true;
+                $driftReason = 'profile_mismatch';
             } elseif (($remote['remote-address'] ?? '') !== $expectedRemoteAddress) {
                 // Remote-address di RouterOS tidak sesuai dengan alokasi UNMS (IP Pool / IP Statis)
                 $needsRecovery = true;
+                $driftReason = 'remote_address_mismatch';
             } elseif (($remote['local-address'] ?? '') !== $expectedLocalAddress) {
                 // Local-address di RouterOS tidak sesuai dengan gateway UNMS
                 $needsRecovery = true;
+                $driftReason = 'local_address_mismatch';
             } elseif (isset($remote['password']) && $remote['password'] !== $expectedPassword) {
                 // Password di RouterOS tidak sesuai dengan UNMS
                 $needsRecovery = true;
+                $driftReason = 'password_mismatch';
             }
 
             if ($needsRecovery) {
+                if ($dryRun) {
+                    // DRY RUN: hanya catat & log, jangan benar-benar disable/enable/rewrite secret di router.
+                    // Sprint A5 (docs/plan/fix_race_condition_mikrotik/sprint-a5-audit-drift-detection.md):
+                    // output ini dipakai sebagai data nyata Langkah 0 (audit format remote-address/local-address).
+                    $change = [
+                        'username' => $username,
+                        'action' => 'would_recover',
+                        'reason' => $driftReason,
+                        'from_router' => $this->redactSecretForLog($remote),
+                        'expected' => [
+                            'profile' => $expectedProfile,
+                            'remote-address' => $expectedRemoteAddress,
+                            'local-address' => $expectedLocalAddress,
+                        ],
+                    ];
+                    $dryRunChanges[] = $change;
+
+                    Log::info('DRY RUN: akan memperbaiki drift pada PPP secret', array_merge(
+                        ['router_id' => $router->id],
+                        $change
+                    ));
+
+                    $recovered++;
+
+                    continue;
+                }
+
                 try {
                     $this->createOrUpdatePppoeSecret($router, $layanan, $client);
 
@@ -969,6 +1010,27 @@ class MikrotikService
                 $shouldBeDisabled = ($layanan->status === StatusLayanan::Suspend);
 
                 if ($isCurrentlyDisabled !== $shouldBeDisabled) {
+                    if ($dryRun) {
+                        // DRY RUN: hanya catat & log, jangan benar-benar toggle disabled di router.
+                        $change = [
+                            'username' => $username,
+                            'action' => $shouldBeDisabled ? 'would_disable' : 'would_enable',
+                            'reason' => 'disabled_state_mismatch',
+                            'from_router' => ['disabled' => $remote['disabled'] ?? null],
+                            'expected' => ['disabled' => $shouldBeDisabled],
+                        ];
+                        $dryRunChanges[] = $change;
+
+                        Log::info('DRY RUN: akan mengubah status disabled PPP secret', array_merge(
+                            ['router_id' => $router->id],
+                            $change
+                        ));
+
+                        $recovered++;
+
+                        continue;
+                    }
+
                     try {
                         if ($shouldBeDisabled) {
                             $this->disablePppoeSecret($router, $layanan, true, $client);
@@ -1002,7 +1064,28 @@ class MikrotikService
             'disabled' => $disabledCount,
             'duplicates_removed' => $duplicatesRemoved,
             'errors' => array_merge($profileStats['errors'], $errors),
+            'dry_run' => $dryRun,
+            'dry_run_changes' => $dryRunChanges,
         ];
+    }
+
+    /**
+     * Redact field password dari data secret RouterOS sebelum ditulis ke log (dry-run audit).
+     *
+     * @param  array<string, mixed>|null  $secret
+     * @return array<string, mixed>|null
+     */
+    private function redactSecretForLog(?array $secret): ?array
+    {
+        if ($secret === null) {
+            return null;
+        }
+
+        if (array_key_exists('password', $secret)) {
+            $secret['password'] = '[REDACTED]';
+        }
+
+        return $secret;
     }
 
     /**

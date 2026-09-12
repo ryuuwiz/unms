@@ -4,24 +4,28 @@
 # php:8.4 or node:24 upstream images, so this build uses Debian
 # Bookworm (current stable) throughout instead — the closest
 # supported Debian base for both stages.
+#
+# PHP_EXT_PACKAGES lists the apt -dev headers needed by install-php-extensions
+# to compile the runtime extensions below. It is duplicated (not shared via a
+# base stage) between the `vendor` and `runtime` stages on purpose: `vendor`
+# is a throwaway CLI build stage while `runtime` additionally needs supervisor/
+# bash/curl/tzdata for process supervision. Keep both lists in sync manually
+# whenever the extension set changes.
+ARG PHP_EXT_PACKAGES="libicu-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libonig-dev libxml2-dev"
 
 ########################################
 # Stage 1: PHP dependencies (Composer)
 ########################################
 FROM php:8.4-cli-bookworm AS vendor
 
+ARG PHP_EXT_PACKAGES
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         unzip \
-        libicu-dev \
-        libzip-dev \
-        libpng-dev \
-        libjpeg62-turbo-dev \
-        libfreetype6-dev \
-        libonig-dev \
-        libxml2-dev \
+        ${PHP_EXT_PACKAGES} \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -45,16 +49,21 @@ RUN install-php-extensions \
         redis \
         sockets
 
-COPY database/ database/
+# Dependency manifests copied first (and database/ after) so `composer install`
+# only re-runs when the lockfile actually changes, not on every source edit.
 COPY composer.json composer.lock ./
+COPY database/ database/
 
-RUN composer install \
-    --no-dev \
-    --no-interaction \
-    --no-progress \
-    --no-scripts \
-    --optimize-autoloader \
-    --prefer-dist
+# Cache mount persists Composer's package archive across builds so a lockfile
+# change only re-downloads the packages that actually changed.
+RUN --mount=type=cache,target=/tmp/cache,sharing=locked \
+    composer install \
+        --no-dev \
+        --no-interaction \
+        --no-progress \
+        --no-scripts \
+        --optimize-autoloader \
+        --prefer-dist
 
 ########################################
 # Stage 2: Frontend build (Vite)
@@ -64,7 +73,8 @@ FROM node:24-bookworm AS frontend
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 COPY . .
 COPY --from=vendor /app/vendor ./vendor
@@ -79,22 +89,16 @@ LABEL maintainer="Ryu"
 
 ARG WWWUSER=1000
 ARG WWWGROUP=1000
+ARG PHP_EXT_PACKAGES
 
 # --- System packages ---------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        nginx \
         supervisor \
         bash \
         curl \
         git \
         unzip \
-        libicu-dev \
-        libzip-dev \
-        libpng-dev \
-        libjpeg62-turbo-dev \
-        libfreetype6-dev \
-        libonig-dev \
-        libxml2-dev \
+        ${PHP_EXT_PACKAGES} \
         tzdata \
     && ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime \
     && rm -rf /var/lib/apt/lists/*
@@ -120,9 +124,12 @@ RUN install-php-extensions \
 COPY docker/php.ini /usr/local/etc/php/conf.d/99-app.ini
 COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
 
-# --- Nginx configuration ---------------------------------------------------
-RUN rm -f /etc/nginx/sites-enabled/default
-COPY docker/nginx.conf /etc/nginx/sites-enabled/default
+# --- Caddy ---------------------------------------------------------------
+# Static binary copied from the official image rather than an apt repo/GPG
+# key dance — Caddy ships CGO-disabled, so it runs unmodified on this glibc
+# base image.
+COPY --from=caddy:2-alpine /usr/bin/caddy /usr/local/bin/caddy
+COPY docker/Caddyfile /etc/caddy/Caddyfile
 
 # --- Supervisor configuration ----------------------------------------------
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
@@ -133,6 +140,16 @@ RUN usermod -u ${WWWUSER} www-data \
     && groupmod -g ${WWWGROUP} www-data
 
 WORKDIR /var/www/html
+
+# --- Baked-in production defaults ----------------------------------------
+# Docker container/Dokploy runtime environment variables always take
+# precedence over these at `docker run` time, so this only sets a safe floor
+# for anything an operator forgets to configure in Dokploy's Environment tab
+# -- it does not replace .env.docker.example, which documents every variable
+# that must still be supplied per-deployment (secrets, hostnames, keys).
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr
 
 # --- Application code -------------------------------------------------
 COPY --chown=www-data:www-data . .

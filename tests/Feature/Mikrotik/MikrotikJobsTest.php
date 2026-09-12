@@ -154,7 +154,7 @@ test('RecoverPppRouterJob runs autoRecoverPppSecrets on mikrotik-low queue', fun
     $mockService = Mockery::mock(MikrotikService::class);
     $mockService->shouldReceive('autoRecoverPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id))
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any(), Mockery::any())
         ->andReturn([
             'profiles' => ['total' => 1, 'synced' => 1, 'errors' => []],
             'secrets' => ['total_checked' => 1, 'recovered' => 1, 'already_synced' => 0, 'disabled' => 0, 'duplicates_removed' => 0, 'errors' => []],

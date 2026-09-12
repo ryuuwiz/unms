@@ -33,7 +33,8 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
     public function __construct(
         public Router $router,
         public bool $force = false,
-        public bool $cleanOrphans = false
+        public bool $cleanOrphans = false,
+        public bool $dryRun = false
     ) {
         $this->onQueue('mikrotik-low');
     }
@@ -74,10 +75,11 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
                         cleanOrphans: $this->cleanOrphans
                     );
                 } else {
-                    $result = $mikrotikService->autoRecoverPppSecrets($this->router);
+                    $result = $mikrotikService->autoRecoverPppSecrets($this->router, dryRun: $this->dryRun);
 
                     if ($this->cleanOrphans) {
-                        $orphanStats = $mikrotikService->cleanOrphanedPppSecrets($this->router, true);
+                        // Saat dry-run, jangan benar-benar hapus orphan — hanya laporkan (executeDelete = false).
+                        $orphanStats = $mikrotikService->cleanOrphanedPppSecrets($this->router, ! $this->dryRun);
                         $result['orphans'] = $orphanStats;
                     }
 
