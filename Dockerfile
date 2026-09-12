@@ -162,6 +162,16 @@ COPY --chown=www-data:www-data . .
 COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
 COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
 
+# Re-publish Livewire's self-hosted JS (public/vendor/livewire/*, served as a
+# static file by Caddy's file_server instead of round-tripping through
+# PHP-FPM) against whatever livewire/livewire version composer.lock resolved
+# to in THIS build -- publishing once and committing the output (as this repo
+# previously did) goes stale on the next `composer update` and Livewire's own
+# JS then warns "published Livewire assets are out of date" in the browser
+# console, since it compares this manifest against vendor/livewire/livewire's.
+RUN php artisan livewire:publish --assets \
+    && chown -R www-data:www-data public/vendor
+
 # --- Permissions ---------------------------------------------------------
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views \
              storage/logs \
