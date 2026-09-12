@@ -92,13 +92,15 @@ ARG WWWGROUP=1000
 ARG PHP_EXT_PACKAGES
 
 # --- System packages ---------------------------------------------------
+# git/unzip are deliberately NOT installed here: nothing in the app or
+# entrypoint.sh shells out to either (composer isn't even present in this
+# stage), so they'd be pure dead weight in every pushed layer. If an
+# operator ever needs them for a one-off `docker exec` task, `apt-get
+# install -y git unzip` on the live container is a cheap, rare cost.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         supervisor \
         bash \
         curl \
-        git \
-        unzip \
-        ${PHP_EXT_PACKAGES} \
         tzdata \
     && ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime \
     && rm -rf /var/lib/apt/lists/*
@@ -106,7 +108,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # --- PHP extensions ------------------------------------------------------
 COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
 
-RUN install-php-extensions \
+# PHP_EXT_PACKAGES (the -dev/header packages) are installed AND purged again
+# within this one RUN, unlike the `vendor` stage where they're left in place.
+# `vendor` is a throwaway build stage that's never pushed; this `runtime`
+# stage is the image that gets exported and pushed to the registry, so any
+# package left installed here becomes bytes in a pushed layer. Purging in a
+# later, separate RUN wouldn't reclaim that space -- Docker layers are
+# additive, so the headers would still exist (and still be uploaded) in this
+# layer even after a later layer deletes them. Note: no --auto-remove here --
+# it would let apt treat the *runtime* shared libs (libicu72, libzip4, etc.,
+# pulled in as dependencies of the -dev packages) as orphaned and remove
+# those too, silently breaking intl/gd/zip/etc. at container boot.
+RUN apt-get update && apt-get install -y --no-install-recommends ${PHP_EXT_PACKAGES} \
+    && install-php-extensions \
         pdo_mysql \
         mysqli \
         mbstring \
@@ -118,7 +132,9 @@ RUN install-php-extensions \
         intl \
         opcache \
         redis \
-        sockets
+        sockets \
+    && apt-get purge -y ${PHP_EXT_PACKAGES} \
+    && rm -rf /var/lib/apt/lists/*
 
 # --- PHP configuration ---------------------------------------------------
 COPY docker/php.ini /usr/local/etc/php/conf.d/99-app.ini
