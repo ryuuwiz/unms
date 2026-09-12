@@ -242,217 +242,217 @@
     </div>
 </div>
 
+@script
 <script>
-    document.addEventListener('alpine:init', () => {
-        // 1. Dual-Axis Daily Trend Chart (Area Pendapatan + Bar Transaksi)
-        Alpine.data('dailyTrendChart', (config) => ({
-            chart: null,
-            initChart() {
-                const isDark = document.documentElement.classList.contains('dark');
-                const options = {
-                    chart: {
-                        height: 310,
-                        type: 'line',
-                        toolbar: {
-                            show: false
+    // 1. Dual-Axis Daily Trend Chart (Area Pendapatan + Bar Transaksi)
+    Alpine.data('dailyTrendChart', (config) => ({
+        chart: null,
+        initChart() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const options = {
+                chart: {
+                    height: 310,
+                    type: 'line',
+                    toolbar: {
+                        show: false
+                    },
+                    fontFamily: 'inherit',
+                    background: 'transparent',
+                },
+                theme: {
+                    mode: isDark ? 'dark' : 'light',
+                },
+                series: [{
+                        name: 'Pendapatan (Rp)',
+                        type: 'area',
+                        data: config.revenue,
+                    },
+                    {
+                        name: 'Jumlah Transaksi',
+                        type: 'column',
+                        data: config.transactions,
+                    }
+                ],
+                stroke: {
+                    width: [2.5, 0],
+                    curve: 'smooth'
+                },
+                colors: ['#6366f1', '#10b981'],
+                fill: {
+                    type: ['gradient', 'solid'],
+                    gradient: {
+                        shadeIntensity: 1,
+                        opacityFrom: 0.45,
+                        opacityTo: 0.05,
+                        stops: [0, 90, 100],
+                    },
+                    opacity: [0.35, 0.85]
+                },
+                plotOptions: {
+                    bar: {
+                        columnWidth: '35%',
+                        borderRadius: 4,
+                    }
+                },
+                xaxis: {
+                    categories: config.categories,
+                    labels: {
+                        style: {
+                            colors: isDark ? '#a1a1aa' : '#71717a',
+                            fontSize: '11px',
                         },
-                        fontFamily: 'inherit',
-                        background: 'transparent',
+                        rotate: -45,
+                        rotateAlways: false,
                     },
-                    theme: {
-                        mode: isDark ? 'dark' : 'light',
+                    axisBorder: {
+                        show: false
                     },
-                    series: [{
-                            name: 'Pendapatan (Rp)',
-                            type: 'area',
-                            data: config.revenue,
+                    axisTicks: {
+                        show: false
+                    },
+                },
+                yaxis: [{
+                        title: {
+                            text: 'Pendapatan',
+                            style: {
+                                color: isDark ? '#a1a1aa' : '#71717a',
+                                fontSize: '11px',
+                            }
                         },
-                        {
-                            name: 'Jumlah Transaksi',
-                            type: 'column',
-                            data: config.transactions,
-                        }
-                    ],
-                    stroke: {
-                        width: [2.5, 0],
-                        curve: 'smooth'
-                    },
-                    colors: ['#6366f1', '#10b981'],
-                    fill: {
-                        type: ['gradient', 'solid'],
-                        gradient: {
-                            shadeIntensity: 1,
-                            opacityFrom: 0.45,
-                            opacityTo: 0.05,
-                            stops: [0, 90, 100],
-                        },
-                        opacity: [0.35, 0.85]
-                    },
-                    plotOptions: {
-                        bar: {
-                            columnWidth: '35%',
-                            borderRadius: 4,
-                        }
-                    },
-                    xaxis: {
-                        categories: config.categories,
                         labels: {
+                            formatter: function(value) {
+                                if (value >= 1000000) return (value / 1000000)
+                                    .toFixed(1) + 'M';
+                                if (value >= 1000) return (value / 1000).toFixed(
+                                    0) + 'k';
+                                return value;
+                            },
                             style: {
                                 colors: isDark ? '#a1a1aa' : '#71717a',
                                 fontSize: '11px',
                             },
-                            rotate: -45,
-                            rotateAlways: false,
-                        },
-                        axisBorder: {
-                            show: false
-                        },
-                        axisTicks: {
-                            show: false
                         },
                     },
-                    yaxis: [{
-                            title: {
-                                text: 'Pendapatan',
-                                style: {
-                                    color: isDark ? '#a1a1aa' : '#71717a',
-                                    fontSize: '11px',
-                                }
-                            },
-                            labels: {
-                                formatter: function(value) {
-                                    if (value >= 1000000) return (value / 1000000)
-                                        .toFixed(1) + 'M';
-                                    if (value >= 1000) return (value / 1000).toFixed(
-                                        0) + 'k';
-                                    return value;
-                                },
-                                style: {
-                                    colors: isDark ? '#a1a1aa' : '#71717a',
-                                    fontSize: '11px',
-                                },
-                            },
+                    {
+                        opposite: true,
+                        title: {
+                            text: 'Transaksi',
+                            style: {
+                                color: isDark ? '#a1a1aa' : '#71717a',
+                                fontSize: '11px',
+                            }
                         },
-                        {
-                            opposite: true,
-                            title: {
-                                text: 'Transaksi',
-                                style: {
-                                    color: isDark ? '#a1a1aa' : '#71717a',
-                                    fontSize: '11px',
-                                }
-                            },
-                            labels: {
-                                formatter: function(value) {
-                                    return Math.round(value) + ' trx';
-                                },
-                                style: {
-                                    colors: isDark ? '#a1a1aa' : '#71717a',
-                                    fontSize: '11px',
-                                },
-                            },
-                        }
-                    ],
-                    dataLabels: {
-                        enabled: false
-                    },
-                    grid: {
-                        borderColor: isDark ? '#27272a' : '#f4f4f5',
-                        strokeDashArray: 4,
-                    },
-                    tooltip: {
-                        theme: isDark ? 'dark' : 'light',
-                        shared: true,
-                        intersect: false,
-                        y: {
-                            formatter: function(val, {
-                                seriesIndex
-                            }) {
-                                if (seriesIndex === 0) {
-                                    return 'Rp ' + new Intl.NumberFormat('id-ID').format(
-                                        val);
-                                }
-                                return val + ' transaksi';
-                            },
-                        },
-                    },
-                    legend: {
-                        position: 'top',
-                        horizontalAlign: 'right',
                         labels: {
-                            colors: isDark ? '#e4e4e7' : '#3f3f46',
+                            formatter: function(value) {
+                                return Math.round(value) + ' trx';
+                            },
+                            style: {
+                                colors: isDark ? '#a1a1aa' : '#71717a',
+                                fontSize: '11px',
+                            },
+                        },
+                    }
+                ],
+                dataLabels: {
+                    enabled: false
+                },
+                grid: {
+                    borderColor: isDark ? '#27272a' : '#f4f4f5',
+                    strokeDashArray: 4,
+                },
+                tooltip: {
+                    theme: isDark ? 'dark' : 'light',
+                    shared: true,
+                    intersect: false,
+                    y: {
+                        formatter: function(val, {
+                            seriesIndex
+                        }) {
+                            if (seriesIndex === 0) {
+                                return 'Rp ' + new Intl.NumberFormat('id-ID').format(
+                                    val);
+                            }
+                            return val + ' transaksi';
                         },
                     },
-                };
+                },
+                legend: {
+                    position: 'top',
+                    horizontalAlign: 'right',
+                    labels: {
+                        colors: isDark ? '#e4e4e7' : '#3f3f46',
+                    },
+                },
+            };
 
-                this.chart = new ApexCharts(this.$refs.chart, options);
-                this.chart.render();
-            },
-        }));
+            this.chart = new ApexCharts(this.$refs.chart, options);
+            this.chart.render();
+        },
+    }));
 
-        // 2. Paket Donut Chart
-        Alpine.data('paketChart', (config) => ({
-            chart: null,
-            initChart() {
-                const isDark = document.documentElement.classList.contains('dark');
-                const options = {
-                    chart: {
-                        type: 'donut',
-                        height: 290,
-                        fontFamily: 'inherit',
-                        background: 'transparent',
+    // 2. Paket Donut Chart
+    Alpine.data('paketChart', (config) => ({
+        chart: null,
+        initChart() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const options = {
+                chart: {
+                    type: 'donut',
+                    height: 290,
+                    fontFamily: 'inherit',
+                    background: 'transparent',
+                },
+                theme: {
+                    mode: isDark ? 'dark' : 'light',
+                },
+                labels: config.labels,
+                series: config.series,
+                colors: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'],
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        colors: isDark ? '#e4e4e7' : '#3f3f46',
+                        fontSize: '11px',
                     },
-                    theme: {
-                        mode: isDark ? 'dark' : 'light',
-                    },
-                    labels: config.labels,
-                    series: config.series,
-                    colors: ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'],
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            colors: isDark ? '#e4e4e7' : '#3f3f46',
-                            fontSize: '11px',
-                        },
-                    },
-                    dataLabels: {
-                        enabled: false,
-                    },
-                    plotOptions: {
-                        pie: {
-                            donut: {
-                                size: '72%',
-                                labels: {
+                },
+                dataLabels: {
+                    enabled: false,
+                },
+                plotOptions: {
+                    pie: {
+                        donut: {
+                            size: '72%',
+                            labels: {
+                                show: true,
+                                name: {
                                     show: true,
-                                    name: {
-                                        show: true,
-                                        fontSize: '12px',
-                                        color: isDark ? '#a1a1aa' : '#71717a',
-                                    },
-                                    value: {
-                                        show: true,
-                                        fontSize: '18px',
-                                        fontWeight: 'bold',
-                                        color: isDark ? '#ffffff' : '#09090b',
-                                    },
-                                    total: {
-                                        show: true,
-                                        label: 'Langganan',
-                                        color: isDark ? '#a1a1aa' : '#71717a',
-                                    },
+                                    fontSize: '12px',
+                                    color: isDark ? '#a1a1aa' : '#71717a',
+                                },
+                                value: {
+                                    show: true,
+                                    fontSize: '18px',
+                                    fontWeight: 'bold',
+                                    color: isDark ? '#ffffff' : '#09090b',
+                                },
+                                total: {
+                                    show: true,
+                                    label: 'Langganan',
+                                    color: isDark ? '#a1a1aa' : '#71717a',
                                 },
                             },
                         },
                     },
-                    stroke: {
-                        colors: [isDark ? '#27272a' : '#ffffff'],
-                        width: 2,
-                    },
-                };
+                },
+                stroke: {
+                    colors: [isDark ? '#27272a' : '#ffffff'],
+                    width: 2,
+                },
+            };
 
-                this.chart = new ApexCharts(this.$refs.chart, options);
-                this.chart.render();
-            },
-        }));
-    });
+            this.chart = new ApexCharts(this.$refs.chart, options);
+            this.chart.render();
+        },
+    }));
 </script>
+@endscript
