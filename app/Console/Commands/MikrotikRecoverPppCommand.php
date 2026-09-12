@@ -24,7 +24,8 @@ class MikrotikRecoverPppCommand extends Command
                             {--router= : ID Router tertentu}
                             {--force : Paksa sinkronisasi ulang seluruh profil dan akun PPP}
                             {--clean-orphans : Hapus akun PPP Secret di MikroTik yang tidak terdaftar di UNMS}
-                            {--async : Jalankan via antrean mikrotik-low di background secara asynchronous}';
+                            {--async : Jalankan via antrean mikrotik-low di background secara asynchronous}
+                            {--dry-run : Simulasi audit drift tanpa mengubah apapun di router (hanya logging, tidak bisa digabung dengan --force)}';
 
     /**
      * The console command description.
@@ -46,6 +47,13 @@ class MikrotikRecoverPppCommand extends Command
         $force = (bool) $this->option('force');
         $cleanOrphans = (bool) $this->option('clean-orphans');
         $async = (bool) $this->option('async');
+        $dryRun = (bool) $this->option('dry-run');
+
+        if ($dryRun && $force) {
+            $this->error('--dry-run tidak bisa digabung dengan --force: mode force selalu menjalankan provisionRouterFull() secara nyata ke router.');
+
+            return self::FAILURE;
+        }
 
         $query = Router::query()
             ->when($routerId, fn ($q) => $q->where('id', $routerId));
@@ -66,9 +74,12 @@ class MikrotikRecoverPppCommand extends Command
 
         if ($async) {
             $this->info("Mendispatch job auto-recovery untuk {$routers->count()} router ke antrean mikrotik-low...");
+            if ($dryRun) {
+                $this->warn('Mode DRY-RUN aktif: job akan mensimulasikan tanpa mengubah apapun di router, hasil dicatat ke log.');
+            }
             try {
                 foreach ($routers as $router) {
-                    RecoverPppRouterJob::dispatch($router, $force, $cleanOrphans);
+                    RecoverPppRouterJob::dispatch($router, $force, $cleanOrphans, $dryRun);
                 }
                 $this->info('Seluruh job recovery router berhasil dimasukkan ke antrean.');
 
@@ -90,6 +101,9 @@ class MikrotikRecoverPppCommand extends Command
         }
         if ($cleanOrphans) {
             $this->warn('Mode CLEAN ORPHANS aktif: Akun tidak terdaftar di UNMS akan dibersihkan.');
+        }
+        if ($dryRun) {
+            $this->warn('Mode DRY-RUN aktif: TIDAK ADA perubahan nyata yang dikirim ke router — hanya simulasi & logging.');
         }
 
         $this->newLine();
@@ -120,7 +134,7 @@ class MikrotikRecoverPppCommand extends Command
                         ? ($orphanStats['deleted'] ?? 0).' dihapus'
                         : ($orphanStats['orphans_count'] ?? 0).' terdeteksi';
                 } else {
-                    $stats = $mikrotikService->autoRecoverPppSecrets($router);
+                    $stats = $mikrotikService->autoRecoverPppSecrets($router, dryRun: $dryRun);
 
                     $profileStats = $stats['profiles'] ?? [];
                     $profileText = ($profileStats['synced'] ?? 0).'/'.($profileStats['total'] ?? 0);
@@ -130,13 +144,17 @@ class MikrotikRecoverPppCommand extends Command
                     $disabledCount = $stats['disabled'] ?? 0;
                     $duplicatesRemoved = $stats['duplicates_removed'] ?? 0;
 
-                    $secretText = "{$recoveredCount} dipulihkan / {$alreadySyncedCount} sinkron ({$disabledCount} isolir)";
+                    $secretLabel = $dryRun ? 'akan dipulihkan' : 'dipulihkan';
+                    $secretText = "{$recoveredCount} {$secretLabel} / {$alreadySyncedCount} sinkron ({$disabledCount} isolir)";
                     $dupText = "{$duplicatesRemoved} dibersihkan";
 
                     $orphanText = '-';
                     if ($cleanOrphans) {
-                        $orphanStats = $mikrotikService->cleanOrphanedPppSecrets($router, true);
-                        $orphanText = ($orphanStats['deleted'] ?? 0).' dihapus';
+                        // Saat dry-run, jangan benar-benar hapus orphan — hanya laporkan (executeDelete = false).
+                        $orphanStats = $mikrotikService->cleanOrphanedPppSecrets($router, ! $dryRun);
+                        $orphanText = $dryRun
+                            ? ($orphanStats['orphans_count'] ?? 0).' akan dihapus'
+                            : ($orphanStats['deleted'] ?? 0).' dihapus';
                     }
 
                     $shouldLog = $force || $cleanOrphans || $routerId !== null
