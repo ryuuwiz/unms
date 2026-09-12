@@ -14,6 +14,7 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Throwable;
@@ -41,6 +42,25 @@ class DisablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
     public function uniqueId(): string
     {
         return "router:{$this->layanan->router_id}:layanan:{$this->layanan->id}";
+    }
+
+    /**
+     * Serialize PPPoE lifecycle jobs per physical router (shared across all
+     * mikrotik-high job classes) so a burst of jobs for many customers on the
+     * same router doesn't open several concurrent RouterOS API sessions and
+     * spike the router's CPU. uniqueId() above only dedupes per-customer, not
+     * per-router, which is what this middleware closes.
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping("mikrotik-router-{$this->layanan->router_id}"))
+                ->releaseAfter(5)
+                ->expireAfter(30)
+                ->shared(),
+        ];
     }
 
     public function handle(MikrotikService $mikrotikService): void
