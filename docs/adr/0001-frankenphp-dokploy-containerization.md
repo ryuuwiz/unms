@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0036
+---
+
 # Production Containerization with FrankenPHP and Dokploy
 
 Transitioning from local Laravel Sail to production deployment, we decided to run FrankenPHP (`dunglas/frankenphp:php8.4-alpine`) in standard stateless request mode with decoupled worker (`horizon`) and daemon (`scheduler`) containers orchestrated via Dokploy PaaS (Traefik ingress).

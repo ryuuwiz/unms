@@ -43,3 +43,8 @@ Schedule::command('wa:proses-antrian')->everyFiveMinutes()->onOneServer();
 
 // Horizon metrics snapshot for throughput and queue wait time dashboard
 Schedule::command('horizon:snapshot')->everyFiveMinutes()->onOneServer();
+
+// Alerts super_admin/noc if Horizon is down, paused, or has completed no job
+// in 15 minutes -- catches a wedged worker that a plain HTTP HEALTHCHECK on
+// the web process can't see (Horizon shares the container with Caddy/PHP-FPM).
+Schedule::command('horizon:monitor-health')->everyFiveMinutes()->onOneServer();

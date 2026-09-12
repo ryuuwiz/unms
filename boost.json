@@ -1,12 +1,12 @@
 {
     "agents": [
         "antigravity",
-        "copilot",
         "codex",
         "claude_code",
         "kiro",
         "opencode",
-        "zed"
+        "zed",
+        "copilot"
     ],
     "cloud": false,
     "guidelines": true,
