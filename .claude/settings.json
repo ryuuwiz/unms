@@ -2,5 +2,9 @@
   "enabledPlugins": {
     "mattpocock-skills@claude-plugins-official": true,
     "laravel-boost@claude-plugins-official": true
+  },
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787/p/your-project",
+    "ENABLE_TOOL_SEARCH": "true"
   }
 }

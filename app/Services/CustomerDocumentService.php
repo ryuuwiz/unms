@@ -6,6 +6,7 @@ use App\Models\Pelanggan;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -59,13 +60,15 @@ class CustomerDocumentService
      */
     public function getDecryptedContent(Media $media): string
     {
-        $path = $media->getPath();
-        if (! file_exists($path)) {
+        $disk = Storage::disk($media->disk);
+        $path = $media->getPathRelativeToRoot();
+
+        if (! $disk->exists($path)) {
             throw new RuntimeException("Berkas media tidak ditemukan pada storage: {$media->file_name}");
         }
 
-        $encryptedContent = file_get_contents($path);
-        if ($encryptedContent === false) {
+        $encryptedContent = $disk->get($path);
+        if ($encryptedContent === null) {
             throw new RuntimeException("Gagal membaca berkas terenkripsi: {$media->file_name}");
         }
 

@@ -42,4 +42,6 @@ php artisan event:cache --no-interaction || true
 
 php artisan storage:link --no-interaction || true
 
+php artisan app:ensure-public-media-bucket --no-interaction || true
+
 exec "$@"

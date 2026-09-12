@@ -41,8 +41,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/favicon.ico', function () {
     $perusahaan = Perusahaan::default();
     $media = $perusahaan->getFirstMedia('logo');
-    if ($media && file_exists($media->getPath())) {
-        return response()->file($media->getPath(), [
+    $content = $perusahaan->getLogoContent();
+    if ($media && $content !== null) {
+        return response($content, 200, [
             'Content-Type' => $media->mime_type ?: 'image/x-icon',
             'Cache-Control' => 'public, max-age=86400',
         ]);
@@ -56,8 +57,9 @@ Route::get('/favicon.ico', function () {
 Route::get('/favicon.svg', function () {
     $perusahaan = Perusahaan::default();
     $media = $perusahaan->getFirstMedia('logo');
-    if ($media && file_exists($media->getPath())) {
-        return response()->file($media->getPath(), [
+    $content = $perusahaan->getLogoContent();
+    if ($media && $content !== null) {
+        return response($content, 200, [
             'Content-Type' => $media->mime_type ?: 'image/svg+xml',
             'Cache-Control' => 'public, max-age=86400',
         ]);
@@ -71,8 +73,9 @@ Route::get('/favicon.svg', function () {
 Route::get('/apple-touch-icon.png', function () {
     $perusahaan = Perusahaan::default();
     $media = $perusahaan->getFirstMedia('logo');
-    if ($media && file_exists($media->getPath())) {
-        return response()->file($media->getPath(), [
+    $content = $perusahaan->getLogoContent();
+    if ($media && $content !== null) {
+        return response($content, 200, [
             'Content-Type' => $media->mime_type ?: 'image/png',
             'Cache-Control' => 'public, max-age=86400',
         ]);

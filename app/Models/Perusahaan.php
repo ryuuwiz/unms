@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\MediaLibrary\HasMedia;
@@ -191,15 +192,30 @@ class Perusahaan extends Model implements HasMedia
             return null;
         }
 
-        $path = $media->getPath();
-        if (file_exists($path)) {
-            $content = file_get_contents($path);
-            $mime = $media->mime_type ?: 'image/png';
-
-            return 'data:'.$mime.';base64,'.base64_encode($content);
+        $content = $this->getLogoContent();
+        if ($content === null) {
+            return null;
         }
 
-        return null;
+        $mime = $media->mime_type ?: 'image/png';
+
+        return 'data:'.$mime.';base64,'.base64_encode($content);
+    }
+
+    /**
+     * Ambil isi biner logo dari disk media (disk-agnostic: local, s3, dsb).
+     */
+    public function getLogoContent(): ?string
+    {
+        $media = $this->getFirstMedia('logo');
+        if (! $media) {
+            return null;
+        }
+
+        $disk = Storage::disk($media->disk);
+        $path = $media->getPathRelativeToRoot();
+
+        return $disk->exists($path) ? $disk->get($path) : null;
     }
 
     /**
@@ -208,11 +224,10 @@ class Perusahaan extends Model implements HasMedia
     public function syncFaviconFiles(): void
     {
         $publicDir = public_path();
-        $media = $this->getFirstMedia('logo');
+        $logoContent = $this->getLogoContent();
 
-        if ($media && file_exists($media->getPath())) {
-            $logoContent = file_get_contents($media->getPath());
-            $mime = $media->mime_type;
+        if ($logoContent !== null) {
+            $mime = $this->getFirstMedia('logo')?->mime_type;
 
             @file_put_contents($publicDir.DIRECTORY_SEPARATOR.'favicon.ico', $logoContent);
             @file_put_contents($publicDir.DIRECTORY_SEPARATOR.'apple-touch-icon.png', $logoContent);
