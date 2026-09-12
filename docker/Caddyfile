@@ -32,20 +32,32 @@
 	# Non-existent paths (including Livewire Flux's dynamic asset routes,
 	# e.g. /flux/flux.js) fall through to index.php automatically.
 	#
-	# header_up is required alongside env HTTPS/SERVER_PORT above: Dokploy's
-	# edge (Traefik) terminates TLS and forwards plain HTTP to this container,
-	# so Caddy's own reverse_proxy layer -- by default, per Caddy's docs --
-	# ignores whatever X-Forwarded-Proto the edge sent and overwrites it with
-	# "http" (the scheme of ITS OWN listener). Laravel's TrustProxies middleware
-	# (bootstrap/app.php, trustProxies(at: '*')) then reads that header ahead of
-	# the forced HTTPS env var, so url()/route() generate http:// links --
-	# triggering Mixed Content blocks on any absolute URL fetched by JS (e.g.
-	# Livewire's update endpoint). Force it here since this container only ever
-	# runs behind an HTTPS-terminating edge.
+	# header_up X-Forwarded-Proto is required alongside env HTTPS/SERVER_PORT
+	# above: Dokploy's edge (Traefik) terminates TLS and forwards plain HTTP to
+	# this container, so Caddy's own reverse_proxy layer -- by default, per
+	# Caddy's docs -- ignores whatever X-Forwarded-Proto the edge sent and
+	# overwrites it with "http" (the scheme of ITS OWN listener). Laravel's
+	# TrustProxies middleware (bootstrap/app.php, trustProxies(at: '*')) then
+	# reads that header ahead of the forced HTTPS env var, so url()/route()
+	# generate http:// links -- triggering Mixed Content blocks on any absolute
+	# URL fetched by JS (e.g. Livewire's update endpoint).
+	#
+	# header_up X-Forwarded-Port fixes the same failure mode for the port:
+	# Traefik forwards the client's Host header with ":80" appended (its
+	# upstream-service port), Caddy passes that through verbatim as
+	# X-Forwarded-Host, and Symfony's Request::getPort() reads a port straight
+	# off X-Forwarded-Host's suffix -- again ahead of env SERVER_PORT 443 --
+	# whenever no X-Forwarded-Port header exists. Setting one here short-
+	# circuits that lookup (it's Symfony's first check), so every generated
+	# URL is "https://host" with no port, instead of the broken
+	# "https://host:80" that fails TLS in the browser (ERR_SSL_PROTOCOL_ERROR).
+	# Force both here since this container only ever runs behind an
+	# HTTPS-terminating edge on 443.
 	php_fastcgi 127.0.0.1:9000 {
 		env HTTPS on
 		env SERVER_PORT 443
 		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-Port 443
 		read_timeout 300s
 	}
 
