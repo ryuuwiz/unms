@@ -31,9 +31,21 @@
 
 	# Non-existent paths (including Livewire Flux's dynamic asset routes,
 	# e.g. /flux/flux.js) fall through to index.php automatically.
+	#
+	# header_up is required alongside env HTTPS/SERVER_PORT above: Dokploy's
+	# edge (Traefik) terminates TLS and forwards plain HTTP to this container,
+	# so Caddy's own reverse_proxy layer -- by default, per Caddy's docs --
+	# ignores whatever X-Forwarded-Proto the edge sent and overwrites it with
+	# "http" (the scheme of ITS OWN listener). Laravel's TrustProxies middleware
+	# (bootstrap/app.php, trustProxies(at: '*')) then reads that header ahead of
+	# the forced HTTPS env var, so url()/route() generate http:// links --
+	# triggering Mixed Content blocks on any absolute URL fetched by JS (e.g.
+	# Livewire's update endpoint). Force it here since this container only ever
+	# runs behind an HTTPS-terminating edge.
 	php_fastcgi 127.0.0.1:9000 {
 		env HTTPS on
 		env SERVER_PORT 443
+		header_up X-Forwarded-Proto https
 		read_timeout 300s
 	}
 
