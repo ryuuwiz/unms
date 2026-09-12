@@ -65,7 +65,7 @@ class XenditDriver extends AbstractPaymentDriver
         );
     }
 
-    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting): PaymentLinkResponse
+    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): PaymentLinkResponse
     {
         $apiKey = $this->getApiKey($setting);
         $nominalInvoice = (float) $invoice->jumlah_setelah_promo;
@@ -74,7 +74,7 @@ class XenditDriver extends AbstractPaymentDriver
 
         $invoiceDurationSeconds = $this->hitungDurasiDetik($invoice);
         $expiredAt = Carbon::now()->addSeconds($invoiceDurationSeconds);
-        $externalId = $this->generateExternalId($invoice);
+        $externalId = $externalId ?: $this->generateExternalId($invoice);
 
         $pelanggan = $invoice->pelanggan;
         $mobileNumber = self::formatNomorHpE164($pelanggan?->no_hp);
@@ -131,8 +131,17 @@ class XenditDriver extends AbstractPaymentDriver
         $customerObj = new CustomerObject($customerData);
         $redirectUrl = route('portal.invoice.show', $invoice->id);
 
+        // Mock hanya boleh aktif di local/testing. Di environment lain (termasuk production),
+        // API key kosong adalah kesalahan konfigurasi dan harus gagal keras -- bukan diam-diam
+        // menyerahkan URL checkout-staging.xendit.co palsu ke pelanggan.
+        $isSandboxEnv = app()->environment(['local', 'testing']);
+
+        if (empty($apiKey) && ! $isSandboxEnv) {
+            throw new Exception('Xendit Secret Key belum dikonfigurasi. Payment link tidak dapat diterbitkan.');
+        }
+
         try {
-            if (! empty($apiKey) && ! app()->environment('testing')) {
+            if (! $isSandboxEnv) {
                 $invoiceApi = $this->getInvoiceApi($apiKey);
                 $params = new CreateInvoiceRequest([
                     'external_id' => $externalId,
@@ -199,10 +208,16 @@ class XenditDriver extends AbstractPaymentDriver
 
         $apiKey = $this->getApiKey($setting);
 
-        if (empty($apiKey) || app()->environment('testing')) {
+        if (app()->environment(['local', 'testing'])) {
             return [
                 'status' => 'PENDING',
                 'message' => 'Mode Test/Offline: Status invoice aktif.',
+            ];
+        }
+
+        if (empty($apiKey)) {
+            return [
+                'error' => 'Xendit Secret Key belum dikonfigurasi.',
             ];
         }
 
@@ -425,6 +440,10 @@ class XenditDriver extends AbstractPaymentDriver
             || ($payload['is_test'] ?? false)
             || ($payload['data']['is_test'] ?? false);
 
+        // 9. Mata Uang -- dipakai untuk penegakan strict-IDR di ProcessPaymentWebhookJob (ADR 0028 §2).
+        $rawCurrency = $payload['currency'] ?? ($payload['data']['currency'] ?? null);
+        $currency = is_string($rawCurrency) && $rawCurrency !== '' ? strtoupper(trim($rawCurrency)) : null;
+
         return new PaymentCallbackData(
             provider: 'xendit',
             externalId: $externalId,
@@ -436,7 +455,8 @@ class XenditDriver extends AbstractPaymentDriver
             channelDetail: $channelDetail,
             paymentReference: $paymentRef,
             isTest: (bool) $isTestDummy,
-            rawPayload: $payload
+            rawPayload: $payload,
+            currency: $currency
         );
     }
 

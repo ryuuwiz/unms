@@ -9,10 +9,12 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\PengaturanGateway;
 use App\Models\Router;
+use App\Jobs\PaymentGateway\ProcessPaymentWebhookJob;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
@@ -113,36 +115,93 @@ test('webhook xendit memproses pelunasan invoice dengan benar', function () {
     Event::assertDispatched(InvoicePaidEvent::class);
 });
 
-test('webhook ipaymu memproses pelunasan invoice dengan benar', function () {
-    Event::fake([InvoicePaidEvent::class]);
+test('webhook xendit mendispatch ProcessPaymentWebhookJob ke antrean payments terdedikasi', function () {
+    Queue::fake();
 
-    $trx = $this->manager->buatPaymentLink($this->invoice, 'ipaymu');
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+
+    $payload = [
+        'id' => 'xnd_inv_queue_test_1',
+        'external_id' => $trx->external_id,
+        'status' => 'PAID',
+        'amount' => $trx->total_tagihan,
+        'paid_amount' => $trx->total_tagihan,
+        'paid_at' => now()->toIso8601String(),
+    ];
+
+    $this->withHeaders(['x-callback-token' => 'test_callback_token'])
+        ->postJson('/webhook/payment/xendit', $payload)
+        ->assertOk();
+
+    Queue::assertPushedOn('payments', ProcessPaymentWebhookJob::class);
+});
+
+test('webhook ipaymu ditolak karena driver belum didaftarkan (verifikasi signature belum ada)', function () {
+    Event::fake([InvoicePaidEvent::class]);
 
     $payload = [
         'trx_id' => '12345678',
         'sid' => 'ipm_sess_test_123',
-        'reference_id' => $trx->external_id,
+        'reference_id' => 'any-reference-id',
         'status' => 'berhasil',
         'status_code' => 1,
-        'total' => $trx->total_tagihan,
-        'fee' => 3000,
-        'via' => 'qris',
-        'channel' => 'qris',
     ];
 
     $response = $this->postJson('/webhook/payment/ipaymu', $payload);
 
-    $response->assertOk()
-        ->assertJson([
-            'message' => 'Webhook received and queued for processing',
-            'status' => 'QUEUED',
-        ]);
+    $response->assertStatus(400)
+        ->assertJson(['message' => 'Unsupported gateway: ipaymu']);
 
     $this->invoice->refresh();
-    expect($this->invoice->status)->toBe(StatusInvoice::Lunas)
-        ->and($this->invoice->payment_gateway_status)->toBe('PAID');
+    expect($this->invoice->status)->toBe(StatusInvoice::MenungguPembayaran);
 
-    Event::assertDispatched(InvoicePaidEvent::class);
+    Event::assertNotDispatched(InvoicePaidEvent::class);
+});
+
+test('webhook xendit menolak token salah dengan 401 dan tidak mengubah invoice', function () {
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+
+    $payload = [
+        'id' => 'xnd_inv_wrong_token',
+        'external_id' => $trx->external_id,
+        'status' => 'PAID',
+        'amount' => $trx->total_tagihan,
+        'paid_amount' => $trx->total_tagihan,
+    ];
+
+    $response = $this->withHeaders(['x-callback-token' => 'token-salah'])
+        ->postJson('/webhook/payment/xendit', $payload);
+
+    $response->assertStatus(401);
+
+    $this->invoice->refresh();
+    expect($this->invoice->status)->toBe(StatusInvoice::MenungguPembayaran);
+});
+
+test('webhook xendit menolak request tanpa header token sama sekali dengan 401', function () {
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+
+    $payload = [
+        'id' => 'xnd_inv_no_token',
+        'external_id' => $trx->external_id,
+        'status' => 'PAID',
+        'amount' => $trx->total_tagihan,
+        'paid_amount' => $trx->total_tagihan,
+    ];
+
+    $response = $this->postJson('/webhook/payment/xendit', $payload);
+
+    $response->assertStatus(401);
+
+    $this->invoice->refresh();
+    expect($this->invoice->status)->toBe(StatusInvoice::MenungguPembayaran);
+});
+
+test('webhook menolak gateway yang tidak dikenal dengan 400', function () {
+    $response = $this->postJson('/webhook/payment/gateway-tidak-ada', ['status' => 'PAID']);
+
+    $response->assertStatus(400)
+        ->assertJson(['message' => 'Unsupported gateway: gateway-tidak-ada']);
 });
 
 test('webhook menolak callback berulang secara idempoten', function () {

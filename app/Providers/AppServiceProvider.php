@@ -24,7 +24,10 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
@@ -48,9 +51,21 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureLivewireAssets();
+        $this->configureRateLimiting();
         $this->registerEventListeners();
         $this->registerModelObservers();
         $this->configureSuperAdminGate();
+    }
+
+    /**
+     * Batasi laju request pada endpoint publik yang rawan disalahgunakan
+     * (webhook payment gateway tidak dilindungi otentikasi apapun selain token callback).
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('webhook', function (Request $request) {
+            return Limit::perMinute(120)->by($request->ip());
+        });
     }
 
     /**

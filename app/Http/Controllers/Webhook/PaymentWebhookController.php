@@ -10,6 +10,7 @@ use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\WebhookLog;
 use App\Services\PaymentGateway\PaymentGatewayManager;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -47,10 +48,13 @@ class PaymentWebhookController extends Controller
         }
 
         // 1. Verifikasi Signature / Token Callback
-        if (! $driver->verifyWebhook($request, $setting) && ! app()->environment('testing')) {
+        // Tidak boleh ada bypass environment di sini: verifikasi wajib aktif juga saat pengujian
+        // agar tes penolakan signature benar-benar membuktikan perilaku produksi.
+        if (! $driver->verifyWebhook($request, $setting)) {
+            // Jangan pernah mencatat header mentah: header memuat callback token rahasia.
             Log::warning("Webhook signature/token tidak valid untuk gateway [{$gateway}].", [
-                'headers' => $request->headers->all(),
                 'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
             ]);
 
             return response()->json(['message' => 'Unauthorized / Invalid webhook signature'], 401);
@@ -60,25 +64,7 @@ class PaymentWebhookController extends Controller
         /** @var PaymentCallbackData $callbackData */
         $callbackData = $driver->parseWebhookPayload($request);
 
-        // 3. Idempotency Check Awal pada Webhook Log
-        if (! empty($callbackData->eventId)) {
-            $existingLog = WebhookLog::where('provider', $gateway)
-                ->where(function ($q) use ($callbackData) {
-                    $q->where('provider_event_id', $callbackData->eventId)
-                        ->orWhere('xendit_event_id', $callbackData->eventId);
-                })
-                ->first();
-
-            if ($existingLog) {
-                return response()->json([
-                    'message' => 'Webhook already processed',
-                    'event_id' => $callbackData->eventId,
-                    'status' => 'ALREADY_PROCESSED',
-                ], 200);
-            }
-        }
-
-        // 4. Cari Transaksi Payment Gateway terkait untuk relasi audit trail instan
+        // 3. Cari Transaksi Payment Gateway terkait untuk relasi audit trail instan
         /** @var TransaksiPaymentGateway|null $transaksi */
         $transaksi = null;
         if (! empty($callbackData->externalId)) {
@@ -90,20 +76,45 @@ class PaymentWebhookController extends Controller
                 ->first();
         }
 
-        // 5. Catat Webhook Log dengan status awal diterima dan relasi transaksi
+        // 4. Catat Webhook Log secara idempoten.
+        // Unique index `webhook_log_provider_event_unique` adalah penjaga sebenarnya:
+        // firstOrCreate menangani redelivery berurutan, sedangkan tangkapan QueryException
+        // menangani redelivery paralel yang kalah balapan pada index. Keduanya wajib membalas
+        // HTTP 200 agar gateway berhenti melakukan retry.
         $eventType = ! empty($payload['event']) ? (string) $payload['event'] : "payment.{$gateway}";
         $eventId = ! empty($callbackData->eventId) ? $callbackData->eventId : null;
 
-        $webhookLog = WebhookLog::create([
+        $atributLog = [
             'provider' => $gateway,
+            'provider_event_id' => $eventId,
             'transaksi_payment_gateway_id' => $transaksi?->id,
             'event_type' => $eventType,
-            'provider_event_id' => $eventId,
             'xendit_event_id' => $eventId,
             'payload' => $payload,
             'status_proses' => StatusWebhookLog::Diterima,
             'diterima_pada' => Carbon::now(),
-        ]);
+        ];
+
+        try {
+            if ($eventId) {
+                $webhookLog = WebhookLog::firstOrCreate(
+                    ['provider' => $gateway, 'provider_event_id' => $eventId],
+                    $atributLog
+                );
+
+                if (! $webhookLog->wasRecentlyCreated) {
+                    return $this->responsSudahDiproses($eventId);
+                }
+            } else {
+                $webhookLog = WebhookLog::create($atributLog);
+            }
+        } catch (QueryException $e) {
+            Log::info("Webhook {$gateway} duplikat ditolak oleh unique index database.", [
+                'event_id' => $eventId,
+            ]);
+
+            return $this->responsSudahDiproses($eventId);
+        }
 
         // 5. Tangani uji coba simulasi dummy dari dashboard gateway secara langsung
         if ($callbackData->isTest) {
@@ -139,6 +150,18 @@ class PaymentWebhookController extends Controller
             'message' => 'Webhook received and queued for processing',
             'event_id' => $callbackData->eventId,
             'status' => 'QUEUED',
+        ], 200);
+    }
+
+    /**
+     * Balasan idempoten untuk callback yang event id-nya sudah pernah tercatat.
+     */
+    private function responsSudahDiproses(?string $eventId): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Webhook already processed',
+            'event_id' => $eventId,
+            'status' => 'ALREADY_PROCESSED',
         ], 200);
     }
 }

@@ -237,7 +237,7 @@
                     <flux:select.option value="transfer">Transfer Bank Langsung</flux:select.option>
                 </flux:select>
 
-                <flux:input type="number" wire:model="jumlah_dibayar" label="Jumlah Dibayar (Rp) *" />
+                <flux:input type="number" wire:model="jumlah_dibayar" label="Jumlah Dibayar (Rp) *" readonly description="Sistem belum mendukung pembayaran sebagian; nominal wajib sama persis dengan tagihan." />
                 <flux:error name="jumlah_dibayar" />
 
                 <flux:input type="datetime-local" wire:model="dibayar_pada" label="Waktu Pembayaran *" />

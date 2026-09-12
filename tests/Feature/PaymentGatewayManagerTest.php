@@ -86,9 +86,13 @@ beforeEach(function () {
     ]);
 });
 
-test('manager dapat resolve driver xendit dan ipaymu', function () {
-    expect($this->manager->driver('xendit')->getProviderName())->toBe('xendit')
-        ->and($this->manager->driver('ipaymu')->getProviderName())->toBe('ipaymu');
+test('manager dapat resolve driver xendit', function () {
+    expect($this->manager->driver('xendit')->getProviderName())->toBe('xendit');
+});
+
+test('manager menolak resolve driver ipaymu karena belum didaftarkan', function () {
+    expect(fn () => $this->manager->driver('ipaymu'))
+        ->toThrow(InvalidArgumentException::class);
 });
 
 test('manager dapat membuat link pembayaran xendit dan menyimpan url di invoice', function () {
@@ -104,34 +108,47 @@ test('manager dapat membuat link pembayaran xendit dan menyimpan url di invoice'
         ->and($this->invoice->hasActivePaymentLink())->toBeTrue();
 });
 
-test('manager dapat membuat link pembayaran ipaymu dan menyimpan url di invoice', function () {
-    $trx = $this->manager->buatPaymentLink($this->invoice, 'ipaymu');
+test('kegagalan panggilan API gateway meninggalkan baris transaksi Pending sebagai jejak rekonsiliasi', function () {
+    // Simulasikan timeout/exception dari Xendit SETELAH baris TransaksiPaymentGateway
+    // direservasi lokal (lihat PaymentGatewayManager::buatPaymentLink). Baris Pending harus
+    // tetap ada dengan nominal yang benar, dan invoice TIDAK boleh menunjuk payment_gateway_url
+    // yang sebetulnya tidak pernah berhasil dibuat.
+    $failingDriver = new class extends XenditDriver
+    {
+        public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): \App\DTO\PaymentGateway\PaymentLinkResponse
+        {
+            throw new Exception('Simulasi timeout Xendit');
+        }
+    };
+    $this->manager->registerDriver('xendit', $failingDriver);
 
-    expect($trx)->toBeInstanceOf(TransaksiPaymentGateway::class)
-        ->and($trx->gateway)->toBe('ipaymu')
-        ->and($trx->status)->toBe(StatusTransaksiGateway::Pending);
+    expect(fn () => $this->manager->buatPaymentLink($this->invoice, 'xendit'))
+        ->toThrow(Exception::class, 'Simulasi timeout Xendit');
+
+    $trx = TransaksiPaymentGateway::where('invoice_id', $this->invoice->id)->first();
+    expect($trx)->not->toBeNull()
+        ->and($trx->status)->toBe(StatusTransaksiGateway::Pending)
+        ->and((float) $trx->total_tagihan)->toBe(254000.0); // 250000 + fee VA default 4000
 
     $this->invoice->refresh();
-    expect($this->invoice->payment_gateway_url)->not->toBeNull()
-        ->and($this->invoice->payment_gateway_provider)->toBe('ipaymu')
-        ->and($this->invoice->hasActivePaymentLink())->toBeTrue();
+    expect($this->invoice->payment_gateway_url)->toBeNull();
 });
 
 test('proses pelunasan memperbarui status invoice, layanan, dan memancarkan event InvoicePaidEvent', function () {
     Event::fake([InvoicePaidEvent::class]);
 
-    $trx = $this->manager->buatPaymentLink($this->invoice, 'ipaymu');
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
 
     $callbackData = new PaymentCallbackData(
-        provider: 'ipaymu',
+        provider: 'xendit',
         externalId: (string) $trx->external_id,
         status: 'PAID',
-        paidAmount: 250000,
-        eventId: 'ipm_trx_999',
+        paidAmount: (float) $trx->total_tagihan,
+        eventId: 'xnd_trx_999',
         paidAt: now()->toIso8601String(),
         channel: GatewayChannel::VirtualAccount,
         channelDetail: 'BCA',
-        paymentReference: 'REF-IPM-999',
+        paymentReference: 'REF-XND-999',
         rawPayload: ['mock' => true]
     );
 

@@ -76,7 +76,7 @@ class IpaymuDriver extends AbstractPaymentDriver
         ];
     }
 
-    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting): PaymentLinkResponse
+    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): PaymentLinkResponse
     {
         $va = $this->getVa($setting);
         $apiKey = $this->getApiKey($setting);
@@ -87,7 +87,7 @@ class IpaymuDriver extends AbstractPaymentDriver
 
         $invoiceDurationSeconds = $this->hitungDurasiDetik($invoice);
         $expiredAt = Carbon::now()->addSeconds($invoiceDurationSeconds);
-        $externalId = $this->generateExternalId($invoice);
+        $externalId = $externalId ?: $this->generateExternalId($invoice);
 
         $pelanggan = $invoice->pelanggan;
         $buyerPhone = self::formatNomorHpNumeric($pelanggan?->no_hp) ?: '081234567890';
@@ -201,28 +201,25 @@ class IpaymuDriver extends AbstractPaymentDriver
         }
     }
 
+    /**
+     * Verifikasi callback iPaymu.
+     *
+     * Selalu menolak. Implementasi sebelumnya hanya memeriksa keberadaan `trx_id` dan
+     * `status` pada body, sehingga siapa pun yang menebak `reference_id` dapat memalsukan
+     * pelunasan pada endpoint webhook yang publik dan CSRF-exempt. Gagal-tertutup adalah
+     * satu-satunya perilaku yang aman sampai verifikasi kriptografis benar-benar ada.
+     *
+     * @todo Implementasikan verifikasi signature HMAC-SHA256 resmi iPaymu atas raw body
+     *       menggunakan API Key + VA, lalu daftarkan kembali driver ini di
+     *       PaymentGatewayManager::__construct() beserta tes penolakan signature.
+     */
     public function verifyWebhook(Request $request, PengaturanGateway $setting): bool
     {
-        // iPaymu mengirimkan POST callback dengan parameter trx_id, sid, reference_id, status, dll.
-        // Jika ada header signature, verifikasi signature.
-        $apiKey = $this->getApiKey($setting);
-        $va = $this->getVa($setting);
+        Log::warning('iPaymu Webhook ditolak: verifikasi signature belum diimplementasikan.', [
+            'ip' => $request->ip(),
+        ]);
 
-        if (empty($apiKey) || empty($va)) {
-            Log::warning('iPaymu Webhook: VA / API Key belum dikonfigurasi.');
-
-            return false;
-        }
-
-        // Verifikasi keberadaan parameter wajib
-        $trxId = $request->input('trx_id') ?: $request->input('transaction_id');
-        $status = $request->input('status');
-
-        if (empty($trxId) || empty($status)) {
-            return false;
-        }
-
-        return true;
+        return false;
     }
 
     public function parseWebhookPayload(Request $request): PaymentCallbackData

@@ -17,6 +17,7 @@ use Exception;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -153,19 +154,21 @@ class Show extends Component
     {
         $this->authorize('create', Pembayaran::class);
 
+        $invoice = Invoice::where('pelanggan_id', $this->pelangganId)->findOrFail($this->selectedInvoiceId);
+
         $this->validate([
             'bayarMetode' => ['required', 'string', 'in:manual_admin,transfer'],
-            'bayarJumlah' => ['required', 'numeric', 'min:1'],
+            'bayarJumlah' => ['required', 'numeric', Rule::in([(float) $invoice->jumlah_setelah_promo])],
             'bayarTanggal' => ['required', 'date'],
             'bayarReferensi' => ['nullable', 'string', 'max:100'],
             'bayarCatatan' => ['nullable', 'string', 'max:500'],
         ], [
             'bayarMetode.required' => 'Pilih metode pembayaran.',
             'bayarJumlah.required' => 'Jumlah pembayaran wajib diisi.',
+            // Pembayaran manual wajib melunasi penuh -- lihat BillingService::prosesPembayaranManual().
+            'bayarJumlah.in' => 'Nominal pembayaran harus sama persis dengan jumlah tagihan (Rp '.number_format((float) $invoice->jumlah_setelah_promo, 0, ',', '.').'). Sistem belum mendukung pembayaran sebagian.',
             'bayarTanggal.required' => 'Tanggal pembayaran wajib diisi.',
         ]);
-
-        $invoice = Invoice::where('pelanggan_id', $this->pelangganId)->findOrFail($this->selectedInvoiceId);
 
         try {
             /** @var User $actor */

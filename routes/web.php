@@ -319,10 +319,10 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // ─── Webhook Payment Gateways (Public & CSRF-Exempt) ─────────────
-Route::post('/webhook/payment/{gateway}', [PaymentWebhookController::class, 'handle'])->name('webhook.payment');
+Route::middleware('throttle:webhook')->post('/webhook/payment/{gateway}', [PaymentWebhookController::class, 'handle'])->name('webhook.payment');
 
 // ─── Webhook Xendit Legacy Aliases (Protected with xendit.token) ──
-Route::middleware('xendit.token')->group(function () {
+Route::middleware(['throttle:webhook', 'xendit.token'])->group(function () {
     Route::post('/webhook/xendit', [XenditWebhookController::class, 'handle'])->name('webhook.xendit');
     Route::post('/webhook/xendit/virtual-account', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.va');
     Route::post('/webhook/xendit/qris', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.qris');

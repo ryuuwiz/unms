@@ -21,6 +21,7 @@ readonly class PaymentCallbackData
         public ?string $paymentReference = null,
         public bool $isTest = false,
         public array $rawPayload = [],
+        public ?string $currency = null,
     ) {}
 
     public function isPaid(): bool

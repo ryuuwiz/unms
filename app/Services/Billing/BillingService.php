@@ -2,10 +2,9 @@
 
 namespace App\Services\Billing;
 
-use App\Enums\MasaAktifSatuan;
+use App\Actions\LayananPelanggan\PerpanjangMasaAktifAction;
 use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
-use App\Enums\StatusLayanan;
 use App\Events\InvoicePaidEvent;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
@@ -110,6 +109,22 @@ class BillingService
                 throw new Exception("Invoice {$lockedInvoice->no_invoice} sudah berstatus lunas.");
             }
 
+            // Validasi Ketat Nominal (konsisten dengan jalur payment gateway di
+            // ProcessPaymentWebhookJob): pembayaran manual wajib melunasi persis sejumlah
+            // tagihan, tidak kurang maupun lebih. Model belum mendukung cicilan/partial
+            // payment, jadi nominal parsial atau berlebih harus ditolak tegas di sini,
+            // bukan diam-diam menandai invoice lunas.
+            $jumlahDibayar = (int) round((float) $payload['jumlah_dibayar']);
+            $jumlahTagihan = (int) round((float) $lockedInvoice->jumlah_setelah_promo);
+
+            if ($jumlahDibayar !== $jumlahTagihan) {
+                throw new Exception(
+                    "Nominal pembayaran Rp ".number_format($jumlahDibayar, 0, ',', '.').
+                    ' tidak sama dengan tagihan Rp '.number_format($jumlahTagihan, 0, ',', '.').
+                    " pada Invoice {$lockedInvoice->no_invoice}. Pembayaran manual wajib melunasi penuh."
+                );
+            }
+
             $dibayarPada = isset($payload['dibayar_pada'])
                 ? Carbon::parse($payload['dibayar_pada'])
                 : Carbon::now();
@@ -137,35 +152,11 @@ class BillingService
                 'metode_pembayaran' => $metode,
             ]);
 
-            // 3. Perpanjang masa aktif layanan pelanggan (PRD 4.2)
+            // 3. Perpanjang masa aktif layanan pelanggan (PRD 4.2), aturan tunggal isFuture()
+            // yang sama dengan jalur payment gateway -- lihat PerpanjangMasaAktifAction.
             $layanan = $lockedInvoice->layananPelanggan()->lockForUpdate()->first();
             if ($layanan) {
-                $paket = $layanan->paketLayanan;
-                $masaNilai = (int) $paket->masa_aktif_nilai;
-                $masaSatuan = $paket->masa_aktif_satuan;
-
-                // Tambahan bonus bulan dari promo bila ada
-                $promo = $lockedInvoice->promo;
-                $bonusBulan = ($promo && $promo->bonus_bulan) ? (int) $promo->bonus_bulan : 0;
-
-                $currentExpired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
-
-                // PRD 4.2 Condition 1: layanan masih Aktif → perpanjang akumulatif dari expired lama
-                // PRD 4.2 Condition 2: layanan non-aktif (suspend/diblokir) → reset dari tanggal bayar
-                $baseDate = ($currentExpired && $layanan->status === StatusLayanan::Aktif)
-                    ? $currentExpired->copy()
-                    : $dibayarPada->copy()->startOfDay();
-
-                if ($masaSatuan === MasaAktifSatuan::Bulan) {
-                    $newExpired = $baseDate->addMonths($masaNilai + $bonusBulan);
-                } else {
-                    $newExpired = $baseDate->addDays($masaNilai);
-                }
-
-                $layanan->update([
-                    'tanggal_expired' => $newExpired->toDateString(),
-                    'status' => StatusLayanan::Aktif,
-                ]);
+                app(PerpanjangMasaAktifAction::class)->execute($layanan, $lockedInvoice, $dibayarPada);
             }
 
             // Siapkan event untuk dipancarkan setelah commit DB (lihat pola serupa di

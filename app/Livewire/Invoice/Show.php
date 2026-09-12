@@ -9,6 +9,7 @@ use App\Services\Billing\BillingService;
 use Exception;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -56,10 +57,13 @@ class Show extends Component
 
         $this->validate([
             'metode' => ['required', 'string', 'in:manual_admin,transfer'],
-            'jumlah_dibayar' => ['required', 'numeric', 'min:1'],
+            'jumlah_dibayar' => ['required', 'numeric', Rule::in([(float) $this->invoice->jumlah_setelah_promo])],
             'dibayar_pada' => ['required', 'date'],
             'referensi_transaksi' => ['nullable', 'string', 'max:100'],
             'catatan' => ['nullable', 'string', 'max:500'],
+        ], [
+            // Pembayaran manual wajib melunasi penuh -- lihat BillingService::prosesPembayaranManual().
+            'jumlah_dibayar.in' => 'Nominal pembayaran harus sama persis dengan jumlah tagihan (Rp '.number_format((float) $this->invoice->jumlah_setelah_promo, 0, ',', '.').'). Sistem belum mendukung pembayaran sebagian.',
         ]);
 
         try {

@@ -91,8 +91,9 @@ test('admin can record manual payment and extend active service accumulatively (
         ->and($this->layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
 });
 
-test('admin recording payment on expired/suspended service resets expiry from payment date (PRD 4.2 Condition 2)', function () {
-    // Service is suspended / expired 3 days ago
+test('admin recording payment on suspended service with expiry already in the past resets expiry from payment date (PRD 4.2 Condition 2)', function () {
+    // Service is suspended AND its tanggal_expired is already in the past -- both the old
+    // status-based rule and the current isFuture() rule reset from the payment date here.
     $oldExpired = Carbon::today()->subDays(3);
     $this->layanan->update([
         'tanggal_expired' => $oldExpired,
@@ -121,6 +122,36 @@ test('admin recording payment on expired/suspended service resets expiry from pa
         ->and($this->layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
 });
 
+test('admin recording payment on suspended service with expiry still in the future extends accumulatively (unified isFuture rule)', function () {
+    // Layanan Suspend TAPI tanggal_expired masih di masa depan. Aturan lama BillingService
+    // (status === Aktif) akan mereset tanggal ini; aturan baru yang disatukan lewat
+    // PerpanjangMasaAktifAction (isFuture()) harus tetap akumulatif -- sisa masa aktif yang
+    // belum terpakai tidak boleh hangus hanya karena layanan sedang terisolir.
+    $futureExpired = Carbon::today()->addDays(5);
+    $this->layanan->update([
+        'tanggal_expired' => $futureExpired,
+        'status' => StatusLayanan::Suspend,
+    ]);
+
+    Queue::fake();
+
+    $billingService = app(BillingService::class);
+    $billingService->prosesPembayaranManual(
+        invoice: $this->invoice,
+        payload: [
+            'metode' => 'transfer',
+            'jumlah_dibayar' => 200000,
+            'dibayar_pada' => Carbon::today(),
+        ],
+        actor: $this->adminUser
+    );
+
+    // Akumulatif dari expired lama + 1 bulan, BUKAN reset dari tanggal bayar
+    $expectedExpired = $futureExpired->copy()->addMonths(1)->toDateString();
+    expect($this->layanan->fresh()->tanggal_expired->toDateString())->toBe($expectedExpired)
+        ->and($this->layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
+});
+
 test('idempotency guard prevents duplicate payment on already paid invoice', function () {
     $this->invoice->update(['status' => StatusInvoice::Lunas]);
 
@@ -134,6 +165,72 @@ test('idempotency guard prevents duplicate payment on already paid invoice', fun
         ],
         actor: $this->adminUser
     ))->toThrow(Exception::class);
+});
+
+test('pembayaran dapat di-soft-delete tanpa kehilangan baris dari database', function () {
+    Queue::fake();
+
+    $billingService = app(BillingService::class);
+    $pembayaran = $billingService->prosesPembayaranManual(
+        invoice: $this->invoice,
+        payload: ['metode' => 'manual_admin', 'jumlah_dibayar' => 200000],
+        actor: $this->adminUser
+    );
+
+    $pembayaran->delete();
+
+    expect(Pembayaran::find($pembayaran->id))->toBeNull()
+        ->and(Pembayaran::withTrashed()->find($pembayaran->id))->not->toBeNull()
+        ->and(Pembayaran::withTrashed()->find($pembayaran->id)->deleted_at)->not->toBeNull();
+});
+
+test('force delete invoice yang sudah memiliki pembayaran ditolak oleh database (restrictOnDelete)', function () {
+    Queue::fake();
+
+    $billingService = app(BillingService::class);
+    $billingService->prosesPembayaranManual(
+        invoice: $this->invoice,
+        payload: ['metode' => 'manual_admin', 'jumlah_dibayar' => 200000],
+        actor: $this->adminUser
+    );
+
+    // Soft delete invoice tetap aman (tidak menyentuh FK), tapi force delete yang benar-benar
+    // menghapus barisnya wajib gagal karena catatan keuangan tidak boleh ikut hilang.
+    expect(fn () => $this->invoice->forceDelete())->toThrow(\Illuminate\Database\QueryException::class);
+
+    expect(Pembayaran::where('invoice_id', $this->invoice->id)->count())->toBe(1);
+});
+
+test('pembayaran manual dengan nominal kurang bayar ditolak dan tidak melunasi invoice', function () {
+    $billingService = app(BillingService::class);
+
+    expect(fn () => $billingService->prosesPembayaranManual(
+        invoice: $this->invoice,
+        payload: [
+            'metode' => 'manual_admin',
+            'jumlah_dibayar' => 100000, // Tagihan sebenarnya 200000
+        ],
+        actor: $this->adminUser
+    ))->toThrow(Exception::class);
+
+    expect($this->invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran)
+        ->and(Pembayaran::where('invoice_id', $this->invoice->id)->count())->toBe(0);
+});
+
+test('pembayaran manual dengan nominal lebih bayar ditolak dan tidak melunasi invoice', function () {
+    $billingService = app(BillingService::class);
+
+    expect(fn () => $billingService->prosesPembayaranManual(
+        invoice: $this->invoice,
+        payload: [
+            'metode' => 'manual_admin',
+            'jumlah_dibayar' => 250000, // Tagihan sebenarnya 200000
+        ],
+        actor: $this->adminUser
+    ))->toThrow(Exception::class);
+
+    expect($this->invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran)
+        ->and(Pembayaran::where('invoice_id', $this->invoice->id)->count())->toBe(0);
 });
 
 test('pembayaran manual memancarkan InvoicePaidEvent agar notifikasi WA konfirmasi pembayaran terkirim', function () {

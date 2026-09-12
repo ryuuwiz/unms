@@ -1598,7 +1598,7 @@
 
                         <flux:field>
                             <flux:label>Jumlah Dibayar (Rp)</flux:label>
-                            <flux:input wire:model="bayarJumlah" type="number" step="1000" />
+                            <flux:input wire:model="bayarJumlah" type="number" step="1000" readonly description="Sistem belum mendukung pembayaran sebagian; nominal wajib sama persis dengan tagihan." />
                             <flux:error name="bayarJumlah" />
                         </flux:field>
                     </div>

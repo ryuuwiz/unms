@@ -9,7 +9,7 @@
     <form wire:submit="save" class="space-y-6">
         <flux:field>
             <flux:label>Nama Profil</flux:label>
-            <flux:input wire:model="nama_bandwidth" placeholder="Contoh: 20Mbps-Dedicated" autofocus />
+            <flux:input wire:model="nama_bandwidth" placeholder="Contoh: 20Mbps-Dedicated" />
             <flux:description>Minimal 4 karakter, maksimal 30 karakter.</flux:description>
             <flux:error name="nama_bandwidth" />
         </flux:field>

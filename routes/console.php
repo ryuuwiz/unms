@@ -22,6 +22,14 @@ Schedule::command('mikrotik:provisi-router --async --clean-orphans')
 
 Schedule::command('xendit:cek-va-expired')->hourly()->onOneServer();
 
+// Sweeper rekonsiliasi pembayaran dua arah: dispatch ulang webhook mandek + polling
+// gateway untuk transaksi pending -- jaring pengaman agar pembayaran tidak pernah
+// tertahan diam-diam jika webhook hilang atau job antrean gagal total.
+Schedule::command('pembayaran:rekonsiliasi')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(15)
+    ->onOneServer();
+
 // Periodic Health Check / System Resource Ping (Non-blocking queue)
 Schedule::command('mikrotik:ping')
     ->everyFiveMinutes()

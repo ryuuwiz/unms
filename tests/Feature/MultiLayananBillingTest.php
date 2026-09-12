@@ -152,14 +152,19 @@ test('generateInvoice otomatis menerbitkan tagihan independen untuk setiap layan
 });
 
 test('pembayaran invoice layanan A melunasi tagihan layanan A tanpa mengubah status invoice layanan B', function () {
+    // tanggal_expired sengaja relatif terhadap "hari ini" (bukan tanggal absolut) agar tetap
+    // berada di masa depan kapan pun suite ini dijalankan -- lihat PerpanjangMasaAktifAction
+    // yang mengakumulasi hanya bila tanggal_expired masih isFuture().
+    $expiredAwal = now()->addDays(20)->startOfDay();
+
     $layananHome = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paketHome->id,
         'router_id' => $this->router->id,
         'ppp_username' => 'BF2408202601_00001',
         'status' => StatusLayanan::Aktif,
-        'tanggal_mulai' => '2026-08-01',
-        'tanggal_expired' => '2026-09-01',
+        'tanggal_mulai' => now()->subMonth()->toDateString(),
+        'tanggal_expired' => $expiredAwal->toDateString(),
     ]);
 
     $layananOffice = LayananPelanggan::factory()->create([
@@ -168,8 +173,8 @@ test('pembayaran invoice layanan A melunasi tagihan layanan A tanpa mengubah sta
         'router_id' => $this->router->id,
         'ppp_username' => 'BF2408202601_00002',
         'status' => StatusLayanan::Aktif,
-        'tanggal_mulai' => '2026-08-01',
-        'tanggal_expired' => '2026-09-01',
+        'tanggal_mulai' => now()->subMonth()->toDateString(),
+        'tanggal_expired' => $expiredAwal->toDateString(),
     ]);
 
     // InvoicePaidEvent kini juga terpancar untuk pembayaran manual (lihat BillingService::prosesPembayaranManual),
@@ -195,9 +200,9 @@ test('pembayaran invoice layanan A melunasi tagihan layanan A tanpa mengubah sta
     expect($invoiceHome->status)->toBe(StatusInvoice::Lunas)
         ->and($invoiceHome->tanggal_lunas)->not->toBeNull();
 
-    // Masa aktif Layanan Home diperpanjang
+    // Masa aktif Layanan Home diperpanjang akumulatif dari expired lama + 1 bulan
     $layananHome->refresh();
-    expect(Carbon::parse($layananHome->tanggal_expired)->toDateString())->toBe('2026-10-01');
+    expect(Carbon::parse($layananHome->tanggal_expired)->toDateString())->toBe($expiredAwal->copy()->addMonth()->toDateString());
 
     // Invoice Office TETAP Menunggu Pembayaran
     expect($invoiceOffice->status)->toBe(StatusInvoice::MenungguPembayaran)
@@ -205,7 +210,7 @@ test('pembayaran invoice layanan A melunasi tagihan layanan A tanpa mengubah sta
 
     // Masa aktif Layanan Office tidak berubah
     $layananOffice->refresh();
-    expect(Carbon::parse($layananOffice->tanggal_expired)->toDateString())->toBe('2026-09-01');
+    expect(Carbon::parse($layananOffice->tanggal_expired)->toDateString())->toBe($expiredAwal->toDateString());
 });
 
 test('isolir atau suspend pada layanan A menonaktifkan PPP secret layanan A di MikroTik sedangkan layanan B tetap aktif', function () {

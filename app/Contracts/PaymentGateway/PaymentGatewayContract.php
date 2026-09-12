@@ -23,9 +23,22 @@ interface PaymentGatewayContract
     public function getProviderLabel(): string;
 
     /**
-     * Buat payment link / hosted checkout URL untuk tagihan invoice.
+     * Generate format external ID unik per sesi pembuatan invoice.
+     *
+     * Dipanggil oleh PaymentGatewayManager::buatPaymentLink() SEBELUM memanggil
+     * createPaymentLink(), agar baris TransaksiPaymentGateway dapat direservasi lokal
+     * lebih dulu dengan external_id yang pasti sama dengan yang dikirim ke gateway.
      */
-    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting): PaymentLinkResponse;
+    public function generateExternalId(Invoice $invoice): string;
+
+    /**
+     * Buat payment link / hosted checkout URL untuk tagihan invoice.
+     *
+     * @param  string|null  $externalId  External ID yang sudah direservasi lokal oleh manager.
+     *                                   Jika null, driver membangkitkan external_id sendiri
+     *                                   (kompatibilitas mundur untuk pemanggilan langsung).
+     */
+    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): PaymentLinkResponse;
 
     /**
      * Cek status transaksi pembayaran langsung ke API gateway.

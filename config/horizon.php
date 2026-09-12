@@ -102,6 +102,7 @@ return [
         'redis:mikrotik-high' => 30,
         'redis:mikrotik-low' => 120,
         'redis:default' => 60,
+        'redis:payments' => 30,
     ],
 
     /*
@@ -214,6 +215,18 @@ return [
             'timeout' => 30,
             'nice' => 0,
         ],
+        'supervisor-payments' => [
+            'connection' => 'redis',
+            'queue' => ['payments'],
+            'balance' => 'simple',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 60,
+            'nice' => 0,
+        ],
         'supervisor-low' => [
             'connection' => 'redis',
             'queue' => ['mikrotik-low', 'default', 'wa-blast'],
@@ -234,6 +247,9 @@ return [
             'supervisor-high' => [
                 'maxProcesses' => 3,
             ],
+            'supervisor-payments' => [
+                'maxProcesses' => 3,
+            ],
             'supervisor-low' => [
                 'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
@@ -245,6 +261,9 @@ return [
             'supervisor-high' => [
                 'maxProcesses' => 3,
             ],
+            'supervisor-payments' => [
+                'maxProcesses' => 3,
+            ],
             'supervisor-low' => [
                 'maxProcesses' => 10,
                 'balanceMaxShift' => 1,
@@ -254,6 +273,9 @@ return [
 
         'local' => [
             'supervisor-high' => [
+                'maxProcesses' => 2,
+            ],
+            'supervisor-payments' => [
                 'maxProcesses' => 2,
             ],
             'supervisor-low' => [

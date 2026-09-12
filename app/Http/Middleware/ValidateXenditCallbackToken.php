@@ -25,7 +25,6 @@ class ValidateXenditCallbackToken
             Log::warning('Webhook Xendit ditolak oleh middleware: Callback Token tidak valid atau kosong.', [
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
-                'headers' => $request->headers->all(),
             ]);
 
             return response()->json([

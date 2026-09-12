@@ -6,10 +6,10 @@ use App\Contracts\PaymentGateway\PaymentGatewayContract;
 use App\DTO\PaymentGateway\PaymentCallbackData;
 use App\DTO\PaymentGateway\PaymentLinkResponse;
 use App\DTO\PaymentGateway\PingConnectionResult;
-use App\Enums\MasaAktifSatuan;
+use App\Actions\LayananPelanggan\PerpanjangMasaAktifAction;
+use App\Enums\GatewayChannel;
 use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
-use App\Enums\StatusLayanan;
 use App\Enums\StatusTransaksiGateway;
 use App\Enums\StatusWebhookLog;
 use App\Events\InvoicePaidEvent;
@@ -18,7 +18,6 @@ use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\WebhookLog;
-use App\Services\PaymentGateway\Drivers\IpaymuDriver;
 use App\Services\PaymentGateway\Drivers\XenditDriver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -34,9 +33,11 @@ class PaymentGatewayManager
 
     public function __construct()
     {
-        // Daftarkan driver bawaan
+        // Daftarkan driver bawaan.
+        // IpaymuDriver sengaja TIDAK didaftarkan: verifikasi signature-nya belum
+        // diimplementasikan, sehingga mendaftarkannya akan membuka endpoint webhook publik
+        // yang dapat dipalsukan. Daftarkan kembali hanya setelah verifikasi HMAC iPaymu selesai.
         $this->registerDriver('xendit', new XenditDriver);
-        $this->registerDriver('ipaymu', new IpaymuDriver);
     }
 
     /**
@@ -103,6 +104,15 @@ class PaymentGatewayManager
 
     /**
      * Terbitkan link pembayaran gateway resmi untuk invoice.
+     *
+     * Urutan sengaja: reservasi baris TransaksiPaymentGateway lokal DULU (dengan
+     * external_id dan total_tagihan final, termasuk fee) sebelum memanggil API gateway.
+     * Jika panggilan API gagal/timeout, baris Pending ini tertinggal sebagai jejak yang
+     * dapat direkonsiliasi (lihat RekonsiliasiPembayaranCommand). Jika panggilan API
+     * berhasil tapi update baris ini setelahnya gagal, invoice yang sudah punya link
+     * pembayaran tetap tertaut ke baris transaksi dengan nominal yang benar (termasuk
+     * fee) -- webhook nantinya tetap menemukan baris ini via external_id, sehingga tidak
+     * lagi jatuh ke pembanding jumlah_setelah_promo tanpa fee yang memicu anomali palsu.
      */
     public function buatPaymentLink(
         Invoice $invoice,
@@ -125,48 +135,63 @@ class PaymentGatewayManager
         $setting = $this->getSetting($provider);
         $driver = $this->driver($setting->provider);
 
-        // 2. Minta driver membuat payment link resmi
-        /** @var PaymentLinkResponse $response */
-        $response = $driver->createPaymentLink($invoice, $setting);
-
-        // 3. Update record invoice lokal
-        $invoice->update([
-            'payment_gateway_url' => $response->paymentUrl,
-            'payment_gateway_id' => $response->paymentId,
-            'payment_gateway_provider' => $driver->getProviderName(),
-            'payment_gateway_status' => 'PENDING',
-            'payment_gateway_expired_at' => $response->expiredAt,
-            // Kompatibilitas mundur
-            'xendit_invoice_id' => $response->paymentId,
-            'xendit_invoice_url' => $response->paymentUrl,
-            'xendit_status' => 'PENDING',
-            'xendit_expired_at' => $response->expiredAt,
-        ]);
-
+        // 2. Reservasi baris transaksi lokal SEBELUM memanggil API gateway.
+        // fee dihitung dengan formula yang identik dengan yang dipakai driver saat
+        // menyusun payload 'amount' ke gateway (lihat XenditDriver::createPaymentLink),
+        // sehingga total_tagihan di sini sudah pasti sama dengan paid_amount yang akan
+        // dilaporkan webhook.
+        $externalId = $driver->generateExternalId($invoice);
         $fee = $setting->hitungFee('virtual_account', (float) $invoice->jumlah_setelah_promo);
+        $totalTagihanEstimasi = (float) $invoice->jumlah_setelah_promo + $fee;
 
-        // 4. Catat transaksi payment gateway
-        return TransaksiPaymentGateway::create([
+        $transaksi = TransaksiPaymentGateway::create([
             'invoice_id' => $invoice->id,
             'gateway' => $driver->getProviderName(),
-            'external_id' => $response->externalId,
-            'xendit_reference_id' => $response->paymentId,
-            'channel' => $response->channel,
-            'channel_detail' => $response->channelDetail,
-            'nomor_pembayaran' => $response->paymentUrl,
-            'qr_string' => $response->qrString,
-            'total_tagihan' => $response->amount,
+            'external_id' => $externalId,
+            'channel' => GatewayChannel::Invoice,
+            'total_tagihan' => $totalTagihanEstimasi,
             'fee_gateway' => $fee,
             'status' => StatusTransaksiGateway::Pending,
-            'expired_at' => $response->expiredAt,
             'payload_request' => [
                 'provider' => $driver->getProviderName(),
                 'invoice_no' => $invoice->no_invoice,
-                'external_id' => $response->externalId,
-                'amount' => $response->amount,
+                'external_id' => $externalId,
+                'amount' => $totalTagihanEstimasi,
             ],
-            'payload_response' => $response->rawResponse,
         ]);
+
+        // 3. Minta driver membuat payment link resmi menggunakan external_id yang sudah direservasi
+        /** @var PaymentLinkResponse $response */
+        $response = $driver->createPaymentLink($invoice, $setting, $externalId);
+
+        // 4. Update invoice lokal & baris transaksi hasil reservasi dalam satu transaksi DB
+        return DB::transaction(function () use ($invoice, $driver, $response, $transaksi) {
+            $invoice->update([
+                'payment_gateway_url' => $response->paymentUrl,
+                'payment_gateway_id' => $response->paymentId,
+                'payment_gateway_provider' => $driver->getProviderName(),
+                'payment_gateway_status' => 'PENDING',
+                'payment_gateway_expired_at' => $response->expiredAt,
+                // Kompatibilitas mundur
+                'xendit_invoice_id' => $response->paymentId,
+                'xendit_invoice_url' => $response->paymentUrl,
+                'xendit_status' => 'PENDING',
+                'xendit_expired_at' => $response->expiredAt,
+            ]);
+
+            $transaksi->update([
+                'xendit_reference_id' => $response->paymentId,
+                'channel' => $response->channel,
+                'channel_detail' => $response->channelDetail,
+                'nomor_pembayaran' => $response->paymentUrl,
+                'qr_string' => $response->qrString,
+                'total_tagihan' => $response->amount,
+                'expired_at' => $response->expiredAt,
+                'payload_response' => $response->rawResponse,
+            ]);
+
+            return $transaksi;
+        });
     }
 
     /**
@@ -222,20 +247,31 @@ class PaymentGatewayManager
                 rawPayload: $statusData
             );
 
+            // prosesPelunasan() sudah mengunci baris invoice & mengecek ulang isLunas() di
+            // dalam transaksinya sendiri, jadi aman dipanggil langsung dari sini.
             $this->prosesPelunasan($invoice, $callbackData, $transaksi);
             $invoice->refresh();
         } elseif ($statusStr === 'EXPIRED' || $statusStr === 'BATAL') {
-            if (! $invoice->isLunas()) {
-                $invoice->update([
-                    'payment_gateway_url' => null,
-                    'payment_gateway_status' => 'EXPIRED',
-                    'xendit_invoice_url' => null,
-                    'xendit_status' => 'EXPIRED',
-                ]);
-                if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
-                    $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
+            // Dikunci + re-check isLunas() DI DALAM lock: dipanggil berulang oleh sweeper
+            // terjadwal (lihat RekonsiliasiPembayaranCommand), sehingga rawan berbenturan
+            // dengan webhook yang baru saja melunasi invoice yang sama secara paralel.
+            DB::transaction(function () use ($invoice, $transaksi) {
+                /** @var Invoice $lockedInvoice */
+                $lockedInvoice = Invoice::where('id', $invoice->id)->lockForUpdate()->firstOrFail();
+
+                if (! $lockedInvoice->isLunas()) {
+                    $lockedInvoice->update([
+                        'payment_gateway_url' => null,
+                        'payment_gateway_status' => 'EXPIRED',
+                        'xendit_invoice_url' => null,
+                        'xendit_status' => 'EXPIRED',
+                    ]);
+
+                    if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
+                        $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
+                    }
                 }
-            }
+            });
         }
 
         return $statusData;
@@ -338,31 +374,11 @@ class PaymentGatewayManager
                 'xendit_status' => 'PAID',
             ]);
 
-            // 4. Perpanjang Masa Aktif Layanan Pelanggan
+            // 4. Perpanjang Masa Aktif Layanan Pelanggan -- aturan tunggal isFuture()
+            // yang sama dengan jalur pembayaran manual, lihat PerpanjangMasaAktifAction.
             $layanan = $lockedInvoice->layananPelanggan()->lockForUpdate()->first();
             if ($layanan) {
-                $paket = $layanan->paketLayanan;
-                $masaNilai = $paket ? (int) $paket->masa_aktif_nilai : 1;
-                $masaSatuan = $paket ? $paket->masa_aktif_satuan : MasaAktifSatuan::Bulan;
-
-                $promo = $lockedInvoice->promo;
-                $bonusBulan = ($promo && $promo->bonus_bulan) ? (int) $promo->bonus_bulan : 0;
-
-                $currentExpired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
-                $baseDate = ($currentExpired && $currentExpired->isFuture())
-                    ? $currentExpired->copy()
-                    : $dibayarPada->copy()->startOfDay();
-
-                if ($masaSatuan === MasaAktifSatuan::Bulan) {
-                    $newExpired = $baseDate->addMonths($masaNilai + $bonusBulan);
-                } else {
-                    $newExpired = $baseDate->addDays($masaNilai);
-                }
-
-                $layanan->update([
-                    'tanggal_expired' => $newExpired->toDateString(),
-                    'status' => StatusLayanan::Aktif,
-                ]);
+                app(PerpanjangMasaAktifAction::class)->execute($layanan, $lockedInvoice, $dibayarPada);
             }
 
             // 5. Update Status Log Webhook

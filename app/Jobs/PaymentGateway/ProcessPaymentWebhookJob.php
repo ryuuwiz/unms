@@ -39,7 +39,12 @@ class ProcessPaymentWebhookJob implements ShouldQueue
 
     public function __construct(
         public int $webhookLogId
-    ) {}
+    ) {
+        // Antrean terisolasi khusus pembayaran (lihat supervisor-payments di
+        // config/horizon.php) agar pelunasan invoice tidak pernah tertahan di belakang
+        // antrean mikrotik-low/wa-blast.
+        $this->onQueue('payments');
+    }
 
     /**
      * Eksekusi pemrosesan webhook di antrean latar belakang secara idempoten.
@@ -161,11 +166,31 @@ class ProcessPaymentWebhookJob implements ShouldQueue
 
         // 3. Eksekusi Berdasarkan Status Callback
         if ($callbackData->isPaid()) {
-            // Validasi Ketat Integritas Nominal (Strict Integer Amount Match)
+            // Validasi Ketat Mata Uang (ADR 0028 §2): hanya IDR yang diterima.
+            // Payload lama yang tidak menyertakan currency dianggap IDR (default gateway lokal).
+            if (! empty($callbackData->currency) && strtoupper($callbackData->currency) !== 'IDR') {
+                $catatan = "Anomali mata uang pembayaran {$provider}: Diterima {$callbackData->currency}, seharusnya IDR";
+                $webhookLog->update([
+                    'status_proses' => StatusWebhookLog::Gagal,
+                    'catatan_error' => $catatan,
+                ]);
+
+                Log::error("{$catatan} untuk Invoice {$invoice->no_invoice}", [
+                    'invoice_id' => $invoice->id,
+                    'currency' => $callbackData->currency,
+                    'external_id' => $callbackData->externalId,
+                ]);
+
+                return;
+            }
+
+            // Validasi Ketat Integritas Nominal (Strict Integer Amount Match).
+            // Tidak ada toleransi untuk underpayment maupun overpayment, termasuk nominal 0 --
+            // callback yang melaporkan 0 rupiah dibayar bukan pengecualian, itu adalah anomali.
             $expectedAmount = (int) round($transaksi ? (float) $transaksi->total_tagihan : (float) $invoice->jumlah_setelah_promo);
             $actualAmount = (int) round($callbackData->paidAmount);
 
-            if ($actualAmount !== $expectedAmount && $actualAmount > 0 && $expectedAmount > 0) {
+            if ($actualAmount !== $expectedAmount) {
                 $catatan = "Anomali nominal pembayaran {$provider}: Diterima Rp ".number_format($actualAmount, 0, ',', '.').', seharusnya Rp '.number_format($expectedAmount, 0, ',', '.');
                 $webhookLog->update([
                     'status_proses' => StatusWebhookLog::Gagal,
@@ -232,12 +257,27 @@ class ProcessPaymentWebhookJob implements ShouldQueue
 
     /**
      * Penanganan jika antrean gagal total setelah mencapai batas maksimal percobaan.
+     *
+     * Melaporkan exception ke Sentry secara eksplisit (bukan hanya Log::critical) karena
+     * Horizon dashboard sengaja dikunci di lingkungan ini (viewHorizon gate kosong) dan
+     * log channel default tidak terhubung ke Sentry (config/sentry.php enable_logs=false).
+     * Tanpa ini, kegagalan total webhook pembayaran tidak akan pernah terlihat siapa pun --
+     * lihat juga RekonsiliasiPembayaranCommand sebagai lapisan pemulihan keduanya.
      */
     public function failed(?Throwable $exception): void
     {
         Log::critical("ProcessPaymentWebhookJob GAGAL TOTAL untuk WebhookLog ID {$this->webhookLogId}: ".$exception?->getMessage(), [
             'exception' => $exception,
         ]);
+
+        if ($exception) {
+            \Sentry\configureScope(function (\Sentry\State\Scope $scope): void {
+                $scope->setContext('payment_webhook', [
+                    'webhook_log_id' => $this->webhookLogId,
+                ]);
+            });
+            \Sentry\captureException($exception);
+        }
 
         /** @var WebhookLog|null $webhookLog */
         $webhookLog = WebhookLog::find($this->webhookLogId);

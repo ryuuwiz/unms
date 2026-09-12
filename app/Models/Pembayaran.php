@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -24,6 +25,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $catatan
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property Carbon|null $deleted_at
  * @property-read Invoice $invoice
  * @property-read User|null $dicatatOleh
  */
@@ -40,7 +42,7 @@ use Spatie\Activitylog\Support\LogOptions;
 class Pembayaran extends Model
 {
     /** @use HasFactory<PembayaranFactory> */
-    use HasFactory, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     protected $table = 'pembayaran';
 

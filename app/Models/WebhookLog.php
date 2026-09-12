@@ -67,7 +67,9 @@ class WebhookLog extends Model
     {
         return [
             'status_proses' => StatusWebhookLog::class,
-            'payload' => 'array',
+            // Payload gateway memuat PII (email, nomor VA, nama, no. HP pelanggan) --
+            // dienkripsi at-rest, konsisten dengan PengaturanGateway::credentials.
+            'payload' => 'encrypted:array',
             'diterima_pada' => 'datetime',
         ];
     }

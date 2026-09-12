@@ -145,6 +145,125 @@ test('ProcessPaymentWebhookJob menolak pembayaran jika terjadi anomali nominal u
     Event::assertNotDispatched(InvoicePaidEvent::class);
 });
 
+test('ProcessPaymentWebhookJob menolak pembayaran jika terjadi anomali nominal overpayment', function () {
+    $overpaidAmount = $this->transaksi->total_tagihan + 50000; // Kelebihan bayar 50.000
+
+    $webhookLog = WebhookLog::create([
+        'provider' => 'xendit',
+        'event_type' => 'payment.xendit',
+        'provider_event_id' => 'evt_overpaid_102',
+        'payload' => [
+            'id' => 'evt_overpaid_102',
+            'external_id' => $this->transaksi->external_id,
+            'status' => 'PAID',
+            'amount' => $overpaidAmount,
+            'paid_amount' => $overpaidAmount,
+            'payment_method' => 'VIRTUAL_ACCOUNT',
+            'payment_channel' => 'BCA',
+            'paid_at' => now()->toIso8601String(),
+        ],
+        'status_proses' => StatusWebhookLog::Diterima,
+        'diterima_pada' => now(),
+    ]);
+
+    $job = new ProcessPaymentWebhookJob($webhookLog->id);
+    $job->handle($this->manager);
+
+    $this->invoice->refresh();
+    $webhookLog->refresh();
+
+    // Invoice TIDAK boleh lunas -- kelebihan bayar juga ditolak tegas, bukan hanya kekurangan.
+    expect($this->invoice->status)->toBe(StatusInvoice::MenungguPembayaran)
+        ->and($webhookLog->status_proses)->toBe(StatusWebhookLog::Gagal)
+        ->and($webhookLog->catatan_error)->toContain('Anomali nominal pembayaran');
+
+    Event::assertNotDispatched(InvoicePaidEvent::class);
+});
+
+test('ProcessPaymentWebhookJob menolak callback yang melaporkan paid_amount nol', function () {
+    $webhookLog = WebhookLog::create([
+        'provider' => 'xendit',
+        'event_type' => 'payment.xendit',
+        'provider_event_id' => 'evt_zero_amount_103',
+        'payload' => [
+            'id' => 'evt_zero_amount_103',
+            'external_id' => $this->transaksi->external_id,
+            'status' => 'PAID',
+            'amount' => 0,
+            'paid_amount' => 0,
+            'payment_method' => 'VIRTUAL_ACCOUNT',
+            'payment_channel' => 'BCA',
+            'paid_at' => now()->toIso8601String(),
+        ],
+        'status_proses' => StatusWebhookLog::Diterima,
+        'diterima_pada' => now(),
+    ]);
+
+    $job = new ProcessPaymentWebhookJob($webhookLog->id);
+    $job->handle($this->manager);
+
+    $this->invoice->refresh();
+    $webhookLog->refresh();
+
+    // Sebelumnya klausa "$actualAmount > 0" meloloskan paid_amount: 0 begitu saja.
+    expect($this->invoice->status)->toBe(StatusInvoice::MenungguPembayaran)
+        ->and($webhookLog->status_proses)->toBe(StatusWebhookLog::Gagal)
+        ->and($webhookLog->catatan_error)->toContain('Anomali nominal pembayaran');
+
+    Event::assertNotDispatched(InvoicePaidEvent::class);
+});
+
+test('ProcessPaymentWebhookJob menolak pembayaran dengan mata uang selain IDR', function () {
+    $webhookLog = WebhookLog::create([
+        'provider' => 'xendit',
+        'event_type' => 'payment.xendit',
+        'provider_event_id' => 'evt_foreign_currency_104',
+        'payload' => [
+            'id' => 'evt_foreign_currency_104',
+            'external_id' => $this->transaksi->external_id,
+            'status' => 'PAID',
+            'amount' => $this->transaksi->total_tagihan,
+            'paid_amount' => $this->transaksi->total_tagihan,
+            'currency' => 'USD',
+            'payment_method' => 'VIRTUAL_ACCOUNT',
+            'payment_channel' => 'BCA',
+            'paid_at' => now()->toIso8601String(),
+        ],
+        'status_proses' => StatusWebhookLog::Diterima,
+        'diterima_pada' => now(),
+    ]);
+
+    $job = new ProcessPaymentWebhookJob($webhookLog->id);
+    $job->handle($this->manager);
+
+    $this->invoice->refresh();
+    $webhookLog->refresh();
+
+    expect($this->invoice->status)->toBe(StatusInvoice::MenungguPembayaran)
+        ->and($webhookLog->status_proses)->toBe(StatusWebhookLog::Gagal)
+        ->and($webhookLog->catatan_error)->toContain('Anomali mata uang pembayaran');
+
+    Event::assertNotDispatched(InvoicePaidEvent::class);
+});
+
+test('ProcessPaymentWebhookJob::failed menandai webhook log Gagal dengan pesan exception setelah retry habis', function () {
+    $webhookLog = WebhookLog::create([
+        'provider' => 'xendit',
+        'event_type' => 'payment.xendit',
+        'provider_event_id' => 'evt_exhausted_105',
+        'payload' => ['id' => 'evt_exhausted_105'],
+        'status_proses' => StatusWebhookLog::Diterima,
+        'diterima_pada' => now(),
+    ]);
+
+    $job = new ProcessPaymentWebhookJob($webhookLog->id);
+    $job->failed(new Exception('Simulasi koneksi Xendit gagal total setelah 3x percobaan'));
+
+    $webhookLog->refresh();
+    expect($webhookLog->status_proses)->toBe(StatusWebhookLog::Gagal)
+        ->and($webhookLog->catatan_error)->toContain('Simulasi koneksi Xendit gagal total setelah 3x percobaan');
+});
+
 test('ProcessPaymentWebhookJob menjamin idempotensi jika job dieksekusi berkali-kali', function () {
     $webhookLog = WebhookLog::create([
         'provider' => 'xendit',
