@@ -17,8 +17,16 @@
 		max_size 100MB
 	}
 
-	# Deny access to dotfiles (.env, .git, ...) except /.well-known/*.
-	@dotfiles path_regexp \/\.(?!well-known)
+	# Deny access to dotfiles (.env, .git, ...) except paths under /.well-known/
+	# (ACME challenges, security.txt discovery, etc). Caddy's path_regexp runs
+	# on Go's RE2 engine, which has no lookaround support -- a negative
+	# lookahead here (`(?!well-known)`) fails to compile and crash-loops the
+	# whole container. Express the exception as a separate `not path` clause
+	# instead of one regex.
+	@dotfiles {
+		path_regexp \/\.
+		not path /.well-known/**
+	}
 	respond @dotfiles 404
 
 	# Non-existent paths (including Livewire Flux's dynamic asset routes,

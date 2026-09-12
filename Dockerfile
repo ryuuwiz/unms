@@ -131,6 +131,12 @@ COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY --from=caddy:2-alpine /usr/bin/caddy /usr/local/bin/caddy
 COPY docker/Caddyfile /etc/caddy/Caddyfile
 
+# Fail the build, not the container boot, on a broken Caddyfile -- Caddy's
+# path_regexp matcher compiles with Go's RE2 engine (no lookaround support),
+# a mismatch from PCRE that previously passed review and only surfaced as a
+# supervisor crash-loop in production.
+RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
 # --- Supervisor configuration ----------------------------------------------
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 COPY docker/supervisor.d/ /etc/supervisor/conf.d/
