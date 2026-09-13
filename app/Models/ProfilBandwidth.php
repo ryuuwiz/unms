@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Jobs\Mikrotik\SyncBandwidthProfileToRoutersJob;
 use App\Support\BandwidthConverter;
 use Database\Factories\ProfilBandwidthFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -47,18 +46,6 @@ class ProfilBandwidth extends Model
     use HasFactory, LogsActivity;
 
     protected $table = 'profil_bandwidth';
-
-    /**
-     * Boot model events: otomatis dispatch job sinkronisasi profil bandwidth ke router saat disimpan.
-     */
-    protected static function booted(): void
-    {
-        static::saved(function (self $profil) {
-            if (! app()->runningUnitTests()) {
-                SyncBandwidthProfileToRoutersJob::dispatch($profil);
-            }
-        });
-    }
 
     /**
      * Konfigurasi logging aktivitas.

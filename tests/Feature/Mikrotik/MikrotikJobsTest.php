@@ -22,6 +22,7 @@ use App\Notifications\MikrotikJobFailedNotification;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 
 uses(RefreshDatabase::class);
@@ -218,4 +219,26 @@ test('SyncBandwidthProfileToRoutersJob ensures profile on all online routers', f
 
     expect($log)->not->toBeNull()
         ->and($log->status)->toBe(MikrotikJobStatus::Success);
+});
+
+test('SyncBandwidthProfileToRoutersJob skips a router already locked by another Mikrotik job', function () {
+    // Root-cause coverage: this job used to hit RouterOS with zero locking, so it
+    // could open a second concurrent socket while RecoverPppRouterJob/ProvisionRouterJob
+    // already held the router's ADR-0032 lock -- contending for the same router's CPU.
+    $lock = Cache::lock("mikrotik:router:{$this->router->id}", 120);
+    expect($lock->get())->toBeTrue();
+
+    $mockService = Mockery::mock(MikrotikService::class);
+    $mockService->shouldNotReceive('ensurePppProfile');
+
+    $job = new SyncBandwidthProfileToRoutersJob($this->profil);
+    $job->handle($mockService);
+
+    $log = MikrotikJobLog::where('router_id', $this->router->id)
+        ->where('job_type', MikrotikJobType::SyncProfilBandwidth)
+        ->first();
+
+    expect($log)->toBeNull(); // never attempted: skipped before creating a job log
+
+    $lock->release();
 });

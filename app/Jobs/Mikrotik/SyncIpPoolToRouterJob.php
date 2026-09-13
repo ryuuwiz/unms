@@ -39,6 +39,28 @@ class SyncIpPoolToRouterJob implements ShouldBeUnique, ShouldQueue
     }
 
     /**
+     * Bound retries by wall-clock time instead of attempt count.
+     *
+     * Root cause (Sentry: "SyncIpPoolToRouterJob has been attempted too many
+     * times"): WithoutOverlapping::release() re-queues the job when the
+     * per-router lock is contested, but the Redis queue driver still counts
+     * every pop toward $tries regardless of whether handle() ever ran. With
+     * tries=3 and releaseAfter(10), pure lock contention (e.g. several IP
+     * pools on the same router saved together while that router is slow to
+     * respond) can exhaust all 3 tries in ~20-30s and permanently fail the
+     * job via MaxAttemptsExceededException -- before a single RouterOS call
+     * was attempted, so no MikrotikJobLog row or real error ever gets
+     * recorded. Worker::markJobAsFailedIfAlreadyExceedsMaxAttempts() checks
+     * retryUntil() BEFORE the tries count and skips the count-based failure
+     * entirely while this window is open, so a contested lock is retried on
+     * its normal backoff instead of being silently killed.
+     */
+    public function retryUntil(): \DateTimeInterface
+    {
+        return now()->addMinutes(10);
+    }
+
+    /**
      * Dedupe repeated dispatches for the same pool (e.g. IpPoolObserver::saved()
      * firing on rapid successive edits, or a staff double-clicking "Terapkan
      * ke Router") so they don't queue up as separate RouterOS API sessions.

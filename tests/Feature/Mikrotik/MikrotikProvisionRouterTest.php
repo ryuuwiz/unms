@@ -225,6 +225,23 @@ test('ProfilBandwidthObserver triggers SyncBandwidthProfileToRoutersJob', functi
     });
 });
 
+test('saving a ProfilBandwidth only dispatches SyncBandwidthProfileToRoutersJob once, not twice', function () {
+    // Regression: ProfilBandwidth::booted() used to register its own static::saved()
+    // hook that duplicated ProfilBandwidthObserver::saved() (registered in
+    // AppServiceProvider), so every save fanned out two full-router sync jobs
+    // instead of one -- doubling the RouterOS load behind every profile edit.
+    Queue::fake();
+
+    // Temporarily simulate non-testing environment so the observer's dispatch guard
+    // (`if (! app()->runningUnitTests())`) actually fires, same as production.
+    $profil = ProfilBandwidth::factory()->make(['nama_bandwidth' => 'Profile-Dedup-Test']);
+    app()->instance('env', 'production');
+    $profil->save();
+    app()->instance('env', 'testing');
+
+    Queue::assertPushed(SyncBandwidthProfileToRoutersJob::class, 1);
+});
+
 test('autoRecoverPppSecrets removes duplicate secrets in RouterOS', function () {
     $mockClient = Mockery::mock(Client::class);
 

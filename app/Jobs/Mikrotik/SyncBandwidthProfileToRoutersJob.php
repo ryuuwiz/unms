@@ -12,18 +12,23 @@ use App\Models\User;
 use App\Notifications\MikrotikJobFailedNotification;
 use App\Services\Mikrotik\MikrotikService;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class SyncBandwidthProfileToRoutersJob implements ShouldQueue
+class SyncBandwidthProfileToRoutersJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
+    public int $uniqueFor = 60;
 
     /**
      * @var array<int, int>
@@ -36,6 +41,15 @@ class SyncBandwidthProfileToRoutersJob implements ShouldQueue
         $this->onQueue('mikrotik-low');
     }
 
+    /**
+     * Dedupe repeated dispatches for the same profile (e.g. a rapid double
+     * save) so they don't fan out into duplicate full-router sweeps.
+     */
+    public function uniqueId(): string
+    {
+        return (string) $this->profil->id;
+    }
+
     public function handle(MikrotikService $mikrotikService): void
     {
         $routers = Router::where('status_koneksi', StatusRouter::Online)->get();
@@ -45,31 +59,52 @@ class SyncBandwidthProfileToRoutersJob implements ShouldQueue
         }
 
         foreach ($routers as $router) {
-            $log = MikrotikJobLog::create([
-                'router_id' => $router->id,
-                'job_type' => MikrotikJobType::SyncProfilBandwidth,
-                'status' => MikrotikJobStatus::Pending,
-                'attempt_count' => $this->attempts(),
-                'payload' => [
+            // Cooperate with the same per-router lock RecoverPppRouterJob/ProvisionRouterJob
+            // hold during a full sync (ADR 0032): skip (don't block/queue-wait) if another
+            // job is already talking to this router's RouterOS API, instead of opening a
+            // second concurrent socket and contending for router CPU. This job runs again
+            // on every profile save and every 15-minute recovery cycle, so a skipped router
+            // is picked up again shortly rather than worth blocking the whole job for.
+            $lock = Cache::lock("mikrotik:router:{$router->id}", 120);
+
+            if (! $lock->get()) {
+                Log::info('Melewati sinkronisasi profil bandwidth: router sedang dikunci oleh proses lain.', [
+                    'router_id' => $router->id,
                     'profil_bandwidth_id' => $this->profil->id,
-                    'nama_bandwidth' => $this->profil->nama_bandwidth,
-                    'rate_limit' => $this->profil->routerOsRateLimit(),
-                ],
-            ]);
+                ]);
+
+                continue;
+            }
 
             try {
-                $mikrotikService->ensurePppProfile($router, $this->profil);
+                $log = MikrotikJobLog::create([
+                    'router_id' => $router->id,
+                    'job_type' => MikrotikJobType::SyncProfilBandwidth,
+                    'status' => MikrotikJobStatus::Pending,
+                    'attempt_count' => $this->attempts(),
+                    'payload' => [
+                        'profil_bandwidth_id' => $this->profil->id,
+                        'nama_bandwidth' => $this->profil->nama_bandwidth,
+                        'rate_limit' => $this->profil->routerOsRateLimit(),
+                    ],
+                ]);
 
-                $log->update([
-                    'status' => MikrotikJobStatus::Success,
-                    'finished_at' => Carbon::now(),
-                ]);
-            } catch (Throwable $e) {
-                $log->update([
-                    'status' => MikrotikJobStatus::Failed,
-                    'error_message' => $e->getMessage(),
-                    'finished_at' => Carbon::now(),
-                ]);
+                try {
+                    $mikrotikService->ensurePppProfile($router, $this->profil);
+
+                    $log->update([
+                        'status' => MikrotikJobStatus::Success,
+                        'finished_at' => Carbon::now(),
+                    ]);
+                } catch (Throwable $e) {
+                    $log->update([
+                        'status' => MikrotikJobStatus::Failed,
+                        'error_message' => $e->getMessage(),
+                        'finished_at' => Carbon::now(),
+                    ]);
+                }
+            } finally {
+                $lock->release();
             }
         }
     }
