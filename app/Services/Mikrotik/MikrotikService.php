@@ -27,6 +27,22 @@ use Throwable;
 class MikrotikService
 {
     /**
+     * Cache "router_id:profil_id" / "router_id:pool_id" already synced in THIS
+     * request/job. ensurePppProfile()/syncIpPool() are correct but redundant
+     * when called per-secret right after a bulk sync already did the same
+     * work (autoRecoverPppSecrets, provisionRouterFull): this skips the
+     * repeat RouterOS round-trips that were spiking router CPU during mass
+     * recovery/provisioning. ponytail: instance-level memo, not cross-request
+     * -- resets naturally each time the service is resolved for a new job.
+     *
+     * @var array<string, true>
+     */
+    private array $ensuredProfileCache = [];
+
+    /** @var array<string, true> */
+    private array $syncedPoolCache = [];
+
+    /**
      * Inisialisasi koneksi RouterOS Client.
      *
      * @throws MikrotikConnectionException
@@ -179,6 +195,12 @@ class MikrotikService
         }
 
         $profileName = $profil->nama_bandwidth;
+        $cacheKey = "{$router->id}:{$profil->id}";
+
+        if (isset($this->ensuredProfileCache[$cacheKey])) {
+            return $profileName;
+        }
+
         $rateLimit = $profil->routerOsRateLimit();
         $comment = "UNMS: {$profil->nama_bandwidth} ({$profil->labelKecepatan()})";
 
@@ -197,6 +219,8 @@ class MikrotikService
                     if (isset($res['after']['message'])) {
                         throw new MikrotikException($res['after']['message']);
                     }
+
+                    $this->ensuredProfileCache[$cacheKey] = true;
 
                     return $profileName;
                 } catch (Throwable $e) {
@@ -234,6 +258,8 @@ class MikrotikService
                     }
                 }
             }
+
+            $this->ensuredProfileCache[$cacheKey] = true;
 
             return $profileName;
         } catch (Throwable $e) {
@@ -726,6 +752,16 @@ class MikrotikService
      */
     public function syncIpPool(Router $router, IpPool $ipPool, ?Client $client = null): array
     {
+        $cacheKey = "{$router->id}:{$ipPool->id}";
+
+        if (isset($this->syncedPoolCache[$cacheKey])) {
+            return [
+                'status' => 'success',
+                'pool_name' => $ipPool->nama_pool,
+                'queue_name' => "POOL-{$ipPool->nama_pool}",
+            ];
+        }
+
         try {
             $client = $client ?? $this->getClient($router);
             $poolName = $ipPool->nama_pool;
@@ -789,6 +825,8 @@ class MikrotikService
                 'sync_status' => 'success',
                 'last_sync_error' => null,
             ]);
+
+            $this->syncedPoolCache[$cacheKey] = true;
 
             return [
                 'status' => 'success',

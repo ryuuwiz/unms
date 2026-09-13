@@ -10,18 +10,22 @@ use App\Models\User;
 use App\Notifications\MikrotikJobFailedNotification;
 use App\Services\Mikrotik\MikrotikService;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Throwable;
 
-class SyncIpPoolToRouterJob implements ShouldQueue
+class SyncIpPoolToRouterJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
+    public int $uniqueFor = 300;
 
     /**
      * @var array<int, int>
@@ -32,6 +36,36 @@ class SyncIpPoolToRouterJob implements ShouldQueue
         public IpPool $ipPool
     ) {
         $this->onQueue('mikrotik-low');
+    }
+
+    /**
+     * Dedupe repeated dispatches for the same pool (e.g. IpPoolObserver::saved()
+     * firing on rapid successive edits, or a staff double-clicking "Terapkan
+     * ke Router") so they don't queue up as separate RouterOS API sessions.
+     */
+    public function uniqueId(): string
+    {
+        return (string) $this->ipPool->id;
+    }
+
+    /**
+     * Serialize pool syncs per physical router (same pattern as
+     * RecoverPppRouterJob, ADR 0032): a router with several IP pools saved
+     * around the same time would otherwise dispatch one job per pool, each
+     * opening its own RouterOS API socket concurrently on this auto-scaling
+     * mikrotik-low queue (up to 10 parallel workers) and spiking router CPU.
+     * uniqueId() above only dedupes the same pool, not sibling pools on the
+     * same router, which is what this middleware closes.
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping("mikrotik-router-{$this->ipPool->router_id}-pool-sync"))
+                ->releaseAfter(10)
+                ->expireAfter(60),
+        ];
     }
 
     public function handle(MikrotikService $mikrotikService): void

@@ -37,6 +37,18 @@ test('users can not authenticate with invalid password', function () {
     $this->assertGuest();
 });
 
+test('failed login shows the Indonesian auth.failed message, not the English framework default', function () {
+    $user = User::factory()->create();
+
+    $response = $this->post(route('login.store'), [
+        'email' => $user->email,
+        'password' => 'wrong-password',
+    ]);
+
+    $response->assertSessionHasErrors(['email' => trans('auth.failed')]);
+    expect(trans('auth.failed'))->not->toBe('These credentials do not match our records.');
+});
+
 test('users with two factor enabled are redirected to two factor challenge', function () {
     $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
 
