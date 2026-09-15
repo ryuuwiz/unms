@@ -169,9 +169,9 @@ WORKDIR /var/www/html
 # for anything an operator forgets to configure in Dokploy's Environment tab
 # -- it does not replace .env.docker.example, which documents every variable
 # that must still be supplied per-deployment (secrets, hostnames, keys).
-# ENV APP_ENV=production \
-#     APP_DEBUG=false \
-#     LOG_CHANNEL=stderr
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stack
 
 # --- Application code -------------------------------------------------
 COPY --chown=www-data:www-data . .

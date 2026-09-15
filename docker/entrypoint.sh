@@ -53,10 +53,26 @@ php artisan optimize:clear --no-interaction || true
 # already holds the lock -- see app/Console/Commands/MigrateOnceCommand.php.
 php artisan app:migrate-once --no-interaction
 
-php artisan config:cache --no-interaction || true
-php artisan route:cache --no-interaction || true
-php artisan view:cache --no-interaction || true
-php artisan event:cache --no-interaction || true
+# Deliberately NOT `|| true`: a failed config/route/view/event cache build
+# (e.g. a bad env value, a ServiceProvider throwing during boot) used to be
+# swallowed here, leaving `optimize:clear` having wiped the previous good
+# cache and no new one written -- supervisord then happily started php-fpm
+# against a broken bootstrap/cache with every HTTP request 500'ing and
+# nothing useful in the logs, while `artisan horizon`/`schedule:run` (which
+# don't necessarily exercise the same cached config path) kept working. Fail
+# the boot loudly instead so the real exception lands in `docker logs` and
+# the container visibly crash-loops rather than silently serving 500s.
+php artisan config:cache --no-interaction
+php artisan route:cache --no-interaction
+php artisan view:cache --no-interaction
+php artisan event:cache --no-interaction
+
+# Re-chown after the cache-building commands above: they run as root (like
+# the rest of this script, before supervisord drops to www-data) and write
+# fresh files into bootstrap/cache/*.php, so without this the php-fpm worker
+# (www-data) can read but never overwrite them on a later `artisan cache:clear`
+# triggered at runtime.
+chown -R www-data:www-data storage bootstrap/cache
 
 php artisan storage:link --no-interaction || true
 
