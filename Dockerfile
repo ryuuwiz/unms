@@ -11,11 +11,7 @@ RUN apk add --no-cache \
     git 
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo pdo_mysql zip opcache sockets pcntl
-RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apk del .build-deps
+RUN docker-php-ext-install pdo pdo_mysql zip opcache sockets
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
