@@ -1,0 +1,16 @@
+node_modules
+.git
+.gitignore
+*.md
+.env*
+.DS_Store
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Framework-specific
+.next
+.nuxt
+dist
+build
+coverage
