@@ -46,6 +46,9 @@ return [
         'username' => env('GOWA_USERNAME', ''),
         'password' => env('GOWA_PASSWORD', ''),
         'number' => env('GOWA_NUMBER', ''),
+        // Device ID dipasangkan lewat dashboard GOWA (gowa-ui), bukan dibuat aplikasi ini.
+        // Hanya dipakai sebagai fallback awal SysblasSeeder; kosongkan bila belum ada device.
+        'device_id' => env('GOWA_DEVICE_ID', 'default'),
     ],
 
     'waha' => [
