@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "steps": {
+    "vendor": {
+      "inputs": [
+        { "image": "php:8.4-cli-bookworm" },
+        { "local": true, "include": ["composer.json", "composer.lock", "database"] }
+      ],
+      "commands": [
+        "apt-get update && apt-get install -y --no-install-recommends git unzip libicu-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libonig-dev libxml2-dev && rm -rf /var/lib/apt/lists/*",
+        { "image": "composer:2", "src": "/usr/bin/composer", "dest": "/usr/bin/composer" },
+        { "image": "mlocati/php-extension-installer", "src": "/usr/bin/install-php-extensions", "dest": "/usr/local/bin/install-php-extensions" },
+        "mkdir -p /usr/local/etc/php/conf.d /conf.d",
+        "install-php-extensions pdo_mysql mysqli mbstring exif pcntl bcmath gd zip intl opcache redis sockets",
+        "composer install --no-dev --no-interaction --no-progress --no-scripts --optimize-autoloader --prefer-dist"
+      ]
+    },
+    "frontend": {
+      "inputs": [
+        { "image": "node:24-bookworm" },
+        { "local": true, "include": ["package.json", "package-lock.json", "resources", "vite.config.js"] },
+        { "step": "vendor", "include": ["vendor"] }
+      ],
+      "commands": [
+        "npm ci",
+        "npm run build"
+      ]
+    },
+    "runtime": {
+      "inputs": [
+        { "image": "php:8.4-fpm-bookworm" },
+        { "local": true, "include": ["."] }
+      ],
+      "commands": [
+        "apt-get update && apt-get install -y --no-install-recommends supervisor bash curl tzdata && ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime && rm -rf /var/lib/apt/lists/*",
+        { "image": "mlocati/php-extension-installer", "src": "/usr/bin/install-php-extensions", "dest": "/usr/local/bin/install-php-extensions" },
+        "mkdir -p /usr/local/etc/php/conf.d /conf.d",
+        "apt-get update && apt-get install -y --no-install-recommends libicu-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libonig-dev libxml2-dev && install-php-extensions pdo_mysql mysqli mbstring exif pcntl bcmath gd zip intl opcache redis sockets && apt-get purge -y libicu-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libonig-dev libxml2-dev && rm -rf /var/lib/apt/lists/*",
+        { "image": "caddy:2-alpine", "src": "/usr/bin/caddy", "dest": "/usr/local/bin/caddy" },
+        { "src": "docker/php.ini", "dest": "/usr/local/etc/php/conf.d/99-app.ini" },
+        { "src": "docker/www.conf", "dest": "/usr/local/etc/php-fpm.d/www.conf" },
+        { "src": "docker/Caddyfile", "dest": "/etc/caddy/Caddyfile" },
+        "caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile",
+        { "src": "docker/supervisord.conf", "dest": "/etc/supervisor/supervisord.conf" },
+        { "src": "docker/supervisor.d", "dest": "/etc/supervisor/conf.d" },
+        "usermod -u 1000 www-data && groupmod -g 1000 www-data",
+        { "cmd": "cd /var/www/html && php artisan livewire:publish --assets && chown -R www-data:www-data public/vendor", "customName": "Publish Livewire assets" },
+        { "cmd": "cd /var/www/html && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache && chown -R www-data:www-data storage bootstrap/cache && chmod -R 775 storage bootstrap/cache", "customName": "Prepare storage permissions" },
+        { "src": "docker/entrypoint.sh", "dest": "/usr/local/bin/entrypoint.sh" },
+        "chmod +x /usr/local/bin/entrypoint.sh"
+      ]
+    }
+  },
+  "deploy": {
+    "base": { "step": "runtime" },
+    "inputs": [
+      { "step": "vendor", "include": ["vendor"] },
+      { "step": "frontend", "include": ["public/build"] }
+    ],
+    "variables": {
+      "APP_ENV": "production",
+      "APP_DEBUG": "false",
+      "LOG_CHANNEL": "stderr"
+    },
+    "startCommand": "/usr/local/bin/entrypoint.sh /usr/bin/supervisord -c /etc/supervisor/supervisord.conf"
+  }
+}
