@@ -31,4 +31,13 @@ class InvoicePolicy
     {
         return $user->can('invoice.cetak');
     }
+
+    /**
+     * Kirim uji coba notifikasi tagihan (email & WhatsApp) -- dibatasi super_admin
+     * karena mengirim pesan nyata ke tujuan bebas, bukan sekadar melihat data invoice.
+     */
+    public function kirimUjiCoba(User $user, Invoice $invoice): bool
+    {
+        return $user->hasRole('super_admin');
+    }
 }

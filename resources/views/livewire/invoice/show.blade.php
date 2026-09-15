@@ -222,6 +222,36 @@
         </div>
     @endif
 
+    <!-- Uji Coba Notifikasi Tagihan (Super Admin) -->
+    @can('kirimUjiCoba', $invoice)
+        <flux:card class="p-6 space-y-4">
+            <div>
+                <flux:heading size="lg" class="flex items-center gap-2">
+                    <flux:icon name="beaker" class="size-5 text-purple-600 dark:text-purple-400" />
+                    Uji Coba Notifikasi Tagihan
+                </flux:heading>
+                <flux:subheading>Kirim contoh notifikasi tagihan ini ke email dan/atau nomor WhatsApp tujuan untuk memastikan template terkirim dengan benar.</flux:subheading>
+            </div>
+
+            <form wire:submit="kirimUjiCobaTagihan" class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                <div>
+                    <flux:input wire:model="testEmail" label="Email Tujuan (Opsional)" type="email" placeholder="nama@contoh.com" />
+                    <flux:error name="testEmail" />
+                </div>
+                <div>
+                    <flux:input wire:model="testPhone" label="No. WhatsApp Tujuan (Opsional)" placeholder="0812xxxxxxx" />
+                    <flux:error name="testPhone" />
+                </div>
+
+                <div class="sm:col-span-2">
+                    <flux:button type="submit" variant="primary" icon="paper-airplane" wire:loading.attr="disabled" wire:target="kirimUjiCobaTagihan">
+                        <span wire:loading.remove wire:target="kirimUjiCobaTagihan">Kirim Uji Coba</span>
+                        <span wire:loading wire:target="kirimUjiCobaTagihan">Mengirim...</span>
+                    </flux:button>
+                </div>
+            </form>
+        </flux:card>
+    @endcan
 
     <!-- Modal Catat Pembayaran -->
     <flux:modal :open="$showBayarModal" wire:model.self="showBayarModal" class="max-w-lg">

@@ -3,9 +3,11 @@
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
 use App\Enums\UserStatus;
+use App\Jobs\Wa\KirimWaBlastJob;
 use App\Livewire\Invoice\Create;
 use App\Livewire\Invoice\Index;
 use App\Livewire\Invoice\Show;
+use App\Models\AntrianWaBlast;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
@@ -14,10 +16,15 @@ use App\Models\ProfilBandwidth;
 use App\Models\Promo;
 use App\Models\Router;
 use App\Models\User;
+use App\Notifications\InvoiceReminderNotification;
 use App\Services\Billing\BillingService;
+use App\Services\Whatsapp\WhatsappClient;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Database\Seeders\WaTemplateSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
 
@@ -244,4 +251,75 @@ test('database allows creating new invoice for same period if previous invoice w
     expect($cancelled->isDibatalkan())->toBeTrue();
     expect($active->isMenungguPembayaran())->toBeTrue();
     expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->where('periode_tagihan', $period)->count())->toBe(2);
+});
+
+test('super_admin dapat mengirim uji coba tagihan via email', function () {
+    Notification::fake();
+
+    $invoice = Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['invoice' => $invoice])
+        ->set('testEmail', 'test-tagihan@example.com')
+        ->call('kirimUjiCobaTagihan')
+        ->assertHasNoErrors();
+
+    Notification::assertSentOnDemand(
+        InvoiceReminderNotification::class,
+        fn ($notification, $channels, $notifiable) => $notifiable->routes['mail'] === 'test-tagihan@example.com'
+            && $notification->invoice->id === $invoice->id
+    );
+});
+
+test('super_admin dapat mengirim uji coba tagihan via whatsapp', function () {
+    $this->seed(WaTemplateSeeder::class);
+    Queue::fake([KirimWaBlastJob::class]);
+
+    $invoice = Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['invoice' => $invoice])
+        ->set('testPhone', '081234567890')
+        ->call('kirimUjiCobaTagihan')
+        ->assertHasNoErrors();
+
+    $antrian = AntrianWaBlast::where('no_hp_tujuan', WhatsappClient::normalizePhoneNumber('081234567890'))
+        ->where('jenis', 'uji_coba_tagihan')
+        ->first();
+
+    $totalTagihan = 'Rp '.number_format((float) $invoice->jumlah_setelah_promo, 0, ',', '.');
+
+    expect($antrian)->not->toBeNull()
+        ->and($antrian->pesan)->toContain($totalTagihan);
+});
+
+test('non-super_admin tidak dapat mengirim uji coba tagihan', function () {
+    $invoice = Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+    ]);
+
+    Livewire::actingAs($this->adminUser)
+        ->test(Show::class, ['invoice' => $invoice])
+        ->set('testEmail', 'test-tagihan@example.com')
+        ->call('kirimUjiCobaTagihan')
+        ->assertForbidden();
+});
+
+test('form uji coba tagihan menolak jika email dan nomor whatsapp kosong', function () {
+    $invoice = Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['invoice' => $invoice])
+        ->call('kirimUjiCobaTagihan')
+        ->assertHasErrors(['testEmail', 'testPhone']);
 });

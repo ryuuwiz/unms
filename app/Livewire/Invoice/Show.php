@@ -3,12 +3,17 @@
 namespace App\Livewire\Invoice;
 
 use App\Enums\MetodePembayaran;
+use App\Enums\Wa\KategoriTemplateWa;
 use App\Models\Invoice;
 use App\Models\Pembayaran;
+use App\Models\WaTemplate;
+use App\Notifications\InvoiceReminderNotification;
 use App\Services\Billing\BillingService;
+use App\Services\Whatsapp\WhatsappService;
 use Exception;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -32,6 +37,10 @@ class Show extends Component
     public string $dibayar_pada = '';
 
     public string $catatan = '';
+
+    public string $testEmail = '';
+
+    public string $testPhone = '';
 
     public function mount(Invoice $invoice): void
     {
@@ -85,6 +94,47 @@ class Show extends Component
         } catch (Exception $e) {
             Flux::toast(variant: 'danger', text: $e->getMessage());
         }
+    }
+
+    /**
+     * Kirim uji coba notifikasi tagihan (email dan/atau WhatsApp) memakai jalur pengiriman
+     * produksi yang sama (InvoiceReminderNotification, WhatsappService::antrikanPesan) --
+     * super_admin only, lihat InvoicePolicy::kirimUjiCoba().
+     */
+    public function kirimUjiCobaTagihan(WhatsappService $whatsappService): void
+    {
+        $this->authorize('kirimUjiCoba', $this->invoice);
+
+        $this->validate([
+            'testEmail' => ['nullable', 'required_without:testPhone', 'email', 'max:255'],
+            'testPhone' => ['nullable', 'required_without:testEmail', 'string', 'min:9', 'max:20'],
+        ]);
+
+        $params = $whatsappService->buildInvoiceParams($this->invoice);
+
+        if ($this->testEmail) {
+            Notification::route('mail', $this->testEmail)
+                ->notify(new InvoiceReminderNotification($this->invoice, $params));
+        }
+
+        if ($this->testPhone) {
+            $template = WaTemplate::active()->kategori(KategoriTemplateWa::Tagihan)->orderBy('id')->first();
+
+            if (! $template) {
+                Flux::toast(variant: 'danger', text: 'Tidak ada template WA kategori Tagihan yang aktif.');
+
+                return;
+            }
+
+            $whatsappService->antrikanPesan(
+                noHp: $this->testPhone,
+                kodeTemplate: $template->kode,
+                params: $params,
+                jenis: 'uji_coba_tagihan'
+            );
+        }
+
+        Flux::toast(variant: 'success', text: 'Pesan uji coba tagihan berhasil dikirim.');
     }
 
     public function render(): View
