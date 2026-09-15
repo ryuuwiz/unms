@@ -21,7 +21,6 @@ use App\Livewire\Portal\Auth\GantiPassword;
 use App\Livewire\Portal\Auth\KlaimAkun;
 use App\Livewire\Portal\Auth\Login;
 use App\Livewire\Portal\Dashboard;
-use App\Livewire\Portal\Invoice\Bayar;
 use App\Livewire\Portal\Invoice\Index;
 use App\Livewire\Portal\Invoice\Show;
 use App\Livewire\Portal\Tiket\Create;
@@ -163,7 +162,7 @@ Route::middleware(['auth'])->group(function () {
     // ─── Invoice & Tagihan ────────────────────────────────────────
     Route::prefix('invoice')->name('invoice.')->group(function () {
         Route::middleware('permission:invoice.buat')->group(function () {
-            Route::get('/create', Invoice\Create::class)->name('create');
+            Route::get('/create/{pelanggan?}', Invoice\Create::class)->name('create');
         });
         Route::get('/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('cetak');
         Route::middleware('permission:invoice.lihat')->group(function () {
@@ -341,11 +340,15 @@ Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/login', Login::class)->name('login');
     Route::get('/klaim-akun', KlaimAkun::class)->name('klaim-akun');
 
-    // Rincian & pembayaran tagihan: dapat diakses TANPA login lewat tautan bertanda tangan
-    // (signed URL) yang dikirim via notifikasi WhatsApp/email -- lihat Show::mount() dan
-    // Bayar::mount() untuk validasi akses (sesi pelanggan ATAU signature valid untuk invoice ini).
+    // Halaman Tagihan Mandiri: dapat diakses TANPA login lewat tautan bertanda tangan
+    // (signed URL) yang dikirim via notifikasi WhatsApp/email -- lihat Show::mount() untuk
+    // validasi akses (sesi pelanggan ATAU signature valid untuk invoice ini) dan Show::bayar()
+    // untuk redirect langsung ke Link Pembayaran Gateway (tanpa halaman estimasi biaya
+    // terpisah -- lihat CONTEXT.md "Halaman Tagihan Mandiri").
     Route::get('/tagihan/{invoice}', Show::class)->name('invoice.show');
-    Route::get('/tagihan/{invoice}/bayar', Bayar::class)->name('invoice.bayar');
+    // Rute lama dipertahankan sebagai redirect (bukan dihapus) untuk tautan /bayar yang
+    // mungkin sudah ter-cache di notifikasi lama/riwayat browser.
+    Route::get('/tagihan/{invoice}/bayar', fn (App\Models\Invoice $invoice) => redirect()->route('portal.invoice.show', $invoice))->name('invoice.bayar');
 
     Route::middleware('auth:pelanggan')->group(function () {
         Route::get('/', function () {

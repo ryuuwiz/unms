@@ -69,19 +69,78 @@ class BillingService
                 'dibuat_oleh' => $dibuatOleh,
             ]);
 
-            if ($promo && $diskon > 0) {
-                PromoPenggunaan::create([
-                    'promo_id' => $promo->id,
-                    'pelanggan_id' => $layanan->pelanggan_id,
-                    'invoice_id' => $invoice->id,
-                    'digunakan_pada' => Carbon::now(),
-                ]);
-
-                $promo->increment('terpakai_global');
-            }
+            $this->applyPromoUsage($invoice, $promo, $diskon, $layanan->pelanggan_id);
 
             return $invoice;
         });
+    }
+
+    /**
+     * Terbitkan invoice ad-hoc/manual (mis. biaya instalasi, denda) dengan nominal bebas
+     * yang diinput langsung -- bukan diturunkan dari harga PaketLayanan seperti
+     * generateInvoice(). Sengaja TANPA guard idempotensi per-periode: invoice manual bukan
+     * tagihan berulang, admin boleh menambahkan sebanyak yang diperlukan untuk layanan yang
+     * sama. `periode_tagihan` dibiarkan null (kolom & unique index terkait sudah null-safe --
+     * lihat migrasi `2026_08_23_170000_add_unique_constraint_to_invoice_table`) sehingga tidak
+     * bentrok dengan invoice tagihan bulanan pada layanan yang sama.
+     */
+    public function generateManualInvoice(
+        LayananPelanggan $layanan,
+        float $jumlah,
+        string $keterangan,
+        ?int $dibuatOleh = null,
+        ?Promo $promo = null,
+        ?Carbon $tanggalJatuhTempo = null,
+    ): Invoice {
+        return DB::transaction(function () use ($layanan, $jumlah, $keterangan, $dibuatOleh, $promo, $tanggalJatuhTempo) {
+            $diskon = 0.0;
+            if ($promo && $promo->aktif) {
+                $diskon = $promo->hitungDiskon($jumlah);
+            }
+
+            $jumlahSetelahPromo = max(0.0, $jumlah - $diskon);
+
+            $terbit = Carbon::today();
+            $jatuhTempo = $tanggalJatuhTempo ?? $terbit->copy()->addDays(7);
+
+            $invoice = Invoice::create([
+                'periode_tagihan' => null,
+                'keterangan' => $keterangan,
+                'pelanggan_id' => $layanan->pelanggan_id,
+                'layanan_pelanggan_id' => $layanan->id,
+                'jumlah' => $jumlah,
+                'jumlah_setelah_promo' => $jumlahSetelahPromo,
+                'promo_id' => $promo?->id,
+                'status' => StatusInvoice::MenungguPembayaran,
+                'tanggal_terbit' => $terbit,
+                'tanggal_jatuh_tempo' => $jatuhTempo,
+                'dibuat_oleh' => $dibuatOleh,
+            ]);
+
+            $this->applyPromoUsage($invoice, $promo, $diskon, $layanan->pelanggan_id);
+
+            return $invoice;
+        });
+    }
+
+    /**
+     * Catat penggunaan promo (kuota & audit trail) jika promo benar-benar memberi potongan.
+     * Dipakai bersama oleh generateInvoice() dan generateManualInvoice().
+     */
+    protected function applyPromoUsage(Invoice $invoice, ?Promo $promo, float $diskon, int $pelangganId): void
+    {
+        if (! $promo || $diskon <= 0) {
+            return;
+        }
+
+        PromoPenggunaan::create([
+            'promo_id' => $promo->id,
+            'pelanggan_id' => $pelangganId,
+            'invoice_id' => $invoice->id,
+            'digunakan_pada' => Carbon::now(),
+        ]);
+
+        $promo->increment('terpakai_global');
     }
 
     /**
@@ -119,7 +178,7 @@ class BillingService
 
             if ($jumlahDibayar !== $jumlahTagihan) {
                 throw new Exception(
-                    "Nominal pembayaran Rp ".number_format($jumlahDibayar, 0, ',', '.').
+                    'Nominal pembayaran Rp '.number_format($jumlahDibayar, 0, ',', '.').
                     ' tidak sama dengan tagihan Rp '.number_format($jumlahTagihan, 0, ',', '.').
                     " pada Invoice {$lockedInvoice->no_invoice}. Pembayaran manual wajib melunasi penuh."
                 );

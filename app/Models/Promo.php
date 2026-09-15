@@ -136,6 +136,15 @@ class Promo extends Model
     }
 
     /**
+     * Cari promo aktif berdasarkan kode yang diketik manual (mis. kode promo global/musiman).
+     * Dipakai oleh Invoice\Create dan Pelanggan\Show untuk resolusi kode promo pada invoice manual.
+     */
+    public static function findAktifByKode(string $kode): ?self
+    {
+        return static::query()->aktif()->where('kode_promo', trim($kode))->first();
+    }
+
+    /**
      * Hitung total potongan diskon dari sebuah nominal.
      */
     public function hitungDiskon(float $nominal): float

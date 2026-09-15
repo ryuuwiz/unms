@@ -20,13 +20,31 @@ use Livewire\Component;
 #[Title('Terbitkan Invoice')]
 class Create extends Component
 {
+    /**
+     * 'tagihan_bulanan': tagihan berulang, nominal dari harga PaketLayanan (alur asli).
+     * 'manual': invoice ad-hoc dengan nominal & keterangan bebas (mis. biaya instalasi, denda).
+     */
+    public string $jenisInvoice = 'tagihan_bulanan';
+
     public ?int $pelanggan_id = null;
+
+    /**
+     * True saat komponen dibuka dari halaman Detail Pelanggan (pelanggan sudah ditentukan) --
+     * field pelanggan dirender read-only, bukan dropdown.
+     */
+    public bool $pelangganLocked = false;
 
     public ?int $layanan_pelanggan_id = null;
 
     public ?int $promo_id = null;
 
+    public string $kodePromo = '';
+
     public string $periode_tagihan = '';
+
+    public string $keterangan = '';
+
+    public ?int $jumlahManual = null;
 
     public string $tanggal_jatuh_tempo = '';
 
@@ -38,11 +56,26 @@ class Create extends Component
 
     public float $totalTagihan = 0.0;
 
-    public function mount(): void
+    public function mount(?Pelanggan $pelanggan = null): void
     {
         $this->authorize('create', Invoice::class);
         $this->tanggal_jatuh_tempo = Carbon::today()->addDays(7)->toDateString();
         $this->periode_tagihan = Carbon::today()->format('Y-m');
+
+        if ($pelanggan) {
+            $this->pelanggan_id = $pelanggan->id;
+            $this->pelangganLocked = true;
+        }
+    }
+
+    public function updatedJenisInvoice(): void
+    {
+        $this->promo_id = null;
+        $this->kodePromo = '';
+        $this->keterangan = '';
+        $this->jumlahManual = null;
+        $this->resetErrorBag();
+        $this->recalculate();
     }
 
     public function updatedPelangganId(): void
@@ -60,12 +93,52 @@ class Create extends Component
 
     public function updatedPromoId(): void
     {
+        // Pilihan dropdown selalu menang atas kode yang diketik manual.
+        $this->kodePromo = '';
+        $this->recalculate();
+    }
+
+    /**
+     * Cocokkan kode promo yang diketik manual dengan promo aktif -- hanya dipakai jika
+     * dropdown promo belum dipilih (lihat updatedPromoId()).
+     */
+    public function updatedKodePromo(): void
+    {
+        $this->resetErrorBag('kodePromo');
+
+        $kode = trim($this->kodePromo);
+        if ($kode === '') {
+            $this->promo_id = null;
+            $this->recalculate();
+
+            return;
+        }
+
+        $promo = Promo::findAktifByKode($kode);
+
+        if (! $promo) {
+            $this->promo_id = null;
+            $this->addError('kodePromo', 'Kode promo tidak ditemukan atau sudah tidak aktif.');
+            $this->recalculate();
+
+            return;
+        }
+
+        $this->promo_id = $promo->id;
         $this->recalculate();
     }
 
     public function recalculate(): void
     {
         $this->existingInvoiceWarning = null;
+
+        if ($this->jenisInvoice === 'manual') {
+            $this->hargaAsli = (float) ($this->jumlahManual ?? 0);
+            $this->totalDiskon = $this->hitungDiskonUntukPromoDipilih($this->hargaAsli);
+            $this->totalTagihan = max(0.0, $this->hargaAsli - $this->totalDiskon);
+
+            return;
+        }
 
         if (! $this->layanan_pelanggan_id) {
             $this->hargaAsli = 0.0;
@@ -83,15 +156,7 @@ class Create extends Component
 
         $this->periode_tagihan = $layanan->getNextPeriodeTagihan();
         $this->hargaAsli = (float) $layanan->paketLayanan->harga;
-
-        $this->totalDiskon = 0.0;
-        if ($this->promo_id) {
-            $promo = Promo::find($this->promo_id);
-            if ($promo) {
-                $this->totalDiskon = $promo->hitungDiskon($this->hargaAsli);
-            }
-        }
-
+        $this->totalDiskon = $this->hitungDiskonUntukPromoDipilih($this->hargaAsli);
         $this->totalTagihan = max(0.0, $this->hargaAsli - $this->totalDiskon);
 
         // Cek apakah sudah ada invoice berjalan untuk periode ini
@@ -105,9 +170,26 @@ class Create extends Component
         }
     }
 
+    protected function hitungDiskonUntukPromoDipilih(float $nominal): float
+    {
+        if (! $this->promo_id) {
+            return 0.0;
+        }
+
+        $promo = Promo::find($this->promo_id);
+
+        return $promo ? $promo->hitungDiskon($nominal) : 0.0;
+    }
+
     public function save(BillingService $billingService): void
     {
         $this->authorize('create', Invoice::class);
+
+        if ($this->jenisInvoice === 'manual') {
+            $this->saveManual($billingService);
+
+            return;
+        }
 
         $this->validate([
             'pelanggan_id' => ['required', 'integer', 'exists:pelanggan,id'],
@@ -147,6 +229,48 @@ class Create extends Component
             promo: $promo,
             tanggalJatuhTempo: $jatuhTempo,
             periodeTagihan: $this->periode_tagihan
+        );
+
+        Flux::toast(variant: 'success', text: "Invoice {$invoice->no_invoice} berhasil diterbitkan.");
+
+        $this->redirectRoute('invoice.show', $invoice, navigate: true);
+    }
+
+    /**
+     * Terbitkan invoice manual/ad-hoc (jenisInvoice = 'manual'): nominal & keterangan bebas,
+     * tanpa guard periode -- lihat BillingService::generateManualInvoice().
+     */
+    protected function saveManual(BillingService $billingService): void
+    {
+        $this->validate([
+            'pelanggan_id' => ['required', 'integer', 'exists:pelanggan,id'],
+            'layanan_pelanggan_id' => ['required', 'integer', 'exists:layanan_pelanggan,id'],
+            'promo_id' => ['nullable', 'integer', 'exists:promo,id'],
+            'keterangan' => ['required', 'string', 'max:500'],
+            'jumlahManual' => ['required', 'integer', 'min:1'],
+            'tanggal_jatuh_tempo' => ['required', 'date', 'after_or_equal:today'],
+        ], [
+            'pelanggan_id.required' => 'Pelanggan wajib dipilih.',
+            'layanan_pelanggan_id.required' => 'Layanan internet pelanggan wajib dipilih.',
+            'keterangan.required' => 'Keterangan invoice wajib diisi.',
+            'jumlahManual.required' => 'Total jumlah wajib diisi.',
+            'jumlahManual.integer' => 'Total jumlah hanya boleh berupa angka, tanpa titik/koma.',
+            'jumlahManual.min' => 'Total jumlah harus lebih dari 0.',
+            'tanggal_jatuh_tempo.required' => 'Tanggal jatuh tempo wajib diisi.',
+            'tanggal_jatuh_tempo.after_or_equal' => 'Tanggal jatuh tempo tidak boleh kurang dari hari ini.',
+        ]);
+
+        $layanan = LayananPelanggan::findOrFail($this->layanan_pelanggan_id);
+        $promo = $this->promo_id ? Promo::find($this->promo_id) : null;
+        $jatuhTempo = Carbon::parse($this->tanggal_jatuh_tempo);
+
+        $invoice = $billingService->generateManualInvoice(
+            layanan: $layanan,
+            jumlah: (float) $this->jumlahManual,
+            keterangan: $this->keterangan,
+            dibuatOleh: auth()->id(),
+            promo: $promo,
+            tanggalJatuhTempo: $jatuhTempo,
         );
 
         Flux::toast(variant: 'success', text: "Invoice {$invoice->no_invoice} berhasil diterbitkan.");

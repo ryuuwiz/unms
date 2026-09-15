@@ -774,8 +774,8 @@
                     </div>
 
                     @can('create', App\Models\Invoice::class)
-                        <flux:button :href="route('invoice.create')" wire:navigate size="sm" variant="subtle" icon="plus">
-                            Terbitkan Invoice
+                        <flux:button type="button" wire:click="openTambahInvoiceModal" size="sm" variant="subtle" icon="plus">
+                            Tambah Invoice
                         </flux:button>
                     @endcan
                 </div>
@@ -1698,6 +1698,86 @@
                     <div class="flex justify-end gap-2 pt-2">
                         <flux:button wire:click="closeUbahPaketModal" type="button" variant="ghost">Batal</flux:button>
                         <flux:button type="submit" variant="primary" icon="check">Terapkan Perubahan</flux:button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal 6: Tambah Invoice Manual --}}
+    @if ($showTambahInvoiceModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+            <div class="relative w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 space-y-5">
+                <div class="flex items-center justify-between border-b border-zinc-100 pb-3 dark:border-zinc-800">
+                    <div class="flex items-center gap-2">
+                        <div class="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
+                            <flux:icon name="document-plus" class="size-5" />
+                        </div>
+                        <div>
+                            <flux:heading size="lg">Tambah Invoice Manual</flux:heading>
+                            <flux:description class="text-xs">Biaya instalasi, denda, atau tagihan lain di luar tagihan bulanan otomatis.</flux:description>
+                        </div>
+                    </div>
+                    <flux:button wire:click="closeTambahInvoiceModal" variant="ghost" size="sm" icon="x-mark" />
+                </div>
+
+                <form wire:submit="simpanTambahInvoice" class="space-y-4">
+                    <flux:field>
+                        <flux:label>Layanan Terkait *</flux:label>
+                        <flux:select wire:model="tambahInvoiceLayananId">
+                            <flux:select.option value="">-- Pilih Layanan --</flux:select.option>
+                            @foreach ($pelanggan->layanans as $lay)
+                                <flux:select.option value="{{ $lay->id }}">
+                                    {{ $lay->site_id }} - {{ $lay->paketLayanan?->nama_paket }} (PPP: {{ $lay->ppp_username }})
+                                </flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:error name="tambahInvoiceLayananId" />
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Detail / Keterangan Invoice *</flux:label>
+                        <flux:textarea wire:model="tambahInvoiceKeterangan" rows="2" placeholder="Contoh: Biaya instalasi pemasangan baru, denda keterlambatan, dll." />
+                        <flux:error name="tambahInvoiceKeterangan" />
+                    </flux:field>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <flux:field>
+                            <flux:label>Total Jumlah (Rp) *</flux:label>
+                            <flux:input type="number" wire:model="tambahInvoiceJumlah" placeholder="250000" description="Hanya angka, tanpa titik/koma." />
+                            <flux:error name="tambahInvoiceJumlah" />
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>Tanggal Jatuh Tempo *</flux:label>
+                            <flux:input type="date" wire:model="tambahInvoiceTanggalJatuhTempo" />
+                            <flux:error name="tambahInvoiceTanggalJatuhTempo" />
+                        </flux:field>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <flux:field>
+                            <flux:label>Pilih Promo (Opsional)</flux:label>
+                            <flux:select wire:model.live="tambahInvoicePromoId">
+                                <flux:select.option value="">-- Tanpa Promo --</flux:select.option>
+                                @foreach ($promosAktif as $promo)
+                                    <flux:select.option value="{{ $promo->id }}">
+                                        {{ $promo->kode_promo }} - {{ $promo->nama_promo }}
+                                    </flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>Kode Promo (Opsional)</flux:label>
+                            <flux:input wire:model.live="tambahInvoiceKodePromo" placeholder="Kode promo global/musiman" :disabled="(bool) $tambahInvoicePromoId" />
+                            <flux:error name="tambahInvoiceKodePromo" />
+                        </flux:field>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <flux:button wire:click="closeTambahInvoiceModal" type="button" variant="ghost">Batal</flux:button>
+                        <flux:button type="submit" variant="primary" icon="document-check">Terbitkan Invoice</flux:button>
                     </div>
                 </form>
             </div>

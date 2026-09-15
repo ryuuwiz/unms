@@ -323,3 +323,136 @@ test('form uji coba tagihan menolak jika email dan nomor whatsapp kosong', funct
         ->call('kirimUjiCobaTagihan')
         ->assertHasErrors(['testEmail', 'testPhone']);
 });
+
+test('halaman tambah invoice dibuka dari detail pelanggan mengunci pelanggan terpilih', function () {
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->assertSet('pelanggan_id', $this->pelanggan->id)
+        ->assertSet('pelangganLocked', true);
+});
+
+test('halaman tambah invoice tanpa konteks pelanggan tetap menampilkan dropdown terbuka', function () {
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class)
+        ->assertSet('pelanggan_id', null)
+        ->assertSet('pelangganLocked', false);
+});
+
+test('admin dapat membuat invoice manual dengan nominal dan keterangan bebas', function () {
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('jenisInvoice', 'manual')
+        ->set('layanan_pelanggan_id', $this->layanan->id)
+        ->set('keterangan', 'Biaya instalasi pemasangan baru')
+        ->set('jumlahManual', 250000)
+        ->set('tanggal_jatuh_tempo', now()->addDays(7)->toDateString())
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $invoice = Invoice::where('pelanggan_id', $this->pelanggan->id)->latest('id')->first();
+
+    expect($invoice)->not->toBeNull()
+        ->and($invoice->periode_tagihan)->toBeNull()
+        ->and($invoice->keterangan)->toBe('Biaya instalasi pemasangan baru')
+        ->and((float) $invoice->jumlah)->toBe(250000.0)
+        ->and((float) $invoice->jumlah_setelah_promo)->toBe(250000.0)
+        ->and($invoice->layanan_pelanggan_id)->toBe($this->layanan->id)
+        ->and($invoice->status)->toBe(StatusInvoice::MenungguPembayaran);
+
+    // Harus muncul saat histori invoice layanan ini difilter (mis. di halaman Detail Layanan).
+    expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->where('id', $invoice->id)->exists())->toBeTrue();
+});
+
+test('invoice manual dengan promo dropodown menerapkan diskon yang benar', function () {
+    $promo = Promo::factory()->create([
+        'kode_promo' => 'INSTALL50',
+        'diskon_nilai' => 50000,
+        'diskon_tipe' => 'nominal',
+        'minimal_nominal_invoice' => 0,
+    ]);
+
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('jenisInvoice', 'manual')
+        ->set('layanan_pelanggan_id', $this->layanan->id)
+        ->set('keterangan', 'Biaya instalasi dengan promo')
+        ->set('jumlahManual', 250000)
+        ->set('promo_id', $promo->id)
+        ->set('tanggal_jatuh_tempo', now()->addDays(7)->toDateString())
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $invoice = Invoice::where('pelanggan_id', $this->pelanggan->id)->latest('id')->first();
+
+    expect((float) $invoice->jumlah_setelah_promo)->toBe(200000.0)
+        ->and($invoice->promo_id)->toBe($promo->id);
+
+    expect($promo->fresh()->terpakai_global)->toBe(1);
+});
+
+test('kode promo yang diketik manual mencocokkan promo aktif pada invoice manual', function () {
+    $promo = Promo::factory()->create([
+        'kode_promo' => 'SEASONAL2026',
+        'diskon_nilai' => 30000,
+        'diskon_tipe' => 'nominal',
+        'minimal_nominal_invoice' => 0,
+    ]);
+
+    $component = Livewire::actingAs($this->adminUser)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('jenisInvoice', 'manual')
+        ->set('layanan_pelanggan_id', $this->layanan->id)
+        ->set('kodePromo', 'seasonal2026')
+        ->assertSet('promo_id', $promo->id)
+        ->assertHasNoErrors('kodePromo');
+
+    $component->set('keterangan', 'Biaya instalasi dengan kode promo')
+        ->set('jumlahManual', 250000)
+        ->set('tanggal_jatuh_tempo', now()->addDays(7)->toDateString())
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $invoice = Invoice::where('pelanggan_id', $this->pelanggan->id)->latest('id')->first();
+    expect($invoice->promo_id)->toBe($promo->id)
+        ->and((float) $invoice->jumlah_setelah_promo)->toBe(220000.0);
+});
+
+test('kode promo yang tidak ditemukan atau tidak aktif menampilkan error validasi', function () {
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('jenisInvoice', 'manual')
+        ->set('kodePromo', 'KODE-TIDAK-ADA')
+        ->assertSet('promo_id', null)
+        ->assertHasErrors(['kodePromo']);
+});
+
+test('invoice manual tidak memerlukan periode tagihan dan tidak bentrok dengan tagihan bulanan pada layanan yang sama', function () {
+    Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'periode_tagihan' => now()->format('Y-m'),
+        'status' => StatusInvoice::MenungguPembayaran,
+    ]);
+
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('jenisInvoice', 'manual')
+        ->set('layanan_pelanggan_id', $this->layanan->id)
+        ->set('keterangan', 'Denda keterlambatan')
+        ->set('jumlahManual', 50000)
+        ->set('tanggal_jatuh_tempo', now()->addDays(7)->toDateString())
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->count())->toBe(2);
+});
+
+test('validasi invoice manual menolak jumlah non-integer atau keterangan kosong', function () {
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('jenisInvoice', 'manual')
+        ->set('layanan_pelanggan_id', $this->layanan->id)
+        ->set('tanggal_jatuh_tempo', now()->addDays(7)->toDateString())
+        ->call('save')
+        ->assertHasErrors(['keterangan', 'jumlahManual']);
+});

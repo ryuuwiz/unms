@@ -10,9 +10,11 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\Pembayaran;
 use App\Models\ProfilBandwidth;
+use App\Models\Promo;
 use App\Models\Router;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -230,6 +232,98 @@ test('can process payment from quick modal in detail pelanggan', function () {
     expect($activeInv->pembayarans)->toHaveCount(1);
     expect($activeInv->pembayarans->first()->referensi_transaksi)->toBe('STRUK-999');
 });
+
+test('can open tambah invoice modal and create manual invoice from detail pelanggan', function () {
+    $profil = ProfilBandwidth::factory()->create();
+    $router = Router::factory()->create();
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id, 'harga' => 300000]);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $paket->id,
+        'router_id' => $router->id,
+        'status' => StatusLayanan::Aktif,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->call('openTambahInvoiceModal')
+        ->assertSet('showTambahInvoiceModal', true)
+        ->set('tambahInvoiceLayananId', $layanan->id)
+        ->set('tambahInvoiceKeterangan', 'Biaya instalasi pemasangan baru')
+        ->set('tambahInvoiceJumlah', 250000)
+        ->set('tambahInvoiceTanggalJatuhTempo', now()->addDays(7)->toDateString())
+        ->call('simpanTambahInvoice')
+        ->assertHasNoErrors()
+        ->assertSet('showTambahInvoiceModal', false);
+
+    $invoice = Invoice::where('pelanggan_id', $this->pelanggan->id)->latest('id')->first();
+
+    expect($invoice)->not->toBeNull()
+        ->and($invoice->periode_tagihan)->toBeNull()
+        ->and($invoice->keterangan)->toBe('Biaya instalasi pemasangan baru')
+        ->and((float) $invoice->jumlah_setelah_promo)->toBe(250000.0)
+        ->and($invoice->layanan_pelanggan_id)->toBe($layanan->id);
+});
+
+test('kode promo yang diketik manual menerapkan diskon pada tambah invoice modal', function () {
+    $profil = ProfilBandwidth::factory()->create();
+    $router = Router::factory()->create();
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id, 'harga' => 300000]);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $paket->id,
+        'router_id' => $router->id,
+        'status' => StatusLayanan::Aktif,
+    ]);
+
+    $promo = Promo::factory()->create([
+        'kode_promo' => 'INSTALL50',
+        'diskon_nilai' => 50000,
+        'diskon_tipe' => 'nominal',
+        'minimal_nominal_invoice' => 0,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->call('openTambahInvoiceModal')
+        ->set('tambahInvoiceKodePromo', 'install50')
+        ->assertSet('tambahInvoicePromoId', $promo->id)
+        ->assertHasNoErrors('tambahInvoiceKodePromo')
+        ->set('tambahInvoiceLayananId', $layanan->id)
+        ->set('tambahInvoiceKeterangan', 'Biaya instalasi dengan promo')
+        ->set('tambahInvoiceJumlah', 250000)
+        ->set('tambahInvoiceTanggalJatuhTempo', now()->addDays(7)->toDateString())
+        ->call('simpanTambahInvoice')
+        ->assertHasNoErrors();
+
+    $invoice = Invoice::where('pelanggan_id', $this->pelanggan->id)->latest('id')->first();
+    expect((float) $invoice->jumlah_setelah_promo)->toBe(200000.0)
+        ->and($invoice->promo_id)->toBe($promo->id);
+});
+
+test('tambah invoice modal menolak layanan milik pelanggan lain', function () {
+    $pelangganLain = Pelanggan::factory()->create();
+    $profil = ProfilBandwidth::factory()->create();
+    $router = Router::factory()->create();
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id, 'harga' => 300000]);
+
+    $layananLain = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $pelangganLain->id,
+        'paket_layanan_id' => $paket->id,
+        'router_id' => $router->id,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->call('openTambahInvoiceModal')
+        ->set('tambahInvoiceLayananId', $layananLain->id)
+        ->set('tambahInvoiceKeterangan', 'Percobaan lintas pelanggan')
+        ->set('tambahInvoiceJumlah', 100000)
+        ->set('tambahInvoiceTanggalJatuhTempo', now()->addDays(7)->toDateString())
+        ->call('simpanTambahInvoice');
+})->throws(ModelNotFoundException::class);
 
 test('can switch to audit tab and render activity logs', function () {
     activity()

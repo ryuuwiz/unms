@@ -9,6 +9,7 @@ use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\Pembayaran;
+use App\Models\Promo;
 use App\Models\User;
 use App\Services\Billing\BillingService;
 use App\Services\CustomerDocumentService;
@@ -50,9 +51,23 @@ class Show extends Component
 
     public bool $showUbahPaketModal = false;
 
+    public bool $showTambahInvoiceModal = false;
+
     public ?int $selectedLayananId = null;
 
     public ?int $newPaketId = null;
+
+    public ?int $tambahInvoiceLayananId = null;
+
+    public ?int $tambahInvoicePromoId = null;
+
+    public string $tambahInvoiceKodePromo = '';
+
+    public string $tambahInvoiceKeterangan = '';
+
+    public ?int $tambahInvoiceJumlah = null;
+
+    public string $tambahInvoiceTanggalJatuhTempo = '';
 
     public ?int $selectedInvoiceId = null;
 
@@ -436,6 +451,98 @@ class Show extends Component
         );
     }
 
+    public function openTambahInvoiceModal(): void
+    {
+        $this->authorize('create', Invoice::class);
+
+        $this->tambahInvoiceLayananId = null;
+        $this->tambahInvoicePromoId = null;
+        $this->tambahInvoiceKodePromo = '';
+        $this->tambahInvoiceKeterangan = '';
+        $this->tambahInvoiceJumlah = null;
+        $this->tambahInvoiceTanggalJatuhTempo = Carbon::today()->addDays(7)->toDateString();
+        $this->resetErrorBag();
+        $this->showTambahInvoiceModal = true;
+    }
+
+    public function closeTambahInvoiceModal(): void
+    {
+        $this->showTambahInvoiceModal = false;
+    }
+
+    public function updatedTambahInvoicePromoId(): void
+    {
+        // Pilihan dropdown selalu menang atas kode yang diketik manual.
+        $this->tambahInvoiceKodePromo = '';
+    }
+
+    /**
+     * Cocokkan kode promo yang diketik manual dengan promo aktif -- lihat Promo::findAktifByKode()
+     * (juga dipakai Invoice\Create untuk alur tambah invoice manual full-page).
+     */
+    public function updatedTambahInvoiceKodePromo(): void
+    {
+        $this->resetErrorBag('tambahInvoiceKodePromo');
+
+        $kode = trim($this->tambahInvoiceKodePromo);
+        if ($kode === '') {
+            $this->tambahInvoicePromoId = null;
+
+            return;
+        }
+
+        $promo = Promo::findAktifByKode($kode);
+
+        if (! $promo) {
+            $this->tambahInvoicePromoId = null;
+            $this->addError('tambahInvoiceKodePromo', 'Kode promo tidak ditemukan atau sudah tidak aktif.');
+
+            return;
+        }
+
+        $this->tambahInvoicePromoId = $promo->id;
+    }
+
+    public function simpanTambahInvoice(BillingService $billingService): void
+    {
+        $this->authorize('create', Invoice::class);
+
+        $this->validate([
+            'tambahInvoiceLayananId' => ['required', 'integer', 'exists:layanan_pelanggan,id'],
+            'tambahInvoicePromoId' => ['nullable', 'integer', 'exists:promo,id'],
+            'tambahInvoiceKeterangan' => ['required', 'string', 'max:500'],
+            'tambahInvoiceJumlah' => ['required', 'integer', 'min:1'],
+            'tambahInvoiceTanggalJatuhTempo' => ['required', 'date', 'after_or_equal:today'],
+        ], [
+            'tambahInvoiceLayananId.required' => 'Layanan terkait wajib dipilih.',
+            'tambahInvoiceKeterangan.required' => 'Keterangan invoice wajib diisi.',
+            'tambahInvoiceJumlah.required' => 'Total jumlah wajib diisi.',
+            'tambahInvoiceJumlah.integer' => 'Total jumlah hanya boleh berupa angka, tanpa titik/koma.',
+            'tambahInvoiceJumlah.min' => 'Total jumlah harus lebih dari 0.',
+            'tambahInvoiceTanggalJatuhTempo.required' => 'Tanggal jatuh tempo wajib diisi.',
+            'tambahInvoiceTanggalJatuhTempo.after_or_equal' => 'Tanggal jatuh tempo tidak boleh kurang dari hari ini.',
+        ]);
+
+        $pelanggan = Pelanggan::findOrFail($this->pelangganId);
+        // Guard kepemilikan: layanan harus benar-benar milik pelanggan ini, sama seperti
+        // prosesUbahPaket() -- bukan sekadar `exists:layanan_pelanggan,id` yang lolos untuk ID apa pun.
+        $layanan = $pelanggan->layanans()->findOrFail($this->tambahInvoiceLayananId);
+        $promo = $this->tambahInvoicePromoId ? Promo::find($this->tambahInvoicePromoId) : null;
+
+        $invoice = $billingService->generateManualInvoice(
+            layanan: $layanan,
+            jumlah: (float) $this->tambahInvoiceJumlah,
+            keterangan: $this->tambahInvoiceKeterangan,
+            dibuatOleh: auth()->id(),
+            promo: $promo,
+            tanggalJatuhTempo: Carbon::parse($this->tambahInvoiceTanggalJatuhTempo),
+        );
+
+        $this->closeTambahInvoiceModal();
+
+        Flux::toast(variant: 'success', text: "Invoice {$invoice->no_invoice} berhasil diterbitkan.");
+    }
+
     public function render(): View
     {
         $pelanggan = Pelanggan::with([
@@ -486,6 +593,8 @@ class Show extends Component
             ? $pelanggan->layanans->firstWhere('id', $this->selectedLayananId)
             : null;
 
+        $promosAktif = Promo::query()->aktif()->get();
+
         return view('livewire.pelanggan.show', [
             'pelanggan' => $pelanggan,
             'activityLogs' => $activityLogs,
@@ -498,6 +607,7 @@ class Show extends Component
             'selectedInvoice' => $selectedInvoice,
             'pakets' => $pakets,
             'selectedLayananForModal' => $selectedLayananForModal,
+            'promosAktif' => $promosAktif,
         ]);
     }
 }

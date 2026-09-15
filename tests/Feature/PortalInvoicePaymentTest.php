@@ -3,7 +3,6 @@
 use App\Enums\GatewayChannel;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
-use App\Livewire\Portal\Invoice\Bayar;
 use App\Livewire\Portal\Invoice\Index;
 use App\Livewire\Portal\Invoice\Show;
 use App\Models\Invoice;
@@ -175,28 +174,28 @@ test('tamu ditolak membuka rincian tagihan tanpa login dan tanpa tanda tangan va
         ->assertForbidden();
 });
 
-test('tamu dapat membuka halaman estimasi biaya pembayaran lewat tautan bertanda tangan', function () {
-    $signedUrl = URL::signedRoute('portal.invoice.bayar', ['invoice' => $this->invoice->id]);
-
-    $this->get($signedUrl)
-        ->assertOk()
-        ->assertSee('Estimasi Biaya per Channel');
+test('rute lama /bayar tetap berfungsi sebagai redirect ke Halaman Tagihan Mandiri', function () {
+    // Halaman estimasi biaya terpisah sudah dihapus (lihat CONTEXT.md "Halaman Tagihan
+    // Mandiri") -- rute lama dipertahankan hanya sebagai redirect, bukan dihapus total,
+    // untuk tautan /bayar yang mungkin sudah ter-cache di notifikasi lama/riwayat browser.
+    $this->get(route('portal.invoice.bayar', $this->invoice))
+        ->assertRedirect(route('portal.invoice.show', $this->invoice));
 });
 
-test('pelanggan tidak dapat membuka sesi pembayaran untuk invoice yang dibatalkan', function () {
+test('pelanggan tidak dapat memicu pembayaran untuk invoice yang dibatalkan', function () {
     $this->invoice->update([
         'status' => StatusInvoice::Dibatalkan,
         'keterangan_hapus' => 'Dibatalkan karena koreksi tagihan ganda',
     ]);
 
     Livewire::actingAs($this->akun, 'pelanggan')
-        ->test(Bayar::class, ['invoice' => $this->invoice])
-        ->assertRedirect(route('portal.invoice.show', $this->invoice));
-
-    Livewire::actingAs($this->akun, 'pelanggan')
         ->test(Show::class, ['invoice' => $this->invoice])
         ->assertOk()
         ->assertSee('Tagihan Ini Telah Dibatalkan')
         ->assertSee('Dibatalkan karena koreksi tagihan ganda')
-        ->assertDontSee('Bayar Sekarang');
+        ->assertDontSee('Bayar Sekarang')
+        ->call('bayar')
+        ->assertNoRedirect();
+
+    expect($this->invoice->fresh()->payment_gateway_url)->toBeNull();
 });

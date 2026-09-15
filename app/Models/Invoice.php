@@ -34,6 +34,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $dihapus_oleh
  * @property string|null $keterangan_hapus
  * @property string|null $periode_tagihan
+ * @property string|null $keterangan
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -55,6 +56,7 @@ use Spatie\Activitylog\Support\LogOptions;
 #[Fillable([
     'no_invoice',
     'periode_tagihan',
+    'keterangan',
     'pelanggan_id',
     'layanan_pelanggan_id',
     'jumlah',
@@ -264,6 +266,19 @@ class Invoice extends Model
     {
         $url = $this->payment_gateway_url ?: ($this->attributes['xendit_invoice_url'] ?? null);
         if (empty($url)) {
+            return false;
+        }
+
+        // Link mock (dibuat oleh bug yang diperbaiki di ADR 0039, sebelum APP_ENV=testing
+        // menjadi satu-satunya syarat mock) tidak pernah menjadi invoice Xendit sungguhan --
+        // ID/URL-nya mengandung 'inv_mock_' dan tidak akan pernah bisa dibuka pelanggan.
+        // Invoice lama yang masih menyimpan link ini harus dipaksa regenerasi (bukan dianggap
+        // "masih aktif" hanya karena kolom status/expired_at belum lewat), walau tidak ada
+        // migrasi backfill -- self-healing begitu invoice ini disentuh lagi. Dikecualikan di
+        // APP_ENV=testing: di sana 'inv_mock_' SELALU sengaja dibuat (satu-satunya environment
+        // yang boleh mock sama sekali) dan test lain bergantung padanya berperilaku seperti link
+        // normal.
+        if (str_contains($url, 'inv_mock_') && ! app()->environment('testing')) {
             return false;
         }
 

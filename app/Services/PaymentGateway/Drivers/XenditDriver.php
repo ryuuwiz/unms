@@ -131,10 +131,20 @@ class XenditDriver extends AbstractPaymentDriver
         $customerObj = new CustomerObject($customerData);
         $redirectUrl = route('portal.invoice.show', $invoice->id);
 
-        // Mock hanya boleh aktif di local/testing. Di environment lain (termasuk production),
-        // API key kosong adalah kesalahan konfigurasi dan harus gagal keras -- bukan diam-diam
-        // menyerahkan URL checkout-staging.xendit.co palsu ke pelanggan.
-        $isSandboxEnv = app()->environment(['local', 'testing']);
+        // Mock (tanpa panggilan API sama sekali) HANYA boleh aktif di environment 'testing' --
+        // satu-satunya nilai APP_ENV yang tidak pernah bisa muncul di server sungguhan (hanya
+        // di-set oleh phpunit.xml). 'local' SENGAJA tidak lagi termasuk: developer lokal yang
+        // sudah mengonfigurasi XENDIT_SECRET_KEY asli (mode test Xendit, prefix xnd_development_)
+        // berhak mendapat panggilan API sungguhan ke sandbox Xendit -- bukan URL palsu yang
+        // tidak pernah bisa dibuka. PengaturanGateway.sandbox_mode juga BUKAN sinyal yang tepat
+        // di sini: field itu berarti "pakai kredensial mode test Xendit", bukan "jangan pernah
+        // hubungi Xendit sama sekali" -- percobaan sebelumnya memakainya untuk hal itu salah
+        // kaprah (lihat ADR 0039) dan sekaligus membuat link palsu tetap bisa lolos ke produksi
+        // kalau APP_ENV salah baca sebagai 'local'. Dengan hanya 'testing' yang dipercaya, APP_ENV
+        // yang salah konfigurasi di produksi tidak lagi bisa memicu mock sama sekali -- sistem
+        // akan mencoba panggilan API sungguhan (berhasil jika key valid, gagal keras dan tercatat
+        // jika tidak), bukan diam-diam menyerahkan URL palsu ke pelanggan.
+        $isSandboxEnv = app()->environment('testing');
 
         if (empty($apiKey) && ! $isSandboxEnv) {
             throw new Exception('Xendit Secret Key belum dikonfigurasi. Payment link tidak dapat diterbitkan.');
@@ -208,7 +218,10 @@ class XenditDriver extends AbstractPaymentDriver
 
         $apiKey = $this->getApiKey($setting);
 
-        if (app()->environment(['local', 'testing'])) {
+        // Sama seperti createPaymentLink() -- hanya 'testing' yang dipercaya, lihat ADR 0039.
+        // APP_ENV yang salah konfigurasi di produksi tidak lagi bisa membuat status pembayaran
+        // selalu dilaporkan PENDING palsu yang menutupi status asli invoice selamanya.
+        if (app()->environment('testing')) {
             return [
                 'status' => 'PENDING',
                 'message' => 'Mode Test/Offline: Status invoice aktif.',

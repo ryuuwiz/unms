@@ -64,6 +64,12 @@ class Show extends Component
      */
     public function bayar(PaymentGatewayManager $paymentManager): mixed
     {
+        if ($this->invoice->isDibatalkan()) {
+            Flux::toast(variant: 'warning', text: 'Tagihan ini telah dibatalkan dan tidak dapat dibayar.');
+
+            return null;
+        }
+
         try {
             $paymentUrl = $paymentManager->resolvePaymentUrl($this->invoice);
 
