@@ -1,5 +1,10 @@
 # syntax=docker/dockerfile:1.7
 #
+# Alternative build path: railpack.json (repo root) builds an equivalent
+# image via `railpack build .` instead of `docker build .`. Both consume the
+# same docker/entrypoint.sh, docker/supervisor.d/*, docker/Caddyfile,
+# docker/php.ini, docker/www.conf — edit those once, not per build path.
+#
 # Note: Debian Buster (Debian 10) is EOL and is not published for
 # php:8.4 or node:24 upstream images, so this build uses Debian
 # Bookworm (current stable) throughout instead — the closest
