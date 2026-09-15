@@ -176,7 +176,7 @@ WORKDIR /var/www/html
 # that must still be supplied per-deployment (secrets, hostnames, keys).
 ENV APP_ENV=production \
     APP_DEBUG=false \
-    LOG_CHANNEL=stack
+    LOG_CHANNEL=stderr
 
 # --- Application code -------------------------------------------------
 COPY --chown=www-data:www-data . .
