@@ -1,9 +1,14 @@
 {
+  "env": {
+    "ANTHROPIC_BASE_URL": ""
+  },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "laravel-boost"
   ],
-  "enableAllProjectMcpServers": true,
-  "env": {
-    "ANTHROPIC_BASE_URL": ""
+  "permissions": {
+    "allow": [
+      "Bash(rtk grep *)"
+    ]
   }
 }

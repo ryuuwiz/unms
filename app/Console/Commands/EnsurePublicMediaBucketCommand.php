@@ -50,6 +50,11 @@ class EnsurePublicMediaBucketCommand extends Command
 
         $client = Storage::disk('s3')->getClient();
 
+        if (! $client->doesBucketExist($bucket)) {
+            $client->createBucket(['Bucket' => $bucket]);
+            $this->components->info("Created missing bucket [{$bucket}].");
+        }
+
         $policy = json_encode([
             'Version' => '2012-10-17',
             'Statement' => [[
