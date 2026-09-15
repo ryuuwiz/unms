@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6cebbd09d5d1b3e91bb4ac000f775cbb",
+    "content-hash": "158ba8abda5f48b59453750a8ff8c3d1",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -11720,6 +11720,70 @@
             "time": "2026-08-12T13:55:56+00:00"
         },
         {
+            "name": "mischasigtermans/laravel-altitude",
+            "version": "v0.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mischasigtermans/laravel-altitude.git",
+                "reference": "8739ddf2adaefb33c9c998a94dc4af250184a1ee"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mischasigtermans/laravel-altitude/zipball/8739ddf2adaefb33c9c998a94dc4af250184a1ee",
+                "reference": "8739ddf2adaefb33c9c998a94dc4af250184a1ee",
+                "shasum": ""
+            },
+            "require": {
+                "illuminate/support": "^11.0|^12.0|^13.0",
+                "laravel/boost": "^1.0|^2.0",
+                "php": "^8.2"
+            },
+            "require-dev": {
+                "larastan/larastan": "^3.0",
+                "laravel/pint": "^1.20",
+                "orchestra/testbench": "^9.0|^10.0",
+                "pestphp/pest": "^3.0",
+                "pestphp/pest-plugin-laravel": "^3.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Altitude\\AltitudeServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Altitude\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Mischa Sigtermans",
+                    "email": "mischa@sigtermans.me"
+                }
+            ],
+            "description": "Claude Code agents for the TALL stack, powered by Laravel Boost",
+            "keywords": [
+                "agents",
+                "ai",
+                "claude",
+                "laravel",
+                "livewire",
+                "tall"
+            ],
+            "support": {
+                "issues": "https://github.com/mischasigtermans/laravel-altitude/issues",
+                "source": "https://github.com/mischasigtermans/laravel-altitude/tree/v0.2.0"
+            },
+            "time": "2026-03-23T15:17:27+00:00"
+        },
+        {
             "name": "mockery/mockery",
             "version": "1.6.15",
             "source": {
@@ -14452,5 +14516,5 @@
         "ext-zip": "*"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }

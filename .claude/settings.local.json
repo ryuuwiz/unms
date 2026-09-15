@@ -1,0 +1,9 @@
+{
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ],
+  "enableAllProjectMcpServers": true,
+  "env": {
+    "ANTHROPIC_BASE_URL": ""
+  }
+}

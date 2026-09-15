@@ -44,6 +44,7 @@
         "laravel/pao": "^1.0.6",
         "laravel/pint": "^1.27",
         "laravel/sail": "^1.67",
+        "mischasigtermans/laravel-altitude": "^0.2.0",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.9.3",
         "pestphp/pest": "^5.1",
