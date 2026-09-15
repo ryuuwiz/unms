@@ -23,6 +23,12 @@ if [ -z "${APP_KEY:-}" ]; then
     exit 1
 fi
 
+# Database and Redis run as separate services (Dokploy) with no guaranteed
+# startup order relative to this container -- without this, a boot race fails
+# app:migrate-once (its Cache::lock needs Redis) with a raw exception instead
+# of a clear message. See app/Console/Commands/WaitForServicesCommand.php.
+php artisan app:wait-for-services --no-interaction
+
 # Clear any stale bytecode/config/route/view cache before rebuilding it below.
 # Guards against bootstrap/cache/*.php or storage/framework/cache/* getting
 # baked into the image (e.g. if .dockerignore ever misses them) and against
