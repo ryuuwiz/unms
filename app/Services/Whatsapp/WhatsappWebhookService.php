@@ -17,6 +17,7 @@ use App\Models\WebhookLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Sentry\State\Scope;
 
 class WhatsappWebhookService
 {
@@ -25,20 +26,34 @@ class WhatsappWebhookService
     ) {}
 
     /**
-     * Proses payload webhook WhatsApp.
-     *
-     * Mendukung format event-driven `{event, session, payload}` (dipakai WAHA maupun GOWA —
-     * keduanya berbasis library whatsmeow dan memakai konvensi nama event yang sama seperti
-     * `message`/`message.ack`) serta format flat legacy `{phone, message}` / `{phone, status}`
-     * (dipakai perintah `whatsapp:simulate-webhook` untuk pengujian lokal).
+     * Proses payload webhook WhatsApp secara sinkron: mencatat WebhookLog lalu langsung
+     * menanganinya. Dipakai oleh `whatsapp:simulate-webhook` (CLI lokal, bukan HTTP publik,
+     * sehingga tidak perlu antrean). Jalur HTTP publik (`WhatsappWebhookController`) mencatat
+     * WebhookLog sendiri lebih dulu (agar percobaan yang ditolak signature tetap tercatat),
+     * lalu memproses via `ProcessWhatsappWebhookJob` di antrean -- lihat `handlePayload()`.
      *
      * @param  array<string, mixed>  $payload
      * @return array{status: bool, type: string, message: string}
      */
     public function process(array $payload): array
     {
-        $log = $this->logWebhook($payload);
+        return $this->handlePayload($payload, $this->logWebhook($payload));
+    }
 
+    /**
+     * Tangani payload webhook WhatsApp yang WebhookLog-nya sudah dicatat sebelumnya.
+     *
+     * Mendukung format event-driven `{event, session, payload}` (dipakai WAHA maupun GOWA —
+     * keduanya berbasis library whatsmeow dan memakai konvensi nama event yang sama seperti
+     * `message`/`message.ack`) serta format flat legacy `{phone, message}` / `{phone, status}`
+     * (dipakai perintah `whatsapp:simulate-webhook` untuk pengujian lokal, dan masih dipakai
+     * oleh pengirim gateway lama di produksi).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{status: bool, type: string, message: string}
+     */
+    public function handlePayload(array $payload, ?WebhookLog $log): array
+    {
         try {
             // 1. Deteksi format event WAHA/GOWA (event-driven)
             if (isset($payload['event']) && isset($payload['payload'])) {
@@ -90,6 +105,14 @@ class WhatsappWebhookService
             ]);
 
             Log::error('WhatsApp Webhook Processing Error: '.$e->getMessage(), ['payload' => $payload]);
+
+            // Capture eksplisit ke Sentry: jalur ini sinkron (dipanggil dari CLI simulate
+            // command) tanpa hook failed() milik queue job untuk menangkapnya -- lihat
+            // ProcessWhatsappWebhookJob::failed() untuk jalur HTTP webhook produksi asli.
+            \Sentry\configureScope(function (Scope $scope) use ($log): void {
+                $scope->setContext('whatsapp_webhook', ['webhook_log_id' => $log?->id]);
+            });
+            \Sentry\captureException($e);
 
             return [
                 'status' => false,
@@ -467,18 +490,23 @@ class WhatsappWebhookService
     /**
      * Catat log payload webhook ke database.
      *
+     * Diekspos public (bukan protected) karena `WhatsappWebhookController` sekarang mencatat
+     * log INI SENDIRI sebelum verifikasi signature -- agar percobaan yang ditolak (signature
+     * tidak valid) tetap meninggalkan jejak audit, bukan hanya percobaan yang berhasil.
+     *
      * @param  array<string, mixed>  $payload
      */
-    protected function logWebhook(array $payload): ?WebhookLog
+    public function logWebhook(array $payload): ?WebhookLog
     {
         try {
-            $eventType = isset($payload['event'])
-                ? "waha.{$payload['event']}"
-                : (isset($payload['message']) ? 'whatsapp.incoming_message' : 'whatsapp.tracking');
+            [$provider, $eventType] = $this->detectProviderAndEventType($payload);
+            $eventId = $this->deriveProviderEventId($payload);
 
             return WebhookLog::create([
+                'provider' => $provider,
+                'provider_event_id' => $eventId,
                 'event_type' => $eventType,
-                'xendit_event_id' => $payload['id'] ?? null,
+                'xendit_event_id' => $eventId,
                 'payload' => $payload,
                 'status_proses' => StatusWebhookLog::Diterima,
                 'diterima_pada' => Carbon::now(),
@@ -488,5 +516,72 @@ class WhatsappWebhookService
 
             return null;
         }
+    }
+
+    /**
+     * Deteksi provider (gowa/waha/whatsapp) dan event_type dari bentuk payload.
+     *
+     * `provider` tidak boleh dibiarkan memakai default kolom (`xendit`) -- kolom itu hanya
+     * relevan untuk webhook payment gateway, dan sebelumnya seluruh baris WebhookLog WhatsApp
+     * salah tercatat sebagai `xendit`, mencemari trail audit & index unik idempotensi.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{0: string, 1: string}
+     */
+    protected function detectProviderAndEventType(array $payload): array
+    {
+        if (isset($payload['event'])) {
+            $sysblas = $this->resolveGowaSysblas($payload);
+            $provider = $sysblas?->provider === SysblasProvider::Gowa ? 'gowa' : 'waha';
+
+            return [$provider, "{$provider}.{$payload['event']}"];
+        }
+
+        if (isset($payload['message'])) {
+            return ['whatsapp', 'whatsapp.incoming_message'];
+        }
+
+        return ['whatsapp', 'whatsapp.tracking'];
+    }
+
+    /**
+     * Turunkan provider_event_id yang stabil dari payload, dipakai unique index
+     * `webhook_log_provider_event_unique` untuk idempotensi.
+     *
+     * Payload event-driven asli (WAHA/GOWA) tidak selalu punya id di level teratas -- fallback
+     * ke id pesan bersarang (diprefiks session agar tidak bentrok lintas session). Payload flat
+     * legacy tanpa id sama sekali (format lama, masih dipakai gateway produksi) memakai hash
+     * ter-bucket per menit sebagai id sintetis -- bukan id sempurna, tapi payload memang tidak
+     * menyediakan apa pun yang lebih baik; risiko dedup-palsu dibatasi ke "teks identik, nomor
+     * sama, menit yang sama".
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    protected function deriveProviderEventId(array $payload): ?string
+    {
+        if (isset($payload['event'])) {
+            if (! empty($payload['id'])) {
+                return (string) $payload['id'];
+            }
+
+            $session = (string) ($payload['session'] ?? 'default');
+            $innerPayload = (array) ($payload['payload'] ?? []);
+            $innerId = $innerPayload['id'] ?? null;
+
+            return $innerId ? "{$session}:{$innerId}" : null;
+        }
+
+        if (! empty($payload['id'])) {
+            return (string) $payload['id'];
+        }
+
+        $phone = (string) ($payload['phone'] ?? $payload['sender'] ?? '');
+        $text = (string) ($payload['message'] ?? $payload['status'] ?? '');
+
+        if ($phone === '' && $text === '') {
+            return null;
+        }
+
+        return hash('sha256', "{$phone}|{$text}").':'.Carbon::now()->format('YmdHi');
     }
 }

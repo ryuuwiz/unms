@@ -15,6 +15,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Sentry\Severity;
+use Sentry\State\Scope;
 
 class PaymentWebhookController extends Controller
 {
@@ -56,6 +58,26 @@ class PaymentWebhookController extends Controller
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
+
+            // Catat percobaan yang ditolak sebagai jejak audit -- sebelumnya hanya percobaan
+            // yang berhasil/duplikat tercatat di WebhookLog, sehingga upaya forge/probe tidak
+            // pernah terlihat di trail audit.
+            WebhookLog::create([
+                'provider' => $gateway,
+                'event_type' => 'webhook.token_rejected',
+                'payload' => null,
+                'status_proses' => StatusWebhookLog::Gagal,
+                'catatan_error' => 'Signature/token webhook tidak valid.',
+                'diterima_pada' => Carbon::now(),
+            ]);
+
+            \Sentry\configureScope(function (Scope $scope) use ($gateway, $request): void {
+                $scope->setContext('payment_webhook_rejected', [
+                    'gateway' => $gateway,
+                    'ip' => $request->ip(),
+                ]);
+            });
+            \Sentry\captureMessage("Webhook {$gateway}: signature/token tidak valid.", Severity::warning());
 
             return response()->json(['message' => 'Unauthorized / Invalid webhook signature'], 401);
         }

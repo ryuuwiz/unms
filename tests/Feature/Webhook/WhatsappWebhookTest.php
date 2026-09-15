@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\StatusInvoice;
+use App\Enums\StatusWebhookLog;
 use App\Enums\Sysblas\SysblasProvider;
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\PrioritasTicket;
@@ -52,10 +53,13 @@ test('webhook tracking delivered berhasil memperbarui status antrian_wa_blast me
 
     $response = $this->postJson(route('webhook.whatsapp'), $payload);
 
+    // Pemrosesan kini via ProcessWhatsappWebhookJob (antrean) -- respons langsung hanya
+    // mengonfirmasi diterima & diantrikan; efek samping tetap terjadi karena
+    // QUEUE_CONNECTION=sync di phpunit.xml menjalankannya inline saat dispatch.
     $response->assertOk()
         ->assertJson([
             'status' => true,
-            'type' => 'tracking_status',
+            'type' => 'queued',
         ]);
 
     expect($antrian->fresh()->status)->toBe(StatusAntrianWa::Terkirim)
@@ -119,7 +123,7 @@ test('webhook incoming message keyword TAGIHAN membalas rincian invoice pelangga
     $response->assertOk()
         ->assertJson([
             'status' => true,
-            'type' => 'incoming_message',
+            'type' => 'queued',
         ]);
 
     $autoReply = AntrianWaBlast::where('no_hp_tujuan', '6281299998888')
@@ -191,7 +195,7 @@ test('webhook waha message.ack berhasil memperbarui status antrian_wa_blast', fu
     $response->assertOk()
         ->assertJson([
             'status' => true,
-            'type' => 'message_ack',
+            'type' => 'queued',
         ]);
 
     expect($antrian->fresh()->status)->toBe(StatusAntrianWa::Terkirim)
@@ -216,7 +220,7 @@ test('webhook waha session.status working mengaktifkan sysblas connection', func
     $response->assertOk()
         ->assertJson([
             'status' => true,
-            'type' => 'session_status',
+            'type' => 'queued',
         ]);
 
     expect($sysblas->fresh()->is_aktif)->toBeTrue();
@@ -254,7 +258,7 @@ test('webhook waha message inbound membalas info tagihan pelanggan', function ()
     $response->assertOk()
         ->assertJson([
             'status' => true,
-            'type' => 'incoming_message',
+            'type' => 'queued',
         ]);
 
     $autoReply = AntrianWaBlast::where('no_hp_tujuan', '6281388887777')
@@ -298,7 +302,7 @@ test('webhook gowa message.ack (shape sama dengan waha) berhasil memperbarui sta
     $response = $this->postJson(route('webhook.whatsapp'), $payload);
 
     $response->assertOk()
-        ->assertJson(['status' => true, 'type' => 'message_ack']);
+        ->assertJson(['status' => true, 'type' => 'queued']);
 
     expect($antrian->fresh()->status)->toBe(StatusAntrianWa::Terkirim);
 });
@@ -326,7 +330,7 @@ test('webhook gowa dengan signature hmac valid diproses normal', function () {
         'HTTP_X-Gowa-Signature' => $signature,
     ], $rawBody);
 
-    $response->assertOk()->assertJson(['status' => true, 'type' => 'session_status']);
+    $response->assertOk()->assertJson(['status' => true, 'type' => 'queued']);
     expect($gowaSysblas->fresh()->is_aktif)->toBeTrue();
 });
 
@@ -395,4 +399,111 @@ test('webhook gowa tanpa secret dikonfigurasi melewati verifikasi signature', fu
 
     $response->assertOk();
     expect($gowaSysblas->fresh()->is_aktif)->toBeTrue();
+});
+
+test('webhook gowa dengan signature invalid tetap membuat WebhookLog berstatus gagal', function () {
+    Sysblas::factory()->create([
+        'provider' => SysblasProvider::Gowa,
+        'session_name' => 'org_gowa_audit_reject',
+        'api_secret' => 'super-secret-webhook-key',
+        'is_default' => false,
+    ]);
+
+    $payload = [
+        'id' => 'evt_gowa_audit_reject',
+        'event' => 'session.status',
+        'session' => 'org_gowa_audit_reject',
+        'payload' => ['status' => 'WORKING'],
+    ];
+
+    $rawBody = json_encode($payload);
+
+    $this->call('POST', route('webhook.whatsapp'), [], [], [], [
+        'CONTENT_TYPE' => 'application/json',
+        'HTTP_X-Gowa-Signature' => 'signature-salah',
+    ], $rawBody)->assertStatus(401);
+
+    $log = WebhookLog::where('provider_event_id', 'evt_gowa_audit_reject')->first();
+    expect($log)->not->toBeNull()
+        ->and($log->status_proses)->toBe(StatusWebhookLog::Gagal)
+        ->and($log->catatan_error)->toBe('Signature webhook tidak valid.');
+});
+
+test('webhook log whatsapp event terlabel gowa saat cocok dengan koneksi gowa', function () {
+    Sysblas::factory()->create([
+        'provider' => SysblasProvider::Gowa,
+        'session_name' => 'org_gowa_label_test',
+        'is_default' => false,
+    ]);
+
+    $payload = [
+        'id' => 'evt_label_gowa',
+        'event' => 'session.status',
+        'session' => 'org_gowa_label_test',
+        'payload' => ['status' => 'WORKING'],
+    ];
+
+    $this->postJson(route('webhook.whatsapp'), $payload)->assertOk();
+
+    $log = WebhookLog::where('provider_event_id', 'evt_label_gowa')->first();
+    expect($log)->not->toBeNull()
+        ->and($log->provider)->toBe('gowa');
+});
+
+test('webhook log whatsapp event terlabel waha saat session tidak cocok koneksi manapun', function () {
+    $payload = [
+        'id' => 'evt_label_waha',
+        'event' => 'session.status',
+        'session' => 'session_tanpa_koneksi_terdaftar',
+        'payload' => ['status' => 'WORKING'],
+    ];
+
+    $this->postJson(route('webhook.whatsapp'), $payload)->assertOk();
+
+    $log = WebhookLog::where('provider_event_id', 'evt_label_waha')->first();
+    expect($log)->not->toBeNull()
+        ->and($log->provider)->toBe('waha');
+});
+
+test('webhook whatsapp payload flat legacy tanpa id mendapat provider_event_id sintetis', function () {
+    $payload = [
+        'phone' => '6281234569999',
+        'message' => 'Pesan tanpa id unik dari gateway lama',
+    ];
+
+    $this->postJson(route('webhook.whatsapp'), $payload)->assertOk();
+
+    $log = WebhookLog::where('provider', 'whatsapp')
+        ->where('event_type', 'whatsapp.incoming_message')
+        ->latest('id')
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->provider_event_id)->not->toBeNull()
+        ->and($log->provider_event_id)->toContain(':');
+});
+
+test('permintaan webhook whatsapp melebihi batas rate limit menerima 429', function () {
+    for ($i = 0; $i < 120; $i++) {
+        $this->postJson(route('webhook.whatsapp'), [
+            'id' => "rl_test_{$i}",
+            'phone' => '6281234567890',
+            'status' => 'delivered',
+        ])->assertOk();
+    }
+
+    $this->postJson(route('webhook.whatsapp'), [
+        'id' => 'rl_test_over',
+        'phone' => '6281234567890',
+        'status' => 'delivered',
+    ])->assertStatus(429);
+});
+
+test('webhook whatsapp dengan body melebihi batas ukuran ditolak 413', function () {
+    $response = $this->call('POST', route('webhook.whatsapp'), [], [], [], [
+        'CONTENT_TYPE' => 'application/json',
+        'CONTENT_LENGTH' => (string) (2 * 1024 * 1024), // 2MB > batas 1MB, header saja cukup
+    ], '{}');
+
+    $response->assertStatus(413);
 });

@@ -333,7 +333,7 @@ Route::middleware(['throttle:webhook', 'xendit.token'])->group(function () {
 });
 
 // ─── Webhook WhatsApp / GOWA / WAHA (Public & CSRF-Exempt) ───────────────────────
-Route::post('/webhook/whatsapp', [WhatsappWebhookController::class, 'handle'])->name('webhook.whatsapp');
+Route::middleware('throttle:webhook')->post('/webhook/whatsapp', [WhatsappWebhookController::class, 'handle'])->name('webhook.whatsapp');
 
 // ─── Portal Pelanggan (Guard: pelanggan) ─────────────────────────
 Route::prefix('portal')->name('portal.')->group(function () {

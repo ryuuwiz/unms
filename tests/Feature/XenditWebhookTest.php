@@ -91,6 +91,20 @@ test('webhook menolak request tanpa header token dengan HTTP 401', function () {
     $response->assertStatus(401);
 });
 
+test('webhook xendit legacy dengan token tidak valid tetap membuat WebhookLog beraudit berstatus gagal', function () {
+    $this->postJson('/webhook/xendit', ['id' => 'evt_audit_reject'], [
+        'x-callback-token' => 'wrong_token',
+    ])->assertStatus(401);
+
+    $log = WebhookLog::where('event_type', 'webhook.token_rejected')
+        ->where('provider', 'xendit')
+        ->latest('id')
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->status_proses)->toBe(StatusWebhookLog::Gagal);
+});
+
 test('webhook memproses callback format Xendit Hosted Invoice PAID, melunaskan invoice, dan memperpanjang masa aktif', function () {
     Event::fake([InvoicePaidEvent::class]);
 

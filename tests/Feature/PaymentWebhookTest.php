@@ -2,14 +2,16 @@
 
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
+use App\Enums\StatusWebhookLog;
 use App\Events\InvoicePaidEvent;
+use App\Jobs\PaymentGateway\ProcessPaymentWebhookJob;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\PengaturanGateway;
 use App\Models\Router;
-use App\Jobs\PaymentGateway\ProcessPaymentWebhookJob;
+use App\Models\WebhookLog;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -442,4 +444,36 @@ test('webhook xendit menangani event payment.failure v3 secara benar', function 
         ->assertJson([
             'status' => 'QUEUED',
         ]);
+});
+
+test('webhook xendit dengan token tidak valid tetap membuat WebhookLog beraudit berstatus gagal', function () {
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+
+    $this->withHeaders(['x-callback-token' => 'token-salah'])
+        ->postJson('/webhook/payment/xendit', [
+            'id' => 'xnd_audit_reject_test',
+            'external_id' => $trx->external_id,
+            'status' => 'PAID',
+        ])
+        ->assertStatus(401);
+
+    $log = WebhookLog::where('event_type', 'webhook.token_rejected')
+        ->where('provider', 'xendit')
+        ->latest('id')
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->status_proses)->toBe(StatusWebhookLog::Gagal);
+});
+
+test('permintaan webhook payment melebihi batas rate limit menerima 429', function () {
+    for ($i = 0; $i < 120; $i++) {
+        $this->withHeaders(['x-callback-token' => 'token-salah'])
+            ->postJson('/webhook/payment/xendit', ['id' => "rl_payment_test_{$i}"])
+            ->assertStatus(401);
+    }
+
+    $this->withHeaders(['x-callback-token' => 'token-salah'])
+        ->postJson('/webhook/payment/xendit', ['id' => 'rl_payment_test_over'])
+        ->assertStatus(429);
 });

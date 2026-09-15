@@ -19,9 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
 
+        // 'webhook/*' already covers every webhook route (payment, xendit legacy, whatsapp) --
+        // no need to also list 'webhook/xendit/*' separately.
         $middleware->validateCsrfTokens(except: [
             'webhook/*',
-            'webhook/xendit/*',
         ]);
 
         $middleware->redirectGuestsTo(function (Request $request) {
