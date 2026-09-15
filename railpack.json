@@ -6,6 +6,9 @@
         { "image": "php:8.4-cli-bookworm" },
         { "local": true, "include": ["composer.json", "composer.lock", "database"] }
       ],
+      "variables": {
+        "PHP_INI_DIR": "/usr/local/etc/php"
+      },
       "commands": [
         "apt-get update && apt-get install -y --no-install-recommends git unzip libicu-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev libonig-dev libxml2-dev && rm -rf /var/lib/apt/lists/*",
         { "image": "composer:2", "src": "/usr/bin/composer", "dest": "/usr/bin/composer" },
@@ -29,9 +32,14 @@
     "runtime": {
       "inputs": [
         { "image": "php:8.4-fpm-bookworm" },
-        { "local": true, "include": ["."] }
+        { "local": true, "include": ["."] },
+        { "step": "vendor", "include": ["vendor"] }
       ],
+      "variables": {
+        "PHP_INI_DIR": "/usr/local/etc/php"
+      },
       "commands": [
+        "mkdir -p /app && rm -rf /var/www/html && ln -s /app /var/www/html",
         "apt-get update && apt-get install -y --no-install-recommends supervisor bash curl tzdata && ln -sf /usr/share/zoneinfo/Asia/Jakarta /etc/localtime && rm -rf /var/lib/apt/lists/*",
         { "image": "mlocati/php-extension-installer", "src": "/usr/bin/install-php-extensions", "dest": "/usr/local/bin/install-php-extensions" },
         "mkdir -p /usr/local/etc/php/conf.d /conf.d",
@@ -44,8 +52,8 @@
         { "src": "docker/supervisord.conf", "dest": "/etc/supervisor/supervisord.conf" },
         { "src": "docker/supervisor.d", "dest": "/etc/supervisor/conf.d" },
         "usermod -u 1000 www-data && groupmod -g 1000 www-data",
-        { "cmd": "cd /var/www/html && php artisan livewire:publish --assets && chown -R www-data:www-data public/vendor", "customName": "Publish Livewire assets" },
-        { "cmd": "cd /var/www/html && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache && chown -R www-data:www-data storage bootstrap/cache && chmod -R 775 storage bootstrap/cache", "customName": "Prepare storage permissions" },
+        { "cmd": "sh -c 'cd /var/www/html && php artisan livewire:publish --assets && chown -R www-data:www-data public/vendor'", "customName": "Publish Livewire assets" },
+        { "cmd": "sh -c 'cd /var/www/html && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache && chown -R www-data:www-data storage bootstrap/cache && chmod -R 775 storage bootstrap/cache'", "customName": "Prepare storage permissions" },
         { "src": "docker/entrypoint.sh", "dest": "/usr/local/bin/entrypoint.sh" },
         "chmod +x /usr/local/bin/entrypoint.sh"
       ]
