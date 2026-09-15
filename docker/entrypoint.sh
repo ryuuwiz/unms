@@ -33,8 +33,7 @@ fi
 # on every boot (root here, before supervisord drops to www-data) is idempotent and
 # guards against both a stale volume and a fresh empty one.
 chown -R www-data:www-data storage bootstrap/cache
-find storage bootstrap/cache -type d -exec chmod 775 {} \;
-find storage bootstrap/cache -type f -exec chmod 664 {} \;
+chmod -R 775 storage bootstrap/cache
 
 # Database and Redis run as separate services (Dokploy) with no guaranteed
 # startup order relative to this container -- without this, a boot race fails
