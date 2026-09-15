@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\StatusPelanggan;
 use App\Enums\Wa\StatusAntrianWa;
 use App\Jobs\Wa\KirimWaBlastJob;
 use App\Models\AntrianWaBlast;
@@ -102,4 +103,42 @@ test('antrikanPesan aman dan menandai status gagal saat nomor hp tidak valid', f
         ->and($antrian->pesan_error)->toContain('tidak valid');
 
     Queue::assertNotPushed(KirimWaBlastJob::class);
+});
+
+test('buildInvoiceParams menyertakan kode_bayar 5 digit, status_internet, dan tautan checkout bertanda tangan', function () {
+    $pelanggan = Pelanggan::factory()->create(['status' => StatusPelanggan::Aktif]);
+    $invoice = Invoice::factory()->create(['pelanggan_id' => $pelanggan->id]);
+
+    /** @var WhatsappService $service */
+    $service = app(WhatsappService::class);
+    $params = $service->buildInvoiceParams($invoice);
+
+    expect($params['kode_bayar'])->toMatch('/^\d{5}$/')
+        ->and($params['status_internet'])->toBe('Aktif')
+        ->and($params['link_pembayaran'])->toContain(route('portal.invoice.show', $invoice->id))
+        ->and($params['link_pembayaran'])->toContain('signature=');
+});
+
+test('template pengingat tagihan tidak menyisakan placeholder setelah dirender', function () {
+    Queue::fake();
+
+    $pelanggan = Pelanggan::factory()->create();
+    $invoice = Invoice::factory()->create(['pelanggan_id' => $pelanggan->id]);
+
+    /** @var WhatsappService $service */
+    $service = app(WhatsappService::class);
+    $params = $service->buildInvoiceParams($invoice);
+
+    // Lewat antrikanPesan() (bukan render() langsung) agar parameter perusahaan
+    // (nama_brand, whatsapp_perusahaan, dst.) ikut digabungkan seperti alur produksi
+    // sesungguhnya -- lihat WhatsappService::mergeCompanyParams().
+    foreach (['pengingat_tagihan_h3', 'pengingat_tagihan_h1', 'pengingat_tagihan_h0', 'pengingat_tagihan_tunggakan'] as $kode) {
+        $antrian = $service->antrikanPesan(
+            noHp: $pelanggan->no_hp,
+            kodeTemplate: $kode,
+            params: $params,
+        );
+
+        expect($antrian->pesan)->not->toContain('{');
+    }
 });

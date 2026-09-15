@@ -2,15 +2,12 @@
 
 namespace App\Livewire\Portal\Invoice;
 
-use App\Enums\GatewayChannel;
-use App\Enums\StatusTransaksiGateway;
+use App\Livewire\Portal\Invoice\Concerns\AuthorizesInvoiceAccess;
 use App\Models\Invoice;
 use App\Models\PengaturanGateway;
-use App\Models\TransaksiPaymentGateway;
-use App\Services\Xendit\XenditPaymentService;
+use App\Services\PaymentGateway\PaymentGatewayManager;
 use Exception;
 use Flux\Flux;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -20,23 +17,13 @@ use Livewire\Component;
 #[Title('Pembayaran Tagihan')]
 class Bayar extends Component
 {
+    use AuthorizesInvoiceAccess;
+
     public Invoice $invoice;
-
-    public string $channelTipe = 'va'; // 'va' atau 'qris'
-
-    public string $bankCode = 'BCA';
-
-    public ?TransaksiPaymentGateway $transaksiAktif = null;
-
-    public bool $loading = false;
 
     public function mount(Invoice $invoice): void
     {
-        $pelangganId = Auth::guard('pelanggan')->user()->pelanggan_id;
-
-        if ($invoice->pelanggan_id !== $pelangganId) {
-            abort(403, 'Anda tidak memiliki akses ke tagihan ini.');
-        }
+        $this->authorizeAksesTagihan($invoice);
 
         if ($invoice->isLunas() || $invoice->isDibatalkan()) {
             if ($invoice->isDibatalkan()) {
@@ -49,82 +36,35 @@ class Bayar extends Component
         }
 
         $this->invoice = $invoice->load(['pelanggan', 'layananPelanggan.paketLayanan']);
-
-        // Cek apakah sudah ada transaksi pending yang belum expired
-        $this->loadTransaksiAktif();
     }
 
-    public function loadTransaksiAktif(): void
+    /**
+     * Terbitkan (atau pakai ulang) tautan hosted payment page resmi lalu arahkan ke sana --
+     * pemilihan channel (VA/QRIS/E-wallet) dilakukan pelanggan di halaman Xendit itu sendiri,
+     * lihat PaymentGatewayManager::resolvePaymentUrl().
+     */
+    public function lanjutkanPembayaran(PaymentGatewayManager $paymentManager): mixed
     {
-        $transaksi = TransaksiPaymentGateway::where('invoice_id', $this->invoice->id)
-            ->where('status', StatusTransaksiGateway::Pending)
-            ->where('expired_at', '>', now())
-            ->latest('id')
-            ->first();
-
-        $this->transaksiAktif = $transaksi;
-
-        if ($transaksi) {
-            $this->channelTipe = $transaksi->channel === GatewayChannel::Qris ? 'qris' : 'va';
-            if ($transaksi->channel_detail) {
-                $this->bankCode = strtoupper($transaksi->channel_detail);
-            }
-        }
-    }
-
-    public function generatePembayaran(XenditPaymentService $paymentService): void
-    {
-        $this->validate([
-            'channelTipe' => ['required', 'in:va,qris'],
-            'bankCode' => ['required_if:channelTipe,va', 'string'],
-        ]);
-
         try {
-            if ($this->channelTipe === 'va') {
-                $transaksi = $paymentService->buatVirtualAccount($this->invoice, $this->bankCode);
-            } else {
-                $transaksi = $paymentService->buatQris($this->invoice);
+            $paymentUrl = $paymentManager->resolvePaymentUrl($this->invoice);
+
+            if ($paymentUrl) {
+                return redirect()->away($paymentUrl);
             }
 
-            $this->transaksiAktif = $transaksi;
-            Flux::toast(variant: 'success', text: 'Kode pembayaran berhasil diterbitkan. Silakan selesaikan pembayaran.');
+            if ($this->invoice->refresh()->isLunas()) {
+                Flux::toast(variant: 'success', text: 'Tagihan ini telah lunas.');
+                $this->redirectRoute('portal.invoice.show', $this->invoice, navigate: true);
+
+                return null;
+            }
+
+            Flux::toast(variant: 'danger', text: 'Gagal memuat tautan pembayaran gateway.');
         } catch (Exception $e) {
-            Flux::toast(variant: 'danger', text: $e->getMessage());
-        }
-    }
-
-    public function gantiMetode(): void
-    {
-        $this->transaksiAktif = null;
-    }
-
-    public function cekStatus(XenditPaymentService $paymentService): void
-    {
-        $this->invoice->refresh();
-
-        if ($this->invoice->isLunas()) {
-            Flux::toast(variant: 'success', text: 'Pembayaran berhasil dikonfirmasi! Layanan internet Anda telah diperpanjang.');
-            $this->redirectRoute('portal.invoice.show', $this->invoice, navigate: true);
-
-            return;
+            Flux::toast(variant: 'danger', text: 'Gagal memproses pembayaran: '.$e->getMessage());
         }
 
-        if ($this->transaksiAktif) {
-            $this->transaksiAktif->refresh();
-
-            // Cek status langsung ke Xendit bila tombol ditekan manual
-            $statusXendit = $paymentService->cekStatusTransaksi($this->transaksiAktif);
-
-            if (($statusXendit['status'] ?? '') === 'SUCCEEDED' || ($statusXendit['status'] ?? '') === 'PAID') {
-                $this->invoice->refresh();
-                if ($this->invoice->isLunas()) {
-                    Flux::toast(variant: 'success', text: 'Pembayaran terkonfirmasi lunas!');
-                    $this->redirectRoute('portal.invoice.show', $this->invoice, navigate: true);
-                }
-            } else {
-                Flux::toast(variant: 'info', text: 'Status: Menunggu Pembayaran. Silakan transfer sesuai instruksi.');
-            }
-        }
+        return null;
     }
 
     public function render(): View
@@ -133,7 +73,6 @@ class Bayar extends Component
         $nominal = (float) $this->invoice->jumlah_setelah_promo;
 
         return view('livewire.portal.invoice.bayar', [
-            'pengaturan' => $pengaturan,
             'feeVa' => $pengaturan->hitungFee('virtual_account', $nominal),
             'feeQris' => $pengaturan->hitungFee('qris', $nominal),
         ]);

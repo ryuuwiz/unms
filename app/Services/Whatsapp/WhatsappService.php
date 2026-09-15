@@ -14,6 +14,7 @@ use App\Models\WaTemplate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 
 class WhatsappService
 {
@@ -131,8 +132,13 @@ class WhatsappService
         $layanan = $invoice->layananPelanggan;
         $namaPaket = $layanan?->paketLayanan?->nama_paket ?? 'Layanan Internet';
 
-        $linkBayar = $invoice->xendit_invoice_url
-            ?? ($invoice->id ? route('portal.invoice.show', $invoice->id) : url('/'));
+        // Tautan checkout tanpa login: signed URL, bukan xendit_invoice_url langsung -- agar
+        // pelanggan selalu mendarat di halaman rincian tagihan kami dulu (bisa sinkronisasi
+        // status & tampilkan rincian biaya) sebelum diarahkan ke payment gateway.
+        // Lihat AuthorizesInvoiceAccess::authorizeAksesTagihan().
+        $linkBayar = $invoice->id
+            ? URL::signedRoute('portal.invoice.show', ['invoice' => $invoice->id], now()->addDays(30))
+            : url('/');
 
         return [
             'nama_pelanggan' => $pelanggan ? "{$pelanggan->nama_depan} {$pelanggan->nama_belakang}" : 'Pelanggan',
@@ -144,6 +150,10 @@ class WhatsappService
             'link_pembayaran' => $linkBayar,
             'nama_paket' => $namaPaket,
             'site_id' => $layanan?->site_id ?? '-',
+            // Kode referensi kosmetik saja -- tidak ada integrasi PPOB/biller minimarket di
+            // sistem ini untuk memvalidasinya, sekadar nomor rujukan singkat di pesan.
+            'kode_bayar' => str_pad((string) ($invoice->id % 100000), 5, '0', STR_PAD_LEFT),
+            'status_internet' => $pelanggan?->status?->label() ?? '-',
         ];
     }
 

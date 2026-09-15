@@ -21,6 +21,7 @@ use App\Livewire\Portal\Auth\GantiPassword;
 use App\Livewire\Portal\Auth\KlaimAkun;
 use App\Livewire\Portal\Auth\Login;
 use App\Livewire\Portal\Dashboard;
+use App\Livewire\Portal\Invoice\Bayar;
 use App\Livewire\Portal\Invoice\Index;
 use App\Livewire\Portal\Invoice\Show;
 use App\Livewire\Portal\Tiket\Create;
@@ -340,6 +341,12 @@ Route::prefix('portal')->name('portal.')->group(function () {
     Route::get('/login', Login::class)->name('login');
     Route::get('/klaim-akun', KlaimAkun::class)->name('klaim-akun');
 
+    // Rincian & pembayaran tagihan: dapat diakses TANPA login lewat tautan bertanda tangan
+    // (signed URL) yang dikirim via notifikasi WhatsApp/email -- lihat Show::mount() dan
+    // Bayar::mount() untuk validasi akses (sesi pelanggan ATAU signature valid untuk invoice ini).
+    Route::get('/tagihan/{invoice}', Show::class)->name('invoice.show');
+    Route::get('/tagihan/{invoice}/bayar', Bayar::class)->name('invoice.bayar');
+
     Route::middleware('auth:pelanggan')->group(function () {
         Route::get('/', function () {
             return redirect()->route('portal.dashboard');
@@ -355,9 +362,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
 
         Route::get('/dashboard', Dashboard::class)->name('dashboard');
         Route::get('/tagihan', Index::class)->name('invoice.index');
-        Route::get('/tagihan/{invoice}', Show::class)->name('invoice.show');
         Route::get('/tagihan/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('invoice.cetak');
-        Route::get('/tagihan/{invoice}/bayar', fn (App\Models\Invoice $invoice) => redirect()->route('portal.invoice.show', $invoice))->name('invoice.bayar');
         Route::get('/profil', App\Livewire\Portal\Profil\Index::class)->name('profil');
         Route::get('/ganti-password', GantiPassword::class)->middleware('impersonate.protect')->name('ganti-password');
 

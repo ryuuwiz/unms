@@ -2,11 +2,11 @@
 
 namespace App\Services\PaymentGateway;
 
+use App\Actions\LayananPelanggan\PerpanjangMasaAktifAction;
 use App\Contracts\PaymentGateway\PaymentGatewayContract;
 use App\DTO\PaymentGateway\PaymentCallbackData;
 use App\DTO\PaymentGateway\PaymentLinkResponse;
 use App\DTO\PaymentGateway\PingConnectionResult;
-use App\Actions\LayananPelanggan\PerpanjangMasaAktifAction;
 use App\Enums\GatewayChannel;
 use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
@@ -192,6 +192,36 @@ class PaymentGatewayManager
 
             return $transaksi;
         });
+    }
+
+    /**
+     * Sinkronkan status lalu pastikan invoice punya tautan pembayaran aktif, kembalikan URL
+     * hosted payment page resmi -- null jika invoice sudah lunas atau tautan gagal diterbitkan.
+     * Titik reuse tunggal untuk semua tombol "Bayar Sekarang" (portal login maupun tautan publik).
+     */
+    public function resolvePaymentUrl(Invoice $invoice): ?string
+    {
+        $invoice->refresh();
+
+        if ($invoice->isLunas()) {
+            return null;
+        }
+
+        if (! empty($invoice->payment_gateway_id) || ! empty($invoice->xendit_invoice_id)) {
+            $this->sinkronkanStatus($invoice);
+            $invoice->refresh();
+
+            if ($invoice->isLunas()) {
+                return null;
+            }
+        }
+
+        if (! $invoice->hasActivePaymentLink()) {
+            $this->buatPaymentLink($invoice, forceRegenerate: true);
+            $invoice->refresh();
+        }
+
+        return $invoice->payment_gateway_url ?: ($invoice->xendit_invoice_url ?: null);
     }
 
     /**

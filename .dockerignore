@@ -16,6 +16,8 @@ public/storage
 tests
 .phpunit.cache
 docker-compose*.yml
+compose.yaml
+compose.yml
 Dockerfile
 .dockerignore
 README.md
@@ -32,5 +34,6 @@ AGENTS.md
 skills-lock.json
 .github
 .agents
+.claude
 repomix-output.md
 app-dokploy.log

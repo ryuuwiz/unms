@@ -23,6 +23,18 @@ if [ -z "${APP_KEY:-}" ]; then
     exit 1
 fi
 
+# The Dockerfile chowns storage/bootstrap-cache to www-data at BUILD time, but that's
+# baked into the image layer -- if Dokploy (or any operator) mounts a volume over
+# storage/ for persistence, the volume's on-disk ownership silently overrides it at
+# runtime. LOG_CHANNEL=stderr (see ADR-0036) avoids storage/logs/laravel.log for
+# normal app logs, but Laravel's LogManager falls back to a hardcoded emergency
+# logger at storage_path('logs/laravel.log') whenever the configured channel itself
+# fails to write -- so storage/logs must stay writable regardless. Re-applying this
+# on every boot (root here, before supervisord drops to www-data) is idempotent and
+# guards against both a stale volume and a fresh empty one.
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+
 # Database and Redis run as separate services (Dokploy) with no guaranteed
 # startup order relative to this container -- without this, a boot race fails
 # app:migrate-once (its Cache::lock needs Redis) with a raw exception instead

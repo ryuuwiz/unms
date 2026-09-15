@@ -4,6 +4,8 @@ Before planning or editing, find the row whose globs match the file's path and r
 
 | Applies to | Rule file |
 | --- | --- |
+| docker/entrypoint.sh | .ai/rules/docker.md |
+| app/Livewire/Portal/Invoice/** | .ai/rules/invoice.md |
+| app/Livewire/**/*.php, config/livewire.php, .env.docker.example | .ai/rules/livewire-uploads.md |
 | app/Services/Mikrotik/MikrotikService.php | .ai/rules/mikrotik.md |
 | app/Models/Sysblas.php | .ai/rules/models.md |
-| app/Livewire/**/*.php, config/livewire.php, .env.docker.example | .ai/rules/livewire-uploads.md |

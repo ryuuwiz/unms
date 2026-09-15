@@ -16,6 +16,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\URL;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -159,6 +160,27 @@ test('tamu tidak dapat mencetak invoice tanpa otentikasi', function () {
 
     $this->get(route('portal.invoice.cetak', $this->invoice))
         ->assertRedirect(route('portal.login'));
+});
+
+test('tamu dapat membuka rincian tagihan tanpa login lewat tautan bertanda tangan', function () {
+    $signedUrl = URL::signedRoute('portal.invoice.show', ['invoice' => $this->invoice->id]);
+
+    $this->get($signedUrl)
+        ->assertOk()
+        ->assertSee($this->invoice->no_invoice);
+});
+
+test('tamu ditolak membuka rincian tagihan tanpa login dan tanpa tanda tangan valid', function () {
+    $this->get(route('portal.invoice.show', $this->invoice))
+        ->assertForbidden();
+});
+
+test('tamu dapat membuka halaman estimasi biaya pembayaran lewat tautan bertanda tangan', function () {
+    $signedUrl = URL::signedRoute('portal.invoice.bayar', ['invoice' => $this->invoice->id]);
+
+    $this->get($signedUrl)
+        ->assertOk()
+        ->assertSee('Estimasi Biaya per Channel');
 });
 
 test('pelanggan tidak dapat membuka sesi pembayaran untuk invoice yang dibatalkan', function () {
