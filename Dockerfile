@@ -11,7 +11,8 @@ RUN composer install \
     --no-dev \
     --no-scripts \
     --no-autoloader \
-    --prefer-dist
+    --prefer-dist \
+    --ignore-platform-reqs
 
 COPY . .
 RUN composer dump-autoload --optimize --no-dev
