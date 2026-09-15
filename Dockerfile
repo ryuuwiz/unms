@@ -28,7 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ${PHP_EXT_PACKAGES} \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2.10.3 /usr/bin/composer /usr/bin/composer
 
 # Mirrors the runtime stage's extension set so composer's platform-req
 # check (ext-mbstring, ext-pdo_mysql, etc. declared by Laravel and its
@@ -49,10 +49,11 @@ RUN install-php-extensions \
         redis \
         sockets
 
-# Dependency manifests copied first (and database/ after) so `composer install`
-# only re-runs when the lockfile actually changes, not on every source edit.
+# Only the dependency manifests are copied here so `composer install` only
+# re-runs when the lockfile actually changes, not on every source edit
+# (database/, app code, etc. arrive later via the runtime stage's COPY . .,
+# since this stage runs `composer install --no-scripts` and never touches them).
 COPY composer.json composer.lock ./
-COPY database/ database/
 
 # Cache mount persists Composer's package archive across builds so a lockfile
 # change only re-downloads the packages that actually changed.
@@ -68,7 +69,7 @@ RUN --mount=type=cache,target=/tmp/cache,sharing=locked \
 ########################################
 # Stage 2: Frontend build (Vite)
 ########################################
-FROM node:24-bookworm AS frontend
+FROM node:24-bookworm-slim AS frontend
 
 WORKDIR /app
 
@@ -144,7 +145,7 @@ COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
 # Static binary copied from the official image rather than an apt repo/GPG
 # key dance — Caddy ships CGO-disabled, so it runs unmodified on this glibc
 # base image.
-COPY --from=caddy:2-alpine /usr/bin/caddy /usr/local/bin/caddy
+COPY --from=caddy:2.11.4-alpine /usr/bin/caddy /usr/local/bin/caddy
 COPY docker/Caddyfile /etc/caddy/Caddyfile
 
 # Fail the build, not the container boot, on a broken Caddyfile -- Caddy's
@@ -193,7 +194,8 @@ RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framewor
              storage/logs \
              bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+    && find storage bootstrap/cache -type d -exec chmod 775 {} \; \
+    && find storage bootstrap/cache -type f -exec chmod 664 {} \;
 
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
