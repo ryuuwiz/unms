@@ -1,0 +1,111 @@
+name: wifigo
+
+services:
+
+  # ---------------------------------------------------------
+  # Nginx
+  # ---------------------------------------------------------
+  nginx:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+
+    ports:
+      - "${APP_PORT:-80}:80"
+
+    volumes:
+      - app_public:/var/www/html/public:ro
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+
+    depends_on:
+      app:
+        condition: service_started
+
+    networks:
+      - app
+
+  # ---------------------------------------------------------
+  # PHP-FPM / Laravel Application
+  # ---------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    volumes:
+      - app_storage:/var/www/html/storage
+      - app_public:/var/www/html/public
+
+    networks:
+      - app
+
+  # ---------------------------------------------------------
+  # Laravel Queue Worker
+  # ---------------------------------------------------------
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    command:
+      - php
+      - artisan
+      - queue:work
+      - --sleep=3
+      - --tries=3
+      - --max-time=3600
+
+    volumes:
+      - app_storage:/var/www/html/storage
+      - app_public:/var/www/html/public
+
+    networks:
+      - app
+
+  # ---------------------------------------------------------
+  # Laravel Scheduler
+  # ---------------------------------------------------------
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    command:
+      - php
+      - artisan
+      - schedule:work
+
+    volumes:
+      - app_storage:/var/www/html/storage
+      - app_public:/var/www/html/public
+
+    networks:
+      - app
+
+# -----------------------------------------------------------
+# Volumes
+# -----------------------------------------------------------
+volumes:
+  app_storage:
+  app_public:
+
+# -----------------------------------------------------------
+# Network
+# -----------------------------------------------------------
+networks:
+  app:
+    driver: bridge

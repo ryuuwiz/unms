@@ -1,44 +1,69 @@
 FROM php:8.3-fpm-alpine
 
-# Install system dependencies
+# ---------------------------------------------------------
+# System dependencies
+# ---------------------------------------------------------
 RUN apk add --no-cache \
-    nginx \
-    supervisor \
     libpq-dev \
     libzip-dev \
     zip \
     unzip \
     git
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_pgsql pdo_mysql zip opcache
+# ---------------------------------------------------------
+# PHP extensions
+# ---------------------------------------------------------
+RUN docker-php-ext-install \
+    pdo \
+    pdo_pgsql \
+    pdo_mysql \
+    zip \
+    opcache
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# ---------------------------------------------------------
+# Composer
+# ---------------------------------------------------------
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# ---------------------------------------------------------
+# Application
+# ---------------------------------------------------------
 WORKDIR /var/www/html
 
-# Copy composer files first (better caching)
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader
 
-# Copy application
+RUN composer install \
+    --no-dev \
+    --no-scripts \
+    --no-autoloader \
+    --prefer-dist \
+    --no-interaction
+
 COPY . .
 
-# Generate autoloader and run scripts
-RUN composer dump-autoload --optimize
-RUN php artisan config:cache
-RUN php artisan route:cache
-RUN php artisan view:cache
+RUN composer dump-autoload \
+    --optimize \
+    --no-dev
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# ---------------------------------------------------------
+# Laravel optimization
+# ---------------------------------------------------------
+RUN php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
 
-# Copy config files
-COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisord.conf
-COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
+# ---------------------------------------------------------
+# Permissions
+# ---------------------------------------------------------
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache
 
-EXPOSE 80
+# ---------------------------------------------------------
+# PHP-FPM
+# ---------------------------------------------------------
+USER www-data
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+EXPOSE 9000
+
+CMD ["php-fpm", "-F"]

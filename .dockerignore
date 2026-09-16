@@ -1,30 +1,27 @@
-node_modules
 .git
 .gitignore
-*.md
-.env*
-.DS_Store
-Dockerfile
-docker-compose*.yml
-.dockerignore
 
-# Framework-specific
-.next
-.nuxt
-dist
-build
-coverage
+.env
+.env.*
+!.env.example
 
-# The vendor stage's `COPY . .` runs AFTER `composer install --no-dev`.
-# Without this, it overwrites that clean --no-dev install with the host's
-# own local vendor/ (installed with require-dev packages) -- the resulting
-# image then has dev-only classes (pestphp/pest, laravel/pint, etc.)
-# physically present but excluded from the --no-dev-filtered autoloader,
-# so package:discover's ProviderRepository boot fails with a
-# "Class ... not found" error for whichever dev package registers a
-# provider (e.g. laramint/laravel-brain).
+node_modules
 vendor
 
-# Same leak risk as vendor/ above, for a locally-generated
-# bootstrap/cache/packages.php or services.php.
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
 bootstrap/cache/*.php
+
+Dockerfile
+compose*.yaml
+docker-compose*.yaml
+
+.DS_Store
+*.log
+
+coverage
+dist
+build
