@@ -20,16 +20,12 @@ RUN composer dump-autoload --optimize --no-dev
 ########################################
 # Stage 2: Frontend assets (Vite/Tailwind)
 ########################################
-FROM node:20-alpine AS frontend
+FROM node:20-bookworm-slim AS frontend
 
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-# Alpine's build network has no real IPv6 route; Node's fetch tries IPv6 first
-# (happy eyeballs) when downloading self-hosted fonts and times out before
-# falling back to IPv4. Force IPv4 lookups to avoid flaky build failures.
-ENV NODE_OPTIONS=--dns-result-order=ipv4first
 RUN npm run build
 
 ########################################
