@@ -3,7 +3,7 @@
 ########################################
 # Stage 1: Composer dependencies
 ########################################
-FROM php:8.5-cli-bookworm AS vendor
+FROM php:8.4-cli-bookworm AS vendor
 
 WORKDIR /app
 
@@ -50,16 +50,16 @@ RUN composer dump-autoload \
 ########################################
 # Stage 2: Frontend assets
 ########################################
-FROM node:26-bookworm-slim AS frontend
+FROM node:22-bookworm-slim AS frontend
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-
 RUN npm ci
 
 COPY . .
 
+# Required because app.css imports Flux from vendor/
 COPY --from=vendor /app/vendor ./vendor
 
 RUN npm run build
@@ -68,7 +68,7 @@ RUN npm run build
 ########################################
 # Stage 3: Production runtime
 ########################################
-FROM php:8.5-fpm-bookworm AS runtime
+FROM php:8.4-fpm-bookworm AS runtime
 
 ENV APP_ENV=production \
     APP_DEBUG=false
@@ -84,7 +84,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         nginx \
         supervisor \
-        libicu76 \
+        libicu72 \
         libpq5 \
         libzip4 \
         libpng16-16 \
