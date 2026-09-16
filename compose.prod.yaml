@@ -10,6 +10,8 @@ services:
     depends_on:
       app:
         condition: service_started
+    networks:
+      - app
 
   app:
     build:
@@ -21,6 +23,8 @@ services:
     volumes:
       - app_storage:/var/www/html/storage
       - app_public:/var/www/html/public
+    networks:
+      - app
 
   queue:
     build:
@@ -40,6 +44,8 @@ services:
     volumes:
       - app_storage:/var/www/html/storage
       - app_public:/var/www/html/public
+    networks:
+      - app
 
   horizon:
     build:
@@ -56,6 +62,8 @@ services:
     volumes:
       - app_storage:/var/www/html/storage
       - app_public:/var/www/html/public
+    networks:
+      - app
 
   scheduler:
     build:
@@ -71,7 +79,13 @@ services:
     volumes:
       - app_storage:/var/www/html/storage
       - app_public:/var/www/html/public
+    networks:
+      - app
 
 volumes:
   app_storage:
   app_public:
+
+networks:
+  app:
+    external: true
