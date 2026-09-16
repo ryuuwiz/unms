@@ -5,6 +5,7 @@ namespace App\Livewire\Settings;
 use App\Models\Perusahaan as PerusahaanModel;
 use Flux\Flux;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -156,12 +157,16 @@ class Perusahaan extends Component
         }
 
         if ($this->logo) {
-            $perusahaan->addMediaFromDisk(
-                FileUploadConfiguration::path($this->logo->getFilename(), false),
-                FileUploadConfiguration::disk()
-            )
-                ->usingFileName($this->logo->getClientOriginalName())
-                ->toMediaCollection('logo');
+            try {
+                $perusahaan->addMediaFromDisk(
+                    FileUploadConfiguration::path($this->logo->getFilename(), false),
+                    FileUploadConfiguration::disk()
+                )
+                    ->usingFileName($this->logo->getClientOriginalName())
+                    ->toMediaCollection('logo');
+            } catch (\Throwable $e) {
+                Log::error('Gagal menyimpan logo perusahaan: '.$e->getMessage());
+            }
             $perusahaan->syncFaviconFiles();
         }
 

@@ -94,6 +94,34 @@ test('logo perusahaan tersimpan walau disk sementara livewire bukan disk lokal',
 });
 
 /*
+ * Regression guard for a second incident: the temp upload existed when the
+ * browser rendered the preview but was gone from the S3 disk by the time
+ * save() ran (Livewire has no S3 temp-file cleanup of its own, so an external
+ * cause such as a bucket lifecycle rule can remove it in between). This is a
+ * real Storage::exists() miss, not the path()-vs-key bug above, and it was
+ * uncaught in Perusahaan::save() alone while every sibling upload path
+ * already caught it.
+ */
+test('profil perusahaan tetap tersimpan saat file logo sementara sudah hilang dari disk', function () {
+    $test = Livewire::actingAs($this->admin)
+        ->test(Perusahaan::class)
+        ->set('nama_perusahaan', 'PT Uji Coba')
+        ->set('nama_brand', 'UJI')
+        ->set('logo', UploadedFile::fake()->image('gobilling.png', 400, 150));
+
+    $tempLogo = $test->get('logo');
+    Storage::disk(FileUploadConfiguration::disk())
+        ->delete(FileUploadConfiguration::path($tempLogo->getFilename(), false));
+
+    $test->call('save')->assertHasNoErrors();
+
+    $perusahaan = PerusahaanModel::default();
+
+    expect($perusahaan->nama_perusahaan)->toBe('PT Uji Coba')
+        ->and($perusahaan->getFirstMedia('logo'))->toBeNull();
+});
+
+/*
  * This path swallows its exception (try/catch + Log::error), so the same bug
  * surfaced as a silent data loss in production: success toast, no photo.
  */
