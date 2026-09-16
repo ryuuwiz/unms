@@ -40,6 +40,7 @@ The content is organized as follows:
 # Directory Structure
 ```
 docker/
+  entrypoint.sh
   nginx.conf
   php.ini
 .dockerignore
@@ -48,103 +49,6 @@ Dockerfile
 ```
 
 # Files
-
-## File: compose.prod.yaml
-```yaml
-services:
-  nginx:
-    image: nginx:1.29-alpine
-    restart: unless-stopped
-    ports:
-      - "${APP_PORT:-8080}:80"
-    volumes:
-      - app_public:/var/www/html/public:ro
-      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      app:
-        condition: service_started
-    networks:
-      - app
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file:
-      - .env
-    volumes:
-      - app_storage:/var/www/html/storage
-      - app_public:/var/www/html/public
-    networks:
-      - app
-  queue:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file:
-      - .env
-    command:
-      - php
-      - artisan
-      - queue:work
-      - --sleep=3
-      - --tries=3
-      - --max-time=3600
-    volumes:
-      - app_storage:/var/www/html/storage
-      - app_public:/var/www/html/public
-    networks:
-      - app
-  scheduler:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file:
-      - .env
-    command:
-      - php
-      - artisan
-      - horizon
-    volumes:
-      - app_storage:/var/www/html/storage
-      - app_public:/var/www/html/public
-volumes:
-  app_storage:
-  app_public:
-networks:
-  app:
-    driver: bridge
-```
-
-## File: docker/nginx.conf
-```ini
-server {
-    listen 80;
-    server_name _;
-
-    root /var/www/html/public;
-    index index.php;
-
-    location / {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    location ~ \.php$ {
-        fastcgi_pass app:9000;
-        fastcgi_index index.php;
-
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-
-        include fastcgi_params;
-    }
-
-    location ~ /\.(?!well-known).* {
-        deny all;
-    }
-}
-```
 
 ## File: docker/php.ini
 ```ini
@@ -157,6 +61,38 @@ opcache.max_accelerated_files=20000
 opcache.validate_timestamps=0
 opcache.revalidate_freq=0
 opcache.save_comments=1
+```
+
+## File: docker/nginx.conf
+```ini
+server {
+    listen 80;
+    server_name _;
+
+    root /var/www/html/public;
+    index index.php;
+
+    charset utf-8;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    error_page 404 /index.php;
+
+    location ~ \.php$ {
+        fastcgi_pass app:9000;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
 ```
 
 ## File: .dockerignore
@@ -190,15 +126,116 @@ dist
 build
 ```
 
+## File: compose.prod.yaml
+```yaml
+services:
+  nginx:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - app_public:/var/www/html/public:ro
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      app:
+        condition: service_started
+    networks:
+      - app
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - app_storage:/var/www/html/storage
+      - app_public:/var/www/html/public
+    networks:
+      - app
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    stop_grace_period: 60s
+    env_file:
+      - .env
+    command:
+      - php
+      - artisan
+      - queue:work
+      - --sleep=3
+      - --tries=3
+      - --max-time=3600
+    volumes:
+      - app_storage:/var/www/html/storage
+      - app_public:/var/www/html/public
+    networks:
+      - app
+  horizon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    stop_grace_period: 60s
+    env_file:
+      - .env
+    command:
+      - php
+      - artisan
+      - horizon
+    volumes:
+      - app_storage:/var/www/html/storage
+      - app_public:/var/www/html/public
+    networks:
+      - app
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    command:
+      - php
+      - artisan
+      - schedule:work
+    volumes:
+      - app_storage:/var/www/html/storage
+      - app_public:/var/www/html/public
+    networks:
+      - app
+volumes:
+  app_storage:
+    driver: local
+  app_public:
+    driver: local
+networks:
+  app:
+    driver: bridge
+```
+
+## File: docker/entrypoint.sh
+```bash
+set -e
+php artisan config:cache
+if [ "$1" = "php-fpm" ]; then
+    php artisan route:cache
+    php artisan view:cache
+    php artisan migrate --force --isolated
+fi
+exec "$@"
+```
+
 ## File: Dockerfile
 ```dockerfile
 # syntax=docker/dockerfile:1
 
 FROM php:8.4-fpm-alpine
 
-# ---------------------------------------------------------
 # Runtime dependencies
-# ---------------------------------------------------------
 RUN apk add --no-cache \
     freetype \
     libjpeg-turbo \
@@ -206,9 +243,7 @@ RUN apk add --no-cache \
     libzip \
     postgresql-libs
 
-# ---------------------------------------------------------
 # Build dependencies
-# ---------------------------------------------------------
 RUN apk add --no-cache --virtual .build-deps \
     $PHPIZE_DEPS \
     freetype-dev \
@@ -218,9 +253,7 @@ RUN apk add --no-cache --virtual .build-deps \
     linux-headers \
     postgresql-dev
 
-# ---------------------------------------------------------
 # PHP extensions
-# ---------------------------------------------------------
 RUN docker-php-ext-configure gd \
         --with-freetype \
         --with-jpeg \
@@ -232,24 +265,20 @@ RUN docker-php-ext-configure gd \
         pdo_pgsql \
         sockets \
         zip \
-        opcache
+        opcache \
+    && pecl install redis \
+    && docker-php-ext-enable redis
 
-# ---------------------------------------------------------
-# Remove build dependencies
-# ---------------------------------------------------------
+# Clean build dependencies
 RUN apk del .build-deps \
     && rm -rf /var/cache/apk/*
 
-# ---------------------------------------------------------
 # Composer
-# ---------------------------------------------------------
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# ---------------------------------------------------------
-# Composer dependencies
-# ---------------------------------------------------------
+# Install dependencies
 COPY composer.json composer.lock ./
 
 RUN composer install \
@@ -260,50 +289,32 @@ RUN composer install \
     --no-scripts \
     --no-autoloader
 
-# ---------------------------------------------------------
-# Application
-# ---------------------------------------------------------
+# Copy Application Source
 COPY . .
 
-# ---------------------------------------------------------
-# Composer autoload
-# ---------------------------------------------------------
+# Composer Autoload
 RUN composer dump-autoload \
     --optimize \
     --no-dev \
     --classmap-authoritative \
     --no-scripts
 
-# ---------------------------------------------------------
-# Laravel package discovery
-# ---------------------------------------------------------
-RUN php artisan package:discover --ansi
-
-# ---------------------------------------------------------
-# Laravel caches
-# ---------------------------------------------------------
-RUN php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
-
-# ---------------------------------------------------------
 # Permissions
-# ---------------------------------------------------------
 RUN chown -R www-data:www-data \
     storage \
     bootstrap/cache
 
-# ---------------------------------------------------------
 # PHP configuration
-# ---------------------------------------------------------
 COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-# ---------------------------------------------------------
-# Runtime
-# ---------------------------------------------------------
+USER root
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 USER www-data
 
 EXPOSE 9000
 
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php-fpm", "-F"]
 ```
