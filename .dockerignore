@@ -14,3 +14,17 @@ docker-compose*.yml
 dist
 build
 coverage
+
+# The vendor stage's `COPY . .` runs AFTER `composer install --no-dev`.
+# Without this, it overwrites that clean --no-dev install with the host's
+# own local vendor/ (installed with require-dev packages) -- the resulting
+# image then has dev-only classes (pestphp/pest, laravel/pint, etc.)
+# physically present but excluded from the --no-dev-filtered autoloader,
+# so package:discover's ProviderRepository boot fails with a
+# "Class ... not found" error for whichever dev package registers a
+# provider (e.g. laramint/laravel-brain).
+vendor
+
+# Same leak risk as vendor/ above, for a locally-generated
+# bootstrap/cache/packages.php or services.php.
+bootstrap/cache/*.php
