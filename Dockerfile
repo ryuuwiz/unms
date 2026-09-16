@@ -32,7 +32,9 @@ RUN docker-php-ext-configure gd \
         pdo_pgsql \
         sockets \
         zip \
-        opcache
+        opcache \
+    && pecl install redis \
+    && docker-php-ext-enable redis
 
 # Clean build dependencies
 RUN apk del .build-deps \
