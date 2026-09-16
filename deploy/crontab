@@ -1,8 +1,0 @@
-# Crontab untuk supercronic.
-# Format sama dengan Vixie cron. Semua environment variable kontainer
-# otomatis diwariskan ke job — tidak perlu menulis ulang DB_HOST/REDIS_HOST.
-#
-# Jam eksekusi tiap task ditentukan Laravel (routes/console.php + APP_TIMEZONE),
-# bukan oleh baris ini — supercronic hanya membangunkan scheduler tiap menit.
-
-*/1 * * * * cd /app && php artisan schedule:run --no-interaction
