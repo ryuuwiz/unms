@@ -29,7 +29,7 @@ The content is organized as follows:
 ## Notes
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: docker/*, Dockerfile, .dockerignore
+- Only files matching these patterns are included: docker/*, Dockerfile, .dockerignore, compose.prod.yaml
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Code comments have been removed from supported file types
@@ -42,100 +42,106 @@ The content is organized as follows:
 docker/
   nginx.conf
   php.ini
-  supervisord.conf
 .dockerignore
+compose.prod.yaml
 Dockerfile
 ```
 
 # Files
 
-## File: docker/supervisord.conf
-```ini
-[supervisord]
-nodaemon=true
-logfile=/var/log/supervisord.log
-pidfile=/var/run/supervisord.pid
-
-[program:php-fpm]
-command=/usr/local/sbin/php-fpm -F
-autostart=true
-autorestart=true
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
-
-[program:nginx]
-command=/usr/sbin/nginx -g "daemon off;"
-autostart=true
-autorestart=true
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
-
-[program:laravel-worker]
-process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/html/artisan queue:work --sleep=3 --tries=3 --max-time=3600
-autostart=true
-autorestart=true
-numprocs=2
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
-
-[program:laravel-scheduler]
-process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/html/artisan schedule:work
-autostart=true
-autorestart=true
-numprocs=2
-stdout_logfile=/dev/stdout
-stdout_logfile_maxbytes=0
-stderr_logfile=/dev/stderr
-stderr_logfile_maxbytes=0
+## File: compose.prod.yaml
+```yaml
+services:
+  nginx:
+    image: nginx:1.29-alpine
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - app_public:/var/www/html/public:ro
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      app:
+        condition: service_started
+    networks:
+      - app
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - app_storage:/var/www/html/storage
+      - app_public:/var/www/html/public
+    networks:
+      - app
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    command:
+      - php
+      - artisan
+      - queue:work
+      - --sleep=3
+      - --tries=3
+      - --max-time=3600
+    volumes:
+      - app_storage:/var/www/html/storage
+      - app_public:/var/www/html/public
+    networks:
+      - app
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    command:
+      - php
+      - artisan
+      - horizon
+    volumes:
+      - app_storage:/var/www/html/storage
+      - app_public:/var/www/html/public
+volumes:
+  app_storage:
+  app_public:
+networks:
+  app:
+    driver: bridge
 ```
 
 ## File: docker/nginx.conf
 ```ini
-worker_processes auto;
-error_log /var/log/nginx/error.log warn;
-pid /var/run/nginx.pid;
+server {
+    listen 80;
+    server_name _;
 
-events {
-    worker_connections 1024;
-}
+    root /var/www/html/public;
+    index index.php;
 
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-    
-    access_log /var/log/nginx/access.log;
-    
-    sendfile on;
-    keepalive_timeout 65;
-    
-    server {
-        listen 80;
-        server_name _;
-        root /var/www/html/public;
-        index index.php;
-        
-        location / {
-            try_files $uri $uri/ /index.php?$query_string;
-        }
-        
-        location ~ \.php$ {
-            fastcgi_pass 127.0.0.1:9000;
-            fastcgi_index index.php;
-            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-            include fastcgi_params;
-        }
-        
-        location ~ /\.(?!well-known).* {
-            deny all;
-        }
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass app:9000;
+        fastcgi_index index.php;
+
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+
+        include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
     }
 }
 ```
@@ -155,82 +161,149 @@ opcache.save_comments=1
 
 ## File: .dockerignore
 ```
-node_modules
 .git
 .gitignore
-*.md
-.env*
-.DS_Store
-Dockerfile
-docker-compose*.yml
-.dockerignore
 
-# Framework-specific
-.next
-.nuxt
-dist
-build
-coverage
+.env
+.env.*
+!.env.example
 
-# The vendor stage's `COPY . .` runs AFTER `composer install --no-dev`.
-# Without this, it overwrites that clean --no-dev install with the host's
-# own local vendor/ (installed with require-dev packages) -- the resulting
-# image then has dev-only classes (pestphp/pest, laravel/pint, etc.)
-# physically present but excluded from the --no-dev-filtered autoloader,
-# so package:discover's ProviderRepository boot fails with a
-# "Class ... not found" error for whichever dev package registers a
-# provider (e.g. laramint/laravel-brain).
+node_modules
 vendor
 
-# Same leak risk as vendor/ above, for a locally-generated
-# bootstrap/cache/packages.php or services.php.
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
 bootstrap/cache/*.php
+
+Dockerfile
+compose*.yaml
+docker-compose*.yaml
+
+.DS_Store
+*.log
+
+coverage
+dist
+build
 ```
 
 ## File: Dockerfile
 ```dockerfile
-FROM php:8.3-fpm-alpine
+# syntax=docker/dockerfile:1
 
-# Install system dependencies
+FROM php:8.4-fpm-alpine
+
+# ---------------------------------------------------------
+# Runtime dependencies
+# ---------------------------------------------------------
 RUN apk add --no-cache \
-    nginx \
-    supervisor \
-    libpq-dev \
+    freetype \
+    libjpeg-turbo \
+    libpng \
+    libzip \
+    postgresql-libs
+
+# ---------------------------------------------------------
+# Build dependencies
+# ---------------------------------------------------------
+RUN apk add --no-cache --virtual .build-deps \
+    $PHPIZE_DEPS \
+    freetype-dev \
+    libjpeg-turbo-dev \
+    libpng-dev \
     libzip-dev \
-    zip \
-    unzip \
-    git
+    linux-headers \
+    postgresql-dev
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_pgsql pdo_mysql zip opcache
+# ---------------------------------------------------------
+# PHP extensions
+# ---------------------------------------------------------
+RUN docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+    && docker-php-ext-install -j"$(nproc)" \
+        exif \
+        gd \
+        pcntl \
+        pdo_mysql \
+        pdo_pgsql \
+        sockets \
+        zip \
+        opcache
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# ---------------------------------------------------------
+# Remove build dependencies
+# ---------------------------------------------------------
+RUN apk del .build-deps \
+    && rm -rf /var/cache/apk/*
+
+# ---------------------------------------------------------
+# Composer
+# ---------------------------------------------------------
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copy composer files first (better caching)
+# ---------------------------------------------------------
+# Composer dependencies
+# ---------------------------------------------------------
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader
 
-# Copy application
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --prefer-dist \
+    --no-scripts \
+    --no-autoloader
+
+# ---------------------------------------------------------
+# Application
+# ---------------------------------------------------------
 COPY . .
 
-# Generate autoloader and run scripts
-RUN composer dump-autoload --optimize
-RUN php artisan config:cache
-RUN php artisan route:cache
-RUN php artisan view:cache
+# ---------------------------------------------------------
+# Composer autoload
+# ---------------------------------------------------------
+RUN composer dump-autoload \
+    --optimize \
+    --no-dev \
+    --classmap-authoritative \
+    --no-scripts
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# ---------------------------------------------------------
+# Laravel package discovery
+# ---------------------------------------------------------
+RUN php artisan package:discover --ansi
 
-# Copy config files
-COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisord.conf
+# ---------------------------------------------------------
+# Laravel caches
+# ---------------------------------------------------------
+RUN php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache
+
+# ---------------------------------------------------------
+# Permissions
+# ---------------------------------------------------------
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache
+
+# ---------------------------------------------------------
+# PHP configuration
+# ---------------------------------------------------------
 COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
 
-EXPOSE 80
+# ---------------------------------------------------------
+# Runtime
+# ---------------------------------------------------------
+USER www-data
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+EXPOSE 9000
+
+CMD ["php-fpm", "-F"]
 ```

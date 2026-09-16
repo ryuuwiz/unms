@@ -2,9 +2,7 @@
 
 FROM php:8.4-fpm-alpine
 
-# ---------------------------------------------------------
 # Runtime dependencies
-# ---------------------------------------------------------
 RUN apk add --no-cache \
     freetype \
     libjpeg-turbo \
@@ -12,9 +10,7 @@ RUN apk add --no-cache \
     libzip \
     postgresql-libs
 
-# ---------------------------------------------------------
 # Build dependencies
-# ---------------------------------------------------------
 RUN apk add --no-cache --virtual .build-deps \
     $PHPIZE_DEPS \
     freetype-dev \
@@ -24,9 +20,7 @@ RUN apk add --no-cache --virtual .build-deps \
     linux-headers \
     postgresql-dev
 
-# ---------------------------------------------------------
 # PHP extensions
-# ---------------------------------------------------------
 RUN docker-php-ext-configure gd \
         --with-freetype \
         --with-jpeg \
@@ -40,22 +34,16 @@ RUN docker-php-ext-configure gd \
         zip \
         opcache
 
-# ---------------------------------------------------------
-# Remove build dependencies
-# ---------------------------------------------------------
+# Clean build dependencies
 RUN apk del .build-deps \
     && rm -rf /var/cache/apk/*
 
-# ---------------------------------------------------------
 # Composer
-# ---------------------------------------------------------
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# ---------------------------------------------------------
-# Composer dependencies
-# ---------------------------------------------------------
+# Install dependencies
 COPY composer.json composer.lock ./
 
 RUN composer install \
@@ -66,49 +54,31 @@ RUN composer install \
     --no-scripts \
     --no-autoloader
 
-# ---------------------------------------------------------
-# Application
-# ---------------------------------------------------------
+# Copy Application Source
 COPY . .
 
-# ---------------------------------------------------------
-# Composer autoload
-# ---------------------------------------------------------
+# Composer Autoload
 RUN composer dump-autoload \
     --optimize \
     --no-dev \
     --classmap-authoritative \
     --no-scripts
 
-# ---------------------------------------------------------
-# Laravel package discovery
-# ---------------------------------------------------------
-RUN php artisan package:discover --ansi
-
-# ---------------------------------------------------------
-# Laravel caches
-# ---------------------------------------------------------
-RUN php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
-
-# ---------------------------------------------------------
 # Permissions
-# ---------------------------------------------------------
 RUN chown -R www-data:www-data \
     storage \
     bootstrap/cache
 
-# ---------------------------------------------------------
 # PHP configuration
-# ---------------------------------------------------------
 COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
-# ---------------------------------------------------------
-# Runtime
-# ---------------------------------------------------------
+USER root
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 USER www-data
 
 EXPOSE 9000
 
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php-fpm", "-F"]
