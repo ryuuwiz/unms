@@ -60,7 +60,6 @@ RUN apk add --no-cache --virtual .build-deps \
         pdo_mysql \
         pdo_pgsql \
         zip \
-        opcache \
         sockets \
         bcmath \
         intl \
