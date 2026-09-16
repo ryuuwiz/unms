@@ -18,9 +18,6 @@ services:
       app:
         condition: service_started
 
-    networks:
-      - app
-
   # ---------------------------------------------------------
   # PHP-FPM / Laravel Application
   # ---------------------------------------------------------
@@ -37,9 +34,6 @@ services:
     volumes:
       - app_storage:/var/www/html/storage
       - app_public:/var/www/html/public
-
-    networks:
-      - app
 
   # ---------------------------------------------------------
   # Laravel Queue Worker
@@ -66,9 +60,6 @@ services:
       - app_storage:/var/www/html/storage
       - app_public:/var/www/html/public
 
-    networks:
-      - app
-
   # ---------------------------------------------------------
   # Laravel Scheduler
   # ---------------------------------------------------------
@@ -91,19 +82,9 @@ services:
       - app_storage:/var/www/html/storage
       - app_public:/var/www/html/public
 
-    networks:
-      - app
-
 # -----------------------------------------------------------
 # Volumes
 # -----------------------------------------------------------
 volumes:
   app_storage:
   app_public:
-
-# -----------------------------------------------------------
-# Network
-# -----------------------------------------------------------
-networks:
-  app:
-    driver: bridge
