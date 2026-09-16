@@ -1,0 +1,1 @@
+worker: cd /app && php artisan horizon
