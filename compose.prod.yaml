@@ -88,4 +88,3 @@ volumes:
 
 networks:
   app:
-    external: true
