@@ -1,0 +1,10 @@
+{
+    "$schema": "https://schema.railpack.com",
+    "deploy": {
+        "startCommand": "cd /app && php artisan horizon",
+        "variables": {
+            "TZ": "Asia/Jakarta",
+            "LANG": "id_ID.UTF-8"
+        }
+    }
+}
