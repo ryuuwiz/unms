@@ -1,24 +1,45 @@
-FROM php:8.3-fpm-alpine
+# syntax=docker/dockerfile:1
+
+FROM php:8.4-fpm-alpine
 
 # ---------------------------------------------------------
-# System dependencies
+# Build dependencies
 # ---------------------------------------------------------
 RUN apk add --no-cache \
-    libpq-dev \
-    libzip-dev \
-    zip \
-    unzip \
-    git
+        libpng \
+        libjpeg-turbo \
+        freetype \
+        libzip \
+        postgresql-libs \
+    && apk add --no-cache --virtual .build-deps \
+        $PHPIZE_DEPS \
+        libpng-dev \
+        libjpeg-turbo-dev \
+        freetype-dev \
+        libzip-dev \
+        postgresql-dev
 
 # ---------------------------------------------------------
-# PHP extensions
+# Configure PHP extensions
 # ---------------------------------------------------------
-RUN docker-php-ext-install \
-    pdo \
-    pdo_pgsql \
-    pdo_mysql \
-    zip \
-    opcache
+RUN docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+    && docker-php-ext-install -j"$(nproc)" \
+        exif \
+        gd \
+        pcntl \
+        pdo_mysql \
+        pdo_pgsql \
+        sockets \
+        zip \
+        opcache
+
+# ---------------------------------------------------------
+# Remove build dependencies
+# ---------------------------------------------------------
+RUN apk del .build-deps \
+    && rm -rf /var/cache/apk/*
 
 # ---------------------------------------------------------
 # Composer
@@ -30,20 +51,26 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # ---------------------------------------------------------
 WORKDIR /var/www/html
 
+# Copy dependency definitions first for Docker layer caching
 COPY composer.json composer.lock ./
 
+# Install production dependencies
 RUN composer install \
-    --no-dev \
-    --no-scripts \
-    --no-autoloader \
-    --prefer-dist \
-    --no-interaction
+        --no-dev \
+        --no-interaction \
+        --no-progress \
+        --prefer-dist \
+        --no-scripts \
+        --no-autoloader
 
+# Copy application source
 COPY . .
 
+# Generate optimized autoloader
 RUN composer dump-autoload \
-    --optimize \
-    --no-dev
+        --optimize \
+        --no-dev \
+        --classmap-authoritative
 
 # ---------------------------------------------------------
 # Laravel optimization
@@ -56,11 +83,11 @@ RUN php artisan config:cache \
 # Permissions
 # ---------------------------------------------------------
 RUN chown -R www-data:www-data \
-    storage \
-    bootstrap/cache
+        storage \
+        bootstrap/cache
 
 # ---------------------------------------------------------
-# PHP-FPM
+# Runtime
 # ---------------------------------------------------------
 USER www-data
 
