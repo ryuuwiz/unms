@@ -4,6 +4,7 @@ namespace App\Livewire\LayananPelanggan;
 
 use App\Enums\JenisKoneksi;
 use App\Enums\StatusLayanan;
+use App\Livewire\Concerns\HasSearchableOptions;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
@@ -20,6 +21,8 @@ use Livewire\Component;
 #[Title('Edit Data Registrasi Billing')]
 class Edit extends Component
 {
+    use HasSearchableOptions;
+
     #[Locked]
     public int $layananId;
 
@@ -196,9 +199,23 @@ class Edit extends Component
         $this->redirectRoute('layanan-pelanggan.index', navigate: true);
     }
 
+    /**
+     * @return array<string, array{model: class-string, query: \Closure, label: \Closure, cap?: int}>
+     */
+    protected function searchableFields(): array
+    {
+        return [
+            'paket_layanan_id' => [
+                'model' => PaketLayanan::class,
+                'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
+                'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga(),
+                'cap' => 20,
+            ],
+        ];
+    }
+
     public function render(): View
     {
-        $pakets = PaketLayanan::aktif()->with('profilBandwidth')->orderBy('nama_paket')->get();
         $routers = Router::online()->get();
         $ipPools = $this->router_id
             ? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
@@ -207,7 +224,6 @@ class Edit extends Component
         $statuses = StatusLayanan::cases();
 
         return view('livewire.layanan-pelanggan.edit', compact(
-            'pakets',
             'routers',
             'ipPools',
             'jenisKoneksi',

@@ -52,15 +52,8 @@
 
                 <!-- Pelanggan Selector -->
                 <div>
-                    <flux:select wire:model.live="pelanggan_id" label="Pilih Pelanggan / Prospek" placeholder="Pilih Pelanggan..." searchable required>
-                        <flux:select.option value="">-- Pilih Pelanggan --</flux:select.option>
-                        @foreach($pelanggans as $p)
-                            <flux:select.option value="{{ $p->id }}">
-                                {{ $p->labelSelector() }}
-                            </flux:select.option>
-                        @endforeach
-                    </flux:select>
-                    @error('pelanggan_id') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
+                    <x-searchable-select field="pelanggan_id" label="Pilih Pelanggan / Prospek"
+                        placeholder="Cari nama, no. HP, atau no. registrasi..." required />
                 </div>
 
                 <!-- Layanan Pelanggan Selector (Kondisional) -->
@@ -139,7 +132,7 @@
                 </div>
 
                 <!-- Upload Foto Kendala / Lokasi -->
-                <div>
+                <div class="space-y-3">
                     <flux:field>
                         <flux:label>Foto Kendala / Lokasi (Opsional)</flux:label>
                         <input
@@ -153,10 +146,9 @@
                     </flux:field>
 
                     @if ($fotoKendala)
-                        <div class="mt-2 flex items-center gap-3 p-2 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs">
-                            <span class="text-emerald-600 font-medium">✓ Foto terpilih:</span>
-                            <span class="text-zinc-600 dark:text-zinc-300 truncate">{{ $fotoKendala->getClientOriginalName() }}</span>
-                        </div>
+                        <x-file-upload-preview :src="$fotoKendala->temporaryUrl()" target="fotoKendala"
+                            aspect="video" fit="cover" icon="camera" empty-text="Belum ada foto"
+                            alt="Preview Foto Kendala" />
                     @endif
                 </div>
             </div>

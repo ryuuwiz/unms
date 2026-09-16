@@ -8,6 +8,7 @@ use App\Enums\MikrotikJobType;
 use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
+use App\Livewire\Concerns\HasSearchableOptions;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
@@ -27,6 +28,8 @@ use Livewire\Component;
 #[Title('Tambah Data Registrasi Billing')]
 class Create extends Component
 {
+    use HasSearchableOptions;
+
     // Step 1: Pilih pelanggan & paket
     public int $step = 1;
 
@@ -303,10 +306,30 @@ class Create extends Component
         $this->redirectRoute('layanan-pelanggan.index', navigate: true);
     }
 
+    /**
+     * @return array<string, array{model: class-string, query: \Closure, label: \Closure, cap?: int}>
+     */
+    protected function searchableFields(): array
+    {
+        return [
+            'pelanggan_id' => [
+                'model' => Pelanggan::class,
+                'query' => fn () => Pelanggan::aktif(),
+                'label' => fn (Pelanggan $p) => $p->labelSelector(),
+                'cap' => 20,
+            ],
+            'paket_layanan_id' => [
+                'model' => PaketLayanan::class,
+                'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
+                'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga()
+                    .' ('.($pk->profilBandwidth?->labelKecepatan() ?? 'No Profile').')',
+                'cap' => 20,
+            ],
+        ];
+    }
+
     public function render(): View
     {
-        $pelanggans = Pelanggan::aktif()->orderBy('nama_depan')->get();
-        $pakets = PaketLayanan::aktif()->with('profilBandwidth')->orderBy('nama_paket')->get();
         $routers = Router::online()->get();
         $ipPools = $this->router_id
             ? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
@@ -314,8 +337,6 @@ class Create extends Component
         $jenisKoneksi = JenisKoneksi::cases();
 
         return view('livewire.layanan-pelanggan.create', compact(
-            'pelanggans',
-            'pakets',
             'routers',
             'ipPools',
             'jenisKoneksi',

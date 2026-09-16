@@ -21,31 +21,11 @@
 
     @if ($step === 1)
         <form wire:submit="nextStep" class="space-y-6">
-            <flux:field>
-                <flux:label>Pilih Pelanggan</flux:label>
-                <flux:select wire:model.live="pelanggan_id" placeholder="Pilih pelanggan aktif..." searchable>
-                    <flux:select.option value="">-- Pilih Pelanggan --</flux:select.option>
-                    @foreach ($pelanggans as $p)
-                        <flux:select.option value="{{ $p->id }}">
-                            {{ $p->labelSelector() }}
-                        </flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:error name="pelanggan_id" />
-            </flux:field>
+            <x-searchable-select field="pelanggan_id" label="Pilih Pelanggan"
+                placeholder="Cari nama, no. HP, atau no. registrasi..." />
 
-            <flux:field>
-                <flux:label>Pilih Paket Layanan</flux:label>
-                <flux:select wire:model.live="paket_layanan_id" placeholder="Pilih paket..." searchable>
-                    <flux:select.option value="">-- Pilih Paket Layanan --</flux:select.option>
-                    @foreach ($pakets as $pk)
-                        <flux:select.option value="{{ $pk->id }}">
-                            {{ $pk->nama_paket }} — {{ $pk->formattedHarga() }} ({{ $pk->profilBandwidth?->labelKecepatan() ?? 'No Profile' }})
-                        </flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:error name="paket_layanan_id" />
-            </flux:field>
+            <x-searchable-select field="paket_layanan_id" label="Pilih Paket Layanan"
+                placeholder="Cari nama paket..." />
 
             <div class="flex justify-end gap-3 pt-2">
                 <flux:button :href="route('layanan-pelanggan.index')" wire:navigate variant="ghost">Batal</flux:button>
@@ -67,7 +47,7 @@
 
                 <flux:field>
                     <flux:label>Router Gateway</flux:label>
-                    <flux:select wire:model.live="router_id" placeholder="Pilih router gateway..." searchable>
+                    <flux:select wire:model.live="router_id" placeholder="Pilih router gateway...">
                         <flux:select.option value="">-- Pilih Router Gateway --</flux:select.option>
                         @foreach ($routers as $r)
                             <flux:select.option value="{{ $r->id }}">
@@ -94,7 +74,7 @@
             @if ($jenis_koneksi === 'pppoe')
                 <flux:field>
                     <flux:label>IP Pool <span class="text-zinc-400 font-normal">(Remote Address PPPoE)</span></flux:label>
-                    <flux:select wire:model.live="ip_pool_id" placeholder="Pilih IP Pool..." searchable :disabled="! $router_id || $ipPools->isEmpty()">
+                    <flux:select wire:model.live="ip_pool_id" placeholder="Pilih IP Pool..." :disabled="! $router_id || $ipPools->isEmpty()">
                         <flux:select.option value="">-- Pilih IP Pool --</flux:select.option>
                         @foreach ($ipPools as $pool)
                             <flux:select.option value="{{ $pool->id }}">

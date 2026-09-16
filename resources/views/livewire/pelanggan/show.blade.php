@@ -1670,18 +1670,7 @@
                 </div>
 
                 <form wire:submit="prosesUbahPaket" class="space-y-4">
-                    <flux:field>
-                        <flux:label>Pilih Paket Baru</flux:label>
-                        <flux:select wire:model="newPaketId" searchable>
-                            <flux:select.option value="">-- Pilih Paket Baru --</flux:select.option>
-                            @foreach ($pakets as $pk)
-                                <flux:select.option value="{{ $pk->id }}">
-                                    {{ $pk->nama_paket }} — {{ $pk->formattedHarga() }} ({{ $pk->profilBandwidth?->labelKecepatan() ?? 'No Profile' }})
-                                </flux:select.option>
-                            @endforeach
-                        </flux:select>
-                        <flux:error name="newPaketId" />
-                    </flux:field>
+                    <x-searchable-select field="newPaketId" label="Pilih Paket Baru" placeholder="Cari nama paket..." />
 
                     <div class="rounded-lg border border-indigo-100 bg-indigo-50/70 p-3.5 text-xs text-indigo-900 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300">
                         <div class="flex items-start gap-2">

@@ -3,6 +3,7 @@
 namespace App\Livewire\Pelanggan;
 
 use App\Enums\StatusInvoice;
+use App\Livewire\Concerns\HasSearchableOptions;
 use App\Models\AkunPelanggan;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
@@ -30,7 +31,7 @@ use Spatie\Activitylog\Models\Activity;
 #[Title('Detail Pelanggan')]
 class Show extends Component
 {
-    use WithFileUploads;
+    use HasSearchableOptions, WithFileUploads;
 
     public int $pelangganId;
 
@@ -543,6 +544,22 @@ class Show extends Component
         Flux::toast(variant: 'success', text: "Invoice {$invoice->no_invoice} berhasil diterbitkan.");
     }
 
+    /**
+     * @return array<string, array{model: class-string, query: \Closure, label: \Closure, cap?: int}>
+     */
+    protected function searchableFields(): array
+    {
+        return [
+            'newPaketId' => [
+                'model' => PaketLayanan::class,
+                'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
+                'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga()
+                    .' ('.($pk->profilBandwidth?->labelKecepatan() ?? 'No Profile').')',
+                'cap' => 20,
+            ],
+        ];
+    }
+
     public function render(): View
     {
         $pelanggan = Pelanggan::with([
@@ -587,8 +604,6 @@ class Show extends Component
             ? Invoice::with(['layananPelanggan.paketLayanan', 'promo'])->find($this->selectedInvoiceId)
             : null;
 
-        $pakets = PaketLayanan::aktif()->with('profilBandwidth')->orderBy('nama_paket')->get();
-
         $selectedLayananForModal = $this->selectedLayananId
             ? $pelanggan->layanans->firstWhere('id', $this->selectedLayananId)
             : null;
@@ -605,7 +620,6 @@ class Show extends Component
             'invoicesLunas' => $invoicesLunas,
             'invoicesDihapus' => $invoicesDihapus,
             'selectedInvoice' => $selectedInvoice,
-            'pakets' => $pakets,
             'selectedLayananForModal' => $selectedLayananForModal,
             'promosAktif' => $promosAktif,
         ]);

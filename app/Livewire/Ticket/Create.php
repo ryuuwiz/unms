@@ -7,6 +7,7 @@ use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\PrioritasTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\Ticket\SumberTicket;
+use App\Livewire\Concerns\HasSearchableOptions;
 use App\Models\LayananPelanggan;
 use App\Models\Pelanggan;
 use App\Models\Ticket;
@@ -32,7 +33,7 @@ use Livewire\WithFileUploads;
 #[Title('Buat Tiket Baru')]
 class Create extends Component
 {
-    use WithFileUploads;
+    use HasSearchableOptions, WithFileUploads;
 
     public string $jenis = 'pemasangan';
 
@@ -83,6 +84,21 @@ class Create extends Component
     public function updatedPelangganId(): void
     {
         $this->layanan_pelanggan_id = null;
+    }
+
+    /**
+     * @return array<string, array{model: class-string, query: \Closure, label: \Closure, cap?: int}>
+     */
+    protected function searchableFields(): array
+    {
+        return [
+            'pelanggan_id' => [
+                'model' => Pelanggan::class,
+                'query' => fn () => Pelanggan::query()->with('perumahan'),
+                'label' => fn (Pelanggan $p) => $p->labelSelector(),
+                'cap' => 20,
+            ],
+        ];
     }
 
     protected function autoSetDivisi(): void
@@ -219,12 +235,6 @@ class Create extends Component
 
     public function render(): View
     {
-        /** @var Collection<int, Pelanggan> $pelanggans */
-        $pelanggans = Pelanggan::query()
-            ->with('perumahan')
-            ->orderBy('nama_depan')
-            ->get();
-
         /** @var Collection<int, LayananPelanggan> $layanans */
         $layanans = $this->pelanggan_id
             ? LayananPelanggan::query()
@@ -246,7 +256,6 @@ class Create extends Component
         $prioritasEnum = PrioritasTicket::tryFrom($this->prioritas);
 
         return view('livewire.ticket.create', [
-            'pelanggans' => $pelanggans,
             'layanans' => $layanans,
             'staffList' => $staffList,
             'selectedPelanggan' => $selectedPelanggan,

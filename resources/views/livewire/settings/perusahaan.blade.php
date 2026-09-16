@@ -36,42 +36,11 @@
                     <flux:label>Logo Perusahaan</flux:label>
 
                     <div class="flex flex-col sm:flex-row items-center gap-6">
-                        <div class="flex flex-col items-center gap-2.5 shrink-0">
-                            <div
-                                class="relative flex aspect-square size-28 shrink-0 items-center justify-center rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-2 shadow-xs overflow-hidden">
-                                @if ($logo)
-                                    <img src="{{ $logo->temporaryUrl() }}" alt="Preview Logo"
-                                        class="h-full w-full object-contain" />
-                                @elseif ($existing_logo_url)
-                                    <img src="{{ $existing_logo_url }}" alt="Logo Perusahaan"
-                                        class="h-full w-full object-contain" />
-                                @else
-                                    <div
-                                        class="flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 text-xs text-center p-2">
-                                        <flux:icon name="photo" class="size-8 mb-1 opacity-50" />
-                                        <span>Belum ada logo</span>
-                                    </div>
-                                @endif
-
-                                {{-- Uploading overlay indicator --}}
-                                <div wire:loading wire:target="logo"
-                                    class="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white text-[11px] font-medium gap-1">
-                                    <flux:icon name="arrow-path" class="size-5 animate-spin" />
-                                    <span>Mengunggah...</span>
-                                </div>
-                            </div>
-
-                            @if ($existing_logo_url || $logo)
-                                <flux:button variant="danger" size="sm" type="button" wire:click="hapusLogo"
-                                    wire:confirm="Apakah Anda yakin ingin menghapus logo perusahaan?"
-                                    class="w-full justify-center">
-                                    <div class="flex items-center gap-1">
-                                        <flux:icon name="trash" class="size-3.5 mr-1" />
-                                        Hapus Logo
-                                    </div>
-                                </flux:button>
-                            @endif
-                        </div>
+                        <x-file-upload-preview :src="$logo?->temporaryUrl() ?: $existing_logo_url" target="logo"
+                            aspect="square" fit="contain" :deletable="(bool) ($existing_logo_url || $logo)"
+                            delete-action="hapusLogo"
+                            delete-confirm="Apakah Anda yakin ingin menghapus logo perusahaan?"
+                            delete-label="Hapus Logo" icon="photo" empty-text="Belum ada logo" alt="Preview Logo" />
 
                         <div class="flex-1 space-y-3">
                             <div>

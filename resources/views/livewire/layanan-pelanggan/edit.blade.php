@@ -7,17 +7,7 @@
     <flux:separator />
 
     <form wire:submit="save" class="space-y-6">
-        <flux:field>
-            <flux:label>Paket Layanan</flux:label>
-            <flux:select wire:model.live="paket_layanan_id" placeholder="Pilih paket layanan..." searchable>
-                @foreach ($pakets as $pk)
-                    <flux:select.option value="{{ $pk->id }}">
-                        {{ $pk->nama_paket }} — {{ $pk->formattedHarga() }}
-                    </flux:select.option>
-                @endforeach
-            </flux:select>
-            <flux:error name="paket_layanan_id" />
-        </flux:field>
+        <x-searchable-select field="paket_layanan_id" label="Paket Layanan" placeholder="Cari nama paket..." />
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <flux:field>
@@ -32,7 +22,7 @@
 
             <flux:field>
                 <flux:label>Router Gateway</flux:label>
-                <flux:select wire:model.live="router_id" placeholder="Pilih router gateway..." searchable>
+                <flux:select wire:model.live="router_id" placeholder="Pilih router gateway...">
                     <flux:select.option value="">-- Pilih Router Gateway --</flux:select.option>
                     @foreach ($routers as $r)
                         <flux:select.option value="{{ $r->id }}">
@@ -59,7 +49,7 @@
         @if ($jenis_koneksi === 'pppoe')
             <flux:field>
                 <flux:label>IP Pool <span class="text-zinc-400 font-normal">(Remote Address PPPoE)</span></flux:label>
-                <flux:select wire:model.live="ip_pool_id" placeholder="Pilih IP Pool..." searchable :disabled="! $router_id || $ipPools->isEmpty()">
+                <flux:select wire:model.live="ip_pool_id" placeholder="Pilih IP Pool..." :disabled="! $router_id || $ipPools->isEmpty()">
                     <flux:select.option value="">-- Pilih IP Pool --</flux:select.option>
                     @foreach ($ipPools as $pool)
                         <flux:select.option value="{{ $pool->id }}">

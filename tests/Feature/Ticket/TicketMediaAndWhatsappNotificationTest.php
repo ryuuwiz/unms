@@ -78,6 +78,15 @@ test('pembuatan tiket baru dengan lampiran foto berhasil menyimpan media dan men
         ->and($antrianPelanggan->pesan)->toContain($ticket->nomor_ticket);
 });
 
+test('foto kendala yang diunggah menampilkan preview gambar sebelum disimpan', function () {
+    $foto = UploadedFile::fake()->image('kendala.jpg');
+
+    Livewire::actingAs($this->admin)
+        ->test(Create::class)
+        ->set('fotoKendala', $foto)
+        ->assertSeeHtml('alt="Preview Foto Kendala"');
+});
+
 test('penugasan teknisi mengantrikan pesan wa disposisi ke nomor hp teknisi', function () {
     $ticket = Ticket::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,

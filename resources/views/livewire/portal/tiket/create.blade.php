@@ -90,10 +90,8 @@
             </flux:field>
 
             @if ($fotoKendala)
-                <div class="flex items-center gap-3 p-2 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs">
-                    <span class="text-emerald-600 font-medium">✓ Foto terpilih:</span>
-                    <span class="text-zinc-600 dark:text-zinc-300 truncate">{{ $fotoKendala->getClientOriginalName() }}</span>
-                </div>
+                <x-file-upload-preview :src="$fotoKendala->temporaryUrl()" target="fotoKendala" aspect="video"
+                    fit="cover" icon="camera" empty-text="Belum ada foto" alt="Preview Foto Kendala" />
             @endif
 
             <div class="flex justify-end pt-2">
