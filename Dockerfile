@@ -20,7 +20,7 @@ RUN composer dump-autoload --optimize --no-dev
 ########################################
 # Stage 2: Frontend assets (Vite/Tailwind)
 ########################################
-FROM node:24-bookworm-slim AS frontend
+FROM node:20-bookworm-slim AS frontend
 
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -32,7 +32,7 @@ RUN npm run build
 ########################################
 # Stage 3: Runtime image
 ########################################
-FROM php:8.4-fpm-alpine
+FROM php:8.5-fpm-alpine
 
 # Runtime system libraries
 RUN apk add --no-cache \
@@ -48,6 +48,7 @@ RUN apk add --no-cache \
 # Build-time only deps, compile extensions, then remove the toolchain
 RUN apk add --no-cache --virtual .build-deps \
         $PHPIZE_DEPS \
+        linux-headers \
         libpq-dev \
         libzip-dev \
         icu-dev \
