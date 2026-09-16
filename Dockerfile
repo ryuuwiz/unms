@@ -3,7 +3,7 @@
 ########################################
 # Stage 1: Composer dependencies
 ########################################
-FROM php:8.4-cli-bookworm AS vendor
+FROM php:8.5-cli-bookworm AS vendor
 
 WORKDIR /app
 
@@ -69,7 +69,7 @@ RUN npm run build
 ########################################
 # Stage 3: Production runtime
 ########################################
-FROM php:8.4-fpm-bookworm AS runtime
+FROM php:8.5-fpm-bookworm AS runtime
 
 ENV APP_ENV=production \
     APP_DEBUG=false
