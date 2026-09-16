@@ -3,29 +3,29 @@
 FROM php:8.4-fpm-alpine
 
 # ---------------------------------------------------------
-# Runtime libraries
+# Runtime dependencies
 # ---------------------------------------------------------
 RUN apk add --no-cache \
-        freetype \
-        libjpeg-turbo \
-        libpng \
-        libzip \
-        postgresql-libs
+    freetype \
+    libjpeg-turbo \
+    libpng \
+    libzip \
+    postgresql-libs
 
 # ---------------------------------------------------------
 # Build dependencies
 # ---------------------------------------------------------
 RUN apk add --no-cache --virtual .build-deps \
-        $PHPIZE_DEPS \
-        freetype-dev \
-        libjpeg-turbo-dev \
-        libpng-dev \
-        libzip-dev \
-        linux-headers \
-        postgresql-dev
+    $PHPIZE_DEPS \
+    freetype-dev \
+    libjpeg-turbo-dev \
+    libpng-dev \
+    libzip-dev \
+    linux-headers \
+    postgresql-dev
 
 # ---------------------------------------------------------
-# Configure & install PHP extensions
+# PHP extensions
 # ---------------------------------------------------------
 RUN docker-php-ext-configure gd \
         --with-freetype \
@@ -51,30 +51,42 @@ RUN apk del .build-deps \
 # ---------------------------------------------------------
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# ---------------------------------------------------------
-# Application
-# ---------------------------------------------------------
 WORKDIR /var/www/html
 
+# ---------------------------------------------------------
+# Composer dependencies
+# ---------------------------------------------------------
 COPY composer.json composer.lock ./
 
 RUN composer install \
-        --no-dev \
-        --no-interaction \
-        --no-progress \
-        --prefer-dist \
-        --no-scripts \
-        --no-autoloader
-
-COPY . .
-
-RUN composer dump-autoload \
-        --optimize \
-        --no-dev \
-        --classmap-authoritative
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --prefer-dist \
+    --no-scripts \
+    --no-autoloader
 
 # ---------------------------------------------------------
-# Laravel optimization
+# Application
+# ---------------------------------------------------------
+COPY . .
+
+# ---------------------------------------------------------
+# Composer autoload
+# ---------------------------------------------------------
+RUN composer dump-autoload \
+    --optimize \
+    --no-dev \
+    --classmap-authoritative \
+    --no-scripts
+
+# ---------------------------------------------------------
+# Laravel package discovery
+# ---------------------------------------------------------
+RUN php artisan package:discover --ansi
+
+# ---------------------------------------------------------
+# Laravel caches
 # ---------------------------------------------------------
 RUN php artisan config:cache \
     && php artisan route:cache \
@@ -84,9 +96,17 @@ RUN php artisan config:cache \
 # Permissions
 # ---------------------------------------------------------
 RUN chown -R www-data:www-data \
-        storage \
-        bootstrap/cache
+    storage \
+    bootstrap/cache
 
+# ---------------------------------------------------------
+# PHP configuration
+# ---------------------------------------------------------
+COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
+
+# ---------------------------------------------------------
+# Runtime
+# ---------------------------------------------------------
 USER www-data
 
 EXPOSE 9000
