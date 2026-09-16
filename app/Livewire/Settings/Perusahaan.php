@@ -9,6 +9,7 @@ use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
@@ -155,7 +156,10 @@ class Perusahaan extends Component
         }
 
         if ($this->logo) {
-            $perusahaan->addMedia($this->logo->getRealPath())
+            $perusahaan->addMediaFromDisk(
+                FileUploadConfiguration::path($this->logo->getFilename(), false),
+                FileUploadConfiguration::disk()
+            )
                 ->usingFileName($this->logo->getClientOriginalName())
                 ->toMediaCollection('logo');
             $perusahaan->syncFaviconFiles();

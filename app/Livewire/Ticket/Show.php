@@ -18,6 +18,7 @@ use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
@@ -180,7 +181,10 @@ class Show extends Component
 
         if ($this->fotoPengerjaan) {
             try {
-                $histori->addMedia($this->fotoPengerjaan->getRealPath())
+                $histori->addMediaFromDisk(
+                    FileUploadConfiguration::path($this->fotoPengerjaan->getFilename(), false),
+                    FileUploadConfiguration::disk()
+                )
                     ->usingFileName($this->fotoPengerjaan->getClientOriginalName())
                     ->toMediaCollection('foto_pengerjaan');
             } catch (\Throwable $e) {

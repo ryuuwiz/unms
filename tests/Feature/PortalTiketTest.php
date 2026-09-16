@@ -18,8 +18,10 @@ use App\Notifications\TicketBaruDariPortalNotification;
 use App\Notifications\TicketStatusBerubahPelangganNotification;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -138,6 +140,27 @@ describe('Portal Tiket Create', function () {
             ->set('deskripsi', 'Oops')
             ->call('simpan')
             ->assertHasErrors(['deskripsi']);
+    });
+
+    it('menyimpan lampiran foto kendala ke media library saat diunggah', function () {
+        Storage::fake('public');
+        Notification::fake();
+        [$pelanggan, $akun, $layanan] = setupPortalPelanggan();
+
+        $foto = UploadedFile::fake()->image('kendala.jpg');
+
+        Livewire::actingAs($akun, 'pelanggan')
+            ->test(Create::class)
+            ->set('jenis', 'gangguan')
+            ->set('layanan_pelanggan_id', $layanan->id)
+            ->set('deskripsi', 'Koneksi internet putus total sejak pagi.')
+            ->set('fotoKendala', $foto)
+            ->call('simpan');
+
+        $ticket = Ticket::where('pelanggan_id', $pelanggan->id)->latest()->first();
+
+        expect($ticket)->not->toBeNull()
+            ->and($ticket->getFirstMedia('foto_kendala'))->not->toBeNull();
     });
 
     it('tidak bisa pilih layanan milik pelanggan lain', function () {

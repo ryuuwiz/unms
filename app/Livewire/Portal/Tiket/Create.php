@@ -24,6 +24,7 @@ use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\WithFileUploads;
 
 #[Layout('layouts.portal')]
@@ -139,7 +140,10 @@ class Create extends Component
         // Simpan foto kendala jika diunggah
         if ($this->fotoKendala) {
             try {
-                $ticket->addMedia($this->fotoKendala->getRealPath())
+                $ticket->addMediaFromDisk(
+                    FileUploadConfiguration::path($this->fotoKendala->getFilename(), false),
+                    FileUploadConfiguration::disk()
+                )
                     ->usingFileName($this->fotoKendala->getClientOriginalName())
                     ->toMediaCollection('foto_kendala');
             } catch (\Throwable $e) {
