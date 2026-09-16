@@ -50,7 +50,7 @@ RUN composer dump-autoload \
 ########################################
 # Stage 2: Frontend assets
 ########################################
-FROM node:20-bookworm-slim AS frontend
+FROM node:26-bookworm-slim AS frontend
 
 WORKDIR /app
 
@@ -59,6 +59,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+
+COPY --from=vendor /app/vendor ./vendor
 
 RUN npm run build
 
