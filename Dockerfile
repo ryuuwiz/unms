@@ -3,13 +3,12 @@
 ########################################
 # Stage 1: Composer dependencies
 ########################################
-FROM php:8.5-cli-bookworm AS vendor
+FROM php:8.4-cli-bookworm AS vendor
 
 WORKDIR /app
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# PHP extensions required by the application/Composer
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git \
@@ -18,33 +17,24 @@ RUN apt-get update \
         libonig-dev \
         libpq-dev \
         libzip-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+    && docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
         bcmath \
+        exif \
+        gd \
         intl \
         mbstring \
         pcntl \
-        pdo \
         pdo_mysql \
         pdo_pgsql \
         sockets \
         zip \
     && rm -rf /var/lib/apt/lists/*
-
-COPY composer.json composer.lock ./
-
-RUN composer install \
-    --no-dev \
-    --no-scripts \
-    --no-interaction \
-    --prefer-dist \
-    --optimize-autoloader
-
-COPY . .
-
-RUN composer dump-autoload \
-    --no-dev \
-    --optimize \
-    --classmap-authoritative
 
 
 ########################################
