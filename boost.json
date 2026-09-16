@@ -1,12 +1,7 @@
 {
     "agents": [
-        "antigravity",
-        "codex",
         "claude_code",
-        "kiro",
-        "opencode",
-        "zed",
-        "copilot"
+        "antigravity"
     ],
     "cloud": false,
     "guidelines": true,
@@ -16,7 +11,8 @@
         "maatwebsite/excel",
         "spatie/laravel-activitylog",
         "spatie/laravel-medialibrary",
-        "spatie/laravel-permission"
+        "spatie/laravel-permission",
+        "livewire/blaze"
     ],
     "sail": true,
     "skills": [
@@ -28,6 +24,7 @@
         "fluxui-development",
         "livewire-development",
         "tailwindcss-development",
+        "blaze-optimize",
         "laravel-excel",
         "medialibrary-development",
         "laravel-permission-development"
