@@ -84,7 +84,10 @@ services:
 
 volumes:
   app_storage:
+    driver: local
   app_public:
+    driver: local
 
 networks:
   app:
+    driver: bridge
