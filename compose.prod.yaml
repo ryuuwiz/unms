@@ -85,7 +85,7 @@ services:
     command:
       - php
       - artisan
-      - schedule:work
+      - horizon
 
     volumes:
       - app_storage:/var/www/html/storage
