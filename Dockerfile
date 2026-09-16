@@ -1,195 +1,44 @@
-# syntax=docker/dockerfile:1
+FROM php:8.3-fpm-alpine
 
-########################################
-# Stage 1: Composer dependencies
-########################################
-FROM php:8.4-cli-bookworm AS vendor
+# Install system dependencies
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
+    libpq-dev \
+    libzip-dev \
+    zip \
+    unzip \
+    git
 
-WORKDIR /app
+# Install PHP extensions
+RUN docker-php-ext-install pdo pdo_pgsql pdo_mysql zip opcache
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        git \
-        unzip \
-        libicu-dev \
-        libonig-dev \
-        libpq-dev \
-        libzip-dev \
-        libpng-dev \
-        libjpeg62-turbo-dev \
-        libfreetype6-dev \
-    && docker-php-ext-configure gd \
-        --with-freetype \
-        --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" \
-        bcmath \
-        exif \
-        gd \
-        intl \
-        mbstring \
-        pcntl \
-        pdo_mysql \
-        pdo_pgsql \
-        sockets \
-        zip \
-    && rm -rf /var/lib/apt/lists/*
-
-
-########################################
-# Stage 2: Frontend assets
-########################################
-FROM node:22-bookworm-slim AS frontend
-
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-
-RUN npm ci
-
-COPY . .
-
-# Flux CSS is loaded from vendor/livewire/flux
-COPY --from=vendor /app/vendor ./vendor
-
-RUN npm run build
-
-
-########################################
-# Stage 3: Production runtime
-########################################
-FROM php:8.5-fpm-bookworm AS runtime
-
-ENV APP_ENV=production \
-    APP_DEBUG=false
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
+# Copy composer files first (better caching)
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader
 
-########################################
-# Runtime packages
-########################################
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        nginx \
-        supervisor \
-        libicu72 \
-        libpq5 \
-        libzip4 \
-        libpng16-16 \
-        libjpeg62-turbo \
-        libfreetype6 \
-    && rm -rf /var/lib/apt/lists/*
-
-
-########################################
-# PHP extensions
-########################################
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        libicu-dev \
-        libpq-dev \
-        libzip-dev \
-        libpng-dev \
-        libjpeg62-turbo-dev \
-        libfreetype6-dev \
-    && docker-php-ext-configure gd \
-        --with-freetype \
-        --with-jpeg \
-    && docker-php-ext-install \
-        bcmath \
-        gd \
-        intl \
-        mbstring \
-        pcntl \
-        pdo_mysql \
-        pdo_pgsql \
-        sockets \
-        zip \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apt-get purge -y --auto-remove \
-        libicu-dev \
-        libpq-dev \
-        libzip-dev \
-        libpng-dev \
-        libjpeg62-turbo-dev \
-        libfreetype6-dev \
-    && rm -rf /var/lib/apt/lists/* /tmp/pear
-
-
-########################################
-# Application
-########################################
+# Copy application
 COPY . .
 
-COPY --from=vendor /app/vendor ./vendor
+# Generate autoloader and run scripts
+RUN composer dump-autoload --optimize
+RUN php artisan config:cache
+RUN php artisan route:cache
+RUN php artisan view:cache
 
-COPY --from=frontend /app/public/build ./public/build
+# Set permissions
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Copy config files
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/supervisord.conf /etc/supervisord.conf
+COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
 
-########################################
-# Laravel directories
-########################################
-RUN mkdir -p \
-        storage/framework/cache \
-        storage/framework/sessions \
-        storage/framework/views \
-        storage/logs \
-        bootstrap/cache \
-    && chown -R www-data:www-data \
-        storage \
-        bootstrap/cache
-
-
-########################################
-# Laravel package discovery
-########################################
-RUN php artisan package:discover --ansi
-
-
-########################################
-# Configuration
-########################################
-COPY docker/nginx.conf \
-    /etc/nginx/nginx.conf
-
-COPY docker/supervisord.conf \
-    /etc/supervisor/conf.d/supervisord.conf
-
-COPY docker/php.ini \
-    /usr/local/etc/php/conf.d/zz-custom.ini
-
-COPY docker/www.conf \
-    /usr/local/etc/php-fpm.d/www.conf
-
-COPY docker/entrypoint.sh \
-    /usr/local/bin/entrypoint.sh
-
-RUN chmod +x /usr/local/bin/entrypoint.sh
-
-
-########################################
-# Validate configuration
-########################################
-RUN php-fpm -t \
-    && nginx -t
-
-
-########################################
-# Container
-########################################
 EXPOSE 80
 
-HEALTHCHECK \
-    --interval=30s \
-    --timeout=5s \
-    --start-period=15s \
-    --retries=3 \
-    CMD php -r \
-        '$r=@file_get_contents("http://127.0.0.1/up"); exit($r === false ? 1 : 0);'
-
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-CMD ["/usr/bin/supervisord", "-n"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
