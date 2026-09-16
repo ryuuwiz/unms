@@ -3,24 +3,29 @@
 FROM php:8.4-fpm-alpine
 
 # ---------------------------------------------------------
-# Build dependencies
+# Runtime libraries
 # ---------------------------------------------------------
 RUN apk add --no-cache \
-        libpng \
-        libjpeg-turbo \
         freetype \
+        libjpeg-turbo \
+        libpng \
         libzip \
-        postgresql-libs \
-    && apk add --no-cache --virtual .build-deps \
+        postgresql-libs
+
+# ---------------------------------------------------------
+# Build dependencies
+# ---------------------------------------------------------
+RUN apk add --no-cache --virtual .build-deps \
         $PHPIZE_DEPS \
-        libpng-dev \
-        libjpeg-turbo-dev \
         freetype-dev \
+        libjpeg-turbo-dev \
+        libpng-dev \
         libzip-dev \
+        linux-headers \
         postgresql-dev
 
 # ---------------------------------------------------------
-# Configure PHP extensions
+# Configure & install PHP extensions
 # ---------------------------------------------------------
 RUN docker-php-ext-configure gd \
         --with-freetype \
@@ -51,10 +56,8 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # ---------------------------------------------------------
 WORKDIR /var/www/html
 
-# Copy dependency definitions first for Docker layer caching
 COPY composer.json composer.lock ./
 
-# Install production dependencies
 RUN composer install \
         --no-dev \
         --no-interaction \
@@ -63,10 +66,8 @@ RUN composer install \
         --no-scripts \
         --no-autoloader
 
-# Copy application source
 COPY . .
 
-# Generate optimized autoloader
 RUN composer dump-autoload \
         --optimize \
         --no-dev \
@@ -86,9 +87,6 @@ RUN chown -R www-data:www-data \
         storage \
         bootstrap/cache
 
-# ---------------------------------------------------------
-# Runtime
-# ---------------------------------------------------------
 USER www-data
 
 EXPOSE 9000
