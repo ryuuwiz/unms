@@ -3,103 +3,198 @@
 ########################################
 # Stage 1: Composer dependencies
 ########################################
-FROM composer:2 AS vendor
+FROM php:8.5-cli-bookworm AS vendor
 
 WORKDIR /app
+
+# Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# PHP build/runtime dependencies required by Composer
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libicu-dev \
+        libpq-dev \
+        libzip-dev \
+        libonig-dev \
+        unzip \
+        git \
+    && docker-php-ext-install \
+        bcmath \
+        intl \
+        pcntl \
+        pdo \
+        pdo_mysql \
+        pdo_pgsql \
+        sockets \
+        zip \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY composer.json composer.lock ./
+
 RUN composer install \
     --no-dev \
     --no-scripts \
-    --no-autoloader \
     --no-interaction \
     --prefer-dist \
-    --ignore-platform-reqs
+    --optimize-autoloader
 
 COPY . .
-RUN composer dump-autoload --optimize --no-dev
+
+RUN composer dump-autoload \
+    --no-dev \
+    --optimize \
+    --classmap-authoritative
+
 
 ########################################
-# Stage 2: Frontend assets (Vite/Tailwind)
+# Stage 2: Frontend assets
 ########################################
 FROM node:20-bookworm-slim AS frontend
 
 WORKDIR /app
+
 COPY package.json package-lock.json ./
+
 RUN npm ci
+
 COPY . .
-COPY --from=vendor /app/vendor ./vendor
+
 RUN npm run build
 
-########################################
-# Stage 3: Runtime image
-########################################
-FROM php:8.5-fpm-alpine
 
-# Runtime system libraries
-RUN apk add --no-cache \
-        nginx \
-        supervisor \
-        libpq \
-        libzip \
-        icu-libs \
-        libpng \
-        freetype \
-        libjpeg-turbo
+########################################
+# Stage 3: Production runtime
+########################################
+FROM php:8.5-fpm-bookworm AS runtime
 
-# Build-time only deps, compile extensions, then remove the toolchain
-RUN apk add --no-cache --virtual .build-deps \
-        $PHPIZE_DEPS \
-        linux-headers \
-        libpq-dev \
-        libzip-dev \
-        icu-dev \
-        libpng-dev \
-        freetype-dev \
-        libjpeg-turbo-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" \
-        pdo \
-        pdo_mysql \
-        pdo_pgsql \
-        zip \
-        sockets \
-        bcmath \
-        intl \
-        pcntl \
-        gd \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apk del .build-deps \
-    && rm -rf /var/cache/apk/* /tmp/pear
+ENV APP_ENV=production \
+    APP_DEBUG=false
 
 WORKDIR /var/www/html
 
-# Application code
+
+########################################
+# Runtime packages
+########################################
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        nginx \
+        supervisor \
+        libicu76 \
+        libpq5 \
+        libzip4 \
+        libpng16-16 \
+        libjpeg62-turbo \
+        libfreetype6 \
+    && rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# PHP extensions
+########################################
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libicu-dev \
+        libpq-dev \
+        libzip-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+    && docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+    && docker-php-ext-install -j"$(nproc)" \
+        bcmath \
+        gd \
+        intl \
+        pcntl \
+        pdo \
+        pdo_mysql \
+        pdo_pgsql \
+        sockets \
+        zip \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apt-get purge -y --auto-remove \
+        libicu-dev \
+        libpq-dev \
+        libzip-dev \
+        libpng-dev \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+    && rm -rf /var/lib/apt/lists/* /tmp/pear
+
+
+########################################
+# Application source
+########################################
+
 COPY . .
 
-# Bring in vendor/ and compiled assets from the earlier stages
-# (placed after `COPY . .` so they win over anything stale from the host)
 COPY --from=vendor /app/vendor ./vendor
+
 COPY --from=frontend /app/public/build ./public/build
 
-# --no-scripts above skipped Composer's post-autoload-dump hook, so
-# package discovery needs to run explicitly
+
+########################################
+# Laravel directories
+########################################
+
+RUN mkdir -p \
+        storage/framework/cache \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache \
+    && chown -R www-data:www-data \
+        storage \
+        bootstrap/cache
+
+
+########################################
+# Laravel package discovery
+########################################
+
 RUN php artisan package:discover --ansi
 
-# Permissions
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Config files
+########################################
+# Configuration
+########################################
+
 COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisord.conf
-COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
-COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+COPY docker/supervisord.conf \
+    /etc/supervisor/conf.d/supervisord.conf
+
+COPY docker/php.ini \
+    /usr/local/etc/php/conf.d/zz-custom.ini
+
+COPY docker/www.conf \
+    /usr/local/etc/php-fpm.d/www.conf
+
+COPY docker/entrypoint.sh \
+    /usr/local/bin/entrypoint.sh
+
 RUN chmod +x /usr/local/bin/entrypoint.sh
+
+
+########################################
+# Runtime
+########################################
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-    CMD wget -qO- http://localhost/ || exit 1
+HEALTHCHECK \
+    --interval=30s \
+    --timeout=5s \
+    --start-period=15s \
+    --retries=3 \
+    CMD curl -fsS http://127.0.0.1/up || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+
+CMD ["/usr/bin/supervisord", "-n"]
