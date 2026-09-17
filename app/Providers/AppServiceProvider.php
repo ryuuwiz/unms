@@ -57,7 +57,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerModelObservers();
         $this->configureSuperAdminGate();
 
-        if (app()->environment('production') || env('FORCE_HTTPS', false)) {
+        if (str_starts_with(config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
     }
