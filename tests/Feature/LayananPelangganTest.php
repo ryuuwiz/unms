@@ -481,3 +481,30 @@ test('handles invalid encrypted ppp password gracefully without throwing Decrypt
     expect($layanan->ppp_password_terenkripsi)->toBeNull();
     expect($layanan->toArray()['ppp_password_terenkripsi'])->toBeNull();
 });
+
+test('index expiry filter narrows to aktif or suspend layanan within the Perlu Perhatian window', function () {
+    $layanan = fn (StatusLayanan $status, int $hariKeExpired) => LayananPelanggan::factory()->create([
+        'status' => $status,
+        'tanggal_expired' => today()->addDays($hariKeExpired)->toDateString(),
+    ]);
+
+    $lewat = $layanan(StatusLayanan::Suspend, -3);
+    $segera = $layanan(StatusLayanan::Aktif, 2);
+    $lawas = $layanan(StatusLayanan::Suspend, -45);
+    $berhenti = $layanan(StatusLayanan::Berhenti, -3);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->set('expiry', 'overdue')
+        ->assertSee($lewat->site_id)
+        ->assertDontSee($segera->site_id)
+        ->assertDontSee($lawas->site_id)
+        ->assertDontSee($berhenti->site_id)
+        ->set('expiry', 'soon')
+        ->assertSee($segera->site_id)
+        ->assertDontSee($lewat->site_id)
+        ->set('expiry', 'all')
+        ->assertSee($lewat->site_id)
+        ->assertSee($segera->site_id)
+        ->assertDontSee($lawas->site_id);
+});

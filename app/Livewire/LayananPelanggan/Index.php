@@ -9,11 +9,13 @@ use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
+use App\Models\PengaturanSiklusTagihan;
 use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -27,7 +29,15 @@ class Index extends Component
 
     public string $filterStatus = '';
 
+    #[Url]
+    public string $expiry = '';
+
     public ?int $deletingId = null;
+
+    public function updatingExpiry(): void
+    {
+        $this->resetPage();
+    }
 
     public function updatingSearch(): void
     {
@@ -207,7 +217,11 @@ class Index extends Component
                     $q->where('status', $this->filterStatus);
                 }
             })
-            ->latest()
+            ->when(
+                in_array($this->expiry, ['all', 'overdue', 'soon'], true),
+                fn ($q) => $q->perluPerhatian(PengaturanSiklusTagihan::ambil()->leadDays(), $this->expiry)->orderBy('tanggal_expired'),
+                fn ($q) => $q->latest(),
+            )
             ->paginate(15);
 
         return view('livewire.layanan-pelanggan.index', [

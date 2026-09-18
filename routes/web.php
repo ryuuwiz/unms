@@ -201,6 +201,11 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
+    // ─── Siklus Tagihan ───────────────────────────────────────────
+    Route::middleware('permission:siklus_tagihan.ubah')->group(function () {
+        Route::get('billing/siklus-tagihan', App\Livewire\Billing\SiklusTagihan\Index::class)->name('billing.siklus-tagihan.index');
+    });
+
     // ─── Promo & Diskon ───────────────────────────────────────────
     Route::prefix('promo')->name('promo.')->group(function () {
         Route::middleware('permission:promo.buat')->group(function () {

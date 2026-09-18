@@ -90,4 +90,8 @@
             @endif
         </div>
     @endif
+
+    @if($slot->isNotEmpty())
+        <div class="mt-4 space-y-2 text-xs text-zinc-500 dark:text-zinc-400">{{ $slot }}</div>
+    @endif
 </{{ $tag }}>

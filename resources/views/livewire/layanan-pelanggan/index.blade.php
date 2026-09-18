@@ -33,6 +33,13 @@
             @endforeach
             <flux:select.option value="expired">EXPIRED</flux:select.option>
         </flux:select>
+
+        <flux:select wire:model.live="expiry" class="sm:w-52">
+            <flux:select.option value="">Semua Masa Aktif</flux:select.option>
+            <flux:select.option value="all">Perlu Perhatian</flux:select.option>
+            <flux:select.option value="overdue">Sudah Lewat</flux:select.option>
+            <flux:select.option value="soon">Akan Jatuh Tempo</flux:select.option>
+        </flux:select>
     </div>
 
     {{-- Tabel Layanan --}}

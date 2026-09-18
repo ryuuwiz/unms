@@ -456,3 +456,16 @@ test('validasi invoice manual menolak jumlah non-integer atau keterangan kosong'
         ->call('save')
         ->assertHasErrors(['keterangan', 'jumlahManual']);
 });
+
+test('index status filter belum_dibayar shows only menunggu_pembayaran and kadaluarsa invoices', function () {
+    $menunggu = Invoice::factory()->create(['status' => StatusInvoice::MenungguPembayaran]);
+    $kadaluarsa = Invoice::factory()->create(['status' => StatusInvoice::Kadaluarsa]);
+    $lunas = Invoice::factory()->lunas()->create();
+
+    Livewire::actingAs($this->adminUser)
+        ->test(Index::class)
+        ->set('status', 'belum_dibayar')
+        ->assertSee($menunggu->no_invoice)
+        ->assertSee($kadaluarsa->no_invoice)
+        ->assertDontSee($lunas->no_invoice);
+});

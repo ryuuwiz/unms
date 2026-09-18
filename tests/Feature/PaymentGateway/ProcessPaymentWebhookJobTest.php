@@ -338,3 +338,34 @@ test('database unique constraint mencegah duplikasi pembayaran untuk metode dan 
         'dibayar_pada' => now(),
     ]))->toThrow(QueryException::class);
 });
+
+test('ProcessPaymentWebhookJob tidak melunasi invoice yang sudah digabung dan menandainya untuk penanganan manual', function () {
+    $this->invoice->update(['status' => StatusInvoice::Digabung]);
+
+    $webhookLog = WebhookLog::create([
+        'provider' => 'xendit',
+        'event_type' => 'payment.xendit',
+        'provider_event_id' => 'evt_digabung_105',
+        'payload' => [
+            'id' => 'evt_digabung_105',
+            'external_id' => $this->transaksi->external_id,
+            'status' => 'PAID',
+            'amount' => $this->transaksi->total_tagihan,
+            'paid_amount' => $this->transaksi->total_tagihan,
+            'currency' => 'IDR',
+            'payment_method' => 'VIRTUAL_ACCOUNT',
+            'payment_channel' => 'BCA',
+            'paid_at' => now()->toIso8601String(),
+        ],
+        'status_proses' => StatusWebhookLog::Diterima,
+        'diterima_pada' => now(),
+    ]);
+
+    (new ProcessPaymentWebhookJob($webhookLog->id))->handle($this->manager);
+
+    expect($this->invoice->fresh()->status)->toBe(StatusInvoice::Digabung)
+        ->and($webhookLog->fresh()->status_proses)->toBe(StatusWebhookLog::Gagal)
+        ->and($webhookLog->fresh()->catatan_error)->toContain('sudah digabung');
+
+    Event::assertNotDispatched(InvoicePaidEvent::class);
+});

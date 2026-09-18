@@ -202,7 +202,7 @@ test('pembayaran invoice layanan A melunasi tagihan layanan A tanpa mengubah sta
 
     // Masa aktif Layanan Home diperpanjang akumulatif dari expired lama + 1 bulan
     $layananHome->refresh();
-    expect(Carbon::parse($layananHome->tanggal_expired)->toDateString())->toBe($expiredAwal->copy()->addMonth()->toDateString());
+    expect(Carbon::parse($layananHome->tanggal_expired)->toDateString())->toBe($expiredAwal->copy()->addMonthNoOverflow()->day(10)->toDateString());
 
     // Invoice Office TETAP Menunggu Pembayaran
     expect($invoiceOffice->status)->toBe(StatusInvoice::MenungguPembayaran)

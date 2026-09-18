@@ -26,6 +26,7 @@
         <div class="w-full sm:w-56">
             <flux:select wire:model.live="status" placeholder="Semua Status">
                 <flux:select.option value="">Semua Status</flux:select.option>
+                <flux:select.option value="belum_dibayar">Belum Dibayar</flux:select.option>
                 @foreach($statuses as $st)
                     <flux:select.option value="{{ $st->value }}">{{ $st->label() }}</flux:select.option>
                 @endforeach

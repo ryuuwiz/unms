@@ -8,6 +8,17 @@ enum StatusInvoice: string
     case Lunas = 'lunas';
     case Kadaluarsa = 'kadaluarsa';
     case Dibatalkan = 'dibatalkan';
+    case Digabung = 'digabung';
+
+    /**
+     * Status invoice yang masih berupa kewajiban bayar (belum lunas dan belum gugur).
+     *
+     * @return array<int, self>
+     */
+    public static function terbuka(): array
+    {
+        return [self::MenungguPembayaran, self::Kadaluarsa];
+    }
 
     /**
      * Mendapatkan label tampilan Bahasa Indonesia.
@@ -19,6 +30,7 @@ enum StatusInvoice: string
             self::Lunas => 'Lunas',
             self::Kadaluarsa => 'Kadaluarsa',
             self::Dibatalkan => 'Dibatalkan',
+            self::Digabung => 'Digabung',
         };
     }
 
@@ -32,6 +44,7 @@ enum StatusInvoice: string
             self::Lunas => 'green',
             self::Kadaluarsa => 'rose',
             self::Dibatalkan => 'zinc',
+            self::Digabung => 'sky',
         };
     }
 }

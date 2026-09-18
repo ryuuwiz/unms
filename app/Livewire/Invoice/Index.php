@@ -61,6 +61,19 @@ class Index extends Component
             return;
         }
 
+        if ($invoice->isDigabung()) {
+            Flux::toast(variant: 'danger', text: 'Invoice yang sudah digabung tidak dapat dibatalkan; batalkan invoice penggabungnya.');
+            $this->deletingId = null;
+
+            return;
+        }
+
+        // Tunggakan yang diserap invoice ini kembali menjadi invoice terbuka sendiri.
+        $invoice->invoiceDigabung->each->update([
+            'status' => StatusInvoice::Kadaluarsa,
+            'digabung_ke_invoice_id' => null,
+        ]);
+
         $invoice->update([
             'status' => StatusInvoice::Dibatalkan,
             'dihapus_oleh' => auth()->id(),
@@ -81,7 +94,9 @@ class Index extends Component
         $invoices = Invoice::query()
             ->with(['pelanggan', 'layananPelanggan.paketLayanan', 'promo'])
             ->when($this->search, fn ($q) => $q->search($this->search))
-            ->when($this->status, fn ($q) => $q->where('status', $this->status))
+            ->when($this->status, fn ($q) => $this->status === 'belum_dibayar'
+                ? $q->whereIn('status', StatusInvoice::terbuka())
+                : $q->where('status', $this->status))
             ->orderByDesc('tanggal_terbit')
             ->orderByDesc('id')
             ->paginate(15);

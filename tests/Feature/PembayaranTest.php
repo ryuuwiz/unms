@@ -17,6 +17,7 @@ use App\Models\Router;
 use App\Models\User;
 use App\Services\Billing\BillingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
@@ -85,15 +86,15 @@ test('admin can record manual payment and extend active service accumulatively (
         ->and((float) $pembayaran->jumlah_dibayar)->toBe(200000.0)
         ->and($pembayaran->referensi_transaksi)->toBe('KASIR-001');
 
-    // Service expiry extended accumulatively: old_expired + 1 month
-    $expectedExpired = $oldExpired->copy()->addMonths(1)->toDateString();
+    // Service expiry extended from the old expiry by 1 month, snapped to Hari Jatuh Tempo (10)
+    $expectedExpired = $oldExpired->copy()->addMonthNoOverflow()->day(10)->toDateString();
     expect($this->layanan->fresh()->tanggal_expired->toDateString())->toBe($expectedExpired)
         ->and($this->layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
 });
 
-test('admin recording payment on suspended service with expiry already in the past resets expiry from payment date (PRD 4.2 Condition 2)', function () {
-    // Service is suspended AND its tanggal_expired is already in the past -- both the old
-    // status-based rule and the current isFuture() rule reset from the payment date here.
+test('admin recording payment on suspended service with expiry already in the past extends from the old expiry, never from the payment date (Siklus Tagihan)', function () {
+    // Service is suspended AND its tanggal_expired is already in the past: the cycle paid is the
+    // one that lapsed, so the new expiry is old expiry + 1 month (snapped), not payment date + 1 month.
     $oldExpired = Carbon::today()->subDays(3);
     $this->layanan->update([
         'tanggal_expired' => $oldExpired,
@@ -116,8 +117,8 @@ test('admin recording payment on suspended service with expiry already in the pa
         actor: $this->adminUser
     );
 
-    // Expiry resets from today + 1 month
-    $expectedExpired = Carbon::today()->addMonths(1)->toDateString();
+    // Expiry = old expiry + 1 month, snapped to Hari Jatuh Tempo (10)
+    $expectedExpired = $oldExpired->copy()->addMonthNoOverflow()->day(10)->toDateString();
     expect($this->layanan->fresh()->tanggal_expired->toDateString())->toBe($expectedExpired)
         ->and($this->layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
 });
@@ -146,8 +147,8 @@ test('admin recording payment on suspended service with expiry still in the futu
         actor: $this->adminUser
     );
 
-    // Akumulatif dari expired lama + 1 bulan, BUKAN reset dari tanggal bayar
-    $expectedExpired = $futureExpired->copy()->addMonths(1)->toDateString();
+    // Akumulatif dari expired lama + 1 bulan (disesuaikan ke Hari Jatuh Tempo), BUKAN reset dari tanggal bayar
+    $expectedExpired = $futureExpired->copy()->addMonthNoOverflow()->day(10)->toDateString();
     expect($this->layanan->fresh()->tanggal_expired->toDateString())->toBe($expectedExpired)
         ->and($this->layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
 });
@@ -196,7 +197,7 @@ test('force delete invoice yang sudah memiliki pembayaran ditolak oleh database 
 
     // Soft delete invoice tetap aman (tidak menyentuh FK), tapi force delete yang benar-benar
     // menghapus barisnya wajib gagal karena catatan keuangan tidak boleh ikut hilang.
-    expect(fn () => $this->invoice->forceDelete())->toThrow(\Illuminate\Database\QueryException::class);
+    expect(fn () => $this->invoice->forceDelete())->toThrow(QueryException::class);
 
     expect(Pembayaran::where('invoice_id', $this->invoice->id)->count())->toBe(1);
 });

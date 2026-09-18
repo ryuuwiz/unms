@@ -182,6 +182,14 @@ _Avoid_: Bulan Tagih Bebas, Periode Manual, Cycle ID
 Tindakan perubahan status invoice menjadi `dibatalkan` oleh sistem atau staf berwenang yang menggugurkan kewajiban bayar tanpa menghapus riwayat audit trail (misal akibat koreksi tagihan ganda atau perubahan paket).
 _Avoid_: Hapus Tagihan Manual, Void Bebas, Delete Invoice
 
+**Tunggakan Akumulatif**:
+Aturan penagihan di mana invoice siklus terbaru sebuah layanan memuat total bayar berupa tarif siklus itu ditambah seluruh invoice periodik sebelumnya yang belum dibayar pada layanan yang sama. Pelanggan hanya membayar invoice terbaru tersebut. Pembayaran memperpanjang masa aktif sebanyak siklus yang dicakup, dihitung dari tanggal expired lama (bukan tanggal bayar), sehingga bulan saat layanan diisolir tetap ditagih. Layanan berstatus `aktif` atau `suspend` terus menerima invoice tiap siklus sampai berstatus `berhenti`. Invoice ad-hoc (instalasi, denda) tidak digabung.
+_Avoid_: Saldo Tunggakan, Piutang Bergulir
+
+**Invoice Digabung**:
+Status invoice periodik lama yang nominalnya sudah dipindahkan ke invoice siklus yang lebih baru (Tunggakan Akumulatif). Tidak lagi dihitung sebagai tagihan, tidak masuk Collection Rate, dan tidak dikirimi pengingat, namun tetap tersimpan sebagai riwayat. Berbeda dari Pembatalan Invoice yang menggugurkan kewajiban bayar.
+_Avoid_: Dihapus, Void, Invoice Lunas Otomatis
+
 **Pembayaran**:
 Catatan transaksi penerimaan dana atas sebuah invoice yang memicu perpanjangan masa aktif layanan secara otomatis.
 _Avoid_: Transaksi Kasar, Setoran
@@ -295,16 +303,44 @@ _Technical Reference_: Livewire 4 (`livewire/livewire`) & Flux UI (`livewire/flu
 _Avoid_: Gambar Grafik Statis, Chart Canvas Tanpa Reaktivitas
 
 **Collection Rate**:
-Rasio efektivitas penagihan dalam persentase yang dihitung dari perbandingan nominal tagihan lunas terhadap total nominal tagihan yang diterbitkan pada periode tertentu.
-_Avoid_: Persen Bayar Bebas, Efektivitas Kas
+Rasio efektivitas penagihan dalam persentase pada satu Periode Tagihan: nominal lunas dibanding total nominal yang ditagihkan, dihitung dari tarif siklus itu saja (tanpa tunggakan yang ikut terbawa), tidak termasuk invoice `dibatalkan` namun tetap memasukkan invoice `digabung`. Ditampilkan di Dashboard sebagai bilah progres "tertagih".
+_Avoid_: Persen Bayar Bebas, Efektivitas Kas, CR
+
+**Belum Dibayar**:
+Total nominal seluruh invoice berstatus `menunggu_pembayaran` atau `kadaluarsa` pada semua periode, termasuk yang belum jatuh tempo (uang yang sudah ditagihkan namun belum diterima). Tidak dibatasi Periode Tagihan agar tidak terpengaruh penggabungan tunggakan ke invoice siklus berikutnya. Di Dashboard tampil sebagai baris kecil "total belum dibayar, semua periode" pada Ringkasan Tagihan Periode.
+_Avoid_: Piutang Bebas, Tagihan Nunggak
+
+**Pendapatan Diterima**:
+Total nominal Pembayaran yang dicatat (`dibayar_pada`) dalam satu rentang tanggal atas dasar kas (cash basis), terlepas dari Periode Tagihan invoice yang dibayar. Di Dashboard ada dua ukuran: Hari Ini (dengan pembanding nominal "Kemarin", tanpa persentase karena hari ini belum penuh) dan Bulan Ini (dibandingkan dengan rentang hari yang sama pada bulan sebelumnya, 1 s/d tanggal hari ini, bukan total bulan sebelumnya penuh).
+_Avoid_: Omzet, Pendapatan Tertagih, Revenue
 
 **Layanan Expired**:
-Layanan pelanggan yang telah melewati tanggal jatuh tempo masa aktif paket (`tanggal_expired <= now()`) atau berada dalam masa tenggang menjelang jatuh tempo (H-7) dan belum dilakukan pelunasan tagihan perpanjangan.
+Layanan pelanggan berstatus `aktif` atau `suspend` yang tanggal expired-nya sudah lewat paling lama 30 hari ke belakang. Semua layanan jatuh tempo pada tanggal 10 setiap bulan, dan layanan yang belum dibayar diisolir (suspend PPP) otomatis oleh sistem sesudahnya. Layanan yang sudah lewat lebih dari 30 hari dianggap urusan pembersihan (ditutup sebagai `berhenti`), bukan tindak lanjut harian.
 _Avoid_: Member Hangus, Langganan Mati, Akun Basi
 
+**Ringkasan Tagihan Periode**:
+Kartu Dashboard untuk Periode Tagihan bulan berjalan (siklus yang jatuh tempo pada Hari Jatuh Tempo bulan itu): Ditagih, Lunas, Belum Lunas (Ditagih dikurangi Lunas, dalam tarif siklus tanpa tunggakan), Collection Rate, dan baris kecil Belum Dibayar semua periode. Invoice siklus bulan depan baru masuk ringkasan pada bulan itu.
+_Avoid_: Tagihan Bulan Ini, Rekap Invoice
+
 **Tren Pendapatan Harian**:
-Visualisasi grafik sumbu-ganda (*dual-axis*) harian selama bulan berjalan yang memadukan kurva nominal pendapatan (Rp) pada sumbu primer dan jumlah volume transaksi berhasil pada sumbu sekunder.
+Grafik sumbu-ganda (*dual-axis*) di Dashboard, dari tanggal 1 sampai hari ini pada bulan berjalan: kurva nominal Pendapatan Diterima harian (sumbu primer) dan jumlah transaksi pembayaran harian (sumbu sekunder). Hari mendatang tidak digambar.
 _Avoid_: Grafik Omzet Harian Lepas, Chart Transaksi Terpisah
+
+**Total Pelanggan**:
+Jumlah Pelanggan berstatus `aktif`, `off`, atau `expired` di Dashboard, dipecah menjadi Aktif dan Tidak Aktif (`off` + `expired`). Pelanggan calon (belum terpasang, req. pemasangan, pemasangan selesai) tidak dihitung. Mengikuti status Pelanggan, bukan status Layanan: status Pelanggan hanya diubah manual Aktif/Off, sehingga pelanggan yang seluruh layanannya suspend tetap terhitung Aktif sampai diubah.
+_Avoid_: Jumlah Member, Pelanggan Terkoneksi
+
+**Pelanggan Expired & Jatuh Tempo**:
+Daftar tindak lanjut harian di Dashboard yang berisi Layanan Expired ditambah layanan yang akan jatuh tempo dalam jendela Lead Time Penerbitan Invoice. Setiap baris adalah satu layanan (pelanggan dengan dua layanan muncul dua kali). Diurutkan: tanggal expired terlama, lalu nominal invoice terbuka terbesar, lalu nama pelanggan. Terlihat oleh semua staf yang berhak melihat Layanan Pelanggan.
+_Avoid_: Perlu Perhatian, Daftar Tunggakan, Antrean Isolir
+
+**Siklus Tagihan**:
+Pengaturan bulanan yang dapat diubah admin berisi dua hari-dalam-bulan: Hari Jatuh Tempo (contoh: 10) dan Hari Terbit Invoice (contoh: 24). Invoice tiap layanan terbit pada Hari Terbit terakhir sebelum jatuh tempo (jatuh tempo tanggal 10 berarti terbit tanggal 24 bulan sebelumnya) dan jatuh tempo pada Hari Jatuh Tempo; tanggal expired layanan mengikuti Hari Jatuh Tempo saat pembayaran memperpanjang masa aktif. Perubahan pengaturan hanya berlaku pada invoice yang terbit sesudahnya dan pada perpanjangan berikutnya. Seluruh paket berdurasi tepat 1 bulan.
+_Avoid_: Jadwal Tagihan Bebas, Tanggal Cetak
+
+**Lead Time Penerbitan Invoice**:
+Selisih hari antara Hari Terbit Invoice dan Hari Jatuh Tempo pada Siklus Tagihan (dengan nilai bawaan 24 dan 10 sekitar 16 hari, H-16). Nilainya diturunkan dari Siklus Tagihan, bukan diinput terpisah. Jendela "akan jatuh tempo" pada Perlu Perhatian mengikuti nilai ini.
+_Avoid_: Masa Tenggang, Grace Period
 
 **Provisi Router Otomatis (Automatic Router Provisioning)**:
 Pipeline orkestrasi berurutan yang menyelaraskan seluruh data konfigurasi master UNMS ke perangkat MikroTik RouterOS melalui RouterOS API (pemeriksaan koneksi & resource $\rightarrow$ IP Pool & Simple Queue $\rightarrow$ Profil Bandwidth biner $\rightarrow$ PPP Secret Layanan Pelanggan $\rightarrow$ sinkronisasi status isolir dan pemutusan sesi aktif).

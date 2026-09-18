@@ -8,9 +8,9 @@ use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\Pelanggan;
 use App\Models\Pembayaran;
-use Carbon\Carbon;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
+use App\Models\PengaturanSiklusTagihan;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -20,248 +20,196 @@ use Livewire\Component;
 #[Title('Dashboard Operasional & Billing')]
 class Dashboard extends Component
 {
-    public string $period = 'this_month'; // 'this_month', 'last_30_days', 'this_year', 'all'
+    private const BARIS_DAFTAR = 8;
 
-    public function setPeriod(string $period): void
+    private const BARIS_TRANSAKSI = 5;
+
+    /**
+     * Total Pelanggan: Aktif dan Tidak Aktif (off + expired); pelanggan calon tidak dihitung.
+     *
+     * @return array{total: int, aktif: int, tidak_aktif: int}|null
+     */
+    public function getPelangganProperty(): ?array
     {
-        $this->period = $period;
+        if (! auth()->user()->can('pelanggan.lihat')) {
+            return null;
+        }
+
+        $jumlah = Pelanggan::query()
+            ->toBase()
+            ->whereIn('status', [StatusPelanggan::Aktif, StatusPelanggan::Off, StatusPelanggan::Expired])
+            ->selectRaw('status, COUNT(*) as jumlah')
+            ->groupBy('status')
+            ->pluck('jumlah', 'status');
+
+        $aktif = (int) ($jumlah[StatusPelanggan::Aktif->value] ?? 0);
+        $tidakAktif = (int) ($jumlah[StatusPelanggan::Off->value] ?? 0) + (int) ($jumlah[StatusPelanggan::Expired->value] ?? 0);
+
+        return ['total' => $aktif + $tidakAktif, 'aktif' => $aktif, 'tidak_aktif' => $tidakAktif];
     }
 
     /**
-     * Get date range based on selected period.
+     * Pendapatan Diterima (kas): hari ini dibanding kemarin (nominal), bulan ini dibanding
+     * rentang hari yang sama bulan lalu (persentase).
      *
-     * @return array{0: Carbon, 1: Carbon, 2: Carbon, 3: Carbon}
+     * @return array{hari_ini: float, kemarin: float, bulan_ini: float, pertumbuhan: float|null}|null
      */
-    protected function getDateRange(): array
+    public function getPendapatanProperty(): ?array
     {
-        $now = now();
-
-        return match ($this->period) {
-            'last_30_days' => [
-                $now->copy()->subDays(30)->startOfDay(),
-                $now->copy()->endOfDay(),
-                $now->copy()->subDays(60)->startOfDay(),
-                $now->copy()->subDays(30)->endOfDay(),
-            ],
-            'this_year' => [
-                $now->copy()->startOfYear(),
-                $now->copy()->endOfYear(),
-                $now->copy()->subYear()->startOfYear(),
-                $now->copy()->subYear()->endOfYear(),
-            ],
-            'all' => [
-                Carbon::createFromTimestamp(0),
-                $now->copy()->endOfDay(),
-                Carbon::createFromTimestamp(0),
-                $now->copy()->endOfDay(),
-            ],
-            default => [ // 'this_month'
-                $now->copy()->startOfMonth(),
-                $now->copy()->endOfMonth(),
-                $now->copy()->subMonth()->startOfMonth(),
-                $now->copy()->subMonth()->endOfMonth(),
-            ],
-        };
-    }
-
-    /**
-     * Compute Top KPI Metrics.
-     *
-     * @return array<string, mixed>
-     */
-    public function getKpisProperty(): array
-    {
-        $now = now();
-
-        // 1. Total Pelanggan & Breakdown
-        $totalCustomers = Pelanggan::count();
-        $activeCustomers = Pelanggan::where('status', StatusPelanggan::Aktif)->count();
-        $inactiveCustomers = Pelanggan::whereIn('status', [StatusPelanggan::Off, StatusPelanggan::Expired])->count();
-        $prospectCustomers = Pelanggan::whereIn('status', [StatusPelanggan::BelumTerpasang, StatusPelanggan::ReqPemasangan, StatusPelanggan::PemasanganSelesai])->count();
-
-        // 2. Pendapatan Hari Ini vs Kemarin
-        $todayStart = $now->copy()->startOfDay();
-        $todayEnd = $now->copy()->endOfDay();
-        $yesterdayStart = $now->copy()->subDay()->startOfDay();
-        $yesterdayEnd = $now->copy()->subDay()->endOfDay();
-
-        $todayRevenue = (float) Pembayaran::whereBetween('dibayar_pada', [$todayStart, $todayEnd])->sum('jumlah_dibayar');
-        $yesterdayRevenue = (float) Pembayaran::whereBetween('dibayar_pada', [$yesterdayStart, $yesterdayEnd])->sum('jumlah_dibayar');
-
-        $todayGrowth = 0.0;
-        if ($yesterdayRevenue > 0) {
-            $todayGrowth = round((($todayRevenue - $yesterdayRevenue) / $yesterdayRevenue) * 100, 1);
-        } elseif ($todayRevenue > 0) {
-            $todayGrowth = 100.0;
+        if (! auth()->user()->can('pembayaran.lihat')) {
+            return null;
         }
 
-        // 3. Pendapatan Bulan Ini vs Bulan Lalu
-        $monthStart = $now->copy()->startOfMonth();
-        $monthEnd = $now->copy()->endOfMonth();
-        $prevMonthStart = $now->copy()->subMonth()->startOfMonth();
-        $prevMonthEnd = $now->copy()->subMonth()->endOfMonth();
+        $sekarang = now();
+        $kemarin = $sekarang->copy()->subDay();
+        $bulanLalu = $sekarang->copy()->subMonthNoOverflow();
 
-        $monthRevenue = (float) Pembayaran::whereBetween('dibayar_pada', [$monthStart, $monthEnd])->sum('jumlah_dibayar');
-        $prevMonthRevenue = (float) Pembayaran::whereBetween('dibayar_pada', [$prevMonthStart, $prevMonthEnd])->sum('jumlah_dibayar');
-
-        $monthGrowth = 0.0;
-        if ($prevMonthRevenue > 0) {
-            $monthGrowth = round((($monthRevenue - $prevMonthRevenue) / $prevMonthRevenue) * 100, 1);
-        } elseif ($monthRevenue > 0) {
-            $monthGrowth = 100.0;
-        }
-
-        // 4. Ringkasan Tagihan Bulan Ini
-        $thisMonthInvoices = Invoice::whereBetween('tanggal_terbit', [$monthStart, $monthEnd]);
-        $thisMonthBilled = (float) (clone $thisMonthInvoices)->sum('jumlah_setelah_promo');
-        $thisMonthPaid = (float) (clone $thisMonthInvoices)->where('status', StatusInvoice::Lunas)->sum('jumlah_setelah_promo');
-        $thisMonthUnpaid = (float) (clone $thisMonthInvoices)->where('status', StatusInvoice::MenungguPembayaran)->sum('jumlah_setelah_promo');
-        $thisMonthPaidCount = (int) (clone $thisMonthInvoices)->where('status', StatusInvoice::Lunas)->count();
-        $thisMonthUnpaidCount = (int) (clone $thisMonthInvoices)->where('status', StatusInvoice::MenungguPembayaran)->count();
-
-        $collectionRate = $thisMonthBilled > 0
-            ? round(($thisMonthPaid / $thisMonthBilled) * 100, 1)
-            : 0.0;
-
-        // 5. Layanan Expired & Mendekati Jatuh Tempo
-        $expiredCount = LayananPelanggan::where('tanggal_expired', '<=', $now->copy()->endOfDay())->count();
-        $expiringSoonCount = LayananPelanggan::whereBetween('tanggal_expired', [
-            $now->copy()->addDay()->startOfDay(),
-            $now->copy()->addDays(7)->endOfDay(),
-        ])->count();
+        $bulanIni = $this->totalPembayaran($sekarang->copy()->startOfMonth(), $sekarang->copy()->endOfDay());
+        $pembanding = $this->totalPembayaran($bulanLalu->copy()->startOfMonth(), $bulanLalu->endOfDay());
 
         return [
-            'total_customers' => $totalCustomers,
-            'active_customers' => $activeCustomers,
-            'inactive_customers' => $inactiveCustomers,
-            'prospect_customers' => $prospectCustomers,
-
-            'today_revenue' => $todayRevenue,
-            'yesterday_revenue' => $yesterdayRevenue,
-            'today_growth' => $todayGrowth,
-
-            'month_revenue' => $monthRevenue,
-            'prev_month_revenue' => $prevMonthRevenue,
-            'month_growth' => $monthGrowth,
-
-            'this_month_billed' => $thisMonthBilled,
-            'this_month_paid' => $thisMonthPaid,
-            'this_month_unpaid' => $thisMonthUnpaid,
-            'this_month_paid_count' => $thisMonthPaidCount,
-            'this_month_unpaid_count' => $thisMonthUnpaidCount,
-            'collection_rate' => $collectionRate,
-
-            'expired_count' => $expiredCount,
-            'expiring_soon_count' => $expiringSoonCount,
+            'hari_ini' => $this->totalPembayaran($sekarang->copy()->startOfDay(), $sekarang->copy()->endOfDay()),
+            'kemarin' => $this->totalPembayaran($kemarin->copy()->startOfDay(), $kemarin->endOfDay()),
+            'bulan_ini' => $bulanIni,
+            'pertumbuhan' => $pembanding > 0 ? round((($bulanIni - $pembanding) / $pembanding) * 100, 1) : null,
         ];
     }
 
     /**
-     * Daily Revenue & Transaction Count Trend (Dual-Axis Chart for this month or selected period).
+     * Ringkasan Tagihan Periode bulan berjalan (tarif siklus tanpa tunggakan; invoice digabung
+     * tetap dihitung) plus total Belum Dibayar seluruh periode.
      *
-     * @return array{categories: array<string>, revenue: array<float>, transactions: array<int>}
+     * @return array{ditagih: float, lunas: float, belum_lunas: float, tertagih: float|null, belum_dibayar: float}|null
      */
-    public function getDailyTrendChartDataProperty(): array
+    public function getTagihanProperty(): ?array
     {
-        $categories = [];
-        $revenueData = [];
-        $transactionData = [];
+        $user = auth()->user();
 
-        // Generate daily data points for the current month
-        $start = now()->startOfMonth();
-        $end = now()->endOfMonth();
-        $current = $start;
+        if (! $user->can('invoice.lihat') || ! $user->can('pembayaran.lihat')) {
+            return null;
+        }
 
-        $payments = Pembayaran::query()
-            ->whereBetween('dibayar_pada', [$start->startOfDay(), now()->endOfDay()])
-            ->selectRaw('DATE(dibayar_pada) as payment_date, SUM(jumlah_dibayar) as total_revenue, COUNT(*) as total_trx')
+        $siklus = Invoice::query()
+            ->where('periode_tagihan', now()->format('Y-m'))
+            ->where('status', '!=', StatusInvoice::Dibatalkan)
+            ->selectRaw('COALESCE(SUM(jumlah_setelah_promo - jumlah_tunggakan), 0) as ditagih')
+            ->selectRaw('COALESCE(SUM(CASE WHEN status = ? THEN jumlah_setelah_promo - jumlah_tunggakan ELSE 0 END), 0) as lunas', [StatusInvoice::Lunas->value])
+            ->first();
+
+        $ditagih = (float) $siklus->ditagih;
+        $lunas = (float) $siklus->lunas;
+
+        return [
+            'ditagih' => $ditagih,
+            'lunas' => $lunas,
+            'belum_lunas' => $ditagih - $lunas,
+            'tertagih' => $ditagih > 0 ? round(($lunas / $ditagih) * 100, 1) : null,
+            'belum_dibayar' => (float) Invoice::query()->whereIn('status', StatusInvoice::terbuka())->sum('jumlah_setelah_promo'),
+        ];
+    }
+
+    /**
+     * Tren Pendapatan Harian: pendapatan dan jumlah transaksi per hari, tanggal 1 sampai hari ini.
+     *
+     * @return array{categories: array<int, string>, revenue: array<int, float>, transactions: array<int, int>}|null
+     */
+    public function getTrenProperty(): ?array
+    {
+        if (! auth()->user()->can('pembayaran.lihat')) {
+            return null;
+        }
+
+        $sekarang = now();
+
+        $harian = Pembayaran::query()
+            ->whereBetween('dibayar_pada', [$sekarang->copy()->startOfMonth(), $sekarang->copy()->endOfDay()])
+            ->selectRaw('DATE(dibayar_pada) as tanggal, SUM(jumlah_dibayar) as total, COUNT(*) as jumlah')
             ->groupByRaw('DATE(dibayar_pada)')
             ->get()
-            ->keyBy(fn ($item) => Carbon::parse($item->payment_date)->format('Y-m-d'));
+            ->keyBy('tanggal');
 
-        while ($current->lte($end)) {
-            $categories[] = $current->translatedFormat('d M');
-            $dateKey = $current->format('Y-m-d');
+        $tren = ['categories' => [], 'revenue' => [], 'transactions' => []];
 
-            // If day is in the future, don't query future data, leave 0 or actual
-            if ($current->isFuture() && ! $current->isToday()) {
-                $revenueData[] = 0.0;
-                $transactionData[] = 0;
-            } else {
-                $dayPayment = $payments->get($dateKey);
-                $revenueData[] = (float) ($dayPayment->total_revenue ?? 0.0);
-                $transactionData[] = (int) ($dayPayment->total_trx ?? 0);
-            }
+        for ($hari = $sekarang->copy()->startOfMonth(); $hari->lte($sekarang); $hari = $hari->copy()->addDay()) {
+            $data = $harian->get($hari->toDateString());
 
-            $current = $current->addDay();
+            $tren['categories'][] = $hari->translatedFormat('d M');
+            $tren['revenue'][] = (float) ($data->total ?? 0);
+            $tren['transactions'][] = (int) ($data->jumlah ?? 0);
         }
 
-        return [
-            'categories' => $categories,
-            'revenue' => $revenueData,
-            'transactions' => $transactionData,
-        ];
+        return $tren;
     }
 
     /**
-     * Subscription package distribution (Donut chart).
+     * Transaksi Terbaru: pembayaran terakhir yang tercatat.
      *
-     * @return array{labels: array<string>, series: array<int>}
+     * @return Collection<int, Pembayaran>|null
      */
-    public function getPaketChartDataProperty(): array
+    public function getTransaksiTerbaruProperty(): ?Collection
     {
-        $distribution = LayananPelanggan::query()
-            ->join('paket_layanan', 'layanan_pelanggan.paket_layanan_id', '=', 'paket_layanan.id')
-            ->select('paket_layanan.nama_paket', DB::raw('count(*) as total'))
-            ->groupBy('paket_layanan.nama_paket')
-            ->orderByDesc('total')
-            ->take(6)
-            ->get();
-
-        if ($distribution->isEmpty()) {
-            return [
-                'labels' => ['Belum Ada Data'],
-                'series' => [1],
-            ];
+        if (! auth()->user()->can('pembayaran.lihat')) {
+            return null;
         }
 
-        return [
-            'labels' => $distribution->pluck('nama_paket')->toArray(),
-            'series' => $distribution->pluck('total')->map(fn ($v) => (int) $v)->toArray(),
-        ];
-    }
-
-    /**
-     * Recent payments (5 latest).
-     */
-    public function getRecentPaymentsProperty(): Collection
-    {
         return Pembayaran::with(['invoice.pelanggan'])
             ->latest('dibayar_pada')
-            ->take(5)
+            ->limit(self::BARIS_TRANSAKSI)
             ->get();
     }
 
     /**
-     * Expired & Expiring Soon Services (within 7 days).
+     * Daftar Pelanggan Expired & Jatuh Tempo: layanan expired (maks. 30 hari) dan yang jatuh
+     * tempo dalam lead time invoice.
+     *
+     * @return array{daftar: Collection<int, LayananPelanggan>, lewat: int, segera: int, lead: int}|null
      */
-    public function getExpiredServicesProperty(): Collection
+    public function getPerluPerhatianProperty(): ?array
     {
-        return LayananPelanggan::with(['pelanggan', 'paketLayanan', 'router'])
-            ->where('tanggal_expired', '<=', now()->addDays(7)->endOfDay())
-            ->orderBy('tanggal_expired', 'asc')
-            ->take(6)
+        if (! auth()->user()->can('layanan_pelanggan.lihat')) {
+            return null;
+        }
+
+        $lead = PengaturanSiklusTagihan::ambil()->leadDays();
+        $tagihanTerbuka = fn ($query) => $query->whereIn('status', StatusInvoice::terbuka());
+
+        $daftar = LayananPelanggan::query()
+            ->perluPerhatian($lead)
+            ->with(['pelanggan', 'paketLayanan'])
+            ->withSum(['invoices as tagihan_terbuka' => $tagihanTerbuka], 'jumlah_setelah_promo')
+            ->withMax(['invoices as invoice_terbuka_id' => $tagihanTerbuka], 'id')
+            ->orderBy('tanggal_expired')
+            ->orderByDesc('tagihan_terbuka')
+            ->orderBy(Pelanggan::query()->select('nama_depan')->whereColumn('pelanggan.id', 'layanan_pelanggan.pelanggan_id'))
+            ->limit(self::BARIS_DAFTAR)
             ->get();
+
+        return [
+            'daftar' => $daftar,
+            'lewat' => LayananPelanggan::query()->perluPerhatian($lead, 'overdue')->count(),
+            'segera' => LayananPelanggan::query()->perluPerhatian($lead, 'soon')->count(),
+            'lead' => $lead,
+        ];
     }
 
     public function render(): View
     {
+        $user = auth()->user();
+
         return view('livewire.dashboard', [
-            'kpis' => $this->kpis,
-            'dailyTrendChart' => $this->dailyTrendChartData,
-            'paketChart' => $this->paketChartData,
-            'recentPayments' => $this->recentPayments,
-            'expiredServices' => $this->expiredServices,
+            'pelanggan' => $this->pelanggan,
+            'pendapatan' => $this->pendapatan,
+            'tagihan' => $this->tagihan,
+            'tren' => $this->tren,
+            'transaksiTerbaru' => $this->transaksiTerbaru,
+            'perluPerhatian' => $this->perluPerhatian,
+            'bisaLihatInvoice' => $user->can('invoice.lihat'),
+            'bisaLihatPelanggan' => $user->can('pelanggan.lihat'),
         ]);
+    }
+
+    private function totalPembayaran(CarbonInterface $dari, CarbonInterface $sampai): float
+    {
+        return (float) Pembayaran::whereBetween('dibayar_pada', [$dari, $sampai])->sum('jumlah_dibayar');
     }
 }
