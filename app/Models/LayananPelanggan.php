@@ -266,6 +266,26 @@ class LayananPelanggan extends Model
     }
 
     /**
+     * Scope layanan Perlu Perhatian: berstatus aktif/suspend dengan tanggal expired dalam
+     * jendela 30 hari ke belakang sampai `$leadDays` hari ke depan.
+     *
+     * @param  Builder<LayananPelanggan>  $query
+     * @param  'all'|'overdue'|'soon'  $jenis
+     * @return Builder<LayananPelanggan>
+     */
+    public function scopePerluPerhatian(Builder $query, int $leadDays, string $jenis = 'all'): Builder
+    {
+        $today = Carbon::today();
+
+        $dari = $jenis === 'soon' ? $today : $today->copy()->subDays(30);
+        $sampai = $jenis === 'overdue' ? $today->copy()->subDay() : $today->copy()->addDays($leadDays);
+
+        return $query
+            ->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Suspend])
+            ->whereBetween('tanggal_expired', [$dari->toDateString(), $sampai->toDateString()]);
+    }
+
+    /**
      * Cek apakah masa aktif layanan sudah kedaluwarsa (expired).
      */
     public function isExpired(): bool
@@ -311,7 +331,7 @@ class LayananPelanggan extends Model
     }
 
     /**
-     * Dapatkan periode tagihan target berikutnya (format YYYY-MM) berdasarkan tanggal expired.
+     * Dapatkan periode tagihan target berikutnya (format YYYY-MM): bulan jatuh tempo (tanggal expired) siklus itu.
      */
     public function getNextPeriodeTagihan(): string
     {
@@ -319,14 +339,7 @@ class LayananPelanggan extends Model
             return Carbon::today()->format('Y-m');
         }
 
-        $expired = Carbon::parse($this->tanggal_expired);
-
-        // Jika tanggal expired di akhir bulan (>= tgl 25), siklus tagihan berikutnya mencakup bulan depan (H-7)
-        if ($expired->day >= 25) {
-            return $expired->copy()->addDays(7)->format('Y-m');
-        }
-
-        return $expired->format('Y-m');
+        return Carbon::parse($this->tanggal_expired)->format('Y-m');
     }
 
     /**

@@ -5,10 +5,12 @@ namespace App\Services\Billing;
 use App\Actions\LayananPelanggan\PerpanjangMasaAktifAction;
 use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
+use App\Enums\StatusTransaksiGateway;
 use App\Events\InvoicePaidEvent;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\Pembayaran;
+use App\Models\PengaturanSiklusTagihan;
 use App\Models\Promo;
 use App\Models\PromoPenggunaan;
 use App\Models\User;
@@ -53,6 +55,15 @@ class BillingService
 
             $jumlahSetelahPromo = max(0.0, $harga - $diskon);
 
+            // Tunggakan Akumulatif: invoice periodik lama yang masih terbuka diserap ke invoice ini.
+            $terbuka = Invoice::query()
+                ->where('layanan_pelanggan_id', $layanan->id)
+                ->where('periode_tagihan', '<', $periode)
+                ->whereIn('status', StatusInvoice::terbuka())
+                ->lockForUpdate()
+                ->get();
+            $tunggakan = (float) $terbuka->sum('jumlah_setelah_promo');
+
             $terbit = Carbon::today();
             $jatuhTempo = $tanggalJatuhTempo ?? $terbit->copy()->addDays(7);
 
@@ -61,7 +72,8 @@ class BillingService
                 'pelanggan_id' => $layanan->pelanggan_id,
                 'layanan_pelanggan_id' => $layanan->id,
                 'jumlah' => $harga,
-                'jumlah_setelah_promo' => $jumlahSetelahPromo,
+                'jumlah_setelah_promo' => $jumlahSetelahPromo + $tunggakan,
+                'jumlah_tunggakan' => $tunggakan,
                 'promo_id' => $promo?->id,
                 'status' => StatusInvoice::MenungguPembayaran,
                 'tanggal_terbit' => $terbit,
@@ -69,10 +81,55 @@ class BillingService
                 'dibuat_oleh' => $dibuatOleh,
             ]);
 
+            foreach ($terbuka as $lama) {
+                $lama->update([
+                    'status' => StatusInvoice::Digabung,
+                    'digabung_ke_invoice_id' => $invoice->id,
+                ]);
+                // Sesi gateway lama masih menagih nominal lama -- matikan agar tidak bisa dibayar.
+                $lama->transaksiPaymentGateways()
+                    ->where('status', StatusTransaksiGateway::Pending)
+                    ->update(['status' => StatusTransaksiGateway::Expired]);
+            }
+
             $this->applyPromoUsage($invoice, $promo, $diskon, $layanan->pelanggan_id);
 
             return $invoice;
         });
+    }
+
+    /**
+     * Rencana siklus tagihan berikutnya sebuah layanan: periode, jatuh tempo, dan tanggal terbit.
+     * Tanpa tunggakan, siklusnya jatuh tempo pada tanggal expired layanan; dengan invoice periodik
+     * yang masih terbuka, siklusnya adalah periode sesudah yang terbaru dan jatuh tempo pada
+     * Hari Jatuh Tempo bulan itu.
+     *
+     * @return array{periode: string, jatuh_tempo: Carbon, terbit: Carbon}|null
+     */
+    public function rencanaSiklusBerikutnya(LayananPelanggan $layanan, PengaturanSiklusTagihan $siklus): ?array
+    {
+        if (! $layanan->tanggal_expired) {
+            return null;
+        }
+
+        $periodeTerbaruTerbuka = $layanan->invoices()
+            ->whereNotNull('periode_tagihan')
+            ->whereIn('status', StatusInvoice::terbuka())
+            ->max('periode_tagihan');
+
+        if ($periodeTerbaruTerbuka) {
+            $periode = Carbon::createFromFormat('!Y-m', $periodeTerbaruTerbuka)->addMonthNoOverflow()->format('Y-m');
+            $jatuhTempo = $siklus->jatuhTempoPeriode($periode);
+        } else {
+            $periode = $layanan->getNextPeriodeTagihan();
+            $jatuhTempo = Carbon::parse($layanan->tanggal_expired)->startOfDay();
+        }
+
+        return [
+            'periode' => $periode,
+            'jatuh_tempo' => $jatuhTempo,
+            'terbit' => $siklus->tanggalTerbit($jatuhTempo),
+        ];
     }
 
     /**
@@ -166,6 +223,10 @@ class BillingService
             // Guard clause idempotensi: Jika sudah lunas, jangan proses ulang
             if ($lockedInvoice->status === StatusInvoice::Lunas) {
                 throw new Exception("Invoice {$lockedInvoice->no_invoice} sudah berstatus lunas.");
+            }
+
+            if ($lockedInvoice->isDigabung()) {
+                throw new Exception("Invoice {$lockedInvoice->no_invoice} sudah digabung ke invoice {$lockedInvoice->digabungKe?->no_invoice}; bayar invoice tersebut.");
             }
 
             // Validasi Ketat Nominal (konsisten dengan jalur payment gateway di

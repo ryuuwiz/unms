@@ -110,6 +110,13 @@ return [
                     'active' => 'billing.aturan-pengingat.*',
                     'permission' => 'invoice.lihat',
                 ],
+                [
+                    'title' => 'Siklus Tagihan',
+                    'icon' => 'calendar-days',
+                    'route' => 'billing.siklus-tagihan.index',
+                    'active' => 'billing.siklus-tagihan.*',
+                    'permission' => 'siklus_tagihan.ubah',
+                ],
             ],
         ],
         [

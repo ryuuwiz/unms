@@ -138,9 +138,9 @@ test('webhook memproses callback format Xendit Hosted Invoice PAID, melunaskan i
     // 2. Cek record pembayaran
     expect(Pembayaran::where('invoice_id', $this->invoice->id)->count())->toBe(1);
 
-    // 3. Cek perpanjangan masa aktif (5 hari + 1 bulan = ~35/36 hari)
+    // 3. Cek perpanjangan masa aktif: expired lama + 1 bulan, disesuaikan ke Hari Jatuh Tempo (10)
     $expiredBaru = Carbon::parse($this->layanan->fresh()->tanggal_expired);
-    expect($expiredBaru->greaterThan(Carbon::today()->addDays(25)))->toBeTrue();
+    expect($expiredBaru->toDateString())->toBe(Carbon::today()->addDays(5)->addMonthNoOverflow()->day(10)->toDateString());
 
     // 4. Cek audit webhook log
     expect(WebhookLog::where('xendit_event_id', 'inv_xendit_test_123')->first()->status_proses)->toBe(StatusWebhookLog::Diproses);

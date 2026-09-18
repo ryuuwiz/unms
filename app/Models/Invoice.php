@@ -24,6 +24,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $layanan_pelanggan_id
  * @property float $jumlah
  * @property float $jumlah_setelah_promo
+ * @property float $jumlah_tunggakan
+ * @property int|null $digabung_ke_invoice_id
  * @property int|null $promo_id
  * @property StatusInvoice $status
  * @property Carbon $tanggal_terbit
@@ -61,6 +63,8 @@ use Spatie\Activitylog\Support\LogOptions;
     'layanan_pelanggan_id',
     'jumlah',
     'jumlah_setelah_promo',
+    'jumlah_tunggakan',
+    'digabung_ke_invoice_id',
     'promo_id',
     'status',
     'tanggal_terbit',
@@ -108,7 +112,7 @@ class Invoice extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['no_invoice', 'periode_tagihan', 'status', 'jumlah_setelah_promo', 'metode_pembayaran', 'tanggal_lunas', 'payment_gateway_provider'])
+            ->logOnly(['no_invoice', 'periode_tagihan', 'status', 'jumlah_setelah_promo', 'jumlah_tunggakan', 'digabung_ke_invoice_id', 'metode_pembayaran', 'tanggal_lunas', 'payment_gateway_provider'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('invoice');
@@ -126,6 +130,7 @@ class Invoice extends Model
             'metode_pembayaran' => MetodePembayaran::class,
             'jumlah' => 'decimal:2',
             'jumlah_setelah_promo' => 'decimal:2',
+            'jumlah_tunggakan' => 'decimal:2',
             'tanggal_terbit' => 'date',
             'tanggal_jatuh_tempo' => 'date',
             'tanggal_lunas' => 'date',
@@ -198,6 +203,26 @@ class Invoice extends Model
     }
 
     /**
+     * Invoice siklus lebih baru yang menyerap nominal invoice ini (Tunggakan Akumulatif).
+     *
+     * @return BelongsTo<Invoice, $this>
+     */
+    public function digabungKe(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'digabung_ke_invoice_id');
+    }
+
+    /**
+     * Invoice periodik lama yang nominalnya sudah diserap invoice ini.
+     *
+     * @return HasMany<Invoice, $this>
+     */
+    public function invoiceDigabung(): HasMany
+    {
+        return $this->hasMany(self::class, 'digabung_ke_invoice_id');
+    }
+
+    /**
      * @return HasMany<Pembayaran, $this>
      */
     public function pembayarans(): HasMany
@@ -257,6 +282,11 @@ class Invoice extends Model
     public function isDibatalkan(): bool
     {
         return $this->status === StatusInvoice::Dibatalkan;
+    }
+
+    public function isDigabung(): bool
+    {
+        return $this->status === StatusInvoice::Digabung;
     }
 
     /**

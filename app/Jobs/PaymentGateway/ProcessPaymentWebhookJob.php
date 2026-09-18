@@ -14,6 +14,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Sentry\State\Scope;
 use Throwable;
 
 class ProcessPaymentWebhookJob implements ShouldQueue
@@ -184,6 +185,25 @@ class ProcessPaymentWebhookJob implements ShouldQueue
                 return;
             }
 
+            // Invoice yang sudah digabung (Tunggakan Akumulatif) tidak boleh dilunasi otomatis:
+            // uangnya sudah masuk, jadi tandai untuk penanganan manual alih-alih menerbitkan
+            // perpanjangan ganda.
+            if ($invoice->isDigabung()) {
+                $catatan = "Pembayaran {$provider} diterima untuk Invoice {$invoice->no_invoice} yang sudah digabung ke invoice lain; perlu penanganan manual";
+                $webhookLog->update([
+                    'status_proses' => StatusWebhookLog::Gagal,
+                    'catatan_error' => $catatan,
+                ]);
+
+                Log::error($catatan, [
+                    'invoice_id' => $invoice->id,
+                    'digabung_ke_invoice_id' => $invoice->digabung_ke_invoice_id,
+                    'external_id' => $callbackData->externalId,
+                ]);
+
+                return;
+            }
+
             // Validasi Ketat Integritas Nominal (Strict Integer Amount Match).
             // Tidak ada toleransi untuk underpayment maupun overpayment, termasuk nominal 0 --
             // callback yang melaporkan 0 rupiah dibayar bukan pengecualian, itu adalah anomali.
@@ -271,7 +291,7 @@ class ProcessPaymentWebhookJob implements ShouldQueue
         ]);
 
         if ($exception) {
-            \Sentry\configureScope(function (\Sentry\State\Scope $scope): void {
+            \Sentry\configureScope(function (Scope $scope): void {
                 $scope->setContext('payment_webhook', [
                     'webhook_log_id' => $this->webhookLogId,
                 ]);

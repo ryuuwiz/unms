@@ -1,6 +1,7 @@
 <?php
 
 use App\DTO\PaymentGateway\PaymentCallbackData;
+use App\DTO\PaymentGateway\PaymentLinkResponse;
 use App\Enums\GatewayChannel;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
@@ -115,7 +116,7 @@ test('kegagalan panggilan API gateway meninggalkan baris transaksi Pending sebag
     // yang sebetulnya tidak pernah berhasil dibuat.
     $failingDriver = new class extends XenditDriver
     {
-        public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): \App\DTO\PaymentGateway\PaymentLinkResponse
+        public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): PaymentLinkResponse
         {
             throw new Exception('Simulasi timeout Xendit');
         }
@@ -163,7 +164,7 @@ test('proses pelunasan memperbarui status invoice, layanan, dan memancarkan even
 
     $this->layanan->refresh();
     expect($this->layanan->status)->toBe(StatusLayanan::Aktif)
-        ->and($this->layanan->tanggal_expired?->toDateString())->toBe(now()->addMonth()->toDateString());
+        ->and($this->layanan->tanggal_expired?->toDateString())->toBe(now()->addMonthNoOverflow()->day(10)->toDateString());
 
     Event::assertDispatched(InvoicePaidEvent::class);
 });
