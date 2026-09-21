@@ -136,7 +136,7 @@ EXPOSE 8080
 # Healthcheck HTTP-only: membuktikan Caddy+PHP-FPM hidup. Kesehatan Horizon
 # dipantau terpisah lewat command terjadwal `horizon:monitor-health`.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -fsS http://127.0.0.1/up || exit 1
+    CMD curl -fsS http://127.0.0.1:8080/up || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
