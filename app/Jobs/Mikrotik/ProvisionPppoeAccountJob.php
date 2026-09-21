@@ -5,6 +5,8 @@ namespace App\Jobs\Mikrotik;
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\StatusLayanan;
+use App\Exceptions\MikrotikConnectionException;
+use App\Exceptions\MikrotikException;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\User;
@@ -103,6 +105,16 @@ class ProvisionPppoeAccountJob implements ShouldBeUnique, ShouldQueue
                 'error_message' => $e->getMessage(),
                 'finished_at' => Carbon::now(),
             ]);
+
+            // Kesalahan konfigurasi/data (mis. IP Pool terdaftar pada router lain, profil
+            // bandwidth tidak valid) tidak akan pernah berhasil hanya dengan mencoba ulang.
+            // Hanya MikrotikConnectionException (gangguan koneksi/router offline) yang
+            // bersifat sementara dan layak di-retry oleh mekanisme $tries/$backoff di atas.
+            if ($e instanceof MikrotikException && ! $e instanceof MikrotikConnectionException) {
+                $this->failed($e);
+
+                return;
+            }
 
             throw $e;
         }
