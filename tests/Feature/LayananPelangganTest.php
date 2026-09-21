@@ -2,6 +2,7 @@
 
 use App\Enums\JenisKoneksi;
 use App\Enums\JenisTagihanPertama;
+use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
 use App\Enums\UserStatus;
@@ -74,10 +75,12 @@ test('admin can create layanan pelanggan through 2-step wizard', function () {
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));
 
-    Queue::assertPushed(ProvisionPppoeAccountJob::class);
+    Queue::assertNotPushed(ProvisionPppoeAccountJob::class);
 
     $layanan = LayananPelanggan::where('ppp_username', $validUsername)->first();
     expect($layanan)->not->toBeNull()
+        ->and($layanan->provisioning_status)->toBe(ProvisioningStatus::Failed)
+        ->and($layanan->last_provisioning_error)->not->toBeNull()
         ->and($layanan->pelanggan_id)->toBe($this->pelanggan->id)
         ->and($layanan->paket_layanan_id)->toBe($this->paket->id)
         ->and($layanan->router_id)->toBe($this->router->id)

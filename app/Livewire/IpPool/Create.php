@@ -2,10 +2,12 @@
 
 namespace App\Livewire\IpPool;
 
+use App\Livewire\Concerns\ValidatesIpPoolRange;
 use App\Models\IpPool;
 use App\Models\Router;
 use App\Utils\IpNetworkHelper;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -15,6 +17,8 @@ use Livewire\Component;
 #[Title('Tambah IP Pool')]
 class Create extends Component
 {
+    use ValidatesIpPoolRange;
+
     public string $nama_pool = '';
 
     public ?int $router_id = null;
@@ -42,12 +46,12 @@ class Create extends Component
     protected function rules(): array
     {
         return [
-            'nama_pool' => ['required', 'string', 'max:100', 'unique:ip_pool,nama_pool'],
+            'nama_pool' => ['required', 'string', 'max:100', Rule::unique('ip_pool', 'nama_pool')->where('router_id', $this->router_id)],
             'router_id' => ['required', 'integer', 'exists:router,id'],
             'ip_network' => ['required', 'string', 'ipv4'],
             'cidr' => ['required', 'integer', 'min:1', 'max:32'],
             'rentang_ip_awal' => ['required', 'string', 'ipv4'],
-            'rentang_ip_akhir' => ['required', 'string', 'ipv4'],
+            'rentang_ip_akhir' => ['bail', 'required', 'string', 'ipv4', $this->rentangIpAkhirRule()],
             'priority_tx' => ['required', 'integer', 'min:1', 'max:8'],
             'priority_rx' => ['required', 'integer', 'min:1', 'max:8'],
         ];
@@ -60,7 +64,7 @@ class Create extends Component
     {
         return [
             'nama_pool.required' => 'Nama pool wajib diisi.',
-            'nama_pool.unique' => 'Nama pool sudah digunakan.',
+            'nama_pool.unique' => 'Nama pool sudah digunakan pada router ini.',
             'router_id.required' => 'Router wajib dipilih.',
             'ip_network.required' => 'IP Network wajib diisi.',
             'rentang_ip_awal.required' => 'Rentang IP awal wajib diisi.',

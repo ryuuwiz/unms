@@ -221,6 +221,26 @@ class Ticket extends Model implements HasMedia
         return $this->hasMany(TicketHistori::class, 'ticket_id')->orderByDesc('id');
     }
 
+    /**
+     * Tiket Pindah Alamat yang sudah selesai tetapi belum dibuatkan invoice manual
+     * (biaya pindah) untuk layanannya sesudah tiket selesai.
+     */
+    public function perluInvoicePindahAlamat(): bool
+    {
+        if ($this->jenis !== JenisTicket::PindahAlamat || ! $this->isSelesai()) {
+            return false;
+        }
+
+        $selesaiPada = $this->histori()->where('status_baru', StatusTicket::Selesai)->value('created_at');
+
+        return ! Invoice::query()
+            ->where('pelanggan_id', $this->pelanggan_id)
+            ->when($this->layanan_pelanggan_id, fn ($q) => $q->where('layanan_pelanggan_id', $this->layanan_pelanggan_id))
+            ->whereNull('periode_tagihan')
+            ->where('created_at', '>=', $selesaiPada)
+            ->exists();
+    }
+
     public function isSelesai(): bool
     {
         return $this->status === StatusTicket::Selesai;

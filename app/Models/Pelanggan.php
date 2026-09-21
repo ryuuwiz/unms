@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StatusLayanan;
 use App\Enums\StatusPelanggan;
 use App\Enums\TipePelanggan;
 use App\Models\Concerns\GracefullyDecryptsAttributes;
@@ -340,6 +341,38 @@ class Pelanggan extends Model implements HasMedia
     public function isAktif(): bool
     {
         return $this->status === StatusPelanggan::Aktif;
+    }
+
+    /**
+     * Turunkan status pelanggan dari seluruh layanannya: Aktif jika ada layanan Aktif,
+     * Expired jika tidak ada yang Aktif tetapi ada yang Suspend, Off jika semua Berhenti.
+     * Selain itu (belum ada layanan / masih Proses) status dibiarkan, dikendalikan tiket.
+     */
+    public function sinkronkanStatusDariLayanan(): void
+    {
+        $statusLayanan = $this->layanans()->get()->pluck('status');
+
+        $status = match (true) {
+            $statusLayanan->contains(StatusLayanan::Aktif) => StatusPelanggan::Aktif,
+            $statusLayanan->contains(StatusLayanan::Suspend) => StatusPelanggan::Expired,
+            $statusLayanan->isNotEmpty() && $statusLayanan->every(fn ($s) => $s === StatusLayanan::Berhenti) => StatusPelanggan::Off,
+            default => null,
+        };
+
+        if ($status !== null && $status !== $this->status) {
+            $this->update(['status' => $status]);
+        }
+    }
+
+    /**
+     * Ubah status tahap pemasangan (tiket Pemasangan). Tidak menimpa pelanggan yang sedang
+     * Aktif/Expired, mis. pemasangan site tambahan untuk pelanggan yang sudah berlangganan.
+     */
+    public function ubahStatusPemasangan(StatusPelanggan $status): void
+    {
+        if (! in_array($this->status, [StatusPelanggan::Aktif, StatusPelanggan::Expired], true) && $this->status !== $status) {
+            $this->update(['status' => $status]);
+        }
     }
 
     /**

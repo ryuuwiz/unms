@@ -91,7 +91,7 @@ class TicketPolicy
 
         // NOC matrix
         if ($user->hasRole('noc')) {
-            if ($ticket->jenis === JenisTicket::Gangguan || $ticket->jenis === JenisTicket::Pemasangan) {
+            if (in_array($ticket->jenis, [JenisTicket::Gangguan, JenisTicket::Pemasangan, JenisTicket::Pencabutan], true)) {
                 return match ([$statusLama, $statusBaru]) {
                     [StatusTicket::Baru, StatusTicket::Diproses],
                     [StatusTicket::Diproses, StatusTicket::MenungguKonfirmasi],

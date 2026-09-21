@@ -49,10 +49,32 @@
         <div class="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-start gap-3">
             <flux:icon name="exclamation-triangle" class="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
-                <h4 class="text-sm font-bold text-amber-900 dark:text-amber-200">Perlu Aktivasi Manual MikroTik</h4>
+                <h4 class="text-sm font-bold text-amber-900 dark:text-amber-200">Perlu Data Registrasi Billing</h4>
                 <p class="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
-                    Tiket pemasangan ini telah selesai dikerjakan di lapangan. Staf NOC/Admin perlu mengonfigurasi PPP Secret atau mengaktifkan layanan pada router MikroTik terkait.
+                    Pemasangan telah selesai di lapangan. Admin perlu membuat Data Registrasi Billing agar PPP Secret terprovisi, layanan aktif, dan tagihan pertama terbit.
                 </p>
+                @can('create', \App\Models\LayananPelanggan::class)
+                    <flux:button size="sm" variant="primary" class="mt-2" :href="route('layanan-pelanggan.create', ['pelanggan_id' => $ticket->pelanggan_id, 'ticket_id' => $ticket->id])" wire:navigate>
+                        Buat Data Registrasi Billing
+                    </flux:button>
+                @endcan
+            </div>
+        </div>
+    @endif
+
+    @if($ticket->perluInvoicePindahAlamat())
+        <div class="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl flex items-start gap-3">
+            <flux:icon name="exclamation-triangle" class="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div>
+                <h4 class="text-sm font-bold text-amber-900 dark:text-amber-200">Perlu Invoice Biaya Pindah Alamat</h4>
+                <p class="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                    Pindah alamat telah selesai. Admin perlu menerbitkan invoice manual untuk biaya pindah alamat pelanggan ini.
+                </p>
+                @can('create', \App\Models\Invoice::class)
+                    <flux:button size="sm" variant="primary" class="mt-2" :href="route('invoice.create', $ticket->pelanggan_id)" wire:navigate>
+                        Buat Invoice Manual
+                    </flux:button>
+                @endcan
             </div>
         </div>
     @endif

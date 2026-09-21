@@ -137,7 +137,7 @@ Entitas perangkat MikroTik RouterOS sebagai pengendali layanan dan bandwidth, di
 _Avoid_: Switch, Gateway Umum
 
 **IP Pool**:
-Blok alokasi alamat IP (Network, CIDR, Range IP) yang terikat pada Router untuk distribusi IP pelanggan.
+Blok alokasi alamat IP (Network, CIDR, Range IP) yang terikat pada Router untuk distribusi IP pelanggan. Nama pool unik per Router (bukan global), dan Range IP tidak boleh beririsan dengan pool lain pada Router yang sama.
 _Avoid_: Subnet Bebas, DHCP Range
 
 **Antrean Prioritas MikroTik (`mikrotik-high`)**:
@@ -246,6 +246,14 @@ _Avoid_: Support Desk, Helpdesk Umum, Tugas Lapangan
 **Tiket**:
 Entitas berkas kerja permohonan layanan atau penanganan masalah teknis (Pemasangan, Gangguan, Pencabutan, Pindah Alamat) dengan status siklus hidup dan penomoran otomatis terpusat. Dibuat oleh staf (sumber: `manual`/`sistem`). Tiket lama dengan sumber `portal` (dari fitur Portal Pelanggan yang telah dihapus, ADR-0040) tetap tersimpan sebagai riwayat.
 _Avoid_: Issue, Aduan Bebas, Task, Case
+
+**Alur Tiket ke Billing**:
+Hasil tiket menggerakkan status secara otomatis, tetapi keputusan komersial tetap manual oleh Admin. Pemasangan dibuat → Pelanggan `ReqPemasangan`; Selesai → `PemasanganSelesai` dan Admin diminta membuat Data Registrasi Billing (PPP Secret, layanan Aktif, tagihan pertama terbit dari sana); Batal → `BelumTerpasang`. Pencabutan Selesai → layanan terkait `Berhenti` (tagihan belum lunas tetap terbuka, hanya tagihan baru yang berhenti). Pindah Alamat Selesai → Admin diminta menerbitkan invoice manual biaya pindah. Pemasangan tidak mengubah Pelanggan yang sudah Aktif/Expired.
+_Avoid_: Aktivasi Otomatis dari Tiket, Invoice Otomatis Saat Tiket Selesai
+
+**Status Pelanggan**:
+Diturunkan dari seluruh Data Registrasi Billing pelanggan: `Aktif` jika ada layanan Aktif; `Expired` jika tidak ada yang Aktif tetapi ada yang Suspend; `Off` jika semua Berhenti. Selama belum ada layanan Aktif, tahap pemasangan (`BelumTerpasang`, `ReqPemasangan`, `PemasanganSelesai`) dikendalikan tiket Pemasangan.
+_Avoid_: Status Manual per Layanan, Status Pelanggan Mengikuti Satu Layanan Saja
 
 **Nomor Tiket**:
 Pengenal unik resmi untuk setiap tiket yang di-generate sistem secara terstandarisasi dengan format `TCK-YYYY-NNNNNN`.

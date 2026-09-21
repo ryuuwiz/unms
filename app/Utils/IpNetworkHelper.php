@@ -5,6 +5,35 @@ namespace App\Utils;
 class IpNetworkHelper
 {
     /**
+     * Validasi rentang IP berada di dalam network/CIDR dan awal tidak melebihi akhir.
+     * Mengembalikan pesan galat, atau null jika valid (atau input belum berupa IPv4 valid).
+     */
+    public static function rangeError(string $network, int $cidr, string $awal, string $akhir): ?string
+    {
+        $networkLong = ip2long($network);
+        $awalLong = ip2long($awal);
+        $akhirLong = ip2long($akhir);
+
+        if ($networkLong === false || $awalLong === false || $akhirLong === false || $cidr < 1 || $cidr > 32) {
+            return null;
+        }
+
+        $mask = ~((1 << (32 - $cidr)) - 1);
+        $first = $networkLong & $mask;
+        $last = $first | (~$mask);
+
+        if ($awalLong > $akhirLong) {
+            return 'Rentang IP awal tidak boleh lebih besar dari rentang IP akhir.';
+        }
+
+        if ($awalLong < $first || $akhirLong > $last) {
+            return 'Rentang IP harus berada di dalam network '.long2ip($first)."/{$cidr}.";
+        }
+
+        return null;
+    }
+
+    /**
      * Calculate the suggested IP range (start and end) for a given network and CIDR.
      * Start IP is network + 1 (e.g. .1)
      * End IP is broadcast - 1 (e.g. .254)

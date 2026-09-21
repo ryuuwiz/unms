@@ -174,3 +174,87 @@ test('user without delete permission cannot delete ip pool', function () {
 
     expect(IpPool::find($pool->id))->not->toBeNull();
 });
+
+/**
+ * @param  array<string, mixed>  $overrides
+ */
+function isiFormIpPool(mixed $component, Router $router, array $overrides = []): mixed
+{
+    $data = array_merge([
+        'nama_pool' => 'POOL_X',
+        'router_id' => $router->id,
+        'ip_network' => '10.0.0.0',
+        'cidr' => 24,
+        'rentang_ip_awal' => '10.0.0.2',
+        'rentang_ip_akhir' => '10.0.0.254',
+    ], $overrides);
+
+    foreach ($data as $field => $value) {
+        $component->set($field, $value);
+    }
+
+    return $component;
+}
+
+test('ip pool range must sit inside the network', function () {
+    $router = Router::factory()->create();
+
+    isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router, [
+        'rentang_ip_akhir' => '10.0.1.10',
+    ])->call('save')->assertHasErrors(['rentang_ip_akhir']);
+
+    expect(IpPool::count())->toBe(0);
+});
+
+test('ip pool range start must not exceed end', function () {
+    $router = Router::factory()->create();
+
+    isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router, [
+        'rentang_ip_awal' => '10.0.0.200',
+        'rentang_ip_akhir' => '10.0.0.100',
+    ])->call('save')->assertHasErrors(['rentang_ip_akhir']);
+});
+
+test('ip pool range must not overlap another pool on the same router', function () {
+    $router = Router::factory()->create();
+    IpPool::factory()->create([
+        'router_id' => $router->id,
+        'rentang_ip_awal' => '10.0.0.2',
+        'rentang_ip_akhir' => '10.0.0.100',
+    ]);
+
+    isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router, [
+        'rentang_ip_awal' => '10.0.0.50',
+        'rentang_ip_akhir' => '10.0.0.150',
+    ])->call('save')->assertHasErrors(['rentang_ip_akhir']);
+});
+
+test('ip pool range may overlap a pool on a different router', function () {
+    $lain = Router::factory()->create();
+    IpPool::factory()->create(['router_id' => $lain->id, 'rentang_ip_awal' => '10.0.0.2', 'rentang_ip_akhir' => '10.0.0.254']);
+    $router = Router::factory()->create();
+
+    isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router)
+        ->call('save')->assertHasNoErrors();
+});
+
+test('editing a pool does not treat its own range as an overlap', function () {
+    $pool = IpPool::factory()->create();
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Edit::class, ['pool' => $pool])
+        ->call('save')
+        ->assertHasNoErrors();
+});
+
+test('pool name is unique per router, not globally', function () {
+    $routerA = Router::factory()->create();
+    $routerB = Router::factory()->create();
+    IpPool::factory()->create(['router_id' => $routerA->id, 'nama_pool' => 'Pool-Rumah']);
+
+    isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $routerA, ['nama_pool' => 'Pool-Rumah'])
+        ->call('save')->assertHasErrors(['nama_pool']);
+
+    isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $routerB, ['nama_pool' => 'Pool-Rumah'])
+        ->call('save')->assertHasNoErrors();
+});

@@ -30,8 +30,11 @@ class LayananPelangganObserver
                 );
             }
 
-            // Reset ip_pool_id karena pool milik router lama tidak berlaku di router baru
-            $layanan->ip_pool_id = null;
+            // Reset ip_pool_id karena pool milik router lama tidak berlaku di router baru,
+            // kecuali pool baru dipilih pada penyimpanan yang sama (mis. form Edit).
+            if (! $layanan->isDirty('ip_pool_id')) {
+                $layanan->ip_pool_id = null;
+            }
         }
 
         // 2. Jika ppp_username berubah pada router yang sama: hapus username lama
@@ -64,6 +67,17 @@ class LayananPelangganObserver
     }
 
     /**
+     * Sinkronkan status Pelanggan dari seluruh layanannya setiap kali status layanan
+     * berubah, lewat jalur mana pun (form, listener, pembayaran, command isolir).
+     */
+    public function saved(LayananPelanggan $layanan): void
+    {
+        if ($layanan->wasChanged('status')) {
+            $layanan->pelanggan?->sinkronkanStatusDariLayanan();
+        }
+    }
+
+    /**
      * Handle the LayananPelanggan "deleted" event (soft delete / force delete).
      *
      * Ketika layanan pelanggan dihapus dari UNMS, otomatis hapus PPP Secret
@@ -71,6 +85,8 @@ class LayananPelangganObserver
      */
     public function deleted(LayananPelanggan $layanan): void
     {
+        $layanan->pelanggan?->sinkronkanStatusDariLayanan();
+
         $routerId = (int) $layanan->router_id;
         $pppUsername = (string) $layanan->ppp_username;
 

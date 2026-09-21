@@ -103,6 +103,18 @@ class IpPool extends Model
     }
 
     /**
+     * Cari IP Pool lain pada router yang sama yang rentang IP-nya beririsan dengan rentang ini.
+     */
+    public static function findOverlapping(int $routerId, string $awal, string $akhir, ?int $ignoreId = null): ?self
+    {
+        return static::where('router_id', $routerId)
+            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
+            ->get()
+            ->first(fn (self $pool): bool => ip2long($awal) <= ip2long($pool->rentang_ip_akhir)
+                && ip2long($pool->rentang_ip_awal) <= ip2long($akhir));
+    }
+
+    /**
      * Periksa apakah IP Pool aman untuk dihapus (tidak digunakan oleh layanan pelanggan).
      */
     public function canBeDeleted(): bool

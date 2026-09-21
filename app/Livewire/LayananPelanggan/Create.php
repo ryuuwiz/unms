@@ -8,7 +8,6 @@ use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
-use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Livewire\Concerns\HasSearchableOptions;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
@@ -17,6 +16,7 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\Promo;
 use App\Models\Router;
+use App\Models\Ticket;
 use App\Services\Billing\BillingService;
 use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -36,6 +37,10 @@ class Create extends Component
 
     // Step 1: Pilih pelanggan & paket
     public int $step = 1;
+
+    /** Tiket Pemasangan selesai yang menjadi asal registrasi ini (opsional). */
+    #[Locked]
+    public ?int $ticket_id = null;
 
     public ?int $pelanggan_id = null;
 
@@ -89,6 +94,13 @@ class Create extends Component
     {
         $this->authorize('create', LayananPelanggan::class);
         $this->tanggal_mulai = now()->toDateString();
+
+        if (request()->filled('pelanggan_id')) {
+            $this->pelanggan_id = (int) request()->query('pelanggan_id');
+            $this->updatedPelangganId();
+            $this->ticket_id = request()->filled('ticket_id') ? (int) request()->query('ticket_id') : null;
+        }
+
         $this->initSingleRouterSelection();
     }
 
@@ -376,7 +388,7 @@ class Create extends Component
             : $mulai->copy()->addDays($paket->masa_aktif_nilai);
 
         try {
-            $layanan = DB::transaction(function () use ($paket, $expired) {
+            $layanan = DB::transaction(function () use ($expired) {
                 $layanan = LayananPelanggan::create([
                     'pelanggan_id' => $this->pelanggan_id,
                     'paket_layanan_id' => $this->paket_layanan_id,
@@ -417,6 +429,13 @@ class Create extends Component
             return;
         }
 
+        if ($this->ticket_id) {
+            Ticket::whereKey($this->ticket_id)
+                ->where('pelanggan_id', $this->pelanggan_id)
+                ->where('perlu_aktivasi_manual', true)
+                ->update(['layanan_pelanggan_id' => $layanan->id, 'perlu_aktivasi_manual' => false]);
+        }
+
         if ($this->auto_provision) {
             try {
                 $mikrotikService = app(MikrotikService::class);
@@ -438,8 +457,10 @@ class Create extends Component
 
                 Flux::toast(variant: 'success', text: "Data Registrasi Billing {$layanan->ppp_username} berhasil didaftarkan dan langsung terprovisi aktif di {$router->nama_router}.");
             } catch (\Throwable $e) {
-                ProvisionPppoeAccountJob::dispatch($layanan);
-
+                // Kegagalan sudah tercatat pada layanan (provisioning_status = Failed +
+                // last_provisioning_error) oleh MikrotikService; tanpa retry buta karena
+                // galat konfigurasi tidak akan berhasil dengan mencoba ulang -- admin
+                // memperbaiki data lalu memakai tombol Provisi di daftar layanan.
                 MikrotikJobLog::create([
                     'router_id' => $this->router_id,
                     'layanan_pelanggan_id' => $layanan->id,
@@ -450,7 +471,7 @@ class Create extends Component
                     'finished_at' => now(),
                 ]);
 
-                Flux::toast(variant: 'warning', text: "Data Registrasi Billing didaftarkan. Provisi ke router tertunda: {$e->getMessage()}");
+                Flux::toast(variant: 'warning', text: "Data Registrasi Billing didaftarkan. Provisi ke router gagal: {$e->getMessage()} Perbaiki data lalu gunakan tombol Provisi di daftar layanan.");
             }
         } else {
             Flux::toast(variant: 'success', text: 'Data Registrasi Billing berhasil didaftarkan.');
@@ -467,7 +488,7 @@ class Create extends Component
         return [
             'pelanggan_id' => [
                 'model' => Pelanggan::class,
-                'query' => fn () => Pelanggan::aktif(),
+                'query' => fn () => Pelanggan::query(),
                 'label' => fn (Pelanggan $p) => $p->labelSelector(),
                 'cap' => 20,
             ],

@@ -59,7 +59,7 @@
                 <!-- Layanan Pelanggan Selector (Kondisional) -->
                 @if($pelanggan_id)
                     <div>
-                        <flux:select wire:model="layanan_pelanggan_id" label="Layanan Internet Terkait (Opsional untuk Pemasangan Baru)" placeholder="Pilih Layanan...">
+                        <flux:select wire:model="layanan_pelanggan_id" label="Layanan Internet Terkait (opsional untuk Pemasangan Baru, wajib untuk Pencabutan dan Pindah Alamat)" placeholder="Pilih Layanan...">
                             <flux:select.option value="">-- Tanpa Layanan / Pemasangan Baru --</flux:select.option>
                             @foreach($layanans as $lay)
                                 <flux:select.option value="{{ $lay->id }}">

@@ -108,6 +108,17 @@ test('Observer resets ip_pool_id to null when router_id changes', function () {
     expect($this->layanan->fresh()->ip_pool_id)->toBeNull();
 });
 
+test('Observer keeps ip_pool_id chosen in the same update that changes router_id', function () {
+    Queue::fake();
+
+    $this->layanan->update([
+        'router_id' => $this->routerBaru->id,
+        'ip_pool_id' => $this->poolBaru->id,
+    ]);
+
+    expect($this->layanan->fresh()->ip_pool_id)->toBe($this->poolBaru->id);
+});
+
 test('Observer dispatch UpdatePppoeProfileJob when paket_layanan_id changes', function () {
     Queue::fake();
 

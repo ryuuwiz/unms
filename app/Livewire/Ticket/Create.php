@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Ticket;
 
+use App\Enums\StatusPelanggan;
 use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\PrioritasTicket;
@@ -119,7 +120,7 @@ class Create extends Component
         $this->validate([
             'jenis' => ['required', Rule::enum(JenisTicket::class)],
             'pelanggan_id' => ['required', 'integer', 'exists:pelanggan,id'],
-            'layanan_pelanggan_id' => ['nullable', 'integer', 'exists:layanan_pelanggan,id'],
+            'layanan_pelanggan_id' => ['nullable', 'required_if:jenis,pencabutan,pindah_alamat', 'integer', 'exists:layanan_pelanggan,id'],
             'prioritas' => ['required', Rule::enum(PrioritasTicket::class)],
             'divisis' => ['required', 'array', 'min:1'],
             'divisis.*' => ['required', Rule::enum(DivisiTicket::class)],
@@ -129,6 +130,7 @@ class Create extends Component
             'fotoKendala' => ['nullable', 'image', 'max:5120'],
         ], [
             'pelanggan_id.required' => 'Pelanggan / Prospek wajib dipilih.',
+            'layanan_pelanggan_id.required_if' => 'Layanan terkait wajib dipilih untuk tiket Pencabutan dan Pindah Alamat.',
             'divisis.required' => 'Minimal satu divisi harus dipilih.',
             'divisis.min' => 'Minimal satu divisi harus dipilih.',
             'deskripsi.required' => 'Deskripsi tiket wajib diisi.',
@@ -169,6 +171,10 @@ class Create extends Component
 
             return $ticket;
         });
+
+        if ($ticket->jenis === JenisTicket::Pemasangan) {
+            $ticket->pelanggan?->ubahStatusPemasangan(StatusPelanggan::ReqPemasangan);
+        }
 
         // Simpan lampiran media foto jika diunggah
         if ($this->fotoKendala) {

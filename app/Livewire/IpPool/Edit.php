@@ -2,10 +2,12 @@
 
 namespace App\Livewire\IpPool;
 
+use App\Livewire\Concerns\ValidatesIpPoolRange;
 use App\Models\IpPool;
 use App\Models\Router;
 use App\Utils\IpNetworkHelper;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -16,6 +18,8 @@ use Livewire\Component;
 #[Title('Edit IP Pool')]
 class Edit extends Component
 {
+    use ValidatesIpPoolRange;
+
     #[Locked]
     public int $poolId;
 
@@ -56,12 +60,12 @@ class Edit extends Component
     protected function rules(): array
     {
         return [
-            'nama_pool' => ['required', 'string', 'max:100', "unique:ip_pool,nama_pool,{$this->poolId}"],
+            'nama_pool' => ['required', 'string', 'max:100', Rule::unique('ip_pool', 'nama_pool')->where('router_id', $this->router_id)->ignore($this->poolId)],
             'router_id' => ['required', 'integer', 'exists:router,id'],
             'ip_network' => ['required', 'string', 'ipv4'],
             'cidr' => ['required', 'integer', 'min:1', 'max:32'],
             'rentang_ip_awal' => ['required', 'string', 'ipv4'],
-            'rentang_ip_akhir' => ['required', 'string', 'ipv4'],
+            'rentang_ip_akhir' => ['bail', 'required', 'string', 'ipv4', $this->rentangIpAkhirRule($this->poolId)],
             'priority_tx' => ['required', 'integer', 'min:1', 'max:8'],
             'priority_rx' => ['required', 'integer', 'min:1', 'max:8'],
         ];

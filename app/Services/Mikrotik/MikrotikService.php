@@ -304,7 +304,7 @@ class MikrotikService
             // 3. Strict Guard: Pastikan IP Pool terdefinisi untuk PPPoE dinamis dan terdaftar pada router yang sama
             if ($layanan->jenis_koneksi === JenisKoneksi::Pppoe) {
                 if (! $layanan->ipPool) {
-                    throw new MikrotikException("Layanan {$username} dengan jenis koneksi PPPoE wajib memiliki alokasi IP Pool yang valid dari router terkait. Provisi dibatalkan.");
+                    throw new MikrotikException("Layanan {$username} dengan jenis koneksi PPPoE wajib memiliki alokasi IP Pool yang valid dari router terkait. Buka Edit layanan dan pilih IP Pool milik router {$router->nama_router}, lalu provisi ulang.");
                 }
 
                 if ($layanan->ipPool->router_id !== $router->id) {

@@ -336,12 +336,12 @@ GOBILLING dibangun dengan arsitektur **Monolith Modern Reaktif** berbasis framew
 - **Deskripsi**: Memperbarui status siklus hidup tiket pekerjaan sesuai batas kewenangan peran masing-masing staf.
 - **Aktor / Role**: Dikontrol ketat oleh `TicketPolicy::ubahStatus`.
   - `super_admin` & `admin`: Bebas mengubah ke status apapun (`baru`, `diproses`, `menunggu_konfirmasi`, `selesai`, `batal`).
-  - `noc`: Dapat memproses tiket Gangguan/Pemasangan (`Baru` $\rightarrow$ `Diproses` $\rightarrow$ `Menunggu Konfirmasi` $\rightarrow$ `Selesai` / `Batal`).
+  - `noc`: Dapat memproses tiket Gangguan/Pemasangan/Pencabutan (`Baru` $\rightarrow$ `Diproses` $\rightarrow$ `Menunggu Konfirmasi` $\rightarrow$ `Selesai` / `Batal`).
   - `teknisi`: Hanya dapat mengubah tiket yang ditugaskan kepadanya dari `Baru` $\rightarrow$ `Diproses` $\rightarrow$ `Menunggu Konfirmasi`.
   - `sales`: Hanya dapat membatalkan (`Batal`) tiket yang didaftarkannya sendiri.
 - **Alur Kerja**:
   - *Input*: Status baru, catatan penanganan teknis, flag `is_internal`.
-  - *Proses*: Validasi kebijakan otorisasi `ubahStatus` $\rightarrow$ Update status tiket $\rightarrow$ Simpan entri riwayat *immutable* pada `ticket_histori`.
+  - *Proses*: Validasi kebijakan otorisasi `ubahStatus` $\rightarrow$ Update status tiket $\rightarrow$ Simpan entri riwayat *immutable* pada `ticket_histori` $\rightarrow$ terapkan efek otomatis (ADR-0041): Pemasangan Selesai/Batal menggerakkan status tahap pemasangan Pelanggan dan Pemasangan Selesai memunculkan aksi Admin membuat Data Registrasi Billing; Pencabutan Selesai mengubah layanan terkait menjadi `berhenti`; Pindah Alamat Selesai memunculkan aksi Admin menerbitkan invoice manual.
   - *Output*: Status tiket terbarui dan audit log histori terekam lengkap.
 
 ---

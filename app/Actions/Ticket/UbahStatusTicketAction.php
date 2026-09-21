@@ -2,6 +2,9 @@
 
 namespace App\Actions\Ticket;
 
+use App\Actions\LayananPelanggan\UbahStatusLayananAction;
+use App\Enums\StatusLayanan;
+use App\Enums\StatusPelanggan;
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Exceptions\TransisiStatusTidakValidException;
@@ -71,10 +74,40 @@ class UbahStatusTicketAction
             ]);
         });
 
+        $this->terapkanEfekKeLayananDanPelanggan($ticket, $statusBaru, $actor);
+
         // 5. Kirim notifikasi internal database ke pihak terkait setelah transaksi sukses
         $this->dispatchNotifications($ticket, $statusLama, $statusBaru, $actor, $catatan);
 
         return $ticket->refresh()->load(['histori.olehPengguna', 'pic', 'dibuatOleh']);
+    }
+
+    /**
+     * Efek otomatis hasil tiket: Pemasangan selesai/batal menggerakkan status tahap pemasangan
+     * Pelanggan; Pencabutan selesai menghentikan layanan terkait (Berhenti).
+     */
+    protected function terapkanEfekKeLayananDanPelanggan(Ticket $ticket, StatusTicket $statusBaru, User $actor): void
+    {
+        if ($ticket->jenis === JenisTicket::Pemasangan) {
+            $statusPelanggan = match ($statusBaru) {
+                StatusTicket::Selesai => StatusPelanggan::PemasanganSelesai,
+                StatusTicket::Batal => StatusPelanggan::BelumTerpasang,
+                default => null,
+            };
+
+            if ($statusPelanggan) {
+                $ticket->pelanggan?->ubahStatusPemasangan($statusPelanggan);
+            }
+        }
+
+        if ($ticket->jenis === JenisTicket::Pencabutan && $statusBaru === StatusTicket::Selesai && $ticket->layananPelanggan) {
+            app(UbahStatusLayananAction::class)->execute(
+                layanan: $ticket->layananPelanggan,
+                statusBaru: StatusLayanan::Berhenti,
+                actor: $actor,
+                catatan: "Pencabutan selesai (tiket {$ticket->nomor_ticket})",
+            );
+        }
     }
 
     /**
