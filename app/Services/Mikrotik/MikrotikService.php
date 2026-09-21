@@ -301,9 +301,15 @@ class MikrotikService
                 throw new MikrotikException("Layanan {$username} tidak memiliki paket layanan atau profil bandwidth yang valid di UNMS. Provisi dibatalkan.");
             }
 
-            // 3. Strict Guard: Pastikan IP Pool terdefinisi untuk PPPoE dinamis
-            if ($layanan->jenis_koneksi === JenisKoneksi::Pppoe && ! $layanan->ipPool) {
-                throw new MikrotikException("Layanan {$username} dengan jenis koneksi PPPoE wajib memiliki alokasi IP Pool yang valid dari router terkait. Provisi dibatalkan.");
+            // 3. Strict Guard: Pastikan IP Pool terdefinisi untuk PPPoE dinamis dan terdaftar pada router yang sama
+            if ($layanan->jenis_koneksi === JenisKoneksi::Pppoe) {
+                if (! $layanan->ipPool) {
+                    throw new MikrotikException("Layanan {$username} dengan jenis koneksi PPPoE wajib memiliki alokasi IP Pool yang valid dari router terkait. Provisi dibatalkan.");
+                }
+
+                if ($layanan->ipPool->router_id !== $router->id) {
+                    throw new MikrotikException("Layanan {$username} memiliki IP Pool '{$layanan->ipPool->nama_pool}' yang terdaftar pada router lain, bukan {$router->nama_router}. Perbaiki alokasi IP Pool layanan sebelum provisi.");
+                }
             }
 
             $client = $client ?? $this->getClient($router);

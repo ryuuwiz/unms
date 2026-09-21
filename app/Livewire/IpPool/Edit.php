@@ -89,6 +89,13 @@ class Edit extends Component
         $this->authorize('update', $pool);
         $this->validate();
 
+        if ($this->router_id !== $pool->router_id && ! $pool->canBeDeleted()) {
+            $count = $pool->layanans()->withTrashed()->count();
+            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} masih digunakan oleh {$count} layanan pelanggan dan tidak dapat dipindahkan ke router lain.");
+
+            return;
+        }
+
         $pool->update([
             'router_id' => $this->router_id,
             'nama_pool' => $this->nama_pool,

@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\IpPool\Create;
+use App\Livewire\IpPool\Edit;
 use App\Livewire\IpPool\Index;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
@@ -109,6 +110,51 @@ test('cannot delete ip pool with existing customer service relations', function 
         ->assertHasNoErrors();
 
     expect(IpPool::find($pool->id))->not->toBeNull();
+});
+
+test('cannot reassign ip pool to another router while it has existing customer service relations', function () {
+    $router = Router::factory()->create();
+    $otherRouter = Router::factory()->create();
+    $pool = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'nama_pool' => 'POOL_IN_USE',
+    ]);
+
+    $pelanggan = Pelanggan::factory()->create();
+    $paket = PaketLayanan::factory()->create();
+
+    LayananPelanggan::factory()->create([
+        'pelanggan_id' => $pelanggan->id,
+        'paket_layanan_id' => $paket->id,
+        'router_id' => $router->id,
+        'ip_pool_id' => $pool->id,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Edit::class, ['pool' => $pool])
+        ->set('router_id', $otherRouter->id)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($pool->fresh()->router_id)->toBe($router->id);
+});
+
+test('can reassign ip pool without existing customer service relations to another router', function () {
+    $router = Router::factory()->create();
+    $otherRouter = Router::factory()->create();
+    $pool = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'nama_pool' => 'POOL_UNUSED',
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Edit::class, ['pool' => $pool])
+        ->set('router_id', $otherRouter->id)
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('ip-pool.index'));
+
+    expect($pool->fresh()->router_id)->toBe($otherRouter->id);
 });
 
 test('user without delete permission cannot delete ip pool', function () {

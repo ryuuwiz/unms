@@ -5,6 +5,7 @@ use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
 use App\Exceptions\MikrotikConnectionException;
 use App\Exceptions\MikrotikException;
+use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
@@ -104,6 +105,28 @@ test('createOrUpdatePppoeSecret throws MikrotikException if PPPoE connection has
 
     expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan))
         ->toThrow(MikrotikException::class, 'wajib memiliki alokasi IP Pool yang valid');
+});
+
+test('createOrUpdatePppoeSecret throws MikrotikException if IP Pool belongs to a different router', function () {
+    $router = Router::factory()->online()->create();
+    $otherRouter = Router::factory()->online()->create();
+    $pelanggan = Pelanggan::factory()->create();
+    $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Home-10M']);
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+    $ipPool = IpPool::factory()->create(['router_id' => $otherRouter->id]);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'router_id' => $router->id,
+        'pelanggan_id' => $pelanggan->id,
+        'paket_layanan_id' => $paket->id,
+        'ip_pool_id' => $ipPool->id,
+        'jenis_koneksi' => JenisKoneksi::Pppoe,
+        'ppp_username' => "{$pelanggan->no_reg}_12345",
+        'ppp_password_terenkripsi' => 'secret123',
+    ]);
+
+    expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan))
+        ->toThrow(MikrotikException::class, 'terdaftar pada router lain');
 });
 
 test('ensurePppProfile throws MikrotikException if nama_bandwidth is empty', function () {
