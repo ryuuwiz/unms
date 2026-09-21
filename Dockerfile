@@ -1,108 +1,142 @@
 # syntax=docker/dockerfile:1
+# =============================================================================
+# GOBILLING — Production Dockerfile untuk Dokploy (single service)
+#
+# Satu image, satu container: Caddy (web) + PHP-FPM + Horizon (queue) +
+# scheduler, semuanya diawasi supervisord. MySQL, Redis, dan RustFS berjalan
+# sebagai service Dokploy terpisah — image ini hanya perlu bisa menjangkau
+# mereka lewat env var (DB_HOST, REDIS_HOST, AWS_ENDPOINT, dst).
+#
+# Rasionale arsitektur: docs/adr/0036-single-service-dokploy-deployment.md
+# =============================================================================
 
-########################################
-# Stage 1: Composer dependencies
-########################################
+ARG PHP_VERSION=8.4
+ARG NODE_VERSION=22
+
+# -----------------------------------------------------------------------------
+# Stage: vendor — install dependensi PHP dengan Composer
+# -----------------------------------------------------------------------------
 FROM composer:2 AS vendor
-
 WORKDIR /app
+
 COPY composer.json composer.lock ./
+# --ignore-platform-reqs: stage ini cuma menyusun berkas sumber PHP, tidak
+# pernah mengeksekusi kode aplikasi, jadi ekstensi PHP yang dibutuhkan saat
+# *runtime* (gd, redis, dll) tidak perlu ada di image composer ini.
 RUN composer install \
-    --no-dev \
-    --no-scripts \
-    --no-autoloader \
-    --no-interaction \
-    --prefer-dist \
-    --ignore-platform-reqs
+        --no-dev \
+        --no-interaction \
+        --no-progress \
+        --no-scripts \
+        --no-autoloader \
+        --prefer-dist \
+        --ignore-platform-reqs
 
 COPY . .
-RUN composer dump-autoload --optimize --no-dev
+RUN composer dump-autoload --optimize --no-dev --classmap-authoritative \
+    && composer clear-cache
 
-########################################
-# Stage 2: Frontend assets (Vite/Tailwind)
-########################################
-FROM node:20-bookworm-slim AS frontend
-
+# -----------------------------------------------------------------------------
+# Stage: frontend — build aset Vite/Tailwind
+# -----------------------------------------------------------------------------
+FROM node:${NODE_VERSION}-bookworm-slim AS frontend
 WORKDIR /app
+
 COPY package.json package-lock.json ./
 RUN npm ci
-COPY . .
+
 COPY --from=vendor /app/vendor ./vendor
+
+COPY . .
 RUN npm run build
 
-########################################
-# Stage 3: Runtime image
-########################################
-FROM php:8.5-fpm-alpine
+# -----------------------------------------------------------------------------
+# Stage: runtime — Caddy + PHP-FPM + Horizon + scheduler via supervisord
+# -----------------------------------------------------------------------------
+FROM php:${PHP_VERSION}-fpm-bookworm AS runtime
 
-# Runtime system libraries
-RUN apk add --no-cache \
-        nginx \
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr \
+    TZ=Asia/Jakarta \
+    APP_MAINTENANCE_DRIVER=cache \
+    APP_MAINTENANCE_STORE=redis
+
+# --- Paket OS -----------------------------------------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
         supervisor \
-        libpq \
-        libzip \
-        icu-libs \
-        libpng \
-        freetype \
-        libjpeg-turbo
-
-# Build-time only deps, compile extensions, then remove the toolchain
-RUN apk add --no-cache --virtual .build-deps \
-        $PHPIZE_DEPS \
-        linux-headers \
-        libpq-dev \
+        curl \
+        ca-certificates \
+        tzdata \
+        libicu-dev \
         libzip-dev \
-        icu-dev \
         libpng-dev \
-        freetype-dev \
-        libjpeg-turbo-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j"$(nproc)" \
-        pdo \
-        pdo_mysql \
-        pdo_pgsql \
-        zip \
-        sockets \
+        libjpeg62-turbo-dev \
+        libfreetype6-dev \
+        libonig-dev \
+        libxml2-dev \
+    && ln -sf /usr/share/zoneinfo/${TZ} /etc/localtime \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- Binary Caddy (dibangun oleh image resmi Caddy, tinggal disalin) --------
+COPY --from=caddy:2-alpine /usr/bin/caddy /usr/local/bin/caddy
+
+# --- Ekstensi PHP --------------------------------------------------------------
+# REDIS_CLIENT=phpredis di .env.docker.example -> butuh ekstensi pecl asli;
+# predis/predis di composer.json cuma fallback client, bukan yang dipakai.
+RUN curl -sSLf \
+        https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions \
+        -o /usr/local/bin/install-php-extensions \
+    && chmod +x /usr/local/bin/install-php-extensions \
+    && install-php-extensions \
         bcmath \
-        intl \
-        pcntl \
         exif \
         gd \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apk del .build-deps \
-    && rm -rf /var/cache/apk/* /tmp/pear
+        intl \
+        mbstring \
+        opcache \
+        pcntl \
+        pdo_mysql \
+        redis \
+        sockets \
+        zip
+
+# --- Samakan UID/GID www-data (1000) di seluruh fleet -------------------------
+RUN usermod -u 1000 www-data && groupmod -g 1000 www-data
 
 WORKDIR /var/www/html
 
-# Application code
-COPY . .
+# --- Berkas konfigurasi runtime ------------------------------------------------
+COPY docker/php.ini /usr/local/etc/php/conf.d/99-app.ini
+COPY docker/www.conf /usr/local/etc/php-fpm.d/www.conf
+COPY docker/Caddyfile /etc/caddy/Caddyfile
+COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
+COPY docker/supervisor.d/ /etc/supervisor/conf.d/
 
-# Bring in vendor/ and compiled assets from the earlier stages
-# (placed after `COPY . .` so they win over anything stale from the host)
-COPY --from=vendor /app/vendor ./vendor
-COPY --from=frontend /app/public/build ./public/build
+RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
-# --no-scripts above skipped Composer's post-autoload-dump hook, so
-# package discovery needs to run explicitly
-RUN php artisan package:discover --ansi
+# --- Kode aplikasi ---------------------------------------------------------------
+COPY --chown=www-data:www-data . .
+COPY --chown=www-data:www-data --from=vendor /app/vendor ./vendor
+COPY --chown=www-data:www-data --from=frontend /app/public/build ./public/build
 
-# .dockerignore strips storage/framework/* and storage/logs/* contents, which
-# drops the (otherwise empty) directories from the build context.
-RUN mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views \
-    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN php artisan package:discover --ansi \
+    && php artisan livewire:publish --assets --ansi \
+    && mkdir -p storage/framework/cache storage/framework/sessions \
+        storage/framework/testing storage/framework/views storage/logs \
+        bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache public \
+    && chmod -R 775 storage bootstrap/cache
 
-# Config files
-COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/supervisord.conf /etc/supervisord.conf
-COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-    CMD wget -qO- http://127.0.0.1/up || exit 1
+# Healthcheck HTTP-only: membuktikan Caddy+PHP-FPM hidup. Kesehatan Horizon
+# dipantau terpisah lewat command terjadwal `horizon:monitor-health`.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS http://127.0.0.1/up || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

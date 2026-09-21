@@ -1,9 +1,11 @@
 .git
 .gitignore
+.gitattributes
 
 .env
 .env.*
 !.env.example
+!.env.docker.example
 
 node_modules
 vendor
@@ -11,6 +13,7 @@ vendor
 storage/logs/*
 storage/framework/cache/*
 storage/framework/sessions/*
+storage/framework/testing/*
 storage/framework/views/*
 
 bootstrap/cache/*.php
@@ -18,6 +21,7 @@ bootstrap/cache/*.php
 Dockerfile
 compose*.yaml
 docker-compose*.yaml
+railpack.json
 
 .DS_Store
 *.log
@@ -25,3 +29,24 @@ docker-compose*.yaml
 coverage
 dist
 build
+
+# Tooling/dokumentasi AI agent & dev-only — tidak perlu ikut ke image produksi
+.agents
+.claude
+.github
+.kiro
+.codex
+.serena
+.hermes
+.mcp.json
+docs
+tests
+phpstan.neon
+pint.json
+phpunit.xml
+boost.json
+skills-lock.json
+.editorconfig
+.flyenv
+.npmrc
+.repomixignore
