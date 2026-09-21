@@ -70,7 +70,7 @@ class Create extends Component
     }
 
     /**
-     * Auto-assign router_id jika hanya ada 1 Router Online di sistem,
+     * Auto-assign router_id jika hanya ada 1 Router terdaftar di sistem,
      * serta trigger pemuatan dan auto-selection IP Pool otomatis.
      */
     protected function initSingleRouterSelection(): void
@@ -79,9 +79,9 @@ class Create extends Component
             return;
         }
 
-        $onlineRouters = Router::online()->get(['id']);
-        if ($onlineRouters->count() === 1) {
-            $this->router_id = $onlineRouters->first()->id;
+        $routers = Router::get(['id']);
+        if ($routers->count() === 1) {
+            $this->router_id = $routers->first()->id;
             $this->updatedRouterId();
         }
     }
@@ -330,7 +330,7 @@ class Create extends Component
 
     public function render(): View
     {
-        $routers = Router::online()->get();
+        $routers = Router::orderBy('nama_router')->get();
         $ipPools = $this->router_id
             ? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
             : collect();

@@ -51,7 +51,7 @@
                         <flux:select.option value="">-- Pilih Router Gateway --</flux:select.option>
                         @foreach ($routers as $r)
                             <flux:select.option value="{{ $r->id }}">
-                                {{ $r->nama_router }} ({{ $r->ip_address }})
+                                {{ $r->nama_router }} ({{ $r->ip_address }})@if ($r->status_koneksi->value !== 'online') — {{ $r->status_koneksi->label() }} @endif
                             </flux:select.option>
                         @endforeach
                     </flux:select>

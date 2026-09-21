@@ -2,6 +2,7 @@
 
 use App\Enums\JenisKoneksi;
 use App\Enums\StatusLayanan;
+use App\Enums\StatusRouter;
 use App\Enums\UserStatus;
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Livewire\LayananPelanggan\Create;
@@ -185,6 +186,65 @@ test('memilih router dengan 1 pool otomatis auto-select ip_pool_id', function ()
         ->call('nextStep')
         ->set('router_id', $this->router->id)
         ->assertSet('ip_pool_id', $this->ipPool->id);
+});
+
+test('router offline tetap tampil dan dapat dipilih pada form create billing', function () {
+    $offlineRouter = Router::factory()->create([
+        'nama_router' => 'Router-Offline-Test',
+        'status_koneksi' => StatusRouter::Offline,
+    ]);
+    $offlinePool = IpPool::factory()->create(['router_id' => $offlineRouter->id]);
+
+    Queue::fake([ProvisionPppoeAccountJob::class]);
+    $validUsername = "{$this->pelanggan->no_reg}_00001";
+
+    Livewire::actingAs($this->admin)
+        ->test(Create::class)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('paket_layanan_id', $this->paket->id)
+        ->call('nextStep')
+        ->assertSee('Router-Offline-Test')
+        ->set('router_id', $offlineRouter->id)
+        ->set('ip_pool_id', $offlinePool->id)
+        ->set('ppp_username', $validUsername)
+        ->set('ppp_password', 'secret_ppp_pass')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('layanan-pelanggan.index'));
+
+    $layanan = LayananPelanggan::where('ppp_username', $validUsername)->first();
+    expect($layanan)->not->toBeNull()
+        ->and($layanan->router_id)->toBe($offlineRouter->id);
+});
+
+test('admin dapat mengedit layanan meskipun router terkait sedang offline', function () {
+    $offlineRouter = Router::factory()->create([
+        'nama_router' => 'Router-Offline-Edit',
+        'status_koneksi' => StatusRouter::Offline,
+    ]);
+    $offlinePool = IpPool::factory()->create(['router_id' => $offlineRouter->id]);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $offlineRouter->id,
+        'ip_pool_id' => $offlinePool->id,
+        'jenis_koneksi' => JenisKoneksi::Pppoe,
+        'ppp_username' => "{$this->pelanggan->no_reg}_00001",
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Edit::class, ['layananPelanggan' => $layanan])
+        ->assertSee('Router-Offline-Edit')
+        ->set('nama_site', 'Titik Pasang Baru')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('layanan-pelanggan.index'));
+
+    $layanan->refresh();
+    expect($layanan->router_id)->toBe($offlineRouter->id)
+        ->and($layanan->nama_site)->toBe('Titik Pasang Baru');
 });
 
 test('memilih router dengan banyak pool tidak auto-select ip_pool_id', function () {
