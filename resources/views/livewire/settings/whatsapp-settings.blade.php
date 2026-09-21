@@ -22,7 +22,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
+                    <div class="min-w-0 p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
                         <span class="text-xs text-zinc-500 block">Status Koneksi</span>
                         <div class="flex items-center gap-2">
                             <span class="size-2.5 rounded-full {{ ($deviceInfo['connected'] ?? false) ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500' }}"></span>
@@ -32,23 +32,23 @@
                         </div>
                     </div>
 
-                    <div class="p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
+                    <div class="min-w-0 p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
                         <span class="text-xs text-zinc-500 block">Nomor WhatsApp Gateway</span>
                         <span class="font-bold font-mono text-sm text-zinc-900 dark:text-white">
                             {{ $deviceInfo['phone'] ?? \App\Models\Sysblas::getDefault()?->nomor ?? '-' }}
                         </span>
                     </div>
 
-                    <div class="p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
+                    <div class="min-w-0 p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
                         <span class="text-xs text-zinc-500 block">Sisa Kuota Pesan</span>
                         <span class="font-bold text-sm text-zinc-900 dark:text-white">
                             {{ is_scalar($deviceInfo['quota'] ?? null) ? (string) $deviceInfo['quota'] : '-' }}
                         </span>
                     </div>
 
-                    <div class="p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
+                    <div class="min-w-0 p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
                         <span class="text-xs text-zinc-500 block">Host API Server</span>
-                        <span class="font-medium text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate block">
+                        <span class="font-medium text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate block" title="{{ \App\Models\Sysblas::getDefault()?->url_api ?? config('services.gowa.host') }}">
                             {{ \App\Models\Sysblas::getDefault()?->url_api ?? config('services.gowa.host') }}
                         </span>
                     </div>
@@ -114,8 +114,8 @@
                         <flux:subheading>Kustomisasi teks pesan notifikasi tagihan, konfirmasi pembayaran, dan tiket.</flux:subheading>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <flux:select wire:model.live="filterKategori" placeholder="Semua Kategori" size="sm" class="w-44">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <flux:select wire:model.live="filterKategori" placeholder="Semua Kategori" size="sm" class="w-full sm:w-44">
                             <flux:select.option value="">Semua Kategori</flux:select.option>
                             @foreach($kategoriList as $kat)
                                 <flux:select.option value="{{ $kat->value }}">{{ $kat->label() }}</flux:select.option>
@@ -141,7 +141,7 @@
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                             @forelse($templates as $tmpl)
-                                <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                <tr wire:key="tmpl-{{ $tmpl->id }}" class="hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors">
                                     <td class="px-4 py-3">
                                         <div class="font-bold text-zinc-900 dark:text-white">{{ $tmpl->nama }}</div>
                                         <div class="text-xs font-mono text-zinc-400 font-light">{{ $tmpl->kode }}</div>
