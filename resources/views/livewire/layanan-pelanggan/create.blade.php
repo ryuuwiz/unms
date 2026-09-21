@@ -144,7 +144,7 @@
 
             <flux:field>
                 <flux:label>Tanggal Mulai Berlangganan</flux:label>
-                <flux:input wire:model="tanggal_mulai" type="date" />
+                <flux:input wire:model.live="tanggal_mulai" type="date" />
                 <flux:error name="tanggal_mulai" />
             </flux:field>
 
@@ -155,6 +155,85 @@
                     description="Jika dicentang, job provisioning akan langsung dikirim ke router yang dipilih saat pendaftaran disimpan."
                 />
             </div>
+
+            {{-- Tagihan Pertama --}}
+            <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-4 dark:border-zinc-800 dark:bg-zinc-900/30">
+                <div>
+                    <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Tagihan Pertama</h4>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">Pilih cara penagihan pertama untuk layanan ini.</p>
+                </div>
+
+                <flux:radio.group wire:model.live="jenis_tagihan_pertama" variant="segmented">
+                    @foreach ($jenisTagihanPertama as $jt)
+                        <flux:radio value="{{ $jt->value }}">{{ $jt->label() }}</flux:radio>
+                    @endforeach
+                </flux:radio.group>
+                <flux:error name="jenis_tagihan_pertama" />
+
+                @if ($jenis_tagihan_pertama === 'promo')
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <flux:field>
+                            <flux:label>Pilih Promo</flux:label>
+                            <flux:select wire:model.live="promo_id" placeholder="-- Pilih Promo --">
+                                <flux:select.option value="">-- Pilih Promo --</flux:select.option>
+                                @foreach ($promos as $promo)
+                                    <flux:select.option value="{{ $promo->id }}">
+                                        {{ $promo->kode_promo }} - {{ $promo->nama_promo }}
+                                    </flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:error name="promo_id" />
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>Atau Ketik Kode Promo</flux:label>
+                            <flux:input wire:model.live="kode_promo" placeholder="Ketik kode promo global/musiman" :disabled="(bool) $promo_id" />
+                            <flux:error name="kode_promo" />
+                        </flux:field>
+                    </div>
+                @endif
+            </div>
+
+            {{-- Pengaturan Harga Layanan --}}
+            @if ($jenis_tagihan_pertama !== '')
+                <div class="bg-blue-50 dark:bg-blue-950/40 p-6 rounded-xl border border-blue-200 dark:border-blue-800 space-y-3">
+                    <h4 class="font-semibold text-blue-900 dark:text-blue-200 text-sm uppercase tracking-wide">
+                        Pengaturan Harga Layanan
+                    </h4>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between text-zinc-700 dark:text-zinc-300">
+                            <span>Tarif Paket Layanan:</span>
+                            <span class="font-semibold">Rp {{ number_format($hargaPaket, 0, ',', '.') }}</span>
+                        </div>
+
+                        @if ($jenis_tagihan_pertama === 'prorata' && $hariDitagih !== null)
+                            <div class="flex justify-between text-zinc-500 dark:text-zinc-400 text-xs">
+                                <span>Proporsional:</span>
+                                <span>{{ $hariDitagih }} / {{ $hariTotalPeriode }} hari</span>
+                            </div>
+                        @endif
+
+                        @if ($diskonTagihanPertama > 0)
+                            <div class="flex justify-between text-emerald-600 dark:text-emerald-400">
+                                <span>Potongan Diskon Promo:</span>
+                                <span class="font-semibold">-Rp {{ number_format($diskonTagihanPertama, 0, ',', '.') }}</span>
+                            </div>
+                        @endif
+
+                        <div class="flex justify-between text-base font-bold text-zinc-900 dark:text-white border-t border-blue-200 dark:border-blue-800 pt-2">
+                            <span>Total Tagihan Pertama:</span>
+                            <span class="text-blue-600 dark:text-blue-400">Rp {{ number_format($totalTagihanPertama, 0, ',', '.') }}</span>
+                        </div>
+
+                        @if ($tanggalJatuhTempoPertama)
+                            <div class="flex justify-between text-zinc-500 dark:text-zinc-400 text-xs">
+                                <span>Jatuh Tempo:</span>
+                                <span>{{ \Illuminate\Support\Carbon::parse($tanggalJatuhTempoPertama)->translatedFormat('d F Y') }}</span>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
 
             <div class="flex items-center justify-between pt-2">
                 <flux:button wire:click="prevStep" variant="ghost" icon="arrow-left">Kembali</flux:button>
