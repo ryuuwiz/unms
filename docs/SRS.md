@@ -25,7 +25,7 @@ GOBILLING adalah platform manajemen terpadu kelas produksi (*production-grade*) 
 4. **Billing & Invoicing Terotomasi**: Siklus penagihan berkala bulanan, penerbitan invoice berbasis periode (`INV-YYYYMM-NNNNNN`), pencegahan duplikasi tagihan (*billing idempotency*), dan skema promosi/diskon.
 5. **Penerimaan Pembayaran & Gateway Digital**: Pembayaran tunai/manual oleh staf admin dan pembayaran digital terotomasi menggunakan **Xendit Payment Gateway** (Virtual Account & QRIS) dengan verifikasi token *webhook* terenkripsi.
 6. **Tiket Layanan & Operasional Lapangan**: Pelacakan berkas kerja permohonan pemasangan, aduan gangguan, pencabutan, dan pindah alamat dengan perhitungan target SLA dinamis, alokasi multi-divisi, dan riwayat status *immutable*.
-7. **Portal Pelanggan Mandiri (Customer Self-Service)**: Akses terisolasi (*guard* `pelanggan`) bagi klien untuk klaim akun, melihat tagihan, membayar secara *real-time*, membuat tiket gangguan, dan memantau notifikasi *in-app*.
+7. **Portal Pelanggan Mandiri (Customer Self-Service)**: Akses terisolasi (*guard* `pelanggan`) bagi klien untuk klaim akun, melihat tagihan, dan membayar secara *real-time*.
 8. **Administrasi & Keamanan**: *Multi-guard authentication*, *Role-Based Access Control* (RBAC) via Spatie Permission, otentikasi biometrik/Passkeys (FIDO2/WebAuthn), impersonasi pengguna oleh `super_admin`, dan audit *activity log*.
 
 ### 1.3 Definisi, Akronim, dan Istilah Domain (*Ubiquitous Language*)
@@ -65,7 +65,7 @@ GOBILLING dibangun dengan arsitektur **Monolith Modern Reaktif** berbasis framew
 | **`sales`** | `web` | Staf penjualan lapangan; registrasi prospek/pelanggan baru, upload dokumen KTP & kontrak pemasangan, dan pembuatan tiket survei/pemasangan baru. |
 | **`noc`** | `web` | Tim Network Operation Center; mengelola konfigurasi teknis MikroTik Router, IP Pool, Profil Bandwidth, ODP, provisi perangkat, dan tiket gangguan teknis. |
 | **`teknisi`** | `web` | Petugas teknis lapangan; menangani tiket pekerjaan yang ditugaskan sebagai *Person in Charge* (PIC), memperbarui status pekerjaan, dan mencatat log progres penanganan. |
-| **`pelanggan`** | `pelanggan` | Pengguna akhir layanan internet; mengakses Portal Pelanggan untuk melihat tagihan, membayar via gateway Xendit, membuat tiket aduan, dan mengunduh kuitansi PDF. |
+| **`pelanggan`** | `pelanggan` | Pengguna akhir layanan internet; mengakses Portal Pelanggan untuk melihat tagihan, membayar via gateway Xendit, dan mengunduh kuitansi PDF. |
 
 ### 2.3 Batasan dan Aturan Bisnis Sistem (*Constraints & Business Rules*)
 
@@ -326,7 +326,7 @@ GOBILLING dibangun dengan arsitektur **Monolith Modern Reaktif** berbasis framew
 
 #### [RF-25] Pembuatan Tiket Layanan & Penanganan Masalah
 - **Deskripsi**: Membuat berkas kerja permohonan layanan baru, penanganan gangguan, pencabutan, atau pindah alamat.
-- **Aktor / Role**: Izin `ticket.buat` (Staf: CS, Sales, Admin, NOC) atau Pelanggan terotentikasi dari Portal.
+- **Aktor / Role**: Izin `ticket.buat` (Staf: CS, Sales, Admin, NOC) (tiket tidak lagi dapat dibuat dari Portal Pelanggan, ADR-0040).
 - **Alur Kerja**:
   - *Input*: Jenis tiket (`pemasangan`/`pencabutan`/`gangguan`/`pindah_alamat`), `pelanggan_id`, `layanan_pelanggan_id` (opsional), skala prioritas (`rendah`/`sedang`/`tinggi`/`darurat`), divisi penanggung jawab (`admin`/`customer_service`/`sales`/`noc`/`teknisi`), jadwal kunjungan, deskripsi masalah, berkas lampiran foto.
   - *Proses*: Sistem mengenerasi `nomor_ticket` (`TCK-YYYY-NNNNNN`), menghitung otomatis `sla_target_selesai` ($Now + \text{SLA Hours}$), menetapkan divisi pada pivot `ticket_divisi`, dan mencatat entri pertama di `ticket_histori`. Jika dibuat oleh staf, notifikasi disiapkan untuk PIC terkait.
@@ -340,8 +340,8 @@ GOBILLING dibangun dengan arsitektur **Monolith Modern Reaktif** berbasis framew
   - `teknisi`: Hanya dapat mengubah tiket yang ditugaskan kepadanya dari `Baru` $\rightarrow$ `Diproses` $\rightarrow$ `Menunggu Konfirmasi`.
   - `sales`: Hanya dapat membatalkan (`Batal`) tiket yang didaftarkannya sendiri.
 - **Alur Kerja**:
-  - *Input*: Status baru, catatan penanganan teknis, flag `is_internal` (apakah catatan disembunyikan dari portal pelanggan).
-  - *Proses*: Validasi kebijakan otorisasi `ubahStatus` $\rightarrow$ Update status tiket $\rightarrow$ Simpan entri riwayat *immutable* pada `ticket_histori` $\rightarrow$ Kirim notifikasi database ke pelanggan jika sumber tiket berasal dari portal.
+  - *Input*: Status baru, catatan penanganan teknis, flag `is_internal`.
+  - *Proses*: Validasi kebijakan otorisasi `ubahStatus` $\rightarrow$ Update status tiket $\rightarrow$ Simpan entri riwayat *immutable* pada `ticket_histori`.
   - *Output*: Status tiket terbarui dan audit log histori terekam lengkap.
 
 ---
@@ -377,13 +377,8 @@ GOBILLING dibangun dengan arsitektur **Monolith Modern Reaktif** berbasis framew
   - *Proses*: Verifikasi kecocokan data master `pelanggan` $\rightarrow$ Pembuatan/pembaruan record pada `akun_pelanggan` dengan hash password $\rightarrow$ Login via guard `pelanggan`.
   - *Output*: Pelanggan berhasil masuk ke `/portal/dashboard`.
 
-#### [RF-30] Layanan Tiket Mandiri Pelanggan
-- **Deskripsi**: Pelanggan membuat laporan gangguan, permohonan pencabutan, atau pindah alamat secara mandiri dari portal.
-- **Aktor / Role**: Pelanggan terotentikasi via `/portal/tiket/buat`.
-- **Alur Kerja**:
-  - *Input*: Jenis tiket (`gangguan`/`pencabutan`/`pindah_alamat`), pemilihan site layanan, deskripsi keluhan, lampiran foto.
-  - *Proses*: Sistem membuat tiket dengan `sumber = 'portal'`, `dibuat_oleh = null`, menetapkan divisi teknis otomatis, dan menetapkan prioritas default. Pelanggan dapat membatalkan tiket selama status masih `Baru`.
-  - *Output*: Tiket terdaftar, staf NOC/Teknisi menerima tiket di antrean operasional.
+#### [RF-30] *(Dihapus)* Layanan Tiket Mandiri Pelanggan
+- Dihapus permanen; lihat ADR-0040.
 
 ---
 

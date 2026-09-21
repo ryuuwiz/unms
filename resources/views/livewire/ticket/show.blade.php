@@ -598,7 +598,7 @@
                 <flux:checkbox
                     wire:model="catatanIsInternal"
                     label="Catatan Internal"
-                    description="Jika dicentang, catatan ini hanya dapat dilihat oleh staf internal dan disembunyikan dari portal pelanggan."
+                    description="Jika dicentang, catatan ini hanya dapat dilihat oleh staf internal."
                 />
             </div>
 

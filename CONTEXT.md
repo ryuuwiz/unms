@@ -244,7 +244,7 @@ Kelompok navigasi untuk manajemen tiket layanan, penanganan aduan gangguan jarin
 _Avoid_: Support Desk, Helpdesk Umum, Tugas Lapangan
 
 **Tiket**:
-Entitas berkas kerja permohonan layanan atau penanganan masalah teknis (Pemasangan, Gangguan, Pencabutan, Pindah Alamat) dengan status siklus hidup dan penomoran otomatis terpusat. Dapat dibuat oleh staf (sumber: `manual`/`sistem`) maupun pelanggan dari Portal Pelanggan (sumber: `portal`).
+Entitas berkas kerja permohonan layanan atau penanganan masalah teknis (Pemasangan, Gangguan, Pencabutan, Pindah Alamat) dengan status siklus hidup dan penomoran otomatis terpusat. Dibuat oleh staf (sumber: `manual`/`sistem`). Tiket lama dengan sumber `portal` (dari fitur Portal Pelanggan yang telah dihapus, ADR-0040) tetap tersimpan sebagai riwayat.
 _Avoid_: Issue, Aduan Bebas, Task, Case
 
 **Nomor Tiket**:
@@ -261,20 +261,12 @@ Staf pengguna internal (User) yang ditugaskan secara formal untuk bertanggung ja
 _Avoid_: Assignee, Petugas Lapangan Bebas, Pelaksana
 
 **Divisi Tiket**:
-Satu atau lebih divisi internal (Admin, Customer Service, Sales, NOC, Teknisi) yang bertanggung jawab menangani sebuah tiket, disimpan dalam relasi many-to-many via pivot table `ticket_divisi`. Tiket portal Gangguan otomatis ditugaskan ke [NOC, Teknisi] untuk mendukung koordinasi penjadwalan; Pencabutan dan Pindah Alamat ke [Teknisi].
+Satu atau lebih divisi internal (Admin, Customer Service, Sales, NOC, Teknisi) yang bertanggung jawab menangani sebuah tiket, disimpan dalam relasi many-to-many via pivot table `ticket_divisi`. Tiket lama bersumber portal untuk Gangguan otomatis ditugaskan ke [NOC, Teknisi] untuk mendukung koordinasi penjadwalan; Pencabutan dan Pindah Alamat ke [Teknisi].
 _Avoid_: Divisi Tunggal per Tiket, Single Enum Divisi
 
-**Tiket Portal Pelanggan**:
-Tiket yang dibuat oleh pelanggan secara mandiri melalui Portal Pelanggan dengan jenis terbatas (Gangguan, Pencabutan, Pindah Alamat — Pemasangan dikecualikan). Sistem otomatis menetapkan prioritas dan divisi berdasarkan jenis; `sumber = portal`, `dibuat_oleh = null`. Pelanggan dapat membatalkan tiket selama status masih `Baru` dengan alasan wajib yang dicatat di Histori Tiket.
-_Avoid_: Tiket Staf yang Dibuat Atas Nama Pelanggan, Tiket Manual dengan Source Portal
-
 **Catatan Internal Tiket**:
-Entri Histori Tiket yang ditandai `is_internal = true` — hanya terlihat oleh staf dan tersembunyi dari tampilan Portal Pelanggan. Catatan tanpa flag (`is_internal = false`, default) bersifat publik dan tampil di timeline histori portal pelanggan.
+Entri Histori Tiket yang ditandai `is_internal = true` — hanya terlihat oleh staf. Sejak Portal Pelanggan tidak lagi menampilkan tiket (ADR-0040), semua catatan praktis bersifat internal; flag dipertahankan tanpa perubahan skema.
 _Avoid_: Menyembunyikan Semua Histori dari Pelanggan, Menampilkan Catatan Teknis Mentah Tanpa Filter
-
-**Notifikasi Portal Pelanggan**:
-Sistem notifikasi in-app berbasis Laravel Database Notifications untuk Akun Pelanggan di Portal Pelanggan, ditampilkan melalui ikon bell di navbar portal. Dipicu oleh setiap perubahan status tiket milik pelanggan. Auto-ditandai dibaca saat pelanggan membuka halaman detail tiket terkait; tombol "Tandai Semua Dibaca" tersedia. Dirancang untuk dapat diperluas ke kanal WhatsApp (WAHA API) di masa mendatang.
-_Avoid_: Email Notification Portal, Push Notification Terpisah, Polling Manual Tanpa Bell Icon
 
 **Target SLA**:
 Batas waktu tenggat penyelesaian tiket yang dihitung otomatis berdasarkan skala prioritas saat tiket pertama kali dibuat.

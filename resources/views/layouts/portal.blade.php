@@ -40,15 +40,6 @@
                     </flux:navbar.item>
 
                     <flux:navbar.item
-                        icon="ticket"
-                        :href="route('portal.tiket.index')"
-                        :current="request()->routeIs('portal.tiket.*')"
-                        wire:navigate
-                    >
-                        {{ __('Tiket Saya') }}
-                    </flux:navbar.item>
-
-                    <flux:navbar.item
                         icon="user"
                         :href="route('portal.profil')"
                         :current="request()->routeIs('portal.profil')"
@@ -61,8 +52,6 @@
                 <flux:spacer />
 
                 <div class="flex items-center gap-3">
-                    <livewire:portal.notification-bell />
-
                     <flux:dropdown position="bottom" align="end">
                         <flux:button variant="ghost" class="flex items-center gap-2 px-2 py-1.5 rounded-lg">
                             <div class="size-7 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center font-bold text-xs">
@@ -130,10 +119,6 @@
                 <a href="{{ route('portal.invoice.index') }}" wire:navigate class="text-xs flex flex-col items-center gap-0.5 py-1 {{ request()->routeIs('portal.invoice.*') ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-zinc-500' }}">
                     <flux:icon icon="document-text" class="size-4" />
                     <span>Tagihan</span>
-                </a>
-                <a href="{{ route('portal.tiket.index') }}" wire:navigate class="text-xs flex flex-col items-center gap-0.5 py-1 {{ request()->routeIs('portal.tiket.*') ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-zinc-500' }}">
-                    <flux:icon icon="ticket" class="size-4" />
-                    <span>Tiket</span>
                 </a>
                 <a href="{{ route('portal.profil') }}" wire:navigate class="text-xs flex flex-col items-center gap-0.5 py-1 {{ request()->routeIs('portal.profil') ? 'text-indigo-600 dark:text-indigo-400 font-semibold' : 'text-zinc-500' }}">
                     <flux:icon icon="user" class="size-4" />

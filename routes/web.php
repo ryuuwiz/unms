@@ -13,6 +13,7 @@ use App\Livewire\Laporan;
 use App\Livewire\LayananPelanggan;
 use App\Livewire\Maps\EstimasiKabel;
 use App\Livewire\Maps\Lokasi;
+use App\Livewire\Odp\Create;
 use App\Livewire\Odp\Edit;
 use App\Livewire\PaketLayanan;
 use App\Livewire\Pelanggan;
@@ -23,7 +24,6 @@ use App\Livewire\Portal\Auth\Login;
 use App\Livewire\Portal\Dashboard;
 use App\Livewire\Portal\Invoice\Index;
 use App\Livewire\Portal\Invoice\Show;
-use App\Livewire\Portal\Tiket\Create;
 use App\Livewire\ProfilBandwidth;
 use App\Livewire\Promo;
 use App\Livewire\Roles;
@@ -255,7 +255,7 @@ Route::middleware(['auth'])->group(function () {
     // ─── ODP (Optical Distribution Point) ─────────────────────────
     Route::prefix('odp')->name('odp.')->group(function () {
         Route::middleware('permission:odp.buat')->group(function () {
-            Route::get('/create', App\Livewire\Odp\Create::class)->name('create');
+            Route::get('/create', Create::class)->name('create');
         });
         Route::middleware('permission:odp.ubah')->group(function () {
             Route::get('/{odp}/edit', Edit::class)->name('edit');
@@ -373,13 +373,6 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/tagihan/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('invoice.cetak');
         Route::get('/profil', App\Livewire\Portal\Profil\Index::class)->name('profil');
         Route::get('/ganti-password', GantiPassword::class)->middleware('impersonate.protect')->name('ganti-password');
-
-        // ─── Tiket Portal ──────────────────────────────────────────
-        Route::prefix('tiket')->name('tiket.')->group(function () {
-            Route::get('/', App\Livewire\Portal\Tiket\Index::class)->name('index');
-            Route::get('/buat', Create::class)->name('create');
-            Route::get('/{ticket}', App\Livewire\Portal\Tiket\Show::class)->name('show');
-        });
     });
 });
 

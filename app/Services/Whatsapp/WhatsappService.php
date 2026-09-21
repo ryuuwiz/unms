@@ -186,7 +186,6 @@ class WhatsappService
             'deskripsi' => $ticket->deskripsi,
             'sla_target' => $ticket->sla_target_selesai ? Carbon::parse($ticket->sla_target_selesai)->translatedFormat('d F Y H:i') : '-',
             'link_tiket' => route('ticket.show', $ticket->id),
-            'link_portal_tiket' => route('portal.tiket.show', $ticket->id),
         ];
     }
 
