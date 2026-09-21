@@ -131,7 +131,7 @@ RUN php artisan package:discover --ansi \
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-EXPOSE 80
+EXPOSE 8080
 
 # Healthcheck HTTP-only: membuktikan Caddy+PHP-FPM hidup. Kesehatan Horizon
 # dipantau terpisah lewat command terjadwal `horizon:monitor-health`.
