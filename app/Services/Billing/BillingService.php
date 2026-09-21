@@ -3,12 +3,14 @@
 namespace App\Services\Billing;
 
 use App\Actions\LayananPelanggan\PerpanjangMasaAktifAction;
+use App\Enums\JenisTagihanPertama;
 use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusTransaksiGateway;
 use App\Events\InvoicePaidEvent;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
 use App\Models\Pembayaran;
 use App\Models\PengaturanSiklusTagihan;
 use App\Models\Promo;
@@ -178,6 +180,88 @@ class BillingService
 
             return $invoice;
         });
+    }
+
+    /**
+     * Hitung rincian nominal tagihan pertama saat registrasi layanan baru, tanpa menulis
+     * apa pun ke database. Dipakai bersama oleh preview harga di Create.php dan
+     * generateFirstInvoice() di bawah agar keduanya tidak pernah berbeda hasil.
+     *
+     * ProporsionalSisaHari: proporsional terhadap sisa hari dalam BULAN KALENDER tempat
+     * tanggal_mulai jatuh (bukan terhadap masa_aktif_nilai/satuan paket, yang independen
+     * dari kalender) -- mis. mulai tanggal 21 dari bulan 30 hari menagih 10/30 hari.
+     * SatuBulanFull & Promo menagih harga paket penuh (promo memotongnya via diskon).
+     *
+     * @return array{jumlah: float, diskon: float, jumlah_setelah_promo: float, hari_ditagih: int|null, hari_total_periode: int|null}
+     */
+    public function hitungRincianTagihanPertama(
+        PaketLayanan $paket,
+        Carbon $tanggalMulai,
+        JenisTagihanPertama $jenis,
+        ?Promo $promo = null,
+    ): array {
+        $harga = (float) $paket->harga;
+        $hariDitagih = null;
+        $hariTotalPeriode = null;
+
+        if ($jenis === JenisTagihanPertama::ProporsionalSisaHari) {
+            $hariTotalPeriode = $tanggalMulai->daysInMonth;
+            $hariDitagih = $hariTotalPeriode - $tanggalMulai->day + 1;
+            $jumlah = round(($harga / $hariTotalPeriode) * $hariDitagih, 2);
+        } else {
+            $jumlah = $harga;
+        }
+
+        $diskon = 0.0;
+        if ($jenis === JenisTagihanPertama::Promo && $promo && $promo->aktif) {
+            $diskon = $promo->hitungDiskon($jumlah);
+        }
+
+        return [
+            'jumlah' => $jumlah,
+            'diskon' => $diskon,
+            'jumlah_setelah_promo' => max(0.0, $jumlah - $diskon),
+            'hari_ditagih' => $hariDitagih,
+            'hari_total_periode' => $hariTotalPeriode,
+        ];
+    }
+
+    /**
+     * Terbitkan tagihan pertama untuk layanan yang baru didaftarkan (mis. dari
+     * LayananPelanggan/Create). Selalu lewat generateManualInvoice() (periode_tagihan
+     * NULL) -- BUKAN generateInvoice() -- karena generateInvoice()'s idempotency guard
+     * mengunci slot periode getNextPeriodeTagihan() (bulan tanggal_expired); memakainya
+     * di sini akan membuat siklus tagihan berulang yang sebenarnya (dijalankan
+     * GenerateInvoicesCommand saat mendekati tanggal_expired) menemukan invoice ini dan
+     * menganggap periode itu sudah tertagih, alih-alih menerbitkan tagihan perpanjangan
+     * yang sesungguhnya. Lihat .ai/rules/billing.md untuk desain periode_tagihan NULL ini.
+     */
+    public function generateFirstInvoice(
+        LayananPelanggan $layanan,
+        JenisTagihanPertama $jenis,
+        ?int $dibuatOleh = null,
+        ?Promo $promo = null,
+        ?Carbon $tanggalJatuhTempo = null,
+    ): Invoice {
+        $paket = $layanan->paketLayanan;
+        $tanggalMulai = Carbon::parse($layanan->tanggal_mulai);
+
+        $rincian = $this->hitungRincianTagihanPertama($paket, $tanggalMulai, $jenis, $promo);
+
+        $keterangan = match ($jenis) {
+            JenisTagihanPertama::ProporsionalSisaHari => "Tagihan pertama - proporsional {$rincian['hari_ditagih']}/{$rincian['hari_total_periode']} hari",
+            JenisTagihanPertama::SatuBulanFull => 'Tagihan pertama - 1 bulan penuh',
+            JenisTagihanPertama::Promo => "Tagihan pertama - promo {$promo?->kode_promo}",
+        };
+
+        return $this->generateManualInvoice(
+            layanan: $layanan,
+            jumlah: $rincian['jumlah'],
+            keterangan: $keterangan,
+            dibuatOleh: $dibuatOleh,
+            promo: $jenis === JenisTagihanPertama::Promo ? $promo : null,
+            tanggalJatuhTempo: $tanggalJatuhTempo ?? $tanggalMulai,
+        );
     }
 
     /**

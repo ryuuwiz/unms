@@ -216,7 +216,7 @@ class Edit extends Component
 
     public function render(): View
     {
-        $routers = Router::online()->get();
+        $routers = Router::orderBy('nama_router')->get();
         $ipPools = $this->router_id
             ? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
             : collect();

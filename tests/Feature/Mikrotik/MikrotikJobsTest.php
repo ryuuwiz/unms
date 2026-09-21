@@ -3,6 +3,8 @@
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\StatusLayanan;
+use App\Exceptions\MikrotikConnectionException;
+use App\Exceptions\MikrotikException;
 use App\Jobs\Mikrotik\DisablePppoeAccountJob;
 use App\Jobs\Mikrotik\EnablePppoeAccountJob;
 use App\Jobs\Mikrotik\PingRouterJob;
@@ -62,6 +64,52 @@ test('ProvisionPppoeAccountJob creates secret and logs success', function () {
     expect($log)->not->toBeNull()
         ->and($log->status)->toBe(MikrotikJobStatus::Success)
         ->and($this->layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
+});
+
+test('ProvisionPppoeAccountJob does not retry and notifies immediately on permanent config error (e.g. IP Pool on wrong router)', function () {
+    Notification::fake();
+
+    $superAdmin = User::factory()->create();
+    $superAdmin->assignRole('super_admin');
+
+    $mockService = Mockery::mock(MikrotikService::class);
+    $mockService->shouldReceive('createOrUpdatePppoeSecret')
+        ->once()
+        ->andThrow(new MikrotikException("Layanan {$this->layanan->ppp_username} memiliki IP Pool 'POOL-X' yang terdaftar pada router lain, bukan {$this->router->nama_router}. Perbaiki alokasi IP Pool layanan sebelum provisi."));
+
+    $job = new ProvisionPppoeAccountJob($this->layanan);
+    $job->handle($mockService);
+
+    $log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
+        ->where('job_type', MikrotikJobType::ProvisionPppoe)
+        ->latest()
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->status)->toBe(MikrotikJobStatus::Failed)
+        ->and($log->error_message)->toContain('terdaftar pada router lain');
+
+    Notification::assertSentTo($superAdmin, MikrotikJobFailedNotification::class);
+});
+
+test('ProvisionPppoeAccountJob rethrows MikrotikConnectionException so the queue retries it', function () {
+    $mockService = Mockery::mock(MikrotikService::class);
+    $mockService->shouldReceive('createOrUpdatePppoeSecret')
+        ->once()
+        ->andThrow(new MikrotikConnectionException('Router tidak dapat dihubungi.'));
+
+    $job = new ProvisionPppoeAccountJob($this->layanan);
+
+    expect(fn () => $job->handle($mockService))
+        ->toThrow(MikrotikConnectionException::class, 'Router tidak dapat dihubungi.');
+
+    $log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
+        ->where('job_type', MikrotikJobType::ProvisionPppoe)
+        ->latest()
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->status)->toBe(MikrotikJobStatus::Failed);
 });
 
 test('EnablePppoeAccountJob enables secret and logs success', function () {

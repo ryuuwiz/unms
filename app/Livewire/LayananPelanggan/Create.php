@@ -3,6 +3,7 @@
 namespace App\Livewire\LayananPelanggan;
 
 use App\Enums\JenisKoneksi;
+use App\Enums\JenisTagihanPertama;
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\ProvisioningStatus;
@@ -14,10 +15,13 @@ use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
+use App\Models\Promo;
 use App\Models\Router;
+use App\Services\Billing\BillingService;
 use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -62,6 +66,25 @@ class Create extends Component
 
     public bool $auto_provision = true;
 
+    // Tagihan pertama
+    public string $jenis_tagihan_pertama = '';
+
+    public ?int $promo_id = null;
+
+    public string $kode_promo = '';
+
+    public float $hargaPaket = 0.0;
+
+    public float $diskonTagihanPertama = 0.0;
+
+    public float $totalTagihanPertama = 0.0;
+
+    public ?int $hariDitagih = null;
+
+    public ?int $hariTotalPeriode = null;
+
+    public string $tanggalJatuhTempoPertama = '';
+
     public function mount(): void
     {
         $this->authorize('create', LayananPelanggan::class);
@@ -70,7 +93,7 @@ class Create extends Component
     }
 
     /**
-     * Auto-assign router_id jika hanya ada 1 Router Online di sistem,
+     * Auto-assign router_id jika hanya ada 1 Router terdaftar di sistem,
      * serta trigger pemuatan dan auto-selection IP Pool otomatis.
      */
     protected function initSingleRouterSelection(): void
@@ -79,9 +102,9 @@ class Create extends Component
             return;
         }
 
-        $onlineRouters = Router::online()->get(['id']);
-        if ($onlineRouters->count() === 1) {
-            $this->router_id = $onlineRouters->first()->id;
+        $routers = Router::get(['id']);
+        if ($routers->count() === 1) {
+            $this->router_id = $routers->first()->id;
             $this->updatedRouterId();
         }
     }
@@ -128,6 +151,11 @@ class Create extends Component
             'ppp_password' => ['required', 'string', 'min:4', 'max:64'],
             'tanggal_mulai' => ['required', 'date'],
             'auto_provision' => ['boolean'],
+            'jenis_tagihan_pertama' => ['required', Rule::enum(JenisTagihanPertama::class)],
+            'promo_id' => [
+                Rule::requiredIf(fn () => $this->jenis_tagihan_pertama === JenisTagihanPertama::Promo->value),
+                'nullable', 'integer', 'exists:promo,id',
+            ],
         ];
     }
 
@@ -140,6 +168,7 @@ class Create extends Component
 
         $this->initSingleRouterSelection();
         $this->step = 2;
+        $this->recalculateTagihanPertama();
     }
 
     /**
@@ -199,6 +228,107 @@ class Create extends Component
         }
     }
 
+    /**
+     * Dipanggil otomatis oleh Livewire saat properti tanggal_mulai berubah -- proporsi hari
+     * tagihan pertama bergantung pada tanggal ini.
+     */
+    public function updatedTanggalMulai(): void
+    {
+        $this->recalculateTagihanPertama();
+    }
+
+    /**
+     * Dipanggil otomatis oleh Livewire saat properti jenis_tagihan_pertama berubah. Reset
+     * pilihan promo saat admin beralih menjauh dari opsi Promo.
+     */
+    public function updatedJenisTagihanPertama(): void
+    {
+        if ($this->jenis_tagihan_pertama !== JenisTagihanPertama::Promo->value) {
+            $this->promo_id = null;
+            $this->kode_promo = '';
+            $this->resetErrorBag(['promo_id', 'kode_promo']);
+        }
+
+        $this->recalculateTagihanPertama();
+    }
+
+    /**
+     * Dipanggil otomatis oleh Livewire saat properti promo_id berubah (dropdown promo).
+     */
+    public function updatedPromoId(): void
+    {
+        // Pilihan dropdown selalu menang atas kode yang diketik manual.
+        $this->kode_promo = '';
+        $this->recalculateTagihanPertama();
+    }
+
+    /**
+     * Cocokkan kode promo yang diketik manual dengan promo aktif -- hanya dipakai jika
+     * dropdown promo belum dipilih (lihat updatedPromoId()).
+     */
+    public function updatedKodePromo(): void
+    {
+        $this->resetErrorBag('kode_promo');
+
+        $kode = trim($this->kode_promo);
+        if ($kode === '') {
+            $this->promo_id = null;
+            $this->recalculateTagihanPertama();
+
+            return;
+        }
+
+        $promo = Promo::findAktifByKode($kode);
+
+        if (! $promo) {
+            $this->promo_id = null;
+            $this->addError('kode_promo', 'Kode promo tidak ditemukan atau sudah tidak aktif.');
+            $this->recalculateTagihanPertama();
+
+            return;
+        }
+
+        $this->promo_id = $promo->id;
+        $this->recalculateTagihanPertama();
+    }
+
+    /**
+     * Hitung ulang rincian harga tagihan pertama (dipakai oleh blok "Pengaturan Harga
+     * Layanan" di bawah form) lewat BillingService::hitungRincianTagihanPertama() -- angka
+     * yang sama persis dipakai lagi saat save() benar-benar menerbitkan invoice, sehingga
+     * preview tidak pernah berbeda dari yang ditagihkan.
+     */
+    public function recalculateTagihanPertama(): void
+    {
+        $paket = $this->paket_layanan_id ? PaketLayanan::find($this->paket_layanan_id) : null;
+        $jenis = JenisTagihanPertama::tryFrom($this->jenis_tagihan_pertama);
+
+        if (! $paket || ! $jenis || ! $this->tanggal_mulai) {
+            $this->hargaPaket = (float) ($paket->harga ?? 0);
+            $this->diskonTagihanPertama = 0.0;
+            $this->totalTagihanPertama = 0.0;
+            $this->hariDitagih = null;
+            $this->hariTotalPeriode = null;
+
+            return;
+        }
+
+        $promo = $this->promo_id ? Promo::find($this->promo_id) : null;
+        $rincian = app(BillingService::class)->hitungRincianTagihanPertama(
+            $paket,
+            Carbon::parse($this->tanggal_mulai),
+            $jenis,
+            $promo,
+        );
+
+        $this->hargaPaket = $rincian['jumlah'];
+        $this->diskonTagihanPertama = $rincian['diskon'];
+        $this->totalTagihanPertama = $rincian['jumlah_setelah_promo'];
+        $this->hariDitagih = $rincian['hari_ditagih'];
+        $this->hariTotalPeriode = $rincian['hari_total_periode'];
+        $this->tanggalJatuhTempoPertama = $this->tanggal_mulai;
+    }
+
     public function prevStep(): void
     {
         $this->step = 1;
@@ -245,24 +375,47 @@ class Create extends Component
             ? $mulai->copy()->addMonths($paket->masa_aktif_nilai)
             : $mulai->copy()->addDays($paket->masa_aktif_nilai);
 
-        $layanan = LayananPelanggan::create([
-            'pelanggan_id' => $this->pelanggan_id,
-            'paket_layanan_id' => $this->paket_layanan_id,
-            'router_id' => $this->router_id,
-            'nama_site' => $this->nama_site ?: null,
-            'alamat_pemasangan' => $this->alamat_pemasangan ?: null,
-            'latitude' => $this->latitude,
-            'longitude' => $this->longitude,
-            'ip_pool_id' => $this->jenis_koneksi === 'pppoe' ? $this->ip_pool_id : null,
-            'ip_static' => $this->jenis_koneksi === 'ip_static' ? $this->ip_static : null,
-            'ppp_username' => $this->ppp_username,
-            'ppp_password_terenkripsi' => $this->ppp_password,
-            'jenis_koneksi' => $this->jenis_koneksi,
-            'status' => StatusLayanan::Proses,
-            'provisioning_status' => ProvisioningStatus::Pending,
-            'tanggal_mulai' => $this->tanggal_mulai,
-            'tanggal_expired' => $expired->toDateString(),
-        ]);
+        try {
+            $layanan = DB::transaction(function () use ($paket, $expired) {
+                $layanan = LayananPelanggan::create([
+                    'pelanggan_id' => $this->pelanggan_id,
+                    'paket_layanan_id' => $this->paket_layanan_id,
+                    'router_id' => $this->router_id,
+                    'nama_site' => $this->nama_site ?: null,
+                    'alamat_pemasangan' => $this->alamat_pemasangan ?: null,
+                    'latitude' => $this->latitude,
+                    'longitude' => $this->longitude,
+                    'ip_pool_id' => $this->jenis_koneksi === 'pppoe' ? $this->ip_pool_id : null,
+                    'ip_static' => $this->jenis_koneksi === 'ip_static' ? $this->ip_static : null,
+                    'ppp_username' => $this->ppp_username,
+                    'ppp_password_terenkripsi' => $this->ppp_password,
+                    'jenis_koneksi' => $this->jenis_koneksi,
+                    'status' => StatusLayanan::Proses,
+                    'provisioning_status' => ProvisioningStatus::Pending,
+                    'tanggal_mulai' => $this->tanggal_mulai,
+                    'tanggal_expired' => $expired->toDateString(),
+                ]);
+
+                $jenisTagihan = JenisTagihanPertama::from($this->jenis_tagihan_pertama);
+                $promo = $jenisTagihan === JenisTagihanPertama::Promo && $this->promo_id
+                    ? Promo::find($this->promo_id)
+                    : null;
+
+                app(BillingService::class)->generateFirstInvoice(
+                    layanan: $layanan,
+                    jenis: $jenisTagihan,
+                    dibuatOleh: auth()->id(),
+                    promo: $promo,
+                );
+
+                return $layanan;
+            });
+        } catch (\Throwable $e) {
+            report($e);
+            $this->addError('jenis_tagihan_pertama', "Gagal membuat tagihan pertama: {$e->getMessage()}");
+
+            return;
+        }
 
         if ($this->auto_provision) {
             try {
@@ -330,16 +483,20 @@ class Create extends Component
 
     public function render(): View
     {
-        $routers = Router::online()->get();
+        $routers = Router::orderBy('nama_router')->get();
         $ipPools = $this->router_id
             ? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
             : collect();
         $jenisKoneksi = JenisKoneksi::cases();
+        $jenisTagihanPertama = JenisTagihanPertama::cases();
+        $promos = Promo::query()->aktif()->get();
 
         return view('livewire.layanan-pelanggan.create', compact(
             'routers',
             'ipPools',
             'jenisKoneksi',
+            'jenisTagihanPertama',
+            'promos',
         ));
     }
 }
