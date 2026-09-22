@@ -458,8 +458,13 @@ _Avoid_: Blind Blast Tanpa Tracking, Status Sent Statis
 
 **Koneksi Gateway WhatsApp (Sysblas)**:
 Entitas konfigurasi satu akun/nomor pengirim WhatsApp (WAHA atau GOWA) yang menyimpan kredensial, provider, dan parameter throughput-nya sendiri, memungkinkan beberapa nomor WhatsApp berjalan independen dalam satu instalasi (misal nomor billing terpisah dari nomor pengaduan tiket).
-_Technical Reference_: Model `App\Models\Sysblas`, tabel `sysblas` (nama tabel warisan dari provider WABLAS lama; provider aktual kini WAHA/GOWA).
-_Avoid_: Akun WhatsApp, Gateway WA Tunggal
+_Technical Reference_: Model `App\Models\Sysblas`, tabel `sysblas` (nama tabel warisan dari provider WABLAS lama; provider aktual kini WAHA/GOWA). Menu: SysBlast > Koneksi API.
+_Avoid_: Akun WhatsApp, Gateway WA Tunggal, WhatsApp Gateway (istilah lama yang salah kaprah dipakai untuk Template Pesan WhatsApp)
+
+**Template Pesan WhatsApp**:
+Master data isi teks pesan notifikasi otomatis (tagihan, konfirmasi pembayaran, tiket) berformat placeholder dinamis (`{nama_pelanggan}`, `{no_reg}`, dst.), independen dari Koneksi Gateway WhatsApp mana pun yang sedang dipakai untuk mengirimnya — mengelola *isi pesan*, bukan kredensial/koneksi.
+_Technical Reference_: Model `App\Models\WaTemplate`, `App\Livewire\Settings\WhatsappSettings`, menu SysBlast > Template Pesan.
+_Avoid_: WhatsApp Gateway, Pengaturan WhatsApp Gateway
 
 **Batas Laju Pengiriman (Send Rate Limit)**:
 Plafon jumlah percobaan pengiriman per Koneksi Gateway WhatsApp dalam jendela 60 detik — dihitung dari setiap percobaan kirim, bukan hanya yang sukses; percobaan yang berujung gagal permanen tetap mengonsumsi plafon ini.

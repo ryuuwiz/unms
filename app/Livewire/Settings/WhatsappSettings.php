@@ -3,10 +3,8 @@
 namespace App\Livewire\Settings;
 
 use App\Enums\Wa\KategoriTemplateWa;
-use App\Models\Sysblas;
 use App\Models\User;
 use App\Models\WaTemplate;
-use App\Services\Whatsapp\WhatsappClient;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -15,22 +13,9 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Pengaturan WhatsApp Gateway & Template')]
+#[Title('Template Pesan WhatsApp')]
 class WhatsappSettings extends Component
 {
-    // State Device Info
-    /** @var array<string, mixed> */
-    public array $deviceInfo = [];
-
-    public bool $isCheckingDevice = false;
-
-    // State Test Message
-    public string $testPhone = '';
-
-    public string $testMessage = 'Halo! Ini adalah pesan uji coba integrasi WhatsApp Gateway GOWA dari GOBILLING.';
-
-    public bool $isSendingTest = false;
-
     // State Modal Template CRUD
     public bool $showTemplateModal = false;
 
@@ -51,65 +36,9 @@ class WhatsappSettings extends Component
     // State Filter Kategori Template
     public string $filterKategori = '';
 
-    public function mount(WhatsappClient $client): void
+    public function mount(): void
     {
         $this->authorize('viewAny', User::class);
-        $this->refreshDeviceInfo($client);
-    }
-
-    /**
-     * Dapatkan client aktif: koneksi Sysblas default bila ada (mis. koneksi GOWA yang sedang
-     * dipakai), jatuh ke $client bawaan container (provider WAHA) bila belum ada koneksi.
-     */
-    protected function resolveClient(WhatsappClient $client): WhatsappClient
-    {
-        return Sysblas::getDefault()?->makeClient() ?? $client;
-    }
-
-    public function refreshDeviceInfo(WhatsappClient $client): void
-    {
-        $this->isCheckingDevice = true;
-        try {
-            $this->deviceInfo = $this->resolveClient($client)->getDeviceInfo();
-        } catch (\Throwable $e) {
-            $this->deviceInfo = [
-                'connected' => false,
-                'phone' => Sysblas::getDefault()?->nomor ?? '-',
-                'quota' => '-',
-                'expired_at' => null,
-                'message' => 'Gagal terhubung: '.$e->getMessage(),
-                'raw' => [],
-            ];
-        } finally {
-            $this->isCheckingDevice = false;
-        }
-    }
-
-    public function kirimPesanUjiCoba(WhatsappClient $client): void
-    {
-        $this->validate([
-            'testPhone' => ['required', 'string', 'min:9', 'max:20'],
-            'testMessage' => ['required', 'string', 'min:3', 'max:1000'],
-        ], [
-            'testPhone.required' => 'Nomor HP tujuan wajib diisi.',
-            'testMessage.required' => 'Pesan uji coba wajib diisi.',
-        ]);
-
-        $this->isSendingTest = true;
-
-        try {
-            $result = $this->resolveClient($client)->sendMessage($this->testPhone, $this->testMessage);
-
-            if ($result['success']) {
-                Flux::toast(variant: 'success', text: "Pesan uji coba berhasil dikirim ke {$this->testPhone}!");
-            } else {
-                Flux::toast(variant: 'danger', text: "Gagal kirim: {$result['message']}");
-            }
-        } catch (\Throwable $e) {
-            Flux::toast(variant: 'danger', text: 'Terjadi kesalahan: '.$e->getMessage());
-        } finally {
-            $this->isSendingTest = false;
-        }
     }
 
     public function openCreateTemplateModal(): void

@@ -1,109 +1,12 @@
 <section class="w-full">
-    @include('partials.settings-heading')
+    <div class="my-6 w-full max-w-4xl space-y-4">
+        <div>
+            <flux:heading size="xl">{{ __('Template Pesan WhatsApp') }}</flux:heading>
+            <flux:subheading>{{ __('Kustomisasi teks pesan notifikasi tagihan, konfirmasi pembayaran, dan tiket. Untuk status koneksi & kredensial WhatsApp Gateway, lihat menu SysBlast > Koneksi API.') }}</flux:subheading>
+        </div>
 
-    <x-settings.layout :heading="__('WhatsApp Gateway & Template')" :subheading="__('Pantau status koneksi WhatsApp API (GOWA/WAHA), lakukan uji coba pesan, dan kelola template pesan otomatis.')">
-        <div class="my-6 w-full max-w-4xl space-y-8">
-
-            {{-- 1. Status Gateway WhatsApp --}}
-            <flux:card class="p-6 space-y-5">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-700/60 pb-4">
-                    <div>
-                        <flux:heading size="lg" class="flex items-center gap-2">
-                            <flux:icon name="device-phone-mobile" class="size-5 text-emerald-600 dark:text-emerald-400" />
-                            Status Perangkat WhatsApp
-                        </flux:heading>
-                        <flux:subheading>Informasi koneksi nomor WhatsApp gateway default (menu Pengaturan &gt; Koneksi WhatsApp).</flux:subheading>
-                    </div>
-
-                    <flux:button wire:click="refreshDeviceInfo" wire:loading.attr="disabled" variant="subtle" size="xs" icon="arrow-path">
-                        <span wire:loading.remove wire:target="refreshDeviceInfo">Cek Status</span>
-                        <span wire:loading wire:target="refreshDeviceInfo">Memeriksa...</span>
-                    </flux:button>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="min-w-0 p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
-                        <span class="text-xs text-zinc-500 block">Status Koneksi</span>
-                        <div class="flex items-center gap-2">
-                            <span class="size-2.5 rounded-full {{ ($deviceInfo['connected'] ?? false) ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500' }}"></span>
-                            <span class="font-bold text-sm {{ ($deviceInfo['connected'] ?? false) ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
-                                {{ ($deviceInfo['connected'] ?? false) ? 'TERHUBUNG (ONLINE)' : 'TERPUTUS / OFFLINE' }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="min-w-0 p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
-                        <span class="text-xs text-zinc-500 block">Nomor WhatsApp Gateway</span>
-                        <span class="font-bold font-mono text-sm text-zinc-900 dark:text-white">
-                            {{ $deviceInfo['phone'] ?? \App\Models\Sysblas::getDefault()?->nomor ?? '-' }}
-                        </span>
-                    </div>
-
-                    <div class="min-w-0 p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
-                        <span class="text-xs text-zinc-500 block">Sisa Kuota Pesan</span>
-                        <span class="font-bold text-sm text-zinc-900 dark:text-white">
-                            {{ is_scalar($deviceInfo['quota'] ?? null) ? (string) $deviceInfo['quota'] : '-' }}
-                        </span>
-                    </div>
-
-                    <div class="min-w-0 p-3.5 bg-zinc-50 dark:bg-zinc-900/60 rounded-xl border border-zinc-200/70 dark:border-zinc-700/60 space-y-1">
-                        <span class="text-xs text-zinc-500 block">Host API Server</span>
-                        <span class="font-medium text-xs font-mono text-zinc-700 dark:text-zinc-300 truncate block" title="{{ \App\Models\Sysblas::getDefault()?->url_api ?? config('services.gowa.host') }}">
-                            {{ \App\Models\Sysblas::getDefault()?->url_api ?? config('services.gowa.host') }}
-                        </span>
-                    </div>
-                </div>
-
-                @if(!empty($deviceInfo['message']))
-                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                        Pesan Status Gateway: <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $deviceInfo['message'] }}</span>
-                    </p>
-                @endif
-            </flux:card>
-
-            {{-- 2. Form Uji Coba Kirim Pesan --}}
-            <flux:card class="p-6 space-y-5">
-                <div>
-                    <flux:heading size="lg" class="flex items-center gap-2">
-                        <flux:icon name="paper-airplane" class="size-5 text-blue-600 dark:text-blue-400" />
-                        Uji Coba Pengiriman Pesan WhatsApp
-                    </flux:heading>
-                    <flux:subheading>Kirim pesan pengujian instan ke nomor WhatsApp staf atau admin untuk memastikan API berfungsi.</flux:subheading>
-                </div>
-
-                <form wire:submit="kirimPesanUjiCoba" class="space-y-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div>
-                            <flux:input
-                                wire:model="testPhone"
-                                label="Nomor WhatsApp Tujuan"
-                                placeholder="Contoh: 081234567890"
-                                required
-                            />
-                            @error('testPhone') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div class="sm:col-span-2">
-                            <flux:input
-                                wire:model="testMessage"
-                                label="Isi Pesan Uji Coba"
-                                placeholder="Tuliskan pesan singkat..."
-                                required
-                            />
-                            @error('testMessage') <span class="text-xs text-rose-600 mt-1 block">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end">
-                        <flux:button type="submit" variant="primary" icon="paper-airplane" size="sm" wire:loading.attr="disabled">
-                            <span wire:loading.remove wire:target="kirimPesanUjiCoba">Kirim Pesan Uji Coba</span>
-                            <span wire:loading wire:target="kirimPesanUjiCoba">Mengirim...</span>
-                        </flux:button>
-                    </div>
-                </form>
-            </flux:card>
-
-            {{-- 3. Master Template Pesan WhatsApp --}}
+        <div class="space-y-8">
+            {{-- Master Template Pesan WhatsApp --}}
             <flux:card class="p-6 space-y-5">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 dark:border-zinc-700/60 pb-4">
                     <div>
@@ -186,7 +89,7 @@
                 </div>
             </flux:card>
         </div>
-    </x-settings.layout>
+    </div>
 
     <!-- Modal Form Tambah / Edit Template -->
     <flux:modal :open="$showTemplateModal" wire:model.self="showTemplateModal" class="max-w-2xl">

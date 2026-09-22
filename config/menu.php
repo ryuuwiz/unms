@@ -226,6 +226,13 @@ return [
                     'active' => 'sysblas.antrian.*',
                     'permission' => 'wa_gateway.lihat',
                 ],
+                [
+                    'title' => 'Template Pesan',
+                    'icon' => 'chat-bubble-bottom-center-text',
+                    'route' => 'settings.whatsapp',
+                    'active' => 'settings.whatsapp',
+                    'permission' => 'wa_gateway.lihat',
+                ],
             ],
         ],
         [
@@ -260,7 +267,7 @@ return [
                     'icon' => 'cog',
                     'route' => 'settings.gateway',
                     'active' => 'settings.gateway',
-                    'permission' => 'peran.lihat',
+                    'permission' => 'payment_gateway.lihat',
                 ],
                 [
                     'title' => 'Prefix Registrasi',

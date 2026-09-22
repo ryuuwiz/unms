@@ -1,13 +1,17 @@
 <div class="flex items-start max-md:flex-col">
     <div class="me-10 w-full pb-4 md:w-[220px]">
         <flux:navlist aria-label="{{ __('Settings') }}">
-            <flux:navlist.item :href="route('profile.edit')" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
-            <flux:navlist.item :href="route('security.edit')" wire:navigate>{{ __('Security') }}</flux:navlist.item>
-            <flux:navlist.item :href="route('appearance.edit')" wire:navigate>{{ __('Appearance') }}</flux:navlist.item>
+            <flux:navlist.group :heading="__('Akun Saya')">
+                <flux:navlist.item icon="user" :href="route('profile.edit')" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
+                <flux:navlist.item icon="lock-closed" :href="route('security.edit')" wire:navigate>{{ __('Security') }}</flux:navlist.item>
+                <flux:navlist.item icon="swatch" :href="route('appearance.edit')" wire:navigate>{{ __('Appearance') }}</flux:navlist.item>
+            </flux:navlist.group>
+
             @if(auth()->user()?->hasRole('super_admin'))
-                <flux:navlist.item :href="route('settings.perusahaan')" wire:navigate>{{ __('Perusahaan') }}</flux:navlist.item>
-                <flux:navlist.item :href="route('settings.gateway')" wire:navigate>{{ __('Payment Gateway') }}</flux:navlist.item>
-                <flux:navlist.item :href="route('settings.whatsapp')" wire:navigate>{{ __('WhatsApp Gateway') }}</flux:navlist.item>
+                <flux:navlist.group :heading="__('Pengaturan Perusahaan')">
+                    <flux:navlist.item :href="route('settings.perusahaan')" wire:navigate>{{ __('Perusahaan') }}</flux:navlist.item>
+                    <flux:navlist.item :href="route('settings.gateway')" wire:navigate>{{ __('Payment Gateway') }}</flux:navlist.item>
+                </flux:navlist.group>
             @endif
         </flux:navlist>
     </div>

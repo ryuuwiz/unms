@@ -59,6 +59,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'wa_gateway.lihat', 'wa_gateway.buat', 'wa_gateway.ubah', 'wa_gateway.hapus',
             // Prefix Registrasi
             'prefix_registrasi.lihat', 'prefix_registrasi.buat', 'prefix_registrasi.ubah',
+            // Payment Gateway
+            'payment_gateway.lihat', 'payment_gateway.buat', 'payment_gateway.ubah', 'payment_gateway.hapus',
         ] as $permName) {
             $p[$permName] = Permission::firstOrCreate(['name' => $permName]);
         }

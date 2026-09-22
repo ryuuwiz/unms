@@ -25,8 +25,14 @@
                 </flux:menu.item>
                 <flux:menu.separator />
             @endif
-            <flux:menu.item :href="route('profile.edit')" icon="cog" wire:navigate>
-                {{ __('Settings') }}
+            <flux:menu.item :href="route('profile.edit')" icon="user" wire:navigate>
+                {{ __('Profile') }}
+            </flux:menu.item>
+            <flux:menu.item :href="route('security.edit')" icon="lock-closed" wire:navigate>
+                {{ __('Security') }}
+            </flux:menu.item>
+            <flux:menu.item :href="route('appearance.edit')" icon="swatch" wire:navigate>
+                {{ __('Appearance') }}
             </flux:menu.item>
             <form method="POST" action="{{ route('logout') }}" class="w-full">
                 @csrf

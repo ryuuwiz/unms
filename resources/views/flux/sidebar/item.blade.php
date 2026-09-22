@@ -34,6 +34,7 @@ $iconClasses = Flux::classes('size-4')
 
 $classes = Flux::classes()
     ->add('h-10 relative flex items-center gap-3 rounded-lg')
+    ->add('transition-colors duration-150')
     ->add('in-data-flux-sidebar-collapsed-desktop:w-10 in-data-flux-sidebar-collapsed-desktop:justify-center')
     ->add('py-2 text-start w-full px-3 has-data-flux-navlist-badge:not-in-data-flux-sidebar-collapsed-desktop:pe-1.5 my-px')
     ->add('text-zinc-500 dark:text-white/80')

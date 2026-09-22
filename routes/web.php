@@ -181,10 +181,9 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
-    // ─── Pengaturan Gateway & WhatsApp ────────────────────────────
-    Route::middleware('permission:peran.lihat')->group(function () {
+    // ─── Pengaturan Gateway ────────────────────────────────────────
+    Route::middleware('permission:payment_gateway.lihat')->group(function () {
         Route::get('/settings/gateway', PengaturanGateway::class)->name('settings.gateway');
-        Route::get('/settings/whatsapp', WhatsappSettings::class)->name('settings.whatsapp');
     });
 
     // ─── Pengaturan Prefix Registrasi ──────────────────────────────
@@ -192,12 +191,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/settings/prefix-registrasi', PengaturanPrefixRegistrasi::class)->name('settings.prefix-registrasi');
     });
 
-    // ─── SysBlast Gateway & Antrian ───────────────────────────────
+    // ─── SysBlast Gateway, Antrian & Template Pesan ────────────────
     Route::prefix('sysblas')->name('sysblas.')->group(function () {
         Route::middleware('permission:wa_gateway.lihat')->group(function () {
             Route::get('/koneksi', App\Livewire\Sysblas\Koneksi\Index::class)->name('koneksi.index');
             Route::get('/antrian', App\Livewire\Sysblas\Antrian\Index::class)->name('antrian.index');
         });
+    });
+
+    Route::middleware('permission:wa_gateway.lihat')->group(function () {
+        Route::get('/settings/whatsapp', WhatsappSettings::class)->name('settings.whatsapp');
     });
 
     // ─── Aturan Pengingat Tagihan ─────────────────────────────────

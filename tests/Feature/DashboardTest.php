@@ -74,6 +74,15 @@ test('super admin melihat judul, subjudul, dan seluruh blok ringkasan', function
         ->assertSee('Tren Pendapatan Harian');
 });
 
+test('dropdown akun menautkan ke halaman profile, security, dan appearance', function () {
+    $this->actingAs($this->user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee(route('profile.edit'), false)
+        ->assertSee(route('security.edit'), false)
+        ->assertSee(route('appearance.edit'), false);
+});
+
 test('total pelanggan memisahkan aktif dari tidak aktif dan mengabaikan pelanggan calon', function () {
     Pelanggan::factory()->count(2)->create(['status' => StatusPelanggan::Aktif]);
     Pelanggan::factory()->create(['status' => StatusPelanggan::Off]);
