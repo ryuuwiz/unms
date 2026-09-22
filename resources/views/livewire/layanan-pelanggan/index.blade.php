@@ -82,8 +82,8 @@
                     <flux:table.cell>
                         <div class="flex flex-col">
                             <span
-                                class="text-xs font-medium text-zinc-700 dark:text-zinc-300">{{ $layanan->router->nama_router }}</span>
-                            <span class="font-mono text-xs text-zinc-500">{{ $layanan->ppp_username }}
+                                class="text-xs font-medium text-zinc-700 dark:text-zinc-300">{{ $layanan->router?->nama_router ?? 'Belum diaktivasi' }}</span>
+                            <span class="font-mono text-xs text-zinc-500">{{ $layanan->ppp_username ?? '—' }}
                                 ({{ $layanan->jenis_koneksi->label() }})</span>
                         </div>
                     </flux:table.cell>

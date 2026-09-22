@@ -9,6 +9,7 @@ use App\Models\Promo;
 use App\Services\Billing\BillingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -40,7 +41,7 @@ test('hitungRincianTagihanPertama mengembalikan harga penuh untuk SatuBulanFull'
 
 test('hitungRincianTagihanPertama proporsional terhadap sisa hari bulan kalender', function () {
     // Bulan 30 hari, mulai tanggal 21 -> sisa 10 hari (21..30).
-    $tanggalMulai = \Illuminate\Support\Carbon::create(2026, 9, 21);
+    $tanggalMulai = Carbon::create(2026, 9, 21);
 
     $rincian = $this->billing->hitungRincianTagihanPertama(
         $this->paket,
@@ -85,6 +86,21 @@ test('generateFirstInvoice menerbitkan invoice dengan periode_tagihan NULL', fun
     expect($invoice->periode_tagihan)->toBeNull()
         ->and((float) $invoice->jumlah_setelah_promo)->toBe(300000.0)
         ->and($invoice->layanan_pelanggan_id)->toBe($layanan->id);
+});
+
+test('generateFirstInvoice memberi tenggat jatuh tempo H+1 dari tanggal mulai secara default', function () {
+    $tanggalMulai = Carbon::create(2026, 9, 10);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'paket_layanan_id' => $this->paket->id,
+        'status' => StatusLayanan::Proses,
+        'tanggal_mulai' => $tanggalMulai->toDateString(),
+        'tanggal_expired' => $tanggalMulai->copy()->addMonth()->toDateString(),
+    ]);
+
+    $invoice = $this->billing->generateFirstInvoice($layanan, JenisTagihanPertama::SatuBulanFull);
+
+    expect($invoice->tanggal_jatuh_tempo->toDateString())->toBe('2026-09-11');
 });
 
 test('tagihan pertama dari generateFirstInvoice tidak menghalangi tagihan siklus berikutnya yang sesungguhnya', function () {

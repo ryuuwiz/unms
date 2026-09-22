@@ -113,12 +113,12 @@ Format standar representasi identitas pelanggan untuk antarmuka staf backoffice 
 _Avoid_: Nama Saja Tanpa No Reg, No Reg Tanpa Nama, Format Strip Tak Beraturan (Gunakan Format Baku `No. Reg_Nama`)
 
 **Data Registrasi Billing**:
-Entitas registrasi langganan billing aktif (sebelumnya disebut Layanan Pelanggan, merujuk pada `docs/data_unms.md` bagian `# Layanan & Network -> ## Billing`) yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu, router gateway, alokasi IP Pool / IP Statis, kredensial PPP, Site ID, dan masa aktif. Setiap penambahan divalidasi anti-duplikasi pada router & paket yang sama saat status masih aktif/proses/suspend, dengan tetap mendukung multi-site per pelanggan. Tidak memiliki halaman detail tersendiri — selalu ditampilkan di dalam halaman Detail Pelanggan (tab Subscriptions); dibuat lewat rute bertingkat `/layanan-pelanggan/create/{pelanggan}` yang mengunci pelanggan, bukan dipilih bebas.
-_Avoid_: Subscription, Akun Internet, Koneksi, Layanan Saja
+Entitas registrasi langganan billing (sebelumnya disebut Layanan Pelanggan, merujuk pada `docs/data_unms.md` bagian `# Layanan & Network -> ## Billing`) yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu dan masa aktif. Dibuat murni komersial (paket, harga, alamat, tagihan pertama) berstatus `PROSES` — router gateway, alokasi IP Pool, dan kredensial PPP **belum diisi saat dibuat**, baru terisi lewat Aktivasi Pemasangan di dalam Ticket Pemasangan (lihat ADR terkait & `docs/plan/ticket-pemasangan-workflow.md`). Setiap Aktivasi divalidasi anti-duplikasi pada router & paket yang sama saat status masih aktif/proses/suspend, dengan tetap mendukung multi-site per pelanggan. Tidak memiliki halaman detail tersendiri — selalu ditampilkan di dalam halaman Detail Pelanggan (tab Subscriptions); dibuat lewat rute bertingkat `/layanan-pelanggan/create/{pelanggan}` yang mengunci pelanggan, bukan dipilih bebas.
+_Avoid_: Subscription, Akun Internet, Koneksi, Layanan Saja, Router/PPP Terisi Saat Registrasi Dibuat
 
 **PPP Username Credential**:
-Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_84920`) — prefix adalah No.Reg pelanggan, suffix adalah 5-digit angka acak (*CSPRNG token* `10000`–`99999`) yang dijamin unik global di tabel `layanan_pelanggan`. Di-generate otomatis oleh sistem saat layanan dibuat; staff dapat override asal format dipatuhi. Disimpan di kolom `ppp_username` tabel `layanan_pelanggan`.
-_Avoid_: Username Bebas, PPP User Manual, Format Lama (`user_budi_01`)
+Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_84920`) — prefix adalah No.Reg pelanggan, suffix adalah 5-digit angka acak (*CSPRNG token* `10000`–`99999`) yang dijamin unik global di tabel `layanan_pelanggan`. Di-generate otomatis oleh sistem saat **Aktivasi Pemasangan** (bukan saat Data Registrasi Billing dibuat); staff dapat override lewat halaman Edit layanan asal format dipatuhi. Disimpan di kolom `ppp_username` tabel `layanan_pelanggan`.
+_Avoid_: Username Bebas, PPP User Manual, Format Lama (`user_budi_01`), Digenerate Saat Registrasi Dibuat
 
 **PPP Password Credential**:
 Kredensial autentikasi PPPoE pelanggan yang selalu di-generate sistem secara acak (8 karakter alfanumerik) saat Data Registrasi Billing dibuat atau di-reset, tidak pernah diinput manual oleh staf. Ditampilkan hanya sekali (*reveal-once-at-generation*) kepada staf yang men-trigger pembuatan/reset tersebut lewat toast/modal sekali-lihat; setelahnya tersembunyi di semua tempat dan hanya bisa diungkap ulang oleh `super_admin` (izin `layanan_pelanggan.lihat_ppp_password`) lewat aksi *reveal* beraudit trail Spatie Activitylog, mengikuti pola yang sama dengan Watermark Dokumen Identitas.
@@ -185,6 +185,10 @@ _Avoid_: Tagihan Bebas, Kuitansi (sebelum dibayar), Bill, Invoice Tanpa No Reg
 **Periode Tagihan**:
 Identitas siklus bulan penagihan layanan (format `YYYY-MM`) yang memetakan kewajiban bayar langganan untuk satu siklus masa aktif dan menjamin batas 1 tagihan per layanan per siklus.
 _Avoid_: Bulan Tagih Bebas, Periode Manual, Cycle ID
+
+**Tenggat Pembayaran Invoice Pertama**:
+Batas waktu H+1 (satu hari) dari tanggal mulai layanan untuk melunasi invoice pertama (ad-hoc, `periode_tagihan` NULL) yang terbit saat Data Registrasi Billing dibuat. Dicek setiap jam oleh command terpisah (`layanan:cek-tunggakan-pertama`, lihat ADR-0045) dari isolir bulanan biasa (`layanan:cek-isolir`, berbasis `tanggal_expired`) — hanya menyasar layanan yang belum pernah punya invoice periodik (masih di siklus pertama). Melewati tenggat ini men-suspend layanan lewat `UbahStatusLayananAction` yang sama seperti isolir tunggakan bulanan, sehingga PPP Secret ikut ter-disable realtime.
+_Avoid_: Grace Period Bebas, Menyamakan dengan Hari Jatuh Tempo Siklus Tagihan, Isolir Manual Invoice Pertama
 
 **Pembatalan Invoice**:
 Tindakan perubahan status invoice menjadi `dibatalkan` oleh sistem atau staf berwenang yang menggugurkan kewajiban bayar tanpa menghapus riwayat audit trail (misal akibat koreksi tagihan ganda atau perubahan paket).
@@ -256,8 +260,8 @@ Entitas berkas kerja permohonan layanan atau penanganan masalah teknis (Pemasang
 _Avoid_: Issue, Aduan Bebas, Task, Case
 
 **Alur Tiket ke Billing**:
-Hasil tiket menggerakkan status secara otomatis, tetapi keputusan komersial tetap manual oleh Admin. Pemasangan dibuat → Pelanggan `ReqPemasangan`; Selesai → `PemasanganSelesai` dan Admin diminta membuat Data Registrasi Billing (PPP Secret, layanan Aktif, tagihan pertama terbit dari sana); Batal → `BelumTerpasang`. Pencabutan Selesai → layanan terkait `Berhenti` (tagihan belum lunas tetap terbuka, hanya tagihan baru yang berhenti). Pindah Alamat Selesai → Admin diminta menerbitkan invoice manual biaya pindah. Pemasangan tidak mengubah Pelanggan yang sudah Aktif/Expired.
-_Avoid_: Aktivasi Otomatis dari Tiket, Invoice Otomatis Saat Tiket Selesai
+Admin membuat Data Registrasi Billing (komersial, status `PROSES`, tagihan pertama langsung terbit) lebih dulu, baru kemudian membuat Ticket Pemasangan yang mengacu ke layanan itu. Ticket Pemasangan berjalan lewat sign-off 4 divisi (Teknisi, NOC, CS, Admin — lihat Status Per-Divisi Tiket); NOC men-Aktivasi Pemasangan di tengah alur itu (mengisi router/IP Pool/PPP, memicu layanan jadi `Aktif`). Status tiket keseluruhan otomatis `Selesai` begitu keempat divisi selesai, memicu Pelanggan jadi `PemasanganSelesai`. Batal → `BelumTerpasang`. Pencabutan Selesai → layanan terkait `Berhenti` (tagihan belum lunas tetap terbuka, hanya tagihan baru yang berhenti). Pindah Alamat Selesai → Admin diminta menerbitkan invoice manual biaya pindah. Pemasangan tidak mengubah Pelanggan yang sudah Aktif/Expired.
+_Avoid_: Ticket Pemasangan Dibuat Sebelum Data Registrasi Billing, Aktivasi Otomatis Tanpa NOC, Invoice Otomatis Saat Tiket Selesai
 
 **Status Pelanggan**:
 Diturunkan dari seluruh Data Registrasi Billing pelanggan: `Aktif` jika ada layanan Aktif; `Expired` jika tidak ada yang Aktif tetapi ada yang Suspend; `Off` jika semua Berhenti. Selama belum ada layanan Aktif, tahap pemasangan (`BelumTerpasang`, `ReqPemasangan`, `PemasanganSelesai`) dikendalikan tiket Pemasangan.
@@ -277,8 +281,16 @@ Staf pengguna internal (User) yang ditugaskan secara formal untuk bertanggung ja
 _Avoid_: Assignee, Petugas Lapangan Bebas, Pelaksana
 
 **Divisi Tiket**:
-Satu atau lebih divisi internal (Admin, Customer Service, Sales, NOC, Teknisi) yang bertanggung jawab menangani sebuah tiket, disimpan dalam relasi many-to-many via pivot table `ticket_divisi`. Tiket lama bersumber portal untuk Gangguan otomatis ditugaskan ke [NOC, Teknisi] untuk mendukung koordinasi penjadwalan; Pencabutan dan Pindah Alamat ke [Teknisi].
+Satu atau lebih divisi internal (Admin, Customer Service, Sales, NOC, Teknisi) yang bertanggung jawab menangani sebuah tiket, disimpan dalam relasi many-to-many via pivot table `ticket_divisi`. Tiket lama bersumber portal untuk Gangguan otomatis ditugaskan ke [NOC, Teknisi] untuk mendukung koordinasi penjadwalan; Pencabutan dan Pindah Alamat ke [Teknisi]. Sejak alur Ticket Pemasangan (lihat Status Per-Divisi Tiket), pivot ini juga menyimpan status sign-off per divisi, tidak lagi sekadar penandaan keterlibatan.
 _Avoid_: Divisi Tunggal per Tiket, Single Enum Divisi
+
+**Status Per-Divisi Tiket**:
+Kolom `status` (`belum` / `progress` / `selesai`) pada pivot `ticket_divisi`, satu per baris divisi — dipakai penuh hanya oleh Ticket Pemasangan. Teknisi memakai ketiga nilai (progress = sudah pilih ODP+port & upload ≥1 foto pemasangan); NOC, Customer Service, dan Admin praktiknya cuma lompat `belum`→`selesai`. Tidak ada rantai urutan wajib antar-divisi selain dua gate eksplisit: Aktivasi Pemasangan butuh Teknisi minimal `progress`, dan Admin `selesai` butuh invoice pertama layanan sudah Lunas. Begitu keempat divisi `selesai`, status tiket keseluruhan (`StatusTicket`) otomatis berpindah ke `Selesai` lewat `UbahStatusTicketAction` yang sudah ada — staf tidak lagi menyelesaikan tiket Pemasangan secara manual terpisah.
+_Avoid_: Status Tiket Tunggal untuk Pemasangan, Urutan NOC→CS→Admin Dipaksa Tanpa Alasan, Admin Selesai Sebelum Pelanggan Bayar
+
+**Aktivasi Pemasangan**:
+Aksi NOC di dalam Ticket Pemasangan yang mengisi router gateway dan IP Pool pada Data Registrasi Billing yang masih `PROSES`, lalu memicu provisioning PPP Secret ke MikroTik dan mengubah layanan jadi `Aktif`. Router dan IP Pool **dipilih manual oleh NOC** (IP Pool difilter mengikuti router yang baru dipilih, auto-select kalau router itu cuma punya 1 pool) — keduanya butuh keputusan manusia karena topologi jaringan/lokasi customer dan segmentasi pool (Residensial vs Bisnis, lihat "Segmentasi Jalur IP Pool") tidak bisa diturunkan otomatis dari Paket Layanan semata (satu paket ritel dijual lintas-router). PPP Username Credential tetap auto-generate. Berbeda dari tombol "Provisi" di daftar layanan (`Index.php::provisionLayanan()`) yang cuma retry provisioning untuk layanan yang router/PPP-nya sudah terisi — Aktivasi Pemasangan adalah pengisian pertama kali. Profil Bandwidth ditampilkan read-only (sudah tetap mengikuti paket sejak pendaftaran, tidak bisa diganti di sini).
+_Avoid_: Router/IP Pool Diturunkan Otomatis dari Paket, IP Pool Tetap per Paket Lintas-Router, Mengganti Profil Bandwidth Saat Aktivasi
 
 **Catatan Internal Tiket**:
 Entri Histori Tiket yang ditandai `is_internal = true` — hanya terlihat oleh staf. Sejak Portal Pelanggan tidak lagi menampilkan tiket (ADR-0040), semua catatan praktis bersifat internal; flag dipertahankan tanpa perubahan skema.
@@ -357,6 +369,10 @@ _Avoid_: Sync Parsial Tanpa Urutan, Push Manual Bebas, Provisi Terfragmentasi
 **Rekonsiliasi Router (Router Reconciliation)**:
 Proses komparasi periodik terjadwal dan auto-recovery antara basis data UNMS dengan konfigurasi aktual di RouterOS untuk mendeteksi *configuration drift*, memulihkan PPP secret/profil yang hilang atau terhapus di router, dan menyelaraskan status disabled.
 _Avoid_: Cek Status Lepas, Sync Buta, Ping Tanpa Rekonsiliasi
+
+**Gate Proaktif Router Offline**:
+Pemeriksaan `Router.status_koneksi` (hasil `mikrotik:ping` tiap 5 menit) di awal `EnablePppoeAccountJob`/`DisablePppoeAccountJob` sebelum mencoba konek ke RouterOS. Jika diketahui `offline`, job dihentikan dengan `MikrotikJobLog` berstatus `Dilewati` (bukan `Gagal`) tanpa notifikasi kegagalan, dan penyelarasan sebenarnya diserahkan ke siklus Rekonsiliasi Router 15-menit berikutnya. Kredensial yang salah (bukan router mati) tetap tertangkap jalur reaktif `getClient()` seperti biasa — gate ini murni mengurangi percobaan & notifikasi sia-sia untuk kasus yang sudah diketahui, bukan pengganti validasi koneksi.
+_Avoid_: Menganggap Dilewati sebagai Gagal, Notifikasi Kegagalan untuk Router yang Memang Mati, Skip Permanen Tanpa Percobaan Ulang
 
 **Orphaned Secret (PPP Secret Tak Terkelola)**:
 Akun PPP Secret yang terdeteksi ada di RouterOS namun tidak memiliki rekaman aktif di database UNMS (misal akun manual sisa instalasi lama atau layanan yang telah dihapus). Ditangani secara audit-safe (hanya dicatat) dan dapat dibersihkan dengan opsi flags eksplisit.

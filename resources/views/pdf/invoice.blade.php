@@ -258,7 +258,7 @@
                 <td>1</td>
                 <td>
                     <strong>Langganan Internet - {{ $invoice->layananPelanggan->paketLayanan->nama_paket }}</strong><br>
-                    <small style="color: #64748b;">Username PPP: {{ $invoice->layananPelanggan->ppp_username }} | Router: {{ $invoice->layananPelanggan->router->nama_router }}</small>
+                    <small style="color: #64748b;">Username PPP: {{ $invoice->layananPelanggan->ppp_username ?? 'Belum diaktivasi' }} | Router: {{ $invoice->layananPelanggan->router?->nama_router ?? '-' }}</small>
                 </td>
                 <td>{{ $invoice->layananPelanggan->paketLayanan->masa_aktif_nilai }} {{ ucfirst($invoice->layananPelanggan->paketLayanan->masa_aktif_satuan->value) }}</td>
                 <td style="text-align: right;">{{ number_format((float) $invoice->jumlah, 0, ',', '.') }}</td>

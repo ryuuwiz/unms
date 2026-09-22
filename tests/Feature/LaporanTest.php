@@ -52,10 +52,12 @@ test('user with laporan.lihat can view billing report summary', function () {
 });
 
 test('scheduled command invoice:generate creates invoices for services expiring within 7 days', function () {
-    // Layanan expiring in 3 days
+    // Tanggal dipatok (bukan Carbon::today()->addDays()) supaya hasil tidak bergantung
+    // pada hari suite ini dijalankan -- lihat pola yang sama di InvoiceTest.php.
+    $this->travelTo(Carbon::create(2026, 9, 24));
     $this->layanan->update([
         'status' => StatusLayanan::Aktif,
-        'tanggal_expired' => Carbon::today()->addDays(3),
+        'tanggal_expired' => '2026-10-10',
     ]);
 
     $this->artisan('invoice:generate')

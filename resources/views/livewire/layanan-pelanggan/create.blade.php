@@ -1,7 +1,7 @@
 <div class="mx-auto max-w-2xl space-y-6">
     <div>
         <flux:heading size="xl">Tambah Data Registrasi Billing</flux:heading>
-        <flux:subheading>Hubungkan data registrasi billing pelanggan dengan paket layanan internet dan konfigurasi PPP.</flux:subheading>
+        <flux:subheading>Registrasi komersial pelanggan ke paket layanan internet. Router, IP Pool, dan Username PPP diisi belakangan lewat Aktivasi Pemasangan di Ticket.</flux:subheading>
     </div>
 
     {{-- Stepper Progress --}}
@@ -13,7 +13,7 @@
         <div class="h-px flex-1 bg-zinc-200 dark:bg-zinc-700"></div>
         <div class="flex items-center gap-2 {{ $step >= 2 ? 'text-primary-600 dark:text-primary-400 font-semibold' : 'text-zinc-400' }}">
             <span class="flex size-6 items-center justify-center rounded-full border {{ $step >= 2 ? 'border-primary-600 bg-primary-50 dark:bg-primary-950' : 'border-zinc-300' }} text-xs">2</span>
-            <span>Konfigurasi Jaringan & PPP</span>
+            <span>Data Layanan</span>
         </div>
     </div>
 
@@ -31,6 +31,15 @@
             <x-searchable-select field="paket_layanan_id" label="Pilih Paket Layanan"
                 placeholder="Cari nama paket..." />
 
+            @if ($paket_layanan_id)
+                <flux:callout icon="tag" variant="secondary">
+                    <flux:callout.text>
+                        Harga Paket (Default): <strong>Rp {{ number_format($this->paketHargaDefault, 0, ',', '.') }}</strong>
+                        — bisa diubah di bagian Pengaturan Harga Layanan pada langkah berikutnya.
+                    </flux:callout.text>
+                </flux:callout>
+            @endif
+
             <div class="flex justify-end gap-3 pt-2">
                 <flux:button :href="route('layanan-pelanggan.index')" wire:navigate variant="ghost">Batal</flux:button>
                 <flux:button type="submit" variant="primary" icon-trailing="arrow-right">Lanjut ke Konfigurasi</flux:button>
@@ -38,110 +47,77 @@
         </form>
     @elseif ($step === 2)
         <form wire:submit="save" class="space-y-6">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <flux:field>
-                    <flux:label>Jenis Koneksi</flux:label>
-                    <flux:select wire:model.live="jenis_koneksi">
-                        @foreach ($jenisKoneksi as $jk)
-                            <flux:select.option value="{{ $jk->value }}">{{ $jk->label() }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-                    <flux:error name="jenis_koneksi" />
-                </flux:field>
-
-                <flux:field>
-                    <flux:label>Router Gateway</flux:label>
-                    <flux:select wire:model.live="router_id" placeholder="Pilih router gateway...">
-                        <flux:select.option value="">-- Pilih Router Gateway --</flux:select.option>
-                        @foreach ($routers as $r)
-                            <flux:select.option value="{{ $r->id }}">
-                                {{ $r->nama_router }} ({{ $r->ip_address }})@if ($r->status_koneksi->value !== 'online') — {{ $r->status_koneksi->label() }} @endif
-                            </flux:select.option>
-                        @endforeach
-                    </flux:select>
-                    <flux:error name="router_id" />
-                </flux:field>
-            </div>
-
-            @if ($router_id && $ipPools->isEmpty() && $jenis_koneksi === 'pppoe')
-                <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300">
-                    <div class="flex items-center gap-2 font-medium">
-                        <flux:icon name="exclamation-triangle" class="size-4 text-amber-600 dark:text-amber-400" />
-                        <span>Router ini belum memiliki IP Pool aktif.</span>
-                    </div>
-                    <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                        Buat IP Pool di menu <strong>Jaringan & Infrastruktur &rarr; IP Pool</strong> untuk router ini terlebih dahulu, atau gunakan opsi IP Static.
-                    </p>
-                </div>
-            @endif
-
-            @if ($jenis_koneksi === 'pppoe')
-                <flux:field>
-                    <flux:label>IP Pool <span class="text-zinc-400 font-normal">(Remote Address PPPoE)</span></flux:label>
-                    <flux:select wire:model.live="ip_pool_id" placeholder="Pilih IP Pool..." :disabled="! $router_id || $ipPools->isEmpty()">
-                        <flux:select.option value="">-- Pilih IP Pool --</flux:select.option>
-                        @foreach ($ipPools as $pool)
-                            <flux:select.option value="{{ $pool->id }}">
-                                {{ $pool->nama_pool }} ({{ $pool->ip_network }}/{{ $pool->cidr }})
-                            </flux:select.option>
-                        @endforeach
-                    </flux:select>
-                    <flux:description>Pool ini menentukan alokasi IP pelanggan di MikroTik (remote-address PPP Secret).</flux:description>
-                    <flux:error name="ip_pool_id" />
-                </flux:field>
-            @else
-                <flux:field>
-                    <flux:label>Alamat IP Statis <span class="text-zinc-400 font-normal">(Remote Address IPv4)</span></flux:label>
-                    <flux:input wire:model="ip_static" placeholder="Contoh: 10.10.10.50" />
-                    <flux:description>Alamat IP statis dedicated yang akan dialokasikan langsung ke pelanggan di MikroTik.</flux:description>
-                    <flux:error name="ip_static" />
-                </flux:field>
-            @endif
-
-            <flux:field>
-                <flux:label>Username PPP</flux:label>
-                <flux:input wire:model="ppp_username" placeholder="Contoh: BF2308202601_00001" />
-                <flux:error name="ppp_username" />
-            </flux:field>
-
-            <flux:callout icon="key" variant="secondary">
+            <flux:callout icon="wifi" variant="secondary">
                 <flux:callout.text>
-                    Password PPP dibuat otomatis secara acak (8 karakter) saat data disimpan dan ditampilkan sekali lewat notifikasi setelah berhasil. Setelah itu hanya Super Admin yang bisa mengungkapnya kembali.
+                    Jenis Layanan: <strong>PPPoE</strong>. Router, IP Pool, dan Username PPP diatur nanti oleh NOC lewat Aktivasi Pemasangan di Ticket setelah instalasi lapangan selesai.
                 </flux:callout.text>
             </flux:callout>
 
-            {{-- Informasi Lokasi Pemasangan Spesifik Site (Multi-Site Ready) --}}
+            {{-- Alamat Pemasangan --}}
             <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-4 dark:border-zinc-800 dark:bg-zinc-900/30">
                 <div>
-                    <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Titik Pasang & Lokasi Site <span class="text-xs font-normal text-zinc-500">(Opsional / Multi-Lokasi)</span></h4>
-                    <p class="text-xs text-zinc-500 dark:text-zinc-400">Kosongkan jika pemasangan berada di alamat utama pelanggan.</p>
+                    <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Alamat Pemasangan</h4>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">Alamat pemasangan bisa sama dengan alamat utama pelanggan atau berbeda (misal cabang, lantai lain, rumah orang tua, dll).</p>
                 </div>
 
                 <flux:field>
-                    <flux:label>Nama / Label Site</flux:label>
+                    <flux:label>Nama / Label Site <span class="text-zinc-400 font-normal">(Opsional)</span></flux:label>
                     <flux:input wire:model="nama_site" placeholder="Contoh: Rumah Utama, Ruko Lt. 2, Kantor Cabang" />
                     <flux:error name="nama_site" />
                 </flux:field>
 
                 <flux:field>
-                    <flux:label>Alamat Pemasangan Spesifik</flux:label>
-                    <flux:textarea wire:model="alamat_pemasangan" placeholder="Isi jika lokasi fisik berbeda dari domisili pelanggan..." rows="2" />
-                    <flux:error name="alamat_pemasangan" />
+                    <flux:label>Pilih Sumber Alamat</flux:label>
+                    <flux:radio.group wire:model.live="alamat_sumber" variant="segmented">
+                        <flux:radio value="utama">Gunakan alamat utama pelanggan</flux:radio>
+                        <flux:radio value="custom">Alamat pemasangan berbeda</flux:radio>
+                    </flux:radio.group>
+                    <flux:error name="alamat_sumber" />
                 </flux:field>
 
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                @if ($alamat_sumber === 'utama')
+                    <div class="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+                        <p class="text-zinc-500 dark:text-zinc-400 text-xs mb-1">Alamat Utama Pelanggan</p>
+                        <p class="text-zinc-800 dark:text-zinc-200">{{ $alamat_pemasangan ?: '—' }}</p>
+                        @if ($latitude && $longitude)
+                            <p class="text-zinc-500 dark:text-zinc-400 text-xs mt-1">Koordinat: {{ $latitude }}, {{ $longitude }}</p>
+                        @endif
+                    </div>
+                @else
                     <flux:field>
-                        <flux:label>Latitude Site</flux:label>
-                        <flux:input wire:model="latitude" type="number" step="any" placeholder="Contoh: -6.2088" />
-                        <flux:error name="latitude" />
+                        <flux:label>Perumahan / Cluster <span class="text-zinc-400 font-normal">(Opsional)</span></flux:label>
+                        <flux:select wire:model.live="perumahan_id" placeholder="Pilih perumahan / cluster...">
+                            <flux:select.option value="">-- Tanpa perumahan --</flux:select.option>
+                            @foreach ($perumahans as $perum)
+                                <flux:select.option value="{{ $perum->id }}">{{ $perum->nama_perumahan }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:description>Pilih perumahan untuk otomatis menambahkan nama perumahan, kelurahan, kecamatan & kota ke alamat (jika alamat masih kosong).</flux:description>
+                        <flux:error name="perumahan_id" />
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Longitude Site</flux:label>
-                        <flux:input wire:model="longitude" type="number" step="any" placeholder="Contoh: 106.8456" />
-                        <flux:error name="longitude" />
+                        <flux:label>Alamat Pemasangan (Detail)</flux:label>
+                        <flux:textarea wire:model="alamat_pemasangan" placeholder="Contoh: No. 5 - Curug Asri No.15B" rows="2" />
+                        <flux:error name="alamat_pemasangan" />
                     </flux:field>
-                </div>
+
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <flux:field>
+                            <flux:label>Latitude</flux:label>
+                            <flux:input wire:model.live="latitude" type="number" step="any" placeholder="Contoh: -6.2088" />
+                            <flux:error name="latitude" />
+                        </flux:field>
+
+                        <flux:field>
+                            <flux:label>Longitude</flux:label>
+                            <flux:input wire:model.live="longitude" type="number" step="any" placeholder="Contoh: 106.8456" />
+                            <flux:error name="longitude" />
+                        </flux:field>
+                    </div>
+
+                    <x-map-picker lat="latitude" lng="longitude" />
+                @endif
             </div>
 
             <flux:field>
@@ -149,14 +125,6 @@
                 <flux:input wire:model.live="tanggal_mulai" type="date" />
                 <flux:error name="tanggal_mulai" />
             </flux:field>
-
-            <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
-                <flux:checkbox
-                    wire:model="auto_provision"
-                    label="Langsung buat akun PPPoE Secret di router MikroTik"
-                    description="Jika dicentang, job provisioning akan langsung dikirim ke router yang dipilih saat pendaftaran disimpan."
-                />
-            </div>
 
             {{-- Tagihan Pertama --}}
             <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-4 dark:border-zinc-800 dark:bg-zinc-900/30">
@@ -197,10 +165,34 @@
             </div>
 
             {{-- Pengaturan Harga Layanan --}}
+            <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-4 dark:border-zinc-800 dark:bg-zinc-900/30">
+                <div>
+                    <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Pengaturan Harga Layanan</h4>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">Harga dasar ini akan menjadi acuan penagihan bulanan untuk layanan ini.</p>
+                </div>
+
+                <flux:radio.group wire:model.live="price_mode" variant="segmented">
+                    @foreach ($priceModes as $pm)
+                        <flux:radio value="{{ $pm->value }}">{{ $pm->label() }}</flux:radio>
+                    @endforeach
+                </flux:radio.group>
+                <flux:error name="price_mode" />
+
+                @if ($price_mode === 'custom')
+                    <flux:field>
+                        <flux:label>Harga Layanan (Custom, per bulan)</flux:label>
+                        <flux:input wire:model.live="price_custom" type="number" step="any" placeholder="Masukan angka saja, mis: 250000" />
+                        <flux:description>Isi hanya jika memilih harga khusus (manual). Jika kosong, sistem akan memakai harga dari paket.</flux:description>
+                        <flux:error name="price_custom" />
+                    </flux:field>
+                @endif
+            </div>
+
+            {{-- Estimasi Invoice Pertama --}}
             @if ($jenis_tagihan_pertama !== '')
                 <div class="bg-blue-50 dark:bg-blue-950/40 p-6 rounded-xl border border-blue-200 dark:border-blue-800 space-y-3">
                     <h4 class="font-semibold text-blue-900 dark:text-blue-200 text-sm uppercase tracking-wide">
-                        Pengaturan Harga Layanan
+                        Estimasi Invoice Pertama
                     </h4>
                     <div class="space-y-2 text-sm">
                         <div class="flex justify-between text-zinc-700 dark:text-zinc-300">
@@ -236,6 +228,30 @@
                     </div>
                 </div>
             @endif
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-1 text-sm dark:border-zinc-800 dark:bg-zinc-900/30">
+                    <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Ringkasan Pelanggan</h4>
+                    <div class="flex justify-between text-zinc-600 dark:text-zinc-400"><span>Nama:</span><span class="text-zinc-900 dark:text-zinc-100">{{ $this->pelanggan?->namaLengkap() }}</span></div>
+                    <div class="flex justify-between text-zinc-600 dark:text-zinc-400"><span>No. Reg:</span><span class="text-zinc-900 dark:text-zinc-100">{{ $this->pelanggan?->no_reg }}</span></div>
+                    <div class="flex justify-between text-zinc-600 dark:text-zinc-400"><span>No. HP:</span><span class="text-zinc-900 dark:text-zinc-100">{{ $this->pelanggan?->no_hp }}</span></div>
+                    <div class="flex justify-between text-zinc-600 dark:text-zinc-400"><span>Status:</span><span class="text-zinc-900 dark:text-zinc-100">{{ $this->pelanggan?->status?->label() }}</span></div>
+                </div>
+
+                <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-1 text-sm dark:border-zinc-800 dark:bg-zinc-900/30">
+                    <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Mode Billing</h4>
+                    <flux:badge color="zinc" size="sm">Default - Fixed Date</flux:badge>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-2">Semua layanan baru tetap memakai jatuh tempo fixed date secara default.</p>
+                </div>
+            </div>
+
+            <flux:callout icon="information-circle" variant="secondary">
+                <flux:callout.heading>Catatan</flux:callout.heading>
+                <flux:callout.text>
+                    Layanan ini akan tercatat di Layanan / Pemasangan pada detail pelanggan. Invoice pertama langsung dibuat saat layanan disimpan.
+                    Site ID dibuat otomatis di backend. Ticketing pemasangan, gangguan, pencabutan, dan lainnya dikelola di halaman detail layanan.
+                </flux:callout.text>
+            </flux:callout>
 
             <div class="flex items-center justify-between pt-2">
                 <flux:button wire:click="prevStep" variant="ghost" icon="arrow-left">Kembali</flux:button>

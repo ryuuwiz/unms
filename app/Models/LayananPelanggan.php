@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\JenisKoneksi;
+use App\Enums\PriceMode;
 use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
 use App\Models\Concerns\GracefullyDecryptsAttributes;
@@ -24,12 +25,14 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $id
  * @property int $pelanggan_id
  * @property int $paket_layanan_id
- * @property int $router_id
+ * @property PriceMode $price_mode
+ * @property float|null $price_custom
+ * @property int|null $router_id
  * @property int|null $ip_pool_id
  * @property string $site_id
  * @property string|null $nama_site
- * @property string $ppp_username
- * @property string $ppp_password_terenkripsi
+ * @property string|null $ppp_username
+ * @property string|null $ppp_password_terenkripsi
  * @property string|null $ip_static
  * @property string|null $ip_dynamic
  * @property int|null $odp_port_id
@@ -48,13 +51,15 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $updated_at
  * @property-read Pelanggan $pelanggan
  * @property-read PaketLayanan $paketLayanan
- * @property-read Router $router
+ * @property-read Router|null $router
  * @property-read IpPool|null $ipPool
  * @property-read OdpPort|null $odpPort
  */
 #[Fillable([
     'pelanggan_id',
     'paket_layanan_id',
+    'price_mode',
+    'price_custom',
     'router_id',
     'ip_pool_id',
     'site_id',
@@ -114,6 +119,8 @@ class LayananPelanggan extends Model
     protected function casts(): array
     {
         return [
+            'price_mode' => PriceMode::class,
+            'price_custom' => 'float',
             'jenis_koneksi' => JenisKoneksi::class,
             'status' => StatusLayanan::class,
             'provisioning_status' => ProvisioningStatus::class,
@@ -412,6 +419,22 @@ class LayananPelanggan extends Model
     public function getNamaSiteLabelAttribute(): string
     {
         return ! empty($this->nama_site) ? $this->nama_site : $this->site_id;
+    }
+
+    /**
+     * Dapatkan harga dasar bulanan efektif layanan ini: `price_custom` jika `price_mode`
+     * custom, jika tidak fallback ke harga PaketLayanan saat ini. Dipakai sebagai satu-satunya
+     * sumber angka baik oleh tagihan pertama maupun tagihan bulanan berikutnya, sehingga
+     * perubahan harga paket di kemudian hari tidak memengaruhi layanan yang sudah pakai
+     * harga custom.
+     */
+    public function hargaDasar(): float
+    {
+        if ($this->price_mode === PriceMode::Custom && $this->price_custom !== null) {
+            return (float) $this->price_custom;
+        }
+
+        return (float) $this->paketLayanan->harga;
     }
 
     /**

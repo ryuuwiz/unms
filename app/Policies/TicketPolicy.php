@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Models\Ticket;
@@ -133,6 +134,38 @@ class TicketPolicy
         }
 
         return false;
+    }
+
+    /**
+     * Apakah user boleh menandai status sign-off suatu divisi pada Ticket Pemasangan --
+     * lihat CONTEXT.md "Status Per-Divisi Tiket". Satu peran hanya boleh menandai divisi
+     * miliknya sendiri; Teknisi tambahan harus jadi PIC tiket ini.
+     */
+    public function ubahStatusDivisi(User $user, Ticket $ticket, DivisiTicket $divisi): bool
+    {
+        if (! $user->can('ticket.ubah')) {
+            return false;
+        }
+
+        if ($user->hasRole(['super_admin', 'admin'])) {
+            return true;
+        }
+
+        return match ($divisi) {
+            DivisiTicket::Teknisi => $user->hasRole('teknisi') && $ticket->pic_id === $user->id,
+            DivisiTicket::Noc => $user->hasRole('noc'),
+            DivisiTicket::CustomerService => $user->hasRole('customer_service'),
+            default => false,
+        };
+    }
+
+    /**
+     * Apakah user boleh menjalankan Aktivasi Pemasangan (mengisi router/IP Pool/PPP username
+     * pada layanan yang terhubung ke tiket ini) -- lihat CONTEXT.md "Aktivasi Pemasangan".
+     */
+    public function aktivasiPemasangan(User $user, Ticket $ticket): bool
+    {
+        return $user->can('layanan_pelanggan.aktivasi');
     }
 
     /**

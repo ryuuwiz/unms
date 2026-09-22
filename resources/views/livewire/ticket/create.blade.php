@@ -36,12 +36,16 @@
                     <div>
                         <flux:field>
                             <flux:label>Divisi Penanggung Jawab</flux:label>
+                            @if ($jenis === 'pemasangan' && $layanan_pelanggan_id)
+                                <flux:description>Tiket Pemasangan yang merujuk layanan yang sudah ada wajib melalui sign-off keempat divisi ini (urutan bebas kecuali gate Aktivasi & pembayaran) -- tidak bisa diubah.</flux:description>
+                            @endif
                             <div class="grid grid-cols-2 gap-2 mt-1">
                                 @foreach($divisiList as $d)
                                     <flux:checkbox
                                         wire:model="divisis"
                                         value="{{ $d->value }}"
                                         label="{{ $d->label() }}"
+                                        :disabled="$jenis === 'pemasangan' && $layanan_pelanggan_id"
                                     />
                                 @endforeach
                             </div>
@@ -59,11 +63,11 @@
                 <!-- Layanan Pelanggan Selector (Kondisional) -->
                 @if($pelanggan_id)
                     <div>
-                        <flux:select wire:model="layanan_pelanggan_id" label="Layanan Internet Terkait (opsional untuk Pemasangan Baru, wajib untuk Pencabutan dan Pindah Alamat)" placeholder="Pilih Layanan...">
+                        <flux:select wire:model.live="layanan_pelanggan_id" label="Layanan Internet Terkait (opsional untuk Pemasangan Baru, wajib untuk Pencabutan dan Pindah Alamat)" placeholder="Pilih Layanan...">
                             <flux:select.option value="">-- Tanpa Layanan / Pemasangan Baru --</flux:select.option>
                             @foreach($layanans as $lay)
                                 <flux:select.option value="{{ $lay->id }}">
-                                    PPP: {{ $lay->ppp_username }} • Paket: {{ $lay->paketLayanan?->nama_paket ?? '-' }} • Router: {{ $lay->router?->nama_router ?? '-' }}
+                                    PPP: {{ $lay->ppp_username ?? 'Belum diaktivasi' }} • Paket: {{ $lay->paketLayanan?->nama_paket ?? '-' }} • Router: {{ $lay->router?->nama_router ?? '-' }}
                                 </flux:select.option>
                             @endforeach
                         </flux:select>

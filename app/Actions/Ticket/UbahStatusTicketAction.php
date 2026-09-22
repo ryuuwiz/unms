@@ -24,19 +24,24 @@ class UbahStatusTicketAction
     /**
      * Eksekusi perubahan status tiket secara aman dan atomic.
      *
+     * @param  bool  $otomatis  Lewati validasi state machine & Policy ubahStatus -- dipakai HANYA oleh
+     *                          auto-derive status master dari Status Per-Divisi Tiket (lihat
+     *                          UbahStatusDivisiTicketAction), karena otorisasi sesungguhnya sudah
+     *                          dicek di level per-divisi, bukan di level klik status tiket manual.
+     *
      * @throws TransisiStatusTidakValidException
      * @throws AuthorizationException
      * @throws InvalidArgumentException
      */
-    public function execute(Ticket $ticket, StatusTicket $statusBaru, User $actor, ?string $catatan = null): Ticket
+    public function execute(Ticket $ticket, StatusTicket $statusBaru, User $actor, ?string $catatan = null, bool $otomatis = false): Ticket
     {
         // 1. Validasi matriks transisi state machine
-        if (! in_array($statusBaru, $ticket->status->transisiValid(), true)) {
+        if (! $otomatis && ! in_array($statusBaru, $ticket->status->transisiValid(), true)) {
             throw new TransisiStatusTidakValidException($ticket->status, $statusBaru);
         }
 
         // 2. Validasi otorisasi peran via Policy
-        if (! Gate::forUser($actor)->allows('ubahStatus', [$ticket, $statusBaru])) {
+        if (! $otomatis && ! Gate::forUser($actor)->allows('ubahStatus', [$ticket, $statusBaru])) {
             throw new AuthorizationException(
                 "Anda tidak memiliki hak akses untuk mengubah status tiket {$ticket->nomor_ticket} menjadi '{$statusBaru->label()}'."
             );
@@ -58,8 +63,11 @@ class UbahStatusTicketAction
                 'status' => $statusBaru,
             ];
 
-            // Flag aktivasi manual MikroTik untuk tiket pemasangan yang selesai (Fase 4 -> Fase 6)
-            if ($statusBaru === StatusTicket::Selesai && $ticket->jenis === JenisTicket::Pemasangan) {
+            // Flag aktivasi manual: hanya relevan untuk alur lama (tiket dibuat SEBELUM ada layanan,
+            // lihat CONTEXT.md "Alur Tiket ke Billing"). Alur baru (tiket dibuat merujuk layanan yang
+            // sudah ada, lihat "Aktivasi Pemasangan") sudah pasti aktif sebelum tiket bisa Selesai
+            // (digerbang oleh semuaDivisiWajibSelesai()), jadi flag ini tidak relevan lagi di sana.
+            if ($statusBaru === StatusTicket::Selesai && $ticket->jenis === JenisTicket::Pemasangan && ! $ticket->layanan_pelanggan_id) {
                 $updateData['perlu_aktivasi_manual'] = true;
             }
 

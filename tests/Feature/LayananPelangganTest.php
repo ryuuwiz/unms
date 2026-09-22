@@ -2,11 +2,11 @@
 
 use App\Enums\JenisKoneksi;
 use App\Enums\JenisTagihanPertama;
-use App\Enums\ProvisioningStatus;
+use App\Enums\PriceMode;
 use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
+use App\Enums\Ticket\StatusTicket;
 use App\Enums\UserStatus;
-use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Livewire\LayananPelanggan\Create;
 use App\Livewire\LayananPelanggan\Edit;
 use App\Livewire\LayananPelanggan\Index;
@@ -15,17 +15,17 @@ use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
+use App\Models\Perumahan;
 use App\Models\ProfilBandwidth;
 use App\Models\Promo;
 use App\Models\PromoPenggunaan;
 use App\Models\Router;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Billing\BillingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Queue;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 
@@ -51,48 +51,30 @@ beforeEach(function () {
     $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id]);
 });
 
-test('admin can create layanan pelanggan through 2-step wizard', function () {
-    Queue::fake([ProvisionPppoeAccountJob::class]);
-
-    $validUsername = "{$this->pelanggan->no_reg}_00001";
-
+test('admin can create layanan pelanggan komersial saja tanpa router/ip pool/ppp username', function () {
     Livewire::actingAs($this->admin)
         ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->assertHasNoErrors()
         ->assertSet('step', 2)
-        // Step 2
-        ->set('router_id', $this->router->id)
-        ->set('ip_pool_id', $this->ipPool->id)
-        ->set('ppp_username', $validUsername)
-        ->set('jenis_koneksi', 'pppoe')
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));
 
-    Queue::assertNotPushed(ProvisionPppoeAccountJob::class);
+    $layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)
+        ->where('paket_layanan_id', $this->paket->id)
+        ->first();
 
-    $layanan = LayananPelanggan::where('ppp_username', $validUsername)->first();
     expect($layanan)->not->toBeNull()
-        ->and($layanan->provisioning_status)->toBe(ProvisioningStatus::Failed)
-        ->and($layanan->last_provisioning_error)->not->toBeNull()
-        ->and($layanan->pelanggan_id)->toBe($this->pelanggan->id)
-        ->and($layanan->paket_layanan_id)->toBe($this->paket->id)
-        ->and($layanan->router_id)->toBe($this->router->id)
-        ->and($layanan->ip_pool_id)->toBe($this->ipPool->id)
-        ->and($layanan->ip_static)->toBeNull()
+        ->and($layanan->router_id)->toBeNull()
+        ->and($layanan->ip_pool_id)->toBeNull()
+        ->and($layanan->ppp_username)->toBeNull()
+        ->and($layanan->ppp_password_terenkripsi)->toBeNull()
         ->and($layanan->status)->toBe(StatusLayanan::Proses)
         ->and($layanan->site_id)->toStartWith('SITE-');
-
-    // PPP password harus di-generate otomatis oleh sistem (8 karakter alfanumerik), tidak pernah
-    // mengambil input manual staf -- lihat CONTEXT.md "PPP Password Credential".
-    $rawPass = DB::table('layanan_pelanggan')->where('id', $layanan->id)->value('ppp_password_terenkripsi');
-    $decrypted = Crypt::decryptString($rawPass);
-    expect($decrypted)->toHaveLength(8)
-        ->and($decrypted)->toMatch('/^[a-zA-Z0-9]{8}$/');
 });
 
 test('membuka create tanpa permission layanan_pelanggan.buat ditolak', function () {
@@ -130,108 +112,6 @@ test('validasi step 1 gagal jika paket layanan belum dipilih', function () {
         ->assertSet('step', 1);
 });
 
-test('validasi gagal dengan pesan jelas jika router belum dipilih di step 2', function () {
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->set('router_id', null)
-        ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-        ->set('tanggal_mulai', now()->toDateString())
-        ->call('save')
-        ->assertHasErrors(['router_id' => 'required']);
-});
-
-test('validasi gagal jika ip_pool_id kosong pada koneksi pppoe', function () {
-    $routerWithoutPool = Router::factory()->online()->create();
-
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->set('router_id', $routerWithoutPool->id)
-        ->set('jenis_koneksi', 'pppoe')
-        ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-        ->set('tanggal_mulai', now()->toDateString())
-        ->call('save')
-        ->assertHasErrors(['ip_pool_id' => 'required']);
-});
-
-test('validasi gagal jika ip_pool_id dari router lain dipilih pada create', function () {
-    $routerLain = Router::factory()->online()->create();
-    $poolRouterLain = IpPool::factory()->create(['router_id' => $routerLain->id]);
-
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('jenis_koneksi', 'pppoe')
-        ->set('ip_pool_id', $poolRouterLain->id)
-        ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-        ->set('tanggal_mulai', now()->toDateString())
-        ->call('save')
-        ->assertHasErrors(['ip_pool_id']);
-});
-
-test('sistem dengan 1 router online otomatis auto-select router_id dan ip_pool_id', function () {
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->assertSet('router_id', $this->router->id)
-        ->assertSet('ip_pool_id', $this->ipPool->id);
-});
-
-test('sistem dengan banyak router online tidak auto-select router_id saat mount', function () {
-    Router::factory()->online()->create();
-
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->assertSet('router_id', null)
-        ->assertSet('ip_pool_id', null);
-});
-
-test('memilih router dengan 1 pool otomatis auto-select ip_pool_id', function () {
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->assertSet('ip_pool_id', $this->ipPool->id);
-});
-
-test('router offline tetap tampil dan dapat dipilih pada form create billing', function () {
-    $offlineRouter = Router::factory()->create([
-        'nama_router' => 'Router-Offline-Test',
-        'status_koneksi' => StatusRouter::Offline,
-    ]);
-    $offlinePool = IpPool::factory()->create(['router_id' => $offlineRouter->id]);
-
-    Queue::fake([ProvisionPppoeAccountJob::class]);
-    $validUsername = "{$this->pelanggan->no_reg}_00001";
-
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->assertSee('Router-Offline-Test')
-        ->set('router_id', $offlineRouter->id)
-        ->set('ip_pool_id', $offlinePool->id)
-        ->set('ppp_username', $validUsername)
-        ->set('tanggal_mulai', now()->toDateString())
-        ->set('jenis_tagihan_pertama', 'full_bulan')
-        ->call('save')
-        ->assertHasNoErrors()
-        ->assertRedirect(route('layanan-pelanggan.index'));
-
-    $layanan = LayananPelanggan::where('ppp_username', $validUsername)->first();
-    expect($layanan)->not->toBeNull()
-        ->and($layanan->router_id)->toBe($offlineRouter->id);
-});
-
 test('admin dapat mengedit layanan meskipun router terkait sedang offline', function () {
     $offlineRouter = Router::factory()->create([
         'nama_router' => 'Router-Offline-Edit',
@@ -259,90 +139,6 @@ test('admin dapat mengedit layanan meskipun router terkait sedang offline', func
     $layanan->refresh();
     expect($layanan->router_id)->toBe($offlineRouter->id)
         ->and($layanan->nama_site)->toBe('Titik Pasang Baru');
-});
-
-test('memilih router dengan banyak pool tidak auto-select ip_pool_id', function () {
-    $pool2 = IpPool::factory()->create(['router_id' => $this->router->id]);
-
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->assertSet('ip_pool_id', null);
-});
-
-test('admin can create layanan pelanggan with ip_static', function () {
-    Queue::fake([ProvisionPppoeAccountJob::class]);
-
-    $validUsername = "{$this->pelanggan->no_reg}_00001";
-
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('jenis_koneksi', 'ip_static')
-        ->set('ip_static', '192.168.100.25')
-        ->set('ppp_username', $validUsername)
-        ->set('tanggal_mulai', now()->toDateString())
-        ->set('jenis_tagihan_pertama', 'full_bulan')
-        ->call('save')
-        ->assertHasNoErrors()
-        ->assertRedirect(route('layanan-pelanggan.index'));
-
-    $layanan = LayananPelanggan::where('ppp_username', $validUsername)->first();
-    expect($layanan)->not->toBeNull()
-        ->and($layanan->jenis_koneksi)->toBe(JenisKoneksi::IpStatic)
-        ->and($layanan->ip_static)->toBe('192.168.100.25')
-        ->and($layanan->ip_pool_id)->toBeNull();
-});
-
-test('pendaftaran layanan dengan format ip_static tidak valid ditolak', function () {
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('jenis_koneksi', 'ip_static')
-        ->set('ip_static', 'bukan-ip-valid')
-        ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-        ->set('tanggal_mulai', now()->toDateString())
-        ->call('save')
-        ->assertHasErrors(['ip_static' => 'ipv4']);
-});
-
-test('mount dengan pelanggan otomatis auto-fill ppp_username dengan format baru', function () {
-    $component = Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan]);
-
-    $pppUsername = $component->get('ppp_username');
-    expect($pppUsername)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/');
-    expect(LayananPelanggan::extractCounter($pppUsername))->toBeBetween(10000, 99999);
-});
-
-test('ppp_username dengan format lama (bebas) ditolak validasi', function () {
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('ppp_username', 'user_budi_01')  // format lama — harus ditolak
-        ->set('tanggal_mulai', now()->toDateString())
-        ->call('save')
-        ->assertHasErrors(['ppp_username' => 'regex']);
-});
-
-test('ppp_username format benar tapi prefix no_reg salah ditolak', function () {
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('ppp_username', 'WRONGREG_00001')  // prefix tidak cocok no_reg
-        ->set('tanggal_mulai', now()->toDateString())
-        ->call('save')
-        ->assertHasErrors(['ppp_username' => 'regex']);
 });
 
 test('admin can edit layanan pelanggan and switch to ip_static', function () {
@@ -442,92 +238,47 @@ test('can list and filter layanans by status', function () {
         ->assertSee($this->pelanggan->nama_depan);
 });
 
-test('pendaftaran layanan ditolak jika pelanggan sudah memiliki layanan aktif pada router dan paket yang sama', function () {
-    // Existing active service
-    LayananPelanggan::factory()->create([
-        'pelanggan_id' => $this->pelanggan->id,
-        'paket_layanan_id' => $this->paket->id,
-        'router_id' => $this->router->id,
-        'status' => StatusLayanan::Aktif,
-        'ppp_username' => "{$this->pelanggan->no_reg}_00001",
-    ]);
-
-    $newUsername = "{$this->pelanggan->no_reg}_00002";
+test('pelanggan dapat mendaftarkan lebih dari satu layanan (multi-site, duplikat dicek nanti saat aktivasi)', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('paket_layanan_id', $this->paket->id)
+        ->call('nextStep')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->set('jenis_tagihan_pertama', 'full_bulan')
+        ->call('save')
+        ->assertHasNoErrors();
 
     Livewire::actingAs($this->admin)
         ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
-        ->assertHasNoErrors()
-        ->set('router_id', $this->router->id)
-        ->set('ip_pool_id', $this->ipPool->id)
-        ->set('ppp_username', $newUsername)
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
-        ->assertHasErrors(['router_id'])
-        ->assertSee('Pelanggan ini sudah memiliki Data Registrasi Billing aktif dengan paket yang sama pada router ini');
-});
-
-test('pelanggan dapat memiliki banyak layanan jika router atau paket berbeda (multi-site)', function () {
-    Queue::fake([ProvisionPppoeAccountJob::class]);
-
-    // Existing active service on router 1
-    LayananPelanggan::factory()->create([
-        'pelanggan_id' => $this->pelanggan->id,
-        'paket_layanan_id' => $this->paket->id,
-        'router_id' => $this->router->id,
-        'status' => StatusLayanan::Aktif,
-        'ppp_username' => "{$this->pelanggan->no_reg}_00001",
-    ]);
-
-    // Second router for site 2
-    $secondRouter = Router::factory()->online()->create(['nama_router' => 'Router-Site-2']);
-    $secondPool = IpPool::factory()->create(['router_id' => $secondRouter->id]);
-    $newUsername = "{$this->pelanggan->no_reg}_00002";
-
-    Livewire::actingAs($this->admin)
-        ->test(Create::class, ['pelanggan' => $this->pelanggan])
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->assertHasNoErrors()
-        ->set('router_id', $secondRouter->id)
-        ->set('ip_pool_id', $secondPool->id)
-        ->set('ppp_username', $newUsername)
-        ->set('tanggal_mulai', now()->toDateString())
-        ->set('jenis_tagihan_pertama', 'full_bulan')
-        ->call('save')
-        ->assertHasNoErrors()
-        ->assertRedirect(route('layanan-pelanggan.index'));
+        ->assertHasNoErrors();
 
     expect(LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->count())->toBe(2);
 });
 
 test('registrasi dengan tagihan full 1 bulan membuat invoice sebesar harga paket penuh', function () {
-    Queue::fake([ProvisionPppoeAccountJob::class]);
-
     $paket = PaketLayanan::factory()->create([
         'profil_bandwidth_id' => $this->profil->id,
         'harga' => 200000,
         'masa_aktif_nilai' => 1,
         'masa_aktif_satuan' => 'bulan',
     ]);
-    $validUsername = "{$this->pelanggan->no_reg}_00001";
 
     Livewire::actingAs($this->admin)
         ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $paket->id)
         ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('ip_pool_id', $this->ipPool->id)
-        ->set('ppp_username', $validUsername)
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));
 
-    $layanan = LayananPelanggan::where('ppp_username', $validUsername)->first();
+    $layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->where('paket_layanan_id', $paket->id)->first();
     $invoice = Invoice::where('layanan_pelanggan_id', $layanan->id)->first();
 
     expect($invoice)->not->toBeNull()
@@ -538,8 +289,6 @@ test('registrasi dengan tagihan full 1 bulan membuat invoice sebesar harga paket
 });
 
 test('registrasi dengan tagihan proporsional sisa hari membuat invoice sesuai perhitungan BillingService', function () {
-    Queue::fake([ProvisionPppoeAccountJob::class]);
-
     $paket = PaketLayanan::factory()->create([
         'profil_bandwidth_id' => $this->profil->id,
         'harga' => 300000,
@@ -547,22 +296,18 @@ test('registrasi dengan tagihan proporsional sisa hari membuat invoice sesuai pe
         'masa_aktif_satuan' => 'bulan',
     ]);
     $tanggalMulai = now()->startOfMonth()->addDays(10); // pertengahan bulan
-    $validUsername = "{$this->pelanggan->no_reg}_00001";
 
     Livewire::actingAs($this->admin)
         ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $paket->id)
         ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('ip_pool_id', $this->ipPool->id)
-        ->set('ppp_username', $validUsername)
         ->set('tanggal_mulai', $tanggalMulai->toDateString())
         ->set('jenis_tagihan_pertama', 'prorata')
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));
 
-    $layanan = LayananPelanggan::where('ppp_username', $validUsername)->first();
+    $layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->where('paket_layanan_id', $paket->id)->first();
     $invoice = Invoice::where('layanan_pelanggan_id', $layanan->id)->first();
 
     $expected = app(BillingService::class)->hitungRincianTagihanPertama(
@@ -578,8 +323,6 @@ test('registrasi dengan tagihan proporsional sisa hari membuat invoice sesuai pe
 });
 
 test('registrasi dengan tagihan promo memotong harga dan mencatat penggunaan promo', function () {
-    Queue::fake([ProvisionPppoeAccountJob::class]);
-
     $paket = PaketLayanan::factory()->create([
         'profil_bandwidth_id' => $this->profil->id,
         'harga' => 250000,
@@ -592,15 +335,11 @@ test('registrasi dengan tagihan promo memotong harga dan mencatat penggunaan pro
         'kuota_global' => 100,
         'terpakai_global' => 0,
     ]);
-    $validUsername = "{$this->pelanggan->no_reg}_00001";
 
     Livewire::actingAs($this->admin)
         ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $paket->id)
         ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('ip_pool_id', $this->ipPool->id)
-        ->set('ppp_username', $validUsername)
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'promo')
         ->set('promo_id', $promo->id)
@@ -608,7 +347,7 @@ test('registrasi dengan tagihan promo memotong harga dan mencatat penggunaan pro
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));
 
-    $layanan = LayananPelanggan::where('ppp_username', $validUsername)->first();
+    $layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->where('paket_layanan_id', $paket->id)->first();
     $invoice = Invoice::where('layanan_pelanggan_id', $layanan->id)->first();
 
     expect($invoice)->not->toBeNull()
@@ -625,9 +364,6 @@ test('validasi gagal jika opsi promo dipilih tanpa memilih promo_id', function (
         ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('ip_pool_id', $this->ipPool->id)
-        ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'promo')
         ->call('save')
@@ -639,36 +375,28 @@ test('validasi gagal jika jenis_tagihan_pertama belum dipilih', function () {
         ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('ip_pool_id', $this->ipPool->id)
-        ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
         ->set('tanggal_mulai', now()->toDateString())
         ->call('save')
         ->assertHasErrors(['jenis_tagihan_pertama' => 'required']);
 });
 
 test('layanan pelanggan tidak tersimpan jika pembuatan tagihan pertama gagal (atomicity)', function () {
-    $mockBilling = Mockery::mock(BillingService::class);
+    $mockBilling = Mockery::mock(BillingService::class)->makePartial();
     $mockBilling->shouldReceive('generateFirstInvoice')
         ->once()
         ->andThrow(new Exception('Simulasi kegagalan penerbitan tagihan pertama.'));
     $this->instance(BillingService::class, $mockBilling);
 
-    $validUsername = "{$this->pelanggan->no_reg}_00001";
-
     Livewire::actingAs($this->admin)
         ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
-        ->set('router_id', $this->router->id)
-        ->set('ip_pool_id', $this->ipPool->id)
-        ->set('ppp_username', $validUsername)
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
         ->assertHasErrors(['jenis_tagihan_pertama']);
 
-    expect(LayananPelanggan::where('ppp_username', $validUsername)->exists())->toBeFalse();
+    expect(LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->exists())->toBeFalse();
 });
 
 test('layanan dengan masa aktif expired menampilkan status EXPIRED bukan Suspend', function () {
@@ -777,4 +505,139 @@ test('index expiry filter narrows to aktif or suspend layanan within the Perlu P
         ->assertSee($lewat->site_id)
         ->assertSee($segera->site_id)
         ->assertDontSee($lawas->site_id);
+});
+
+test('mode harga custom dipakai untuk tagihan pertama, bukan harga paket', function () {
+    $paket = PaketLayanan::factory()->create([
+        'profil_bandwidth_id' => $this->profil->id,
+        'harga' => 300000,
+        'masa_aktif_nilai' => 1,
+        'masa_aktif_satuan' => 'bulan',
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('paket_layanan_id', $paket->id)
+        ->call('nextStep')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->set('jenis_tagihan_pertama', 'full_bulan')
+        ->set('price_mode', 'custom')
+        ->set('price_custom', 175000)
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('layanan-pelanggan.index'));
+
+    $layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->where('paket_layanan_id', $paket->id)->first();
+    $invoice = Invoice::where('layanan_pelanggan_id', $layanan->id)->first();
+
+    expect($layanan->price_mode)->toBe(PriceMode::Custom)
+        ->and((float) $layanan->price_custom)->toBe(175000.0)
+        ->and($layanan->hargaDasar())->toBe(175000.0)
+        ->and((float) $invoice->jumlah_setelah_promo)->toBe(175000.0);
+});
+
+test('harga custom tetap dipakai untuk tagihan bulanan berikutnya meskipun harga paket berubah', function () {
+    $paket = PaketLayanan::factory()->create([
+        'profil_bandwidth_id' => $this->profil->id,
+        'harga' => 300000,
+        'masa_aktif_nilai' => 1,
+        'masa_aktif_satuan' => 'bulan',
+    ]);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $paket->id,
+        'router_id' => $this->router->id,
+        'status' => StatusLayanan::Aktif,
+        'price_mode' => PriceMode::Custom,
+        'price_custom' => 200000,
+    ]);
+
+    // Harga paket berubah setelah layanan dibuat -- layanan lama harus tetap pakai harga custom-nya.
+    $paket->update(['harga' => 500000]);
+
+    $invoice = app(BillingService::class)->generateInvoice($layanan, $this->admin->id, null, null, '2026-11');
+
+    expect((float) $invoice->jumlah)->toBe(200000.0);
+});
+
+test('mount otomatis mengisi alamat pemasangan dan koordinat dari data utama pelanggan', function () {
+    $component = Livewire::actingAs($this->admin)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan]);
+
+    expect($component->get('alamat_sumber'))->toBe('utama')
+        ->and($component->get('alamat_pemasangan'))->toBe($this->pelanggan->alamat_lengkap)
+        ->and((float) $component->get('latitude'))->toBe((float) $this->pelanggan->latitude)
+        ->and((float) $component->get('longitude'))->toBe((float) $this->pelanggan->longitude);
+});
+
+test('beralih ke alamat pemasangan berbeda mengosongkan field alamat', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('alamat_sumber', 'custom')
+        ->assertSet('alamat_pemasangan', '')
+        ->assertSet('latitude', null)
+        ->assertSet('longitude', null);
+});
+
+test('kembali ke alamat utama pelanggan mengisi ulang dari data pelanggan', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('alamat_sumber', 'custom')
+        ->set('alamat_pemasangan', 'Alamat sementara yang diketik staf')
+        ->set('alamat_sumber', 'utama')
+        ->assertSet('alamat_pemasangan', $this->pelanggan->alamat_lengkap);
+});
+
+test('memilih perumahan mengisi alamat pemasangan otomatis saat field masih kosong', function () {
+    $perumahan = Perumahan::factory()->create(['nama_perumahan' => 'Griya Asri', 'latitude' => -6.5, 'longitude' => 107.1]);
+    $perumahan->load('kelurahan.kecamatan.kota');
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('alamat_sumber', 'custom')
+        ->set('perumahan_id', $perumahan->id);
+
+    $alamat = $component->get('alamat_pemasangan');
+    expect($alamat)->toContain('Griya Asri')
+        ->and($alamat)->toContain($perumahan->kelurahan->nama_kelurahan)
+        ->and((float) $component->get('latitude'))->toBe(-6.5)
+        ->and((float) $component->get('longitude'))->toBe(107.1);
+});
+
+test('memilih perumahan tidak menimpa alamat pemasangan yang sudah diisi manual', function () {
+    $perumahan = Perumahan::factory()->create(['nama_perumahan' => 'Griya Asri']);
+
+    Livewire::actingAs($this->admin)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('alamat_sumber', 'custom')
+        ->set('alamat_pemasangan', 'No. 5 - Curug Asri No.15B')
+        ->set('perumahan_id', $perumahan->id)
+        ->assertSet('alamat_pemasangan', 'No. 5 - Curug Asri No.15B');
+});
+
+test('menyimpan layanan dari ticket pemasangan menghubungkan dan menonaktifkan perlu_aktivasi_manual', function () {
+    $ticket = Ticket::factory()->pemasangan()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'status' => StatusTicket::Selesai,
+        'perlu_aktivasi_manual' => true,
+    ]);
+
+    Livewire::withQueryParams(['ticket_id' => $ticket->id])
+        ->actingAs($this->admin)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->assertSet('ticket_id', $ticket->id)
+        ->set('paket_layanan_id', $this->paket->id)
+        ->call('nextStep')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->set('jenis_tagihan_pertama', 'full_bulan')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('layanan-pelanggan.index'));
+
+    $layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->where('paket_layanan_id', $this->paket->id)->first();
+    $ticket->refresh();
+
+    expect($ticket->layanan_pelanggan_id)->toBe($layanan->id)
+        ->and($ticket->perlu_aktivasi_manual)->toBeFalse();
 });

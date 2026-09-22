@@ -4,6 +4,7 @@ namespace App\Jobs\Mikrotik;
 
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
+use App\Enums\StatusRouter;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\User;
@@ -68,6 +69,22 @@ class DisablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
         $router = $this->layanan->router;
 
         if (! $router) {
+            return;
+        }
+
+        // Gate proaktif: sama seperti EnablePppoeAccountJob -- lihat komentar di sana.
+        if ($router->status_koneksi === StatusRouter::Offline) {
+            MikrotikJobLog::create([
+                'router_id' => $router->id,
+                'layanan_pelanggan_id' => $this->layanan->id,
+                'job_type' => MikrotikJobType::DisablePppoe,
+                'status' => MikrotikJobStatus::Dilewati,
+                'attempt_count' => $this->attempts(),
+                'payload' => ['username' => $this->layanan->ppp_username, 'disconnect_active' => $this->disconnectActive],
+                'error_message' => "Router {$router->nama_router} diketahui offline; percobaan dilewati, akan disinkronkan otomatis oleh siklus rekonsiliasi berikutnya.",
+                'finished_at' => Carbon::now(),
+            ]);
+
             return;
         }
 

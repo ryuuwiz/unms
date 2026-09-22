@@ -16,6 +16,7 @@ use App\Models\PengaturanSiklusTagihan;
 use App\Models\Promo;
 use App\Models\PromoPenggunaan;
 use App\Models\User;
+use Carbon\CarbonInterface;
 use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -47,8 +48,7 @@ class BillingService
                 return $existingInvoice;
             }
 
-            $paket = $layanan->paketLayanan;
-            $harga = (float) $paket->harga;
+            $harga = $layanan->hargaDasar();
 
             $diskon = 0.0;
             if ($promo && $promo->aktif) {
@@ -196,11 +196,12 @@ class BillingService
      */
     public function hitungRincianTagihanPertama(
         PaketLayanan $paket,
-        Carbon $tanggalMulai,
+        CarbonInterface $tanggalMulai,
         JenisTagihanPertama $jenis,
         ?Promo $promo = null,
+        ?float $hargaOverride = null,
     ): array {
-        $harga = (float) $paket->harga;
+        $harga = $hargaOverride ?? (float) $paket->harga;
         $hariDitagih = null;
         $hariTotalPeriode = null;
 
@@ -246,7 +247,7 @@ class BillingService
         $paket = $layanan->paketLayanan;
         $tanggalMulai = Carbon::parse($layanan->tanggal_mulai);
 
-        $rincian = $this->hitungRincianTagihanPertama($paket, $tanggalMulai, $jenis, $promo);
+        $rincian = $this->hitungRincianTagihanPertama($paket, $tanggalMulai, $jenis, $promo, $layanan->hargaDasar());
 
         $keterangan = match ($jenis) {
             JenisTagihanPertama::ProporsionalSisaHari => "Tagihan pertama - proporsional {$rincian['hari_ditagih']}/{$rincian['hari_total_periode']} hari",
@@ -260,7 +261,9 @@ class BillingService
             keterangan: $keterangan,
             dibuatOleh: $dibuatOleh,
             promo: $jenis === JenisTagihanPertama::Promo ? $promo : null,
-            tanggalJatuhTempo: $tanggalJatuhTempo ?? $tanggalMulai,
+            // Tenggat Pembayaran Invoice Pertama: H+1 dari tanggal mulai jika tidak
+            // dioverride eksplisit -- lihat CONTEXT.md "Tenggat Pembayaran Invoice Pertama".
+            tanggalJatuhTempo: $tanggalJatuhTempo ?? $tanggalMulai->copy()->addDay(),
         );
     }
 

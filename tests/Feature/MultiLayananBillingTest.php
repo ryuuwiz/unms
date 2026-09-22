@@ -64,47 +64,37 @@ beforeEach(function () {
     ]);
 });
 
-test('satu pelanggan dapat mendaftarkan beberapa layanan bertingkat dengan ppp_username dan site_id unik', function () {
-    Queue::fake([ProvisionPppoeAccountJob::class]);
-
-    // 1. Daftarkan Layanan Pertama (Paket Rumah)
-    $comp1 = Livewire::actingAs($this->admin)
+test('satu pelanggan dapat mendaftarkan beberapa layanan bertingkat dengan site_id unik', function () {
+    // 1. Daftarkan Layanan Pertama (Paket Rumah) -- komersial saja, router/ppp diisi nanti saat Aktivasi.
+    Livewire::actingAs($this->admin)
         ->test(LayananCreate::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paketHome->id)
-        ->call('nextStep');
-
-    $pppUsername1 = $comp1->get('ppp_username');
-    expect($pppUsername1)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/');
-
-    $comp1->set('tanggal_mulai', now()->toDateString())
+        ->call('nextStep')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));
 
-    $layanan1 = LayananPelanggan::where('ppp_username', $pppUsername1)->first();
+    $layanan1 = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)
+        ->where('paket_layanan_id', $this->paketHome->id)->first();
     expect($layanan1)->not->toBeNull()
-        ->and($layanan1->pelanggan_id)->toBe($this->pelanggan->id)
-        ->and($layanan1->paket_layanan_id)->toBe($this->paketHome->id);
+        ->and($layanan1->ppp_username)->toBeNull();
 
     // 2. Daftarkan Layanan Kedua untuk Pelanggan yang Sama (Paket Kantor)
-    $comp2 = Livewire::actingAs($this->admin)
+    Livewire::actingAs($this->admin)
         ->test(LayananCreate::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paketOffice->id)
-        ->call('nextStep');
-
-    $pppUsername2 = $comp2->get('ppp_username');
-    expect($pppUsername2)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/')
-        ->and($pppUsername2)->not->toBe($pppUsername1);
-
-    $comp2->set('tanggal_mulai', now()->toDateString())
+        ->call('nextStep')
+        ->set('tanggal_mulai', now()->toDateString())
+        ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));
 
-    $layanan2 = LayananPelanggan::where('ppp_username', $pppUsername2)->first();
+    $layanan2 = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)
+        ->where('paket_layanan_id', $this->paketOffice->id)->first();
     expect($layanan2)->not->toBeNull()
-        ->and($layanan2->pelanggan_id)->toBe($this->pelanggan->id)
-        ->and($layanan2->paket_layanan_id)->toBe($this->paketOffice->id)
         ->and($layanan2->site_id)->not->toBe($layanan1->site_id);
 
     // Verifikasi relasi di level Pelanggan
@@ -290,6 +280,7 @@ test('pendaftaran layanan mendukung nama_site dan koordinat lokasi spesifik per 
         ->set('alamat_pemasangan', 'Gedung Wisma Sudirman Lt. 5')
         ->set('latitude', -6.2146)
         ->set('longitude', 106.8212)
+        ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));

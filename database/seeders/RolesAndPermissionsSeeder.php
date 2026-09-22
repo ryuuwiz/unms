@@ -31,7 +31,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'pelanggan.lihat_ktp', 'pelanggan.lihat_dokumen', 'pelanggan.unggah_dokumen', 'pelanggan.hapus_dokumen',
             // Layanan Pelanggan
             'layanan_pelanggan.lihat', 'layanan_pelanggan.buat', 'layanan_pelanggan.ubah', 'layanan_pelanggan.hapus',
-            'layanan_pelanggan.lihat_ppp_password',
+            'layanan_pelanggan.lihat_ppp_password', 'layanan_pelanggan.aktivasi',
             // Invoice & Pembayaran (Fase 2)
             'invoice.lihat', 'invoice.buat', 'invoice.hapus', 'invoice.cetak',
             'siklus_tagihan.ubah',
@@ -75,6 +75,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $salesRole = Role::firstOrCreate(['name' => 'sales']);
         $nocRole = Role::firstOrCreate(['name' => 'noc']);
         $teknisiRole = Role::firstOrCreate(['name' => 'teknisi']);
+        $customerServiceRole = Role::firstOrCreate(['name' => 'customer_service']);
 
         // super_admin memiliki SEMUA permissions + bypass via Gate::before() di AppServiceProvider.
         $superAdmin->syncPermissions(Permission::all());
@@ -84,6 +85,7 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['pelanggan.lihat'], $p['pelanggan.buat'], $p['pelanggan.ubah'], $p['pelanggan.hapus'],
             $p['pelanggan.lihat_ktp'], $p['pelanggan.lihat_dokumen'], $p['pelanggan.unggah_dokumen'], $p['pelanggan.hapus_dokumen'],
             $p['layanan_pelanggan.lihat'], $p['layanan_pelanggan.buat'], $p['layanan_pelanggan.ubah'], $p['layanan_pelanggan.hapus'],
+            $p['layanan_pelanggan.aktivasi'],
             $p['invoice.lihat'], $p['invoice.buat'], $p['invoice.hapus'], $p['invoice.cetak'],
             $p['siklus_tagihan.ubah'],
             $p['pembayaran.catat'], $p['pembayaran.lihat'],
@@ -113,7 +115,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // noc: jaringan, router, ODP, tiket gangguan
         $nocRole->syncPermissions([
             $p['pelanggan.lihat'],
-            $p['layanan_pelanggan.lihat'], $p['layanan_pelanggan.ubah'],
+            $p['layanan_pelanggan.lihat'], $p['layanan_pelanggan.ubah'], $p['layanan_pelanggan.aktivasi'],
             $p['router.lihat'], $p['router.buat'], $p['router.ubah'], $p['router.hapus'],
             $p['router.provision'], $p['router.sync'],
             $p['ip_pool.lihat'], $p['ip_pool.buat'], $p['ip_pool.ubah'], $p['ip_pool.hapus'],
@@ -128,6 +130,15 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['pelanggan.lihat'],
             $p['layanan_pelanggan.lihat'],
             $p['ticket.lihat'], $p['ticket.ubah'],
+        ]);
+
+        // customer_service: sign-off tiket pemasangan sisi layanan pelanggan, tidak menyentuh jaringan
+        $customerServiceRole->syncPermissions([
+            $p['pelanggan.lihat'],
+            $p['layanan_pelanggan.lihat'],
+            $p['invoice.lihat'],
+            $p['pembayaran.lihat'],
+            $p['ticket.lihat'], $p['ticket.buat'], $p['ticket.ubah'],
         ]);
     }
 }

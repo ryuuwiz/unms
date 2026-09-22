@@ -2,18 +2,38 @@
 
 namespace App\Livewire\Ticket;
 
+use App\Actions\LayananPelanggan\DaftarkanLayananAction;
 use App\Actions\Ticket\AssignPicAction;
+use App\Actions\Ticket\UbahStatusDivisiTicketAction;
 use App\Actions\Ticket\UbahStatusTicketAction;
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Enums\StatusLayanan;
+use App\Enums\StatusOdpPort;
+use App\Enums\StatusRouter;
+use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
+use App\Exceptions\DuplikatLayananAktifException;
+use App\Models\IpPool;
+use App\Models\LayananPelanggan;
+use App\Models\MikrotikJobLog;
+use App\Models\Odp;
+use App\Models\OdpPort;
+use App\Models\Router;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
+use App\Models\TicketPemasangan;
 use App\Models\User;
+use App\Services\Mikrotik\MikrotikService;
 use App\Services\Whatsapp\WhatsappService;
 use Exception;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -53,11 +73,39 @@ class Show extends Component
     /** @var mixed */
     public $fotoPengerjaan = null;
 
+    // State Pemasangan: progress lapangan Teknisi (tahap 1)
+    public ?int $odp_id = null;
+
+    public ?int $odp_port_id = null;
+
+    /** @var array<int, mixed> */
+    public $fotoPemasangan = [];
+
+    // State Pemasangan: bukti tahap 2 Teknisi
+    /** @var array<int, mixed> */
+    public $fotoSpeedtest = [];
+
+    /** @var mixed */
+    public $fotoMou = null;
+
+    /** @var array<int, mixed> */
+    public $fotoBersama = [];
+
+    // State Modal Aktivasi Pemasangan (NOC)
+    public bool $showAktivasiModal = false;
+
+    public ?int $aktivasiRouterId = null;
+
+    public ?int $aktivasiIpPoolId = null;
+
     public function mount(Ticket $ticket): void
     {
         $this->authorize('view', $ticket);
         $this->ticket = $ticket;
         $this->loadTicket();
+
+        $this->odp_id = $this->ticket->pemasangan?->odpPort?->odp_id;
+        $this->odp_port_id = $this->ticket->pemasangan?->odp_port_id;
     }
 
     protected function loadTicket(): void
@@ -68,6 +116,7 @@ class Show extends Component
             'layananPelanggan.paketLayanan.profilBandwidth',
             'layananPelanggan.router',
             'layananPelanggan.odpPort.odp',
+            'pemasangan.odpPort.odp',
             'pic',
             'dibuatOleh',
             'divisis',
@@ -215,6 +264,279 @@ class Show extends Component
         $this->loadTicket();
     }
 
+    /**
+     * Reset pilihan port saat ODP berubah (port milik ODP lama tidak relevan lagi).
+     *
+     * Dipanggil otomatis oleh Livewire saat properti odp_id berubah.
+     */
+    public function updatedOdpId(): void
+    {
+        $this->odp_port_id = null;
+    }
+
+    /**
+     * Progress lapangan tahap 1 Teknisi: pilih ODP+Port dan unggah foto bukti pemasangan.
+     * Boleh dipanggil berkali-kali (unggah foto tambahan) tanpa meregresi status divisi.
+     */
+    public function simpanProgressLapangan(): void
+    {
+        $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
+
+        $this->validate([
+            'odp_id' => ['required', 'integer', 'exists:odp,id'],
+            'odp_port_id' => ['required', 'integer', Rule::exists('odp_port', 'id')->where('odp_id', $this->odp_id)],
+            'fotoPemasangan.*' => ['image', 'max:5120'],
+        ], [
+            'odp_id.required' => 'ODP wajib dipilih.',
+            'odp_port_id.required' => 'Port ODP wajib dipilih.',
+            'odp_port_id.exists' => 'Port yang dipilih tidak valid atau bukan milik ODP terpilih.',
+            'fotoPemasangan.*.image' => 'Setiap foto harus berupa berkas gambar (jpg, png, webp).',
+            'fotoPemasangan.*.max' => 'Ukuran tiap foto maksimal 5 MB.',
+        ]);
+
+        TicketPemasangan::updateOrCreate(
+            ['ticket_id' => $this->ticket->id],
+            ['odp_port_id' => $this->odp_port_id],
+        );
+
+        foreach ($this->fotoPemasangan as $foto) {
+            $this->ticket->addMediaFromDisk(
+                FileUploadConfiguration::path($foto->getFilename(), false),
+                FileUploadConfiguration::disk()
+            )->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_pemasangan');
+        }
+        $this->fotoPemasangan = [];
+
+        if ($this->ticket->statusDivisi(DivisiTicket::Teknisi) === StatusDivisiTicket::Belum) {
+            app(UbahStatusDivisiTicketAction::class)->execute(
+                ticket: $this->ticket,
+                divisi: DivisiTicket::Teknisi,
+                statusBaru: StatusDivisiTicket::Progress,
+                actor: Auth::user(),
+            );
+        }
+
+        Flux::toast(variant: 'success', text: 'Progress lapangan berhasil disimpan.');
+        $this->loadTicket();
+    }
+
+    public function openAktivasiModal(): void
+    {
+        $this->authorize('aktivasiPemasangan', $this->ticket);
+
+        if (! $this->ticket->siapDiaktivasi()) {
+            Flux::toast(variant: 'danger', text: 'Belum bisa diaktivasi: pastikan Teknisi sudah memilih ODP+Port dan mengunggah minimal 1 foto pemasangan.');
+
+            return;
+        }
+
+        $this->aktivasiRouterId = null;
+        $this->aktivasiIpPoolId = null;
+
+        $onlineRouters = Router::where('status_koneksi', StatusRouter::Online)->get(['id']);
+        if ($onlineRouters->count() === 1) {
+            $this->aktivasiRouterId = $onlineRouters->first()->id;
+            $this->updatedAktivasiRouterId();
+        }
+
+        $this->showAktivasiModal = true;
+    }
+
+    /**
+     * Auto-select IP Pool jika router terpilih cuma punya 1 pool.
+     *
+     * Dipanggil otomatis oleh Livewire saat properti aktivasiRouterId berubah.
+     */
+    public function updatedAktivasiRouterId(): void
+    {
+        if ($this->aktivasiRouterId) {
+            $pools = IpPool::where('router_id', $this->aktivasiRouterId)->get(['id']);
+            $this->aktivasiIpPoolId = $pools->count() === 1 ? $pools->first()->id : null;
+        } else {
+            $this->aktivasiIpPoolId = null;
+        }
+    }
+
+    /**
+     * Aktivasi Pemasangan: isi router/IP Pool/PPP Username (satu-satunya pilihan manual asli
+     * ada di router -- lihat CONTEXT.md "Aktivasi Pemasangan"), lalu provisi ke MikroTik.
+     */
+    public function prosesAktivasi(): void
+    {
+        $this->authorize('aktivasiPemasangan', $this->ticket);
+
+        $this->validate([
+            'aktivasiRouterId' => ['required', 'integer', 'exists:router,id'],
+            'aktivasiIpPoolId' => ['required', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->aktivasiRouterId)],
+        ], [
+            'aktivasiRouterId.required' => 'Router wajib dipilih.',
+            'aktivasiIpPoolId.required' => 'IP Pool wajib dipilih.',
+            'aktivasiIpPoolId.exists' => 'IP Pool tidak valid atau bukan milik router terpilih.',
+        ]);
+
+        $layanan = $this->ticket->layananPelanggan;
+        if (! $layanan) {
+            Flux::toast(variant: 'danger', text: 'Tiket ini belum terhubung ke Data Registrasi Billing.');
+
+            return;
+        }
+
+        try {
+            app(DaftarkanLayananAction::class)->assertBelumAdaDuplikat(
+                $layanan->pelanggan_id,
+                $this->aktivasiRouterId,
+                $layanan->paket_layanan_id,
+            );
+        } catch (DuplikatLayananAktifException $e) {
+            $this->addError('aktivasiRouterId', $e->getMessage());
+
+            return;
+        }
+
+        $pppUsername = LayananPelanggan::generatePppUsername($layanan->pelanggan);
+        $odpPortId = $this->ticket->pemasangan?->odp_port_id;
+
+        DB::transaction(function () use ($layanan, $pppUsername, $odpPortId) {
+            $layanan->update([
+                'router_id' => $this->aktivasiRouterId,
+                'ip_pool_id' => $this->aktivasiIpPoolId,
+                'ppp_username' => $pppUsername,
+                'odp_port_id' => $odpPortId,
+            ]);
+
+            if ($odpPortId) {
+                OdpPort::whereKey($odpPortId)->update([
+                    'status' => StatusOdpPort::Terpakai->value,
+                    'layanan_pelanggan_id' => $layanan->id,
+                ]);
+            }
+
+            $this->ticket->pemasangan()->update([
+                'diaktivasi_pada' => now(),
+                'diaktivasi_oleh' => Auth::id(),
+            ]);
+        });
+
+        $router = Router::findOrFail($this->aktivasiRouterId);
+
+        try {
+            app(MikrotikService::class)->createOrUpdatePppoeSecret($router, $layanan->fresh());
+
+            $layanan->update(['status' => StatusLayanan::Aktif]);
+
+            MikrotikJobLog::create([
+                'router_id' => $this->aktivasiRouterId,
+                'layanan_pelanggan_id' => $layanan->id,
+                'job_type' => MikrotikJobType::ProvisionPppoe,
+                'status' => MikrotikJobStatus::Success,
+                'attempt_count' => 1,
+                'finished_at' => now(),
+            ]);
+
+            Flux::toast(
+                variant: 'success',
+                heading: 'Aktivasi Pemasangan Berhasil',
+                text: "{$pppUsername} aktif di {$router->nama_router}.",
+                duration: 15000,
+            );
+        } catch (\Throwable $e) {
+            MikrotikJobLog::create([
+                'router_id' => $this->aktivasiRouterId,
+                'layanan_pelanggan_id' => $layanan->id,
+                'job_type' => MikrotikJobType::ProvisionPppoe,
+                'status' => MikrotikJobStatus::Failed,
+                'attempt_count' => 1,
+                'error_message' => $e->getMessage(),
+                'finished_at' => now(),
+            ]);
+
+            Flux::toast(
+                variant: 'warning',
+                heading: 'Router/IP Pool Tersimpan, Provisi Gagal',
+                text: "Provisi ke router gagal: {$e->getMessage()} Gunakan tombol Provisi di daftar layanan untuk mencoba lagi.",
+                duration: 20000,
+            );
+        }
+
+        $this->showAktivasiModal = false;
+        $this->loadTicket();
+    }
+
+    /**
+     * Unggah bukti tahap akhir Teknisi: speedtest, tanda tangan MOU, foto bersama.
+     * Boleh dipanggil berkali-kali sebelum menandai Teknisi selesai.
+     */
+    public function simpanFotoTahapDua(): void
+    {
+        $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
+
+        $this->validate([
+            'fotoSpeedtest.*' => ['image', 'max:5120'],
+            'fotoMou' => ['nullable', 'image', 'max:5120'],
+            'fotoBersama.*' => ['image', 'max:5120'],
+        ]);
+
+        foreach ($this->fotoSpeedtest as $foto) {
+            $this->ticket->addMediaFromDisk(
+                FileUploadConfiguration::path($foto->getFilename(), false),
+                FileUploadConfiguration::disk()
+            )->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_speedtest');
+        }
+
+        if ($this->fotoMou) {
+            $this->ticket->addMediaFromDisk(
+                FileUploadConfiguration::path($this->fotoMou->getFilename(), false),
+                FileUploadConfiguration::disk()
+            )->usingFileName($this->fotoMou->getClientOriginalName())->toMediaCollection('foto_tanda_tangan_mou');
+        }
+
+        foreach ($this->fotoBersama as $foto) {
+            $this->ticket->addMediaFromDisk(
+                FileUploadConfiguration::path($foto->getFilename(), false),
+                FileUploadConfiguration::disk()
+            )->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_bersama_pelanggan_teknisi');
+        }
+
+        $this->fotoSpeedtest = [];
+        $this->fotoMou = null;
+        $this->fotoBersama = [];
+
+        Flux::toast(variant: 'success', text: 'Foto bukti tahap akhir berhasil diunggah.');
+        $this->loadTicket();
+    }
+
+    /**
+     * Tandai satu divisi (Teknisi/NOC/Customer Service/Admin) selesai. Begitu keempat divisi
+     * wajib selesai, status tiket keseluruhan otomatis berpindah ke Selesai -- lihat
+     * UbahStatusDivisiTicketAction dan CONTEXT.md "Status Per-Divisi Tiket".
+     */
+    public function tandaiDivisiSelesai(string $divisiValue): void
+    {
+        $divisi = DivisiTicket::from($divisiValue);
+        $this->authorize('ubahStatusDivisi', [$this->ticket, $divisi]);
+
+        if ($divisi === DivisiTicket::Teknisi && ! $this->ticket->siapTeknisiSelesai()) {
+            Flux::toast(variant: 'danger', text: 'Lengkapi foto speedtest, tanda tangan MOU, dan foto bersama sebelum menandai Teknisi selesai.');
+
+            return;
+        }
+
+        try {
+            app(UbahStatusDivisiTicketAction::class)->execute(
+                ticket: $this->ticket,
+                divisi: $divisi,
+                statusBaru: StatusDivisiTicket::Selesai,
+                actor: Auth::user(),
+            );
+
+            Flux::toast(variant: 'success', text: "{$divisi->label()} berhasil ditandai selesai.");
+        } catch (\InvalidArgumentException $e) {
+            Flux::toast(variant: 'danger', text: $e->getMessage());
+        }
+
+        $this->loadTicket();
+    }
+
     public function render(): View
     {
         /** @var Collection<int, User> $staffList */
@@ -222,9 +544,28 @@ class Show extends Component
 
         $transisiValid = $this->ticket->status->transisiValid();
 
+        $odps = Odp::orderBy('nama_odp')->get(['id', 'nama_odp']);
+        $odpPorts = $this->odp_id
+            ? OdpPort::where('odp_id', $this->odp_id)
+                ->where(function ($q) {
+                    $q->where('status', StatusOdpPort::Kosong)->orWhere('id', $this->odp_port_id);
+                })
+                ->orderBy('nomor_port')
+                ->get()
+            : collect();
+
+        $onlineRouters = Router::where('status_koneksi', StatusRouter::Online)->orderBy('nama_router')->get();
+        $aktivasiIpPools = $this->aktivasiRouterId
+            ? IpPool::where('router_id', $this->aktivasiRouterId)->orderBy('nama_pool')->get()
+            : collect();
+
         return view('livewire.ticket.show', [
             'staffList' => $staffList,
             'transisiValid' => $transisiValid,
+            'odps' => $odps,
+            'odpPorts' => $odpPorts,
+            'onlineRouters' => $onlineRouters,
+            'aktivasiIpPools' => $aktivasiIpPools,
         ]);
     }
 }

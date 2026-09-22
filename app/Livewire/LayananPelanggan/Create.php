@@ -2,27 +2,18 @@
 
 namespace App\Livewire\LayananPelanggan;
 
-use App\Enums\JenisKoneksi;
+use App\Actions\LayananPelanggan\DaftarkanLayananAction;
 use App\Enums\JenisTagihanPertama;
-use App\Enums\MikrotikJobStatus;
-use App\Enums\MikrotikJobType;
-use App\Enums\ProvisioningStatus;
-use App\Enums\StatusLayanan;
+use App\Enums\PriceMode;
 use App\Livewire\Concerns\HasSearchableOptions;
-use App\Models\IpPool;
 use App\Models\LayananPelanggan;
-use App\Models\MikrotikJobLog;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
+use App\Models\Perumahan;
 use App\Models\Promo;
-use App\Models\Router;
-use App\Models\Ticket;
 use App\Services\Billing\BillingService;
-use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -39,7 +30,7 @@ class Create extends Component
     // Step 1: Pilih pelanggan & paket
     public int $step = 1;
 
-    /** Tiket Pemasangan selesai yang menjadi asal registrasi ini (opsional). */
+    /** Tiket Pemasangan yang menjadi asal registrasi ini (opsional). */
     #[Locked]
     public ?int $ticket_id = null;
 
@@ -48,14 +39,13 @@ class Create extends Component
 
     public ?int $paket_layanan_id = null;
 
-    // Step 2: Konfigurasi koneksi
-    public ?int $router_id = null;
-
-    public ?int $ip_pool_id = null;
-
-    public ?string $ip_static = null;
-
+    // Step 2: Data layanan
     public string $nama_site = '';
+
+    // Alamat pemasangan
+    public string $alamat_sumber = 'utama';
+
+    public ?int $perumahan_id = null;
 
     public string $alamat_pemasangan = '';
 
@@ -63,13 +53,12 @@ class Create extends Component
 
     public ?float $longitude = null;
 
-    public string $ppp_username = '';
-
-    public string $jenis_koneksi = 'pppoe';
-
     public string $tanggal_mulai = '';
 
-    public bool $auto_provision = true;
+    // Pengaturan Harga Layanan
+    public string $price_mode = 'paket';
+
+    public ?float $price_custom = null;
 
     // Tagihan pertama
     public string $jenis_tagihan_pertama = '';
@@ -96,10 +85,8 @@ class Create extends Component
         $this->tanggal_mulai = now()->toDateString();
 
         $this->pelanggan_id = $pelanggan->id;
-        $this->updatedPelangganId();
+        $this->syncAlamatDariPelanggan();
         $this->ticket_id = request()->filled('ticket_id') ? (int) request()->query('ticket_id') : null;
-
-        $this->initSingleRouterSelection();
     }
 
     public function getPelangganProperty(): ?Pelanggan
@@ -108,20 +95,12 @@ class Create extends Component
     }
 
     /**
-     * Auto-assign router_id jika hanya ada 1 Router terdaftar di sistem,
-     * serta trigger pemuatan dan auto-selection IP Pool otomatis.
+     * Harga default paket terpilih (tanpa dipengaruhi mode harga custom) untuk ditampilkan
+     * sebagai referensi "Harga Paket (Default)" di Step 1.
      */
-    protected function initSingleRouterSelection(): void
+    public function getPaketHargaDefaultProperty(): float
     {
-        if ($this->router_id) {
-            return;
-        }
-
-        $routers = Router::get(['id']);
-        if ($routers->count() === 1) {
-            $this->router_id = $routers->first()->id;
-            $this->updatedRouterId();
-        }
+        return (float) (PaketLayanan::find($this->paket_layanan_id)?->harga ?? 0);
     }
 
     /**
@@ -139,31 +118,19 @@ class Create extends Component
      */
     protected function rulesStep2(): array
     {
-        $pelanggan = $this->pelanggan_id ? Pelanggan::find($this->pelanggan_id) : null;
-        $escapedNoReg = $pelanggan ? preg_quote($pelanggan->no_reg, '/') : '[A-Za-z0-9]+';
-
         return [
-            'router_id' => ['required', 'integer', 'exists:router,id'],
-            'jenis_koneksi' => ['required', 'string', 'in:pppoe,ip_static'],
             'nama_site' => ['nullable', 'string', 'max:100'],
+            'alamat_sumber' => ['required', 'in:utama,custom'],
+            'perumahan_id' => ['nullable', 'integer', 'exists:perumahan,id'],
             'alamat_pemasangan' => ['nullable', 'string', 'max:1000'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'ip_pool_id' => $this->jenis_koneksi === 'pppoe'
-                ? ['required', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)]
-                : ['nullable', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)],
-            'ip_static' => $this->jenis_koneksi === 'ip_static'
-                ? ['required', 'ipv4']
-                : ['nullable', 'ipv4'],
-            'ppp_username' => [
-                'required',
-                'string',
-                'max:64',
-                'regex:/^'.$escapedNoReg.'_[0-9]{5}$/',
-                'unique:layanan_pelanggan,ppp_username',
-            ],
             'tanggal_mulai' => ['required', 'date'],
-            'auto_provision' => ['boolean'],
+            'price_mode' => ['required', Rule::enum(PriceMode::class)],
+            'price_custom' => [
+                Rule::requiredIf(fn () => $this->price_mode === PriceMode::Custom->value),
+                'nullable', 'numeric', 'min:1',
+            ],
             'jenis_tagihan_pertama' => ['required', Rule::enum(JenisTagihanPertama::class)],
             'promo_id' => [
                 Rule::requiredIf(fn () => $this->jenis_tagihan_pertama === JenisTagihanPertama::Promo->value),
@@ -179,65 +146,77 @@ class Create extends Component
             'paket_layanan_id.required' => 'Paket layanan wajib dipilih.',
         ]);
 
-        $this->initSingleRouterSelection();
         $this->step = 2;
         $this->recalculateTagihanPertama();
     }
 
     /**
-     * Auto-fill ppp_username saat pelanggan dipilih di Step 1.
-     *
-     * Dipanggil otomatis oleh Livewire saat properti pelanggan_id berubah.
+     * Isi ulang alamat & koordinat pemasangan dari data alamat utama pelanggan.
+     * Dipakai saat mount() dan saat staf memilih "Gunakan alamat utama pelanggan".
      */
-    public function updatedPelangganId(): void
+    protected function syncAlamatDariPelanggan(): void
     {
-        if ($this->pelanggan_id) {
-            $pelanggan = Pelanggan::find($this->pelanggan_id);
-            if ($pelanggan) {
-                $this->ppp_username = LayananPelanggan::generatePppUsername($pelanggan);
-            }
-        } else {
-            $this->ppp_username = '';
-        }
+        $pelanggan = $this->pelanggan;
+        $this->alamat_pemasangan = $pelanggan?->alamat_lengkap ?? '';
+        $this->latitude = $pelanggan?->latitude;
+        $this->longitude = $pelanggan?->longitude;
+        $this->perumahan_id = null;
     }
 
     /**
-     * Auto-assign ip_pool_id jika router hanya memiliki 1 pool,
-     * atau reset ke null jika memiliki banyak/tanpa pool.
+     * Toggle sumber alamat pemasangan: "utama" mengunci & mengisi otomatis dari data
+     * pelanggan, "custom" mengosongkan field agar staf mengisi alamat site lain.
      *
-     * Dipanggil otomatis oleh Livewire saat properti router_id berubah.
+     * Dipanggil otomatis oleh Livewire saat properti alamat_sumber berubah.
      */
-    public function updatedRouterId(): void
+    public function updatedAlamatSumber(): void
     {
-        if ($this->router_id) {
-            $pools = IpPool::where('router_id', $this->router_id)->get(['id']);
-            if ($pools->count() === 1) {
-                $this->ip_pool_id = $pools->first()->id;
-            } else {
-                $this->ip_pool_id = null;
-            }
-        } else {
-            $this->ip_pool_id = null;
+        if ($this->alamat_sumber === 'utama') {
+            $this->syncAlamatDariPelanggan();
+
+            return;
         }
+
+        $this->alamat_pemasangan = '';
+        $this->latitude = null;
+        $this->longitude = null;
+        $this->perumahan_id = null;
     }
 
     /**
-     * Sesuaikan ketersediaan field IP Pool vs IP Statis saat jenis koneksi berubah.
+     * Tambahkan nama perumahan + kelurahan/kecamatan/kota ke alamat pemasangan, serta
+     * koordinat perumahan jika tersedia. Hanya mengisi field yang masih kosong agar tidak
+     * menimpa detail yang sudah diketik manual oleh staf.
      *
-     * Dipanggil otomatis oleh Livewire saat properti jenis_koneksi berubah.
+     * Dipanggil otomatis oleh Livewire saat properti perumahan_id berubah.
      */
-    public function updatedJenisKoneksi(): void
+    public function updatedPerumahanId(): void
     {
-        if ($this->jenis_koneksi === 'pppoe') {
-            $this->ip_static = null;
-            if ($this->router_id) {
-                $pools = IpPool::where('router_id', $this->router_id)->get(['id']);
-                if ($pools->count() === 1) {
-                    $this->ip_pool_id = $pools->first()->id;
-                }
-            }
-        } else {
-            $this->ip_pool_id = null;
+        if (! $this->perumahan_id) {
+            return;
+        }
+
+        $perumahan = Perumahan::with('kelurahan.kecamatan.kota')->find($this->perumahan_id);
+        if (! $perumahan) {
+            return;
+        }
+
+        if (trim($this->alamat_pemasangan) === '') {
+            $kelurahan = $perumahan->kelurahan;
+            $kecamatan = $kelurahan?->kecamatan;
+            $kota = $kecamatan?->kota;
+
+            $this->alamat_pemasangan = collect([
+                $perumahan->nama_perumahan,
+                $kelurahan ? "Kel. {$kelurahan->nama_kelurahan}" : null,
+                $kecamatan ? "Kec. {$kecamatan->nama_kecamatan}" : null,
+                $kota?->nama_kota,
+            ])->filter()->implode(', ');
+        }
+
+        if ($this->latitude === null && $this->longitude === null && $perumahan->latitude && $perumahan->longitude) {
+            $this->latitude = (float) $perumahan->latitude;
+            $this->longitude = (float) $perumahan->longitude;
         }
     }
 
@@ -246,6 +225,29 @@ class Create extends Component
      * tagihan pertama bergantung pada tanggal ini.
      */
     public function updatedTanggalMulai(): void
+    {
+        $this->recalculateTagihanPertama();
+    }
+
+    /**
+     * Reset harga custom saat staf beralih kembali ke mode harga paket (auto).
+     *
+     * Dipanggil otomatis oleh Livewire saat properti price_mode berubah.
+     */
+    public function updatedPriceMode(): void
+    {
+        if ($this->price_mode !== PriceMode::Custom->value) {
+            $this->price_custom = null;
+            $this->resetErrorBag('price_custom');
+        }
+
+        $this->recalculateTagihanPertama();
+    }
+
+    /**
+     * Dipanggil otomatis oleh Livewire saat properti price_custom berubah.
+     */
+    public function updatedPriceCustom(): void
     {
         $this->recalculateTagihanPertama();
     }
@@ -309,7 +311,8 @@ class Create extends Component
      * Hitung ulang rincian harga tagihan pertama (dipakai oleh blok "Pengaturan Harga
      * Layanan" di bawah form) lewat BillingService::hitungRincianTagihanPertama() -- angka
      * yang sama persis dipakai lagi saat save() benar-benar menerbitkan invoice, sehingga
-     * preview tidak pernah berbeda dari yang ditagihkan.
+     * preview tidak pernah berbeda dari yang ditagihkan. Menghormati harga custom jika
+     * price_mode = custom, persis seperti LayananPelanggan::hargaDasar().
      */
     public function recalculateTagihanPertama(): void
     {
@@ -327,11 +330,16 @@ class Create extends Component
         }
 
         $promo = $this->promo_id ? Promo::find($this->promo_id) : null;
+        $hargaOverride = $this->price_mode === PriceMode::Custom->value && $this->price_custom
+            ? (float) $this->price_custom
+            : null;
+
         $rincian = app(BillingService::class)->hitungRincianTagihanPertama(
             $paket,
             Carbon::parse($this->tanggal_mulai),
             $jenis,
             $promo,
+            $hargaOverride,
         );
 
         $this->hargaPaket = $rincian['jumlah'];
@@ -339,7 +347,7 @@ class Create extends Component
         $this->totalTagihanPertama = $rincian['jumlah_setelah_promo'];
         $this->hariDitagih = $rincian['hari_ditagih'];
         $this->hariTotalPeriode = $rincian['hari_total_periode'];
-        $this->tanggalJatuhTempoPertama = $this->tanggal_mulai;
+        $this->tanggalJatuhTempoPertama = Carbon::parse($this->tanggal_mulai)->addDay()->toDateString();
     }
 
     public function prevStep(): void
@@ -351,80 +359,31 @@ class Create extends Component
     {
         $this->authorize('create', LayananPelanggan::class);
         $this->validate($this->rulesStep2(), [
-            'router_id.required' => 'Router wajib dipilih.',
-            'router_id.exists' => 'Router yang dipilih tidak valid.',
-            'ip_pool_id.required' => 'IP Pool wajib dipilih untuk koneksi PPPoE.',
-            'ip_pool_id.exists' => 'IP Pool yang dipilih tidak valid atau tidak terdaftar pada router terpilih.',
-            'ip_static.required' => 'Alamat IP Statis wajib diisi untuk koneksi IP Static.',
-            'ip_static.ipv4' => 'Format Alamat IP Statis tidak valid (contoh: 192.168.1.50).',
-            'ppp_username.required' => 'Username PPP wajib diisi.',
-            'ppp_username.max' => 'Username PPP maksimal 64 karakter.',
-            'ppp_username.regex' => 'Format username PPP tidak valid. Harus berupa No.Reg pelanggan diikuti underscore dan 5 digit angka (contoh: BF2308202601_00001).',
-            'ppp_username.unique' => 'Username PPP sudah digunakan.',
             'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
+            'price_custom.required' => 'Harga khusus wajib diisi saat memilih mode harga manual.',
         ]);
 
-        // Cek duplikasi: pelanggan tidak boleh memiliki layanan aktif/proses/suspend dengan router & paket yang persis sama
-        $existingDuplicate = LayananPelanggan::where('pelanggan_id', $this->pelanggan_id)
-            ->where('router_id', $this->router_id)
-            ->where('paket_layanan_id', $this->paket_layanan_id)
-            ->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Proses, StatusLayanan::Suspend])
-            ->exists();
-
-        if ($existingDuplicate) {
-            $this->addError('router_id', 'Pelanggan ini sudah memiliki Data Registrasi Billing aktif dengan paket yang sama pada router ini. Untuk pemasangan site baru, gunakan paket atau router yang sesuai.');
-
-            return;
-        }
-
-        /** @var PaketLayanan $paket */
-        $paket = PaketLayanan::findOrFail($this->paket_layanan_id);
-
-        // Hitung tanggal expired berdasarkan masa aktif paket
-        $mulai = Carbon::parse($this->tanggal_mulai);
-        $expired = $paket->masa_aktif_satuan->value === 'bulan'
-            ? $mulai->copy()->addMonths($paket->masa_aktif_nilai)
-            : $mulai->copy()->addDays($paket->masa_aktif_nilai);
-
-        // Password PPP selalu di-generate sistem (tidak pernah diinput manual staf) --
-        // lihat CONTEXT.md "PPP Password Credential". Ditampilkan sekali lewat toast di bawah.
-        $pppPassword = Str::password(8, symbols: false);
+        $jenisTagihan = JenisTagihanPertama::from($this->jenis_tagihan_pertama);
+        $promo = $jenisTagihan === JenisTagihanPertama::Promo && $this->promo_id
+            ? Promo::find($this->promo_id)
+            : null;
 
         try {
-            $layanan = DB::transaction(function () use ($expired, $pppPassword) {
-                $layanan = LayananPelanggan::create([
-                    'pelanggan_id' => $this->pelanggan_id,
-                    'paket_layanan_id' => $this->paket_layanan_id,
-                    'router_id' => $this->router_id,
-                    'nama_site' => $this->nama_site ?: null,
-                    'alamat_pemasangan' => $this->alamat_pemasangan ?: null,
-                    'latitude' => $this->latitude,
-                    'longitude' => $this->longitude,
-                    'ip_pool_id' => $this->jenis_koneksi === 'pppoe' ? $this->ip_pool_id : null,
-                    'ip_static' => $this->jenis_koneksi === 'ip_static' ? $this->ip_static : null,
-                    'ppp_username' => $this->ppp_username,
-                    'ppp_password_terenkripsi' => $pppPassword,
-                    'jenis_koneksi' => $this->jenis_koneksi,
-                    'status' => StatusLayanan::Proses,
-                    'provisioning_status' => ProvisioningStatus::Pending,
-                    'tanggal_mulai' => $this->tanggal_mulai,
-                    'tanggal_expired' => $expired->toDateString(),
-                ]);
-
-                $jenisTagihan = JenisTagihanPertama::from($this->jenis_tagihan_pertama);
-                $promo = $jenisTagihan === JenisTagihanPertama::Promo && $this->promo_id
-                    ? Promo::find($this->promo_id)
-                    : null;
-
-                app(BillingService::class)->generateFirstInvoice(
-                    layanan: $layanan,
-                    jenis: $jenisTagihan,
-                    dibuatOleh: auth()->id(),
-                    promo: $promo,
-                );
-
-                return $layanan;
-            });
+            app(DaftarkanLayananAction::class)->execute([
+                'pelanggan_id' => $this->pelanggan_id,
+                'paket_layanan_id' => $this->paket_layanan_id,
+                'price_mode' => $this->price_mode,
+                'price_custom' => $this->price_custom,
+                'nama_site' => $this->nama_site,
+                'alamat_pemasangan' => $this->alamat_pemasangan,
+                'latitude' => $this->latitude,
+                'longitude' => $this->longitude,
+                'tanggal_mulai' => $this->tanggal_mulai,
+                'jenis_tagihan_pertama' => $this->jenis_tagihan_pertama,
+                'promo' => $promo,
+                'ticket_id' => $this->ticket_id,
+                'dibuat_oleh' => auth()->id(),
+            ]);
         } catch (\Throwable $e) {
             report($e);
             $this->addError('jenis_tagihan_pertama', "Gagal membuat tagihan pertama: {$e->getMessage()}");
@@ -432,68 +391,12 @@ class Create extends Component
             return;
         }
 
-        if ($this->ticket_id) {
-            Ticket::whereKey($this->ticket_id)
-                ->where('pelanggan_id', $this->pelanggan_id)
-                ->where('perlu_aktivasi_manual', true)
-                ->update(['layanan_pelanggan_id' => $layanan->id, 'perlu_aktivasi_manual' => false]);
-        }
-
-        if ($this->auto_provision) {
-            try {
-                $mikrotikService = app(MikrotikService::class);
-                $router = Router::findOrFail($this->router_id);
-                $mikrotikService->createOrUpdatePppoeSecret($router, $layanan);
-
-                $layanan->update([
-                    'status' => StatusLayanan::Aktif,
-                ]);
-
-                MikrotikJobLog::create([
-                    'router_id' => $this->router_id,
-                    'layanan_pelanggan_id' => $layanan->id,
-                    'job_type' => MikrotikJobType::ProvisionPppoe,
-                    'status' => MikrotikJobStatus::Success,
-                    'attempt_count' => 1,
-                    'finished_at' => now(),
-                ]);
-
-                Flux::toast(
-                    variant: 'success',
-                    heading: 'Data Registrasi Billing Berhasil & Terprovisi',
-                    text: "{$layanan->ppp_username} aktif di {$router->nama_router}. PPP Password: {$pppPassword} — salin sekarang, tidak akan ditampilkan lagi kecuali oleh Super Admin.",
-                    duration: 30000,
-                );
-            } catch (\Throwable $e) {
-                // Kegagalan sudah tercatat pada layanan (provisioning_status = Failed +
-                // last_provisioning_error) oleh MikrotikService; tanpa retry buta karena
-                // galat konfigurasi tidak akan berhasil dengan mencoba ulang -- admin
-                // memperbaiki data lalu memakai tombol Provisi di daftar layanan.
-                MikrotikJobLog::create([
-                    'router_id' => $this->router_id,
-                    'layanan_pelanggan_id' => $layanan->id,
-                    'job_type' => MikrotikJobType::ProvisionPppoe,
-                    'status' => MikrotikJobStatus::Failed,
-                    'attempt_count' => 1,
-                    'error_message' => $e->getMessage(),
-                    'finished_at' => now(),
-                ]);
-
-                Flux::toast(
-                    variant: 'warning',
-                    heading: 'Data Registrasi Billing Dibuat, Provisi Gagal',
-                    text: "Provisi ke router gagal: {$e->getMessage()} Perbaiki data lalu gunakan tombol Provisi di daftar layanan. PPP Password: {$pppPassword} — salin sekarang, tidak akan ditampilkan lagi kecuali oleh Super Admin.",
-                    duration: 30000,
-                );
-            }
-        } else {
-            Flux::toast(
-                variant: 'success',
-                heading: 'Data Registrasi Billing Berhasil Dibuat',
-                text: "PPP Password: {$pppPassword} — salin sekarang, tidak akan ditampilkan lagi kecuali oleh Super Admin.",
-                duration: 30000,
-            );
-        }
+        Flux::toast(
+            variant: 'success',
+            heading: 'Data Registrasi Billing Berhasil Dibuat',
+            text: 'Layanan berstatus PROSES. Buat Ticket Pemasangan untuk melanjutkan instalasi & aktivasi PPP.',
+            duration: 10000,
+        );
 
         $this->redirectRoute('layanan-pelanggan.index', navigate: true);
     }
@@ -516,20 +419,16 @@ class Create extends Component
 
     public function render(): View
     {
-        $routers = Router::orderBy('nama_router')->get();
-        $ipPools = $this->router_id
-            ? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
-            : collect();
-        $jenisKoneksi = JenisKoneksi::cases();
         $jenisTagihanPertama = JenisTagihanPertama::cases();
         $promos = Promo::query()->aktif()->get();
+        $perumahans = Perumahan::orderBy('nama_perumahan')->get();
+        $priceModes = PriceMode::cases();
 
         return view('livewire.layanan-pelanggan.create', compact(
-            'routers',
-            'ipPools',
-            'jenisKoneksi',
             'jenisTagihanPertama',
             'promos',
+            'perumahans',
+            'priceModes',
         ));
     }
 }

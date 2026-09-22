@@ -7,6 +7,7 @@ enum MikrotikJobStatus: string
     case Pending = 'pending';
     case Success = 'success';
     case Failed = 'failed';
+    case Dilewati = 'dilewati';
 
     /**
      * Mendapatkan label tampilan Bahasa Indonesia.
@@ -17,6 +18,7 @@ enum MikrotikJobStatus: string
             self::Pending => 'Menunggu',
             self::Success => 'Berhasil',
             self::Failed => 'Gagal',
+            self::Dilewati => 'Dilewati',
         };
     }
 
@@ -29,6 +31,7 @@ enum MikrotikJobStatus: string
             self::Pending => 'yellow',
             self::Success => 'green',
             self::Failed => 'red',
+            self::Dilewati => 'zinc',
         };
     }
 }

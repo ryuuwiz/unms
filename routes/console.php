@@ -6,6 +6,10 @@ Schedule::command('invoice:generate')->dailyAt('01:00')->onOneServer();
 Schedule::command('invoice:cek-kadaluarsa')->dailyAt('02:00')->onOneServer();
 Schedule::command('layanan:cek-isolir')->dailyAt('02:30')->onOneServer();
 
+// Tenggat Pembayaran Invoice Pertama (H+1): dicek tiap jam (bukan ikut jadwal harian
+// di atas) supaya isolir benar-benar terjadi mendekati 1x24 jam, bukan sampai ~2 hari.
+Schedule::command('layanan:cek-tunggakan-pertama')->hourly()->onOneServer();
+
 // Periodic Fast Auto-Recovery for IP Pools, Profiles & PPP Secrets (In-Memory Diff via Queue mikrotik-low)
 Schedule::command('mikrotik:provisi-router --async')
     ->everyFifteenMinutes()

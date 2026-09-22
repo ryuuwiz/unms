@@ -85,6 +85,12 @@ class Create extends Component
     public function updatedPelangganId(): void
     {
         $this->layanan_pelanggan_id = null;
+        $this->autoSetDivisi();
+    }
+
+    public function updatedLayananPelangganId(): void
+    {
+        $this->autoSetDivisi();
     }
 
     /**
@@ -106,7 +112,14 @@ class Create extends Component
     {
         $this->divisis = match ($this->jenis) {
             JenisTicket::Gangguan->value => [DivisiTicket::Noc->value, DivisiTicket::Teknisi->value],
-            JenisTicket::Pemasangan->value => [DivisiTicket::Teknisi->value],
+            // Pemasangan yang sudah merujuk layanan yang ada (alur baru) wajib keempat divisi:
+            // masing-masing sign-off status-nya sendiri (lihat CONTEXT.md "Status Per-Divisi
+            // Tiket") menggerakkan status tiket keseluruhan otomatis -- tidak boleh diubah staf,
+            // lihat ticket/create.blade.php. Pemasangan tanpa layanan (alur lama, ticket_id
+            // dituju dari Tambah Layanan nanti) tetap Teknisi saja seperti sebelumnya.
+            JenisTicket::Pemasangan->value => $this->layanan_pelanggan_id
+                ? array_map(fn ($d) => $d->value, Ticket::DIVISI_WAJIB_PEMASANGAN)
+                : [DivisiTicket::Teknisi->value],
             JenisTicket::Pencabutan->value => [DivisiTicket::Teknisi->value, DivisiTicket::CustomerService->value],
             JenisTicket::PindahAlamat->value => [DivisiTicket::Noc->value, DivisiTicket::Teknisi->value],
             default => [DivisiTicket::Teknisi->value],
@@ -116,6 +129,12 @@ class Create extends Component
     public function save(): void
     {
         $this->authorize('create', Ticket::class);
+
+        // Pemasangan yang merujuk layanan wajib keempat divisi -- paksa di server, jangan
+        // percaya state checkbox client (lihat autoSetDivisi() dan CONTEXT.md "Status Per-Divisi Tiket").
+        if ($this->jenis === JenisTicket::Pemasangan->value) {
+            $this->autoSetDivisi();
+        }
 
         $this->validate([
             'jenis' => ['required', Rule::enum(JenisTicket::class)],

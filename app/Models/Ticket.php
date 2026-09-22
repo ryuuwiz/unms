@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\PrioritasTicket;
+use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\Ticket\SumberTicket;
 use Database\Factories\TicketFactory;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -70,6 +72,20 @@ class Ticket extends Model implements HasMedia
     use HasFactory, InteractsWithMedia, LogsActivity, SoftDeletes;
 
     protected $table = 'ticket';
+
+    /**
+     * Divisi yang wajib sign-off "selesai" pada Ticket Pemasangan sebelum status
+     * keseluruhan tiket otomatis berpindah ke Selesai -- lihat CONTEXT.md "Status
+     * Per-Divisi Tiket".
+     *
+     * @var array<int, DivisiTicket>
+     */
+    public const DIVISI_WAJIB_PEMASANGAN = [
+        DivisiTicket::Teknisi,
+        DivisiTicket::Noc,
+        DivisiTicket::CustomerService,
+        DivisiTicket::Admin,
+    ];
 
     protected static function booted(): void
     {
@@ -179,6 +195,81 @@ class Ticket extends Model implements HasMedia
             ->where('ticket_id', $this->id)
             ->pluck('divisi')
             ->toArray();
+    }
+
+    /**
+     * @return HasOne<TicketPemasangan, $this>
+     */
+    public function pemasangan(): HasOne
+    {
+        return $this->hasOne(TicketPemasangan::class, 'ticket_id');
+    }
+
+    /**
+     * Status sign-off sebuah divisi pada tiket ini (default Belum jika belum ditugaskan).
+     */
+    public function statusDivisi(DivisiTicket $divisi): StatusDivisiTicket
+    {
+        $row = $this->relationLoaded('divisis')
+            ? $this->divisis->first(fn (TicketDivisi $item) => $item->divisi === $divisi)
+            : $this->divisis()->where('divisi', $divisi->value)->first();
+
+        return $row?->status ?? StatusDivisiTicket::Belum;
+    }
+
+    /**
+     * Apakah seluruh divisi wajib (lihat DIVISI_WAJIB_PEMASANGAN) sudah menandai selesai.
+     * Hanya berlaku untuk jenis Pemasangan.
+     */
+    public function semuaDivisiWajibSelesai(): bool
+    {
+        if ($this->jenis !== JenisTicket::Pemasangan) {
+            return false;
+        }
+
+        foreach (self::DIVISI_WAJIB_PEMASANGAN as $divisi) {
+            if ($this->statusDivisi($divisi) !== StatusDivisiTicket::Selesai) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Gate Aktivasi Pemasangan (lihat CONTEXT.md "Aktivasi Pemasangan"): Teknisi minimal
+     * Progress, ODP+Port sudah dipilih, dan minimal 1 foto pemasangan sudah diunggah.
+     */
+    public function siapDiaktivasi(): bool
+    {
+        if ($this->jenis !== JenisTicket::Pemasangan) {
+            return false;
+        }
+
+        if ($this->statusDivisi(DivisiTicket::Teknisi) === StatusDivisiTicket::Belum) {
+            return false;
+        }
+
+        if (! $this->pemasangan?->odp_port_id) {
+            return false;
+        }
+
+        return $this->getMedia('foto_pemasangan')->isNotEmpty();
+    }
+
+    /**
+     * Gate Teknisi menandai divisi-nya Selesai: bukti tahap akhir (speedtest, tanda tangan
+     * MOU, foto bersama pelanggan & teknisi) sudah lengkap diunggah.
+     */
+    public function siapTeknisiSelesai(): bool
+    {
+        if ($this->jenis !== JenisTicket::Pemasangan) {
+            return false;
+        }
+
+        return $this->getMedia('foto_speedtest')->isNotEmpty()
+            && $this->getMedia('foto_tanda_tangan_mou')->isNotEmpty()
+            && $this->getMedia('foto_bersama_pelanggan_teknisi')->isNotEmpty();
     }
 
     /**

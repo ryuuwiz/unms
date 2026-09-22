@@ -16,6 +16,8 @@ use Illuminate\Support\Str;
 use Lab404\Impersonate\Models\Impersonate;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -36,10 +38,26 @@ use Spatie\Permission\Traits\HasRoles;
  */
 #[Fillable(['name', 'email', 'phone', 'password', 'status', 'last_login_at'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
-class User extends Authenticatable implements PasskeyUser
+class User extends Authenticatable implements HasMedia, PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Impersonate, Notifiable, PasskeyAuthenticatable;
+    use HasFactory, HasRoles, Impersonate, InteractsWithMedia, Notifiable, PasskeyAuthenticatable;
+
+    /**
+     * Konfigurasi koleksi media: foto diri (1 file, menggantikan yang lama saat diunggah ulang).
+     */
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('foto_profil')->singleFile();
+    }
+
+    /**
+     * URL foto profil user, atau null jika belum pernah unggah.
+     */
+    public function fotoProfilUrl(): ?string
+    {
+        return $this->getFirstMediaUrl('foto_profil') ?: null;
+    }
 
     /**
      * Get the attributes that should be cast.

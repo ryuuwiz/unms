@@ -4,6 +4,7 @@ namespace App\Jobs\Mikrotik;
 
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
+use App\Enums\StatusRouter;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\User;
@@ -67,6 +68,26 @@ class EnablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
         $router = $this->layanan->router;
 
         if (! $router) {
+            return;
+        }
+
+        // Gate proaktif: kalau router diketahui offline dari ping terakhir (mikrotik:ping,
+        // tiap 5 menit), jangan buang percobaan koneksi -- biarkan siklus rekonsiliasi
+        // autoRecoverPppSecrets() (tiap 15 menit) yang menyamakan status disabled begitu
+        // router kembali online. Kredensial yang benar-benar salah (bukan router mati)
+        // tetap tertangkap oleh jalur reaktif getClient() di bawah seperti biasa.
+        if ($router->status_koneksi === StatusRouter::Offline) {
+            MikrotikJobLog::create([
+                'router_id' => $router->id,
+                'layanan_pelanggan_id' => $this->layanan->id,
+                'job_type' => MikrotikJobType::EnablePppoe,
+                'status' => MikrotikJobStatus::Dilewati,
+                'attempt_count' => $this->attempts(),
+                'payload' => ['username' => $this->layanan->ppp_username],
+                'error_message' => "Router {$router->nama_router} diketahui offline; percobaan dilewati, akan disinkronkan otomatis oleh siklus rekonsiliasi berikutnya.",
+                'finished_at' => Carbon::now(),
+            ]);
+
             return;
         }
 

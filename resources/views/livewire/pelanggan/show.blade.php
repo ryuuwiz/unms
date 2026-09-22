@@ -534,6 +534,15 @@
                                     <flux:badge size="sm" :color="$layanan->statusBadgeColor()">
                                         {{ $layanan->statusBadgeLabel() }}
                                     </flux:badge>
+                                    @if ($layanan->status->value === 'proses' && ! $layanan->router_id)
+                                        @can('create', App\Models\Ticket::class)
+                                            <flux:button
+                                                :href="route('ticket.create', ['jenis' => 'pemasangan', 'pelanggan_id' => $pelanggan->id, 'layanan_id' => $layanan->id])"
+                                                wire:navigate size="xs" variant="primary" icon="wrench-screwdriver">
+                                                Buat Ticket Pemasangan
+                                            </flux:button>
+                                        @endcan
+                                    @endif
                                     @can('update', $layanan)
                                         <flux:button wire:click="openUbahPaketModal({{ $layanan->id }})" size="xs" variant="outline" icon="arrows-up-down">
                                             Ubah Paket
@@ -552,16 +561,20 @@
                                     <span class="text-xs font-medium text-zinc-400">Router BRAS Gateway</span>
                                     <div class="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                                         <flux:icon name="cpu-chip" class="size-4 text-zinc-400" />
-                                        @can('view', $layanan->router)
-                                            <a href="{{ route('router.edit', $layanan->router) }}" wire:navigate class="hover:underline text-primary-600 dark:text-primary-400">
-                                                {{ $layanan->router->nama_router }}
-                                            </a>
+                                        @if ($layanan->router)
+                                            @can('view', $layanan->router)
+                                                <a href="{{ route('router.edit', $layanan->router) }}" wire:navigate class="hover:underline text-primary-600 dark:text-primary-400">
+                                                    {{ $layanan->router->nama_router }}
+                                                </a>
+                                            @else
+                                                <span>{{ $layanan->router->nama_router }}</span>
+                                            @endcan
                                         @else
-                                            <span>{{ $layanan->router->nama_router }}</span>
-                                        @endcan
+                                            <span class="text-zinc-400 font-normal">Belum diaktivasi</span>
+                                        @endif
                                     </div>
                                     <div class="font-mono text-[11px] text-zinc-500">
-                                        {{ $layanan->router->ip_address }}:{{ $layanan->router->port }}
+                                        {{ $layanan->router ? "{$layanan->router->ip_address}:{$layanan->router->port}" : '—' }}
                                     </div>
                                 </div>
 
@@ -584,7 +597,7 @@
                                     <span class="text-xs font-medium text-zinc-400">Username PPP (Secret)</span>
                                     <div class="flex items-center gap-2">
                                         <span class="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                                            {{ $layanan->ppp_username }}
+                                            {{ $layanan->ppp_username ?? 'Belum diaktivasi' }}
                                         </span>
                                     </div>
                                     <div class="flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">

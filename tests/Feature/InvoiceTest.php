@@ -143,9 +143,14 @@ test('user with invoice.cetak permission can download pdf', function () {
 });
 
 test('scheduler invoice:generate does not create duplicate invoices for the same billing period', function () {
+    // Tanggal dipatok (bukan now()->addDays()) supaya hasil tidak bergantung pada hari
+    // suite ini dijalankan -- Hari Terbit default (24) terhadap tanggal_expired ini
+    // selalu jatuh sebelum atau sama dengan "hari ini" yang di-travel, persis pola
+    // yang sudah dipakai GenerateInvoicesCommandTest.
+    $this->travelTo(now()->setDate(2026, 9, 24));
     $this->layanan->update([
         'status' => StatusLayanan::Aktif,
-        'tanggal_expired' => now()->addDays(3)->toDateString(),
+        'tanggal_expired' => '2026-10-10',
     ]);
 
     // Run 1: Should create 1 invoice
@@ -158,9 +163,10 @@ test('scheduler invoice:generate does not create duplicate invoices for the same
 });
 
 test('scheduler does not regenerate invoice when existing invoice is expired (kadaluarsa)', function () {
+    $this->travelTo(now()->setDate(2026, 9, 24));
     $this->layanan->update([
         'status' => StatusLayanan::Aktif,
-        'tanggal_expired' => now()->addDays(2)->toDateString(),
+        'tanggal_expired' => '2026-10-10',
     ]);
 
     $targetPeriod = $this->layanan->getNextPeriodeTagihan();

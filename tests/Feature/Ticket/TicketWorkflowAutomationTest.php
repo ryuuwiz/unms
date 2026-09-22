@@ -8,12 +8,10 @@ use App\Enums\UserStatus;
 use App\Livewire\LayananPelanggan\Create as LayananCreate;
 use App\Livewire\Ticket\Create as TicketCreate;
 use App\Models\Invoice;
-use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
-use App\Models\Router;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
@@ -128,8 +126,6 @@ it('menautkan tiket Pemasangan selesai ke layanan yang dibuat darinya dan memati
         'pelanggan_id' => $pelanggan->id,
         'perlu_aktivasi_manual' => true,
     ]);
-    $router = Router::factory()->online()->create();
-    $pool = IpPool::factory()->create(['router_id' => $router->id]);
     $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
 
     Livewire::actingAs($this->admin)
@@ -139,10 +135,7 @@ it('menautkan tiket Pemasangan selesai ke layanan yang dibuat darinya dan memati
         ->assertSet('ticket_id', $ticket->id)
         ->set('paket_layanan_id', $paket->id)
         ->call('nextStep')
-        ->set('router_id', $router->id)
-        ->set('ip_pool_id', $pool->id)
         ->set('jenis_tagihan_pertama', 'full_bulan')
-        ->set('auto_provision', false)
         ->call('save')
         ->assertHasNoErrors();
 

@@ -3,6 +3,7 @@
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\StatusLayanan;
+use App\Enums\StatusRouter;
 use App\Exceptions\MikrotikConnectionException;
 use App\Exceptions\MikrotikException;
 use App\Jobs\Mikrotik\DisablePppoeAccountJob;
@@ -153,6 +154,42 @@ test('DisablePppoeAccountJob disables secret and disconnects active session', fu
 
     expect($log)->not->toBeNull()
         ->and($log->status)->toBe(MikrotikJobStatus::Success);
+});
+
+test('EnablePppoeAccountJob skips execution and logs Dilewati when router is known offline', function () {
+    $this->router->update(['status_koneksi' => StatusRouter::Offline]);
+    $this->layanan->refresh();
+
+    $mockService = Mockery::mock(MikrotikService::class);
+    $mockService->shouldNotReceive('enablePppoeSecret');
+
+    $job = new EnablePppoeAccountJob($this->layanan);
+    $job->handle($mockService);
+
+    $log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
+        ->where('job_type', MikrotikJobType::EnablePppoe)
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->status)->toBe(MikrotikJobStatus::Dilewati);
+});
+
+test('DisablePppoeAccountJob skips execution and logs Dilewati when router is known offline', function () {
+    $this->router->update(['status_koneksi' => StatusRouter::Offline]);
+    $this->layanan->refresh();
+
+    $mockService = Mockery::mock(MikrotikService::class);
+    $mockService->shouldNotReceive('disablePppoeSecret');
+
+    $job = new DisablePppoeAccountJob($this->layanan, true);
+    $job->handle($mockService);
+
+    $log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
+        ->where('job_type', MikrotikJobType::DisablePppoe)
+        ->first();
+
+    expect($log)->not->toBeNull()
+        ->and($log->status)->toBe(MikrotikJobStatus::Dilewati);
 });
 
 test('SyncIpPoolToRouterJob syncs pool and logs success', function () {
