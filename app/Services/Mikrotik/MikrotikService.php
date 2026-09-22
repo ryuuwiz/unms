@@ -314,7 +314,14 @@ class MikrotikService
 
             $client = $client ?? $this->getClient($router);
 
-            // 4. Auto-Ensure IP Pool di RouterOS jika layanan terhubung ke IP Pool router terkait
+            // 4. Untuk PPPoE dinamis: pastikan layanan punya alamat IP literal (remote-address wajib IP,
+            // bukan nama pool -- lihat LayananPelanggan::resolveRemoteAddress()). Beralih otomatis ke IP
+            // Pool lain pada router yang sama jika pool yang dipilih sudah penuh.
+            if ($layanan->jenis_koneksi === JenisKoneksi::Pppoe) {
+                $this->allocateDynamicIp($router, $layanan);
+            }
+
+            // 5. Auto-Ensure IP Pool (final, setelah alokasi di atas) di RouterOS jika terhubung ke router terkait
             if ($layanan->ipPool && $layanan->ipPool->router_id === $router->id) {
                 $this->syncIpPool($router, $layanan->ipPool, $client);
             }
@@ -324,7 +331,7 @@ class MikrotikService
             $pelangganNama = $layanan->pelanggan ? $layanan->pelanggan->nama_depan.' '.$layanan->pelanggan->nama_belakang : 'Pelanggan';
             $comment = "UNMS: {$layanan->site_id} - {$pelangganNama}";
 
-            // 5. Tentukan local-address (Gateway) dan remote-address (IP Pool / IP Statis)
+            // 6. Tentukan local-address (Gateway) dan remote-address (IP literal -- IP Pool dinamis atau IP Statis)
             $remoteAddress = $layanan->resolveRemoteAddress();
             $localAddress = $layanan->resolveLocalAddress();
 
@@ -464,6 +471,63 @@ class MikrotikService
                 $e
             );
         }
+    }
+
+    /**
+     * Alokasikan alamat IP literal (remote-address) untuk layanan PPPoE dinamis dari IP Pool terkait.
+     *
+     * Idempoten: mempertahankan ip_dynamic yang sudah ada selama masih berada dalam rentang IP Pool
+     * layanan saat ini. Jika pool yang dipilih sudah penuh (tidak ada alamat bebas), otomatis beralih
+     * ke IP Pool lain pada router yang sama yang masih punya kapasitas (CONTEXT.md "IP Pool & Router
+     * Gateway Layanan"). remote-address WAJIB berupa IP literal -- RouterOS menolak nama pool pada
+     * `/ppp/secret` dengan "invalid value for argument remote-address" (berbeda dari `/ppp/profile`).
+     *
+     * @throws MikrotikException jika tidak ada satupun IP Pool router ini yang masih punya alamat bebas.
+     */
+    public function allocateDynamicIp(Router $router, LayananPelanggan $layanan): void
+    {
+        $pool = $layanan->ipPool;
+
+        if ($layanan->ip_dynamic && $pool) {
+            $ipLong = ip2long($layanan->ip_dynamic);
+            $startLong = ip2long($pool->rentang_ip_awal);
+            $endLong = ip2long($pool->rentang_ip_akhir);
+
+            if ($ipLong !== false && $startLong !== false && $endLong !== false && $ipLong >= $startLong && $ipLong <= $endLong) {
+                return;
+            }
+        }
+
+        if (! $pool || ! $pool->hasFreeAddress($layanan->id)) {
+            $fallback = IpPool::where('router_id', $router->id)
+                ->when($pool, fn ($q) => $q->whereKeyNot($pool->id))
+                ->get()
+                ->first(fn (IpPool $candidate) => $candidate->hasFreeAddress($layanan->id));
+
+            if (! $fallback) {
+                throw new MikrotikException("Semua IP Pool pada router {$router->nama_router} sudah penuh, tidak ada alamat IP tersedia untuk {$layanan->ppp_username}.");
+            }
+
+            Log::warning('IP Pool penuh, layanan otomatis dialihkan ke IP Pool lain pada router yang sama.', [
+                'layanan_id' => $layanan->id,
+                'router_id' => $router->id,
+                'pool_lama' => $pool?->nama_pool,
+                'pool_baru' => $fallback->nama_pool,
+            ]);
+
+            $pool = $fallback;
+            $layanan->ip_pool_id = $pool->id;
+            $layanan->setRelation('ipPool', $pool);
+        }
+
+        $freeIp = $pool->nextFreeAddress($layanan->id);
+
+        if (! $freeIp) {
+            throw new MikrotikException("Tidak ada alamat IP bebas pada IP Pool {$pool->nama_pool} untuk {$layanan->ppp_username}.");
+        }
+
+        $layanan->ip_dynamic = $freeIp;
+        $layanan->save();
     }
 
     /**

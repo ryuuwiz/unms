@@ -69,8 +69,7 @@ test('satu pelanggan dapat mendaftarkan beberapa layanan bertingkat dengan ppp_u
 
     // 1. Daftarkan Layanan Pertama (Paket Rumah)
     $comp1 = Livewire::actingAs($this->admin)
-        ->test(LayananCreate::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(LayananCreate::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paketHome->id)
         ->call('nextStep');
 
@@ -89,8 +88,7 @@ test('satu pelanggan dapat mendaftarkan beberapa layanan bertingkat dengan ppp_u
 
     // 2. Daftarkan Layanan Kedua untuk Pelanggan yang Sama (Paket Kantor)
     $comp2 = Livewire::actingAs($this->admin)
-        ->test(LayananCreate::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(LayananCreate::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paketOffice->id)
         ->call('nextStep');
 
@@ -285,8 +283,7 @@ test('pendaftaran layanan mendukung nama_site dan koordinat lokasi spesifik per 
     Queue::fake([ProvisionPppoeAccountJob::class]);
 
     $comp = Livewire::actingAs($this->admin)
-        ->test(LayananCreate::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(LayananCreate::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paketHome->id)
         ->call('nextStep')
         ->set('nama_site', 'Kantor Cabang Sudirman')

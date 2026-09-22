@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StatusLayanan;
 use Database\Factories\IpPoolFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -133,5 +134,64 @@ class IpPool extends Model
         }
 
         return $this->ip_network;
+    }
+
+    /**
+     * Seluruh alamat IP yang dapat dipakai dalam rentang pool ini (inklusif).
+     *
+     * ponytail: iterasi linear per alamat, cukup untuk ukuran pool ISP residensial (~ratusan IP);
+     * upgrade ke bitmap/interval kalau rentang pool suatu saat membesar ke ribuan alamat.
+     *
+     * @return array<int, string>
+     */
+    public function usableAddresses(): array
+    {
+        $start = ip2long($this->rentang_ip_awal);
+        $end = ip2long($this->rentang_ip_akhir);
+
+        if ($start === false || $end === false || $start > $end) {
+            return [];
+        }
+
+        return array_map('long2ip', range($start, $end));
+    }
+
+    /**
+     * Alamat IP dari pool ini yang sedang dipakai layanan aktif/proses/suspend (ip_dynamic).
+     *
+     * @return array<int, string>
+     */
+    public function usedAddresses(?int $excludeLayananId = null): array
+    {
+        return $this->layanans()
+            ->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Proses, StatusLayanan::Suspend])
+            ->when($excludeLayananId, fn ($q) => $q->whereKeyNot($excludeLayananId))
+            ->whereNotNull('ip_dynamic')
+            ->pluck('ip_dynamic')
+            ->all();
+    }
+
+    /**
+     * Cari alamat IP berikutnya yang masih bebas di pool ini, atau null jika penuh.
+     */
+    public function nextFreeAddress(?int $excludeLayananId = null): ?string
+    {
+        $used = array_flip($this->usedAddresses($excludeLayananId));
+
+        foreach ($this->usableAddresses() as $address) {
+            if (! isset($used[$address])) {
+                return $address;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Periksa apakah pool ini masih memiliki alamat IP bebas untuk dialokasikan.
+     */
+    public function hasFreeAddress(?int $excludeLayananId = null): bool
+    {
+        return $this->nextFreeAddress($excludeLayananId) !== null;
     }
 }

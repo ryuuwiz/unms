@@ -43,6 +43,7 @@ class Create extends Component
     #[Locked]
     public ?int $ticket_id = null;
 
+    #[Locked]
     public ?int $pelanggan_id = null;
 
     public ?int $paket_layanan_id = null;
@@ -89,18 +90,21 @@ class Create extends Component
 
     public string $tanggalJatuhTempoPertama = '';
 
-    public function mount(): void
+    public function mount(Pelanggan $pelanggan): void
     {
         $this->authorize('create', LayananPelanggan::class);
         $this->tanggal_mulai = now()->toDateString();
 
-        if (request()->filled('pelanggan_id')) {
-            $this->pelanggan_id = (int) request()->query('pelanggan_id');
-            $this->updatedPelangganId();
-            $this->ticket_id = request()->filled('ticket_id') ? (int) request()->query('ticket_id') : null;
-        }
+        $this->pelanggan_id = $pelanggan->id;
+        $this->updatedPelangganId();
+        $this->ticket_id = request()->filled('ticket_id') ? (int) request()->query('ticket_id') : null;
 
         $this->initSingleRouterSelection();
+    }
+
+    public function getPelangganProperty(): ?Pelanggan
+    {
+        return Pelanggan::with('perumahan')->find($this->pelanggan_id);
     }
 
     /**
@@ -126,7 +130,6 @@ class Create extends Component
     protected function rulesStep1(): array
     {
         return [
-            'pelanggan_id' => ['required', 'integer', 'exists:pelanggan,id'],
             'paket_layanan_id' => ['required', 'integer', 'exists:paket_layanan,id'],
         ];
     }
@@ -501,12 +504,6 @@ class Create extends Component
     protected function searchableFields(): array
     {
         return [
-            'pelanggan_id' => [
-                'model' => Pelanggan::class,
-                'query' => fn () => Pelanggan::query(),
-                'label' => fn (Pelanggan $p) => $p->labelSelector(),
-                'cap' => 20,
-            ],
             'paket_layanan_id' => [
                 'model' => PaketLayanan::class,
                 'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),

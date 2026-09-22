@@ -3,7 +3,7 @@
         <div>
             <flux:heading size="xl">Data Registrasi Billing</flux:heading>
             <flux:subheading>Kelola data registrasi billing internet, kredensial PPPoE, router, dan masa aktif
-                pelanggan.</flux:subheading>
+                pelanggan. Registrasi baru dibuat dari halaman detail pelanggan.</flux:subheading>
         </div>
         <div class="flex items-center gap-2">
             @can('create', App\Models\LayananPelanggan::class)
@@ -11,9 +11,6 @@
                     title="Provisi semua akun PPPoE yang berstatus pending ke router">
                     <span wire:loading.remove wire:target="provisionAllPending">Provisi Massal</span>
                     <span wire:loading wire:target="provisionAllPending">Memprovisi...</span>
-                </flux:button>
-                <flux:button :href="route('layanan-pelanggan.create')" wire:navigate variant="primary" icon="plus">
-                    Tambah Registrasi Billing
                 </flux:button>
             @endcan
         </div>
@@ -59,8 +56,15 @@
                     {{-- Pelanggan --}}
                     <flux:table.cell>
                         <div class="flex flex-col">
-                            <span
-                                class="font-medium text-zinc-900 dark:text-zinc-100">{{ $layanan->pelanggan?->identitasLengkap() ?? '-' }}</span>
+                            @can('view', $layanan->pelanggan)
+                                <flux:link :href="route('pelanggan.show', ['pelanggan' => $layanan->pelanggan, 'tab' => 'subscriptions']).'#layanan-'.$layanan->id"
+                                    wire:navigate class="font-medium">
+                                    {{ $layanan->pelanggan?->identitasLengkap() ?? '-' }}
+                                </flux:link>
+                            @else
+                                <span
+                                    class="font-medium text-zinc-900 dark:text-zinc-100">{{ $layanan->pelanggan?->identitasLengkap() ?? '-' }}</span>
+                            @endcan
                             <span class="font-mono text-xs text-zinc-500">{{ $layanan->site_id }}</span>
                         </div>
                     </flux:table.cell>

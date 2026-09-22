@@ -124,7 +124,7 @@ Route::middleware(['auth'])->group(function () {
     // ─── Layanan Pelanggan ────────────────────────────────────────
     Route::prefix('layanan-pelanggan')->name('layanan-pelanggan.')->group(function () {
         Route::middleware('permission:layanan_pelanggan.buat')->group(function () {
-            Route::get('/create', LayananPelanggan\Create::class)->name('create');
+            Route::get('/create/{pelanggan}', LayananPelanggan\Create::class)->name('create');
         });
         Route::middleware('permission:layanan_pelanggan.ubah')->group(function () {
             Route::get('/{layananPelanggan}/edit', LayananPelanggan\Edit::class)->name('edit');

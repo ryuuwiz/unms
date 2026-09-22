@@ -113,7 +113,7 @@ Format standar representasi identitas pelanggan untuk antarmuka staf backoffice 
 _Avoid_: Nama Saja Tanpa No Reg, No Reg Tanpa Nama, Format Strip Tak Beraturan (Gunakan Format Baku `No. Reg_Nama`)
 
 **Data Registrasi Billing**:
-Entitas registrasi langganan billing aktif (sebelumnya disebut Layanan Pelanggan, merujuk pada `docs/data_unms.md` bagian `# Layanan & Network -> ## Billing`) yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu, router gateway, alokasi IP Pool / IP Statis, kredensial PPP, Site ID, dan masa aktif. Setiap penambahan divalidasi anti-duplikasi pada router & paket yang sama saat status masih aktif/proses/suspend, dengan tetap mendukung multi-site per pelanggan.
+Entitas registrasi langganan billing aktif (sebelumnya disebut Layanan Pelanggan, merujuk pada `docs/data_unms.md` bagian `# Layanan & Network -> ## Billing`) yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu, router gateway, alokasi IP Pool / IP Statis, kredensial PPP, Site ID, dan masa aktif. Setiap penambahan divalidasi anti-duplikasi pada router & paket yang sama saat status masih aktif/proses/suspend, dengan tetap mendukung multi-site per pelanggan. Tidak memiliki halaman detail tersendiri — selalu ditampilkan di dalam halaman Detail Pelanggan (tab Subscriptions); dibuat lewat rute bertingkat `/layanan-pelanggan/create/{pelanggan}` yang mengunci pelanggan, bukan dipilih bebas.
 _Avoid_: Subscription, Akun Internet, Koneksi, Layanan Saja
 
 **PPP Username Credential**:
@@ -363,8 +363,13 @@ Akun PPP Secret yang terdeteksi ada di RouterOS namun tidak memiliki rekaman akt
 _Avoid_: Hapus Buta Akun Router, Rogue User Tanpa Log
 
 **IP Pool & Router Gateway Layanan**:
-Binding eksplisit antara satu Layanan Pelanggan (Data Registrasi Billing), Router Gateway (`router_id`), dan IP Pool (`ip_pool_id`) yang secara ketat menjamin alokasi IP Pool berasal dari router yang sama. Menentukan nilai `local-address` (IP gateway pool) dan `remote-address` (nama pool IP untuk PPPoE dinamis atau IP statis literal) pada akun PPP Secret di RouterOS. Jika sistem hanya memiliki 1 Router Online aktif, Livewire secara otomatis memilih router tersebut (*single-router auto-selection*), dan jika router tersebut hanya memiliki 1 IP Pool aktif, sistem secara otomatis memilih pool tersebut (*single-pool auto-selection*).
-_Avoid_: Remote Address Kosong, IP Pool Implisit dari Profile Saja, Cross-Router IP Pool Selection, Visual Desync Dropdown Tanpa State Livewire
+Binding eksplisit antara satu Layanan Pelanggan (Data Registrasi Billing), Router Gateway (`router_id`), dan IP Pool (`ip_pool_id`) yang secara ketat menjamin alokasi IP Pool berasal dari router yang sama. Menentukan nilai `local-address` (IP gateway pool) dan `remote-address` (IP literal hasil Alokasi IP Dinamis PPPoE untuk koneksi dinamis, atau IP statis literal) pada akun PPP Secret di RouterOS. Jika sistem hanya memiliki 1 Router Online aktif, Livewire secara otomatis memilih router tersebut (*single-router auto-selection*), dan jika router tersebut hanya memiliki 1 IP Pool aktif, sistem secara otomatis memilih pool tersebut (*single-pool auto-selection*).
+_Avoid_: Remote Address Kosong, IP Pool Implisit dari Profile Saja, Cross-Router IP Pool Selection, Visual Desync Dropdown Tanpa State Livewire, Nama Pool sebagai Remote Address
+
+**Alokasi IP Dinamis PPPoE**:
+Mekanisme sistem yang secara otomatis memilih satu alamat IP literal yang masih bebas dari rentang IP Pool layanan (kolom `ip_dynamic` di `layanan_pelanggan`) untuk dijadikan `remote-address` pada PPP Secret RouterOS. Bersifat idempoten (mempertahankan IP yang sudah dialokasikan selama masih valid untuk pool layanan saat ini). Jika IP Pool yang dipilih sudah penuh (tidak ada alamat bebas), sistem otomatis beralih ke IP Pool lain pada Router yang sama yang masih punya kapasitas; jika seluruh IP Pool router itu penuh, provisi ditolak dengan galat eksplisit alih-alih diam-diam gagal.
+_Technical Reference_: `App\Services\Mikrotik\MikrotikService::allocateDynamicIp()`, `App\Models\IpPool::nextFreeAddress()`/`hasFreeAddress()`.
+_Avoid_: Nama Pool sebagai Remote Address (RouterOS menolaknya di `/ppp/secret` dengan "invalid value for argument remote-address" -- berbeda dari `/ppp/profile` yang menerimanya), IP Assignment Manual, Provisi Diam-Diam Gagal Saat Pool Penuh
 
 **Alokasi IP Statis Layanan**:
 Pengalokasian alamat IPv4 statis dedicated (kolom `ip_static` di `layanan_pelanggan`) untuk pelanggan dengan jenis koneksi IP Static yang langsung diset sebagai `remote-address` pada konfigurasi PPP Secret MikroTik.
@@ -386,7 +391,7 @@ Pemisahan jalur alokasi IP, gateway, dan hierarki prioritas antrean jaringan Mik
 _Avoid_: Pencampuran Subnet Up To dan Dedicated, Single Pool untuk Semua Kelas Layanan, Gateway Ambigu, Pengabaian Segmen Residensial 1:1
 
 **Manajemen Local & Remote Address PPP Secret**:
-Penetapan eksplisit parameter `local-address` (IP gateway host pertama dari IP Pool terkait pada Router pelanggan) dan `remote-address` (nama IP Pool untuk PPPoE dinamis atau IP statis literal) pada setiap akun PPP Secret di RouterOS oleh UNMS. Dilengkapi mekanisme *auto-ensure* IP Pool sebelum pembuatan secret, validasi relasi router ketat (*scoped validation*), dan rekonsiliasi periodik dengan kemampuan *auto-healing*.
+Penetapan eksplisit parameter `local-address` (IP gateway host pertama dari IP Pool terkait pada Router pelanggan) dan `remote-address` (IP literal hasil Alokasi IP Dinamis PPPoE, atau IP statis literal -- tidak pernah nama IP Pool) pada setiap akun PPP Secret di RouterOS oleh UNMS. Dilengkapi mekanisme *auto-ensure* IP Pool sebelum pembuatan secret, validasi relasi router ketat (*scoped validation*), dan rekonsiliasi periodik dengan kemampuan *auto-healing*.
 _Avoid_: Local Address Kosong di Secret, Remote Address Kosong untuk Dynamic Client, Ketergantungan Profile Default RouterOS, Provisi PPPoE Tanpa IP Pool
 
 **ODP (Optical Distribution Point)**:

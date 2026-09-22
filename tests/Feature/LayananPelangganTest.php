@@ -26,6 +26,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -56,9 +57,7 @@ test('admin can create layanan pelanggan through 2-step wizard', function () {
     $validUsername = "{$this->pelanggan->no_reg}_00001";
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        // Step 1
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->assertHasNoErrors()
@@ -96,20 +95,35 @@ test('admin can create layanan pelanggan through 2-step wizard', function () {
         ->and($decrypted)->toMatch('/^[a-zA-Z0-9]{8}$/');
 });
 
-test('validasi step 1 gagal jika pelanggan belum dipilih', function () {
-    Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', null)
-        ->set('paket_layanan_id', $this->paket->id)
-        ->call('nextStep')
-        ->assertHasErrors(['pelanggan_id' => 'required'])
-        ->assertSet('step', 1);
+test('membuka create tanpa permission layanan_pelanggan.buat ditolak', function () {
+    $teknisi = User::factory()->create(['status' => UserStatus::Active]);
+    $teknisi->assignRole('teknisi');
+
+    Livewire::actingAs($teknisi)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->assertForbidden();
+});
+
+test('membuka create dengan pelanggan tidak valid menghasilkan 404', function () {
+    $this->actingAs($this->admin)
+        ->get(route('layanan-pelanggan.create', 999999))
+        ->assertNotFound();
+});
+
+test('pelanggan_id terkunci pada route binding dan tidak bisa diubah dari client', function () {
+    $pelangganLain = Pelanggan::factory()->create();
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->assertSet('pelanggan_id', $this->pelanggan->id);
+
+    expect(fn () => $component->set('pelanggan_id', $pelangganLain->id))
+        ->toThrow(CannotUpdateLockedPropertyException::class);
 });
 
 test('validasi step 1 gagal jika paket layanan belum dipilih', function () {
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', null)
         ->call('nextStep')
         ->assertHasErrors(['paket_layanan_id' => 'required'])
@@ -118,8 +132,7 @@ test('validasi step 1 gagal jika paket layanan belum dipilih', function () {
 
 test('validasi gagal dengan pesan jelas jika router belum dipilih di step 2', function () {
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', null)
@@ -133,8 +146,7 @@ test('validasi gagal jika ip_pool_id kosong pada koneksi pppoe', function () {
     $routerWithoutPool = Router::factory()->online()->create();
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $routerWithoutPool->id)
@@ -150,8 +162,7 @@ test('validasi gagal jika ip_pool_id dari router lain dipilih pada create', func
     $poolRouterLain = IpPool::factory()->create(['router_id' => $routerLain->id]);
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -165,8 +176,7 @@ test('validasi gagal jika ip_pool_id dari router lain dipilih pada create', func
 
 test('sistem dengan 1 router online otomatis auto-select router_id dan ip_pool_id', function () {
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->assertSet('router_id', $this->router->id)
@@ -177,8 +187,7 @@ test('sistem dengan banyak router online tidak auto-select router_id saat mount'
     Router::factory()->online()->create();
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->assertSet('router_id', null)
@@ -187,8 +196,7 @@ test('sistem dengan banyak router online tidak auto-select router_id saat mount'
 
 test('memilih router dengan 1 pool otomatis auto-select ip_pool_id', function () {
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -206,8 +214,7 @@ test('router offline tetap tampil dan dapat dipilih pada form create billing', f
     $validUsername = "{$this->pelanggan->no_reg}_00001";
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->assertSee('Router-Offline-Test')
@@ -258,8 +265,7 @@ test('memilih router dengan banyak pool tidak auto-select ip_pool_id', function 
     $pool2 = IpPool::factory()->create(['router_id' => $this->router->id]);
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -272,8 +278,7 @@ test('admin can create layanan pelanggan with ip_static', function () {
     $validUsername = "{$this->pelanggan->no_reg}_00001";
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -295,8 +300,7 @@ test('admin can create layanan pelanggan with ip_static', function () {
 
 test('pendaftaran layanan dengan format ip_static tidak valid ditolak', function () {
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -308,10 +312,9 @@ test('pendaftaran layanan dengan format ip_static tidak valid ditolak', function
         ->assertHasErrors(['ip_static' => 'ipv4']);
 });
 
-test('memilih pelanggan di step 1 auto-fill ppp_username dengan format baru', function () {
+test('mount dengan pelanggan otomatis auto-fill ppp_username dengan format baru', function () {
     $component = Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id);
+        ->test(Create::class, ['pelanggan' => $this->pelanggan]);
 
     $pppUsername = $component->get('ppp_username');
     expect($pppUsername)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/');
@@ -320,8 +323,7 @@ test('memilih pelanggan di step 1 auto-fill ppp_username dengan format baru', fu
 
 test('ppp_username dengan format lama (bebas) ditolak validasi', function () {
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -333,8 +335,7 @@ test('ppp_username dengan format lama (bebas) ditolak validasi', function () {
 
 test('ppp_username format benar tapi prefix no_reg salah ditolak', function () {
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -454,8 +455,7 @@ test('pendaftaran layanan ditolak jika pelanggan sudah memiliki layanan aktif pa
     $newUsername = "{$this->pelanggan->no_reg}_00002";
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->assertHasNoErrors()
@@ -487,8 +487,7 @@ test('pelanggan dapat memiliki banyak layanan jika router atau paket berbeda (mu
     $newUsername = "{$this->pelanggan->no_reg}_00002";
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->assertHasNoErrors()
@@ -516,8 +515,7 @@ test('registrasi dengan tagihan full 1 bulan membuat invoice sebesar harga paket
     $validUsername = "{$this->pelanggan->no_reg}_00001";
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -552,8 +550,7 @@ test('registrasi dengan tagihan proporsional sisa hari membuat invoice sesuai pe
     $validUsername = "{$this->pelanggan->no_reg}_00001";
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -598,8 +595,7 @@ test('registrasi dengan tagihan promo memotong harga dan mencatat penggunaan pro
     $validUsername = "{$this->pelanggan->no_reg}_00001";
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -626,8 +622,7 @@ test('registrasi dengan tagihan promo memotong harga dan mencatat penggunaan pro
 
 test('validasi gagal jika opsi promo dipilih tanpa memilih promo_id', function () {
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -641,8 +636,7 @@ test('validasi gagal jika opsi promo dipilih tanpa memilih promo_id', function (
 
 test('validasi gagal jika jenis_tagihan_pertama belum dipilih', function () {
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)
@@ -663,8 +657,7 @@ test('layanan pelanggan tidak tersimpan jika pembuatan tagihan pertama gagal (at
     $validUsername = "{$this->pelanggan->no_reg}_00001";
 
     Livewire::actingAs($this->admin)
-        ->test(Create::class)
-        ->set('pelanggan_id', $this->pelanggan->id)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
         ->set('paket_layanan_id', $this->paket->id)
         ->call('nextStep')
         ->set('router_id', $this->router->id)

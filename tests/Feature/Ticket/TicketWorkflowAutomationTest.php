@@ -133,9 +133,10 @@ it('menautkan tiket Pemasangan selesai ke layanan yang dibuat darinya dan memati
     $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
 
     Livewire::actingAs($this->admin)
-        ->withQueryParams(['pelanggan_id' => $pelanggan->id, 'ticket_id' => $ticket->id])
-        ->test(LayananCreate::class)
+        ->withQueryParams(['ticket_id' => $ticket->id])
+        ->test(LayananCreate::class, ['pelanggan' => $pelanggan])
         ->assertSet('pelanggan_id', $pelanggan->id)
+        ->assertSet('ticket_id', $ticket->id)
         ->set('paket_layanan_id', $paket->id)
         ->call('nextStep')
         ->set('router_id', $router->id)

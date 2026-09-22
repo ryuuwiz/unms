@@ -129,6 +129,96 @@ test('createOrUpdatePppoeSecret throws MikrotikException if IP Pool belongs to a
         ->toThrow(MikrotikException::class, 'terdaftar pada router lain');
 });
 
+test('allocateDynamicIp assigns the first free literal IP from the layanan IP Pool', function () {
+    $router = Router::factory()->create();
+    $pool = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'rentang_ip_awal' => '10.0.0.2',
+        'rentang_ip_akhir' => '10.0.0.254',
+    ]);
+    $layanan = LayananPelanggan::factory()->create([
+        'router_id' => $router->id,
+        'ip_pool_id' => $pool->id,
+        'jenis_koneksi' => JenisKoneksi::Pppoe,
+        'ip_dynamic' => null,
+    ]);
+
+    $this->service->allocateDynamicIp($router, $layanan);
+
+    expect($layanan->ip_dynamic)->toBe('10.0.0.2')
+        ->and($layanan->ip_pool_id)->toBe($pool->id)
+        ->and($layanan->fresh()->ip_dynamic)->toBe('10.0.0.2');
+});
+
+test('allocateDynamicIp is idempotent -- keeps an already-assigned ip_dynamic still valid for its pool', function () {
+    $router = Router::factory()->create();
+    $pool = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'rentang_ip_awal' => '10.0.0.2',
+        'rentang_ip_akhir' => '10.0.0.254',
+    ]);
+    $layanan = LayananPelanggan::factory()->create([
+        'router_id' => $router->id,
+        'ip_pool_id' => $pool->id,
+        'jenis_koneksi' => JenisKoneksi::Pppoe,
+        'ip_dynamic' => '10.0.0.50',
+    ]);
+
+    $this->service->allocateDynamicIp($router, $layanan);
+
+    expect($layanan->ip_dynamic)->toBe('10.0.0.50');
+});
+
+test('allocateDynamicIp falls back to another IP Pool on the same router when the selected pool is full', function () {
+    $router = Router::factory()->create();
+    $poolPenuh = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'nama_pool' => 'Pool-Penuh',
+        'rentang_ip_awal' => '10.0.0.2',
+        'rentang_ip_akhir' => '10.0.0.2',
+    ]);
+    $poolCadangan = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'nama_pool' => 'Pool-Cadangan',
+        'rentang_ip_awal' => '10.0.1.2',
+        'rentang_ip_akhir' => '10.0.1.254',
+    ]);
+    LayananPelanggan::factory()->create(['ip_pool_id' => $poolPenuh->id, 'ip_dynamic' => '10.0.0.2', 'status' => 'aktif']);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'router_id' => $router->id,
+        'ip_pool_id' => $poolPenuh->id,
+        'jenis_koneksi' => JenisKoneksi::Pppoe,
+        'ip_dynamic' => null,
+    ]);
+
+    $this->service->allocateDynamicIp($router, $layanan);
+
+    expect($layanan->ip_pool_id)->toBe($poolCadangan->id)
+        ->and($layanan->ip_dynamic)->toBe('10.0.1.2');
+});
+
+test('allocateDynamicIp throws MikrotikException when every IP Pool on the router is full', function () {
+    $router = Router::factory()->create();
+    $pool = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'rentang_ip_awal' => '10.0.0.2',
+        'rentang_ip_akhir' => '10.0.0.2',
+    ]);
+    LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.2', 'status' => 'aktif']);
+
+    $layanan = LayananPelanggan::factory()->create([
+        'router_id' => $router->id,
+        'ip_pool_id' => $pool->id,
+        'jenis_koneksi' => JenisKoneksi::Pppoe,
+        'ip_dynamic' => null,
+        'ppp_username' => 'user-full-pool',
+    ]);
+
+    expect(fn () => $this->service->allocateDynamicIp($router, $layanan))
+        ->toThrow(MikrotikException::class, 'sudah penuh');
+});
+
 test('ensurePppProfile throws MikrotikException if nama_bandwidth is empty', function () {
     $router = Router::factory()->online()->create();
     $profil = new ProfilBandwidth;

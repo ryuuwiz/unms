@@ -454,7 +454,7 @@
                         <span wire:loading wire:target="refreshPppStatus">Menghubungi Router...</span>
                     </flux:button>
                     @can('create', App\Models\LayananPelanggan::class)
-                        <flux:button :href="route('layanan-pelanggan.create')" wire:navigate variant="primary" size="sm"
+                        <flux:button :href="route('layanan-pelanggan.create', $pelanggan)" wire:navigate variant="primary" size="sm"
                             icon="plus">
                             Tambah Registrasi Billing
                         </flux:button>
@@ -479,7 +479,7 @@
                             $isDisabled = $statusPpp['is_disabled'] ?? ($layanan->status->value === 'isolir' || $layanan->status->value === 'nonaktif');
                             $routerOnline = $statusPpp['router_online'] ?? true;
                         @endphp
-                        <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                        <div id="layanan-{{ $layanan->id }}" class="scroll-mt-24 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
                             {{-- Header Card Layanan --}}
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-100 pb-4 dark:border-zinc-800">
                                 <div class="flex items-center gap-3">

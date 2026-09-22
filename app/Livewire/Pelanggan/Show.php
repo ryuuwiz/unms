@@ -23,6 +23,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Spatie\Activitylog\Models\Activity;
@@ -35,6 +36,7 @@ class Show extends Component
 
     public int $pelangganId;
 
+    #[Url(as: 'tab')]
     public string $activeTab = 'overview';
 
     public bool $showNik = false;

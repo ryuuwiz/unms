@@ -1,0 +1,7 @@
+# PPP Secret remote-address must be a literal IP, auto-allocated with pool-fallback
+
+`LayananPelanggan::resolveRemoteAddress()` used to return the IP Pool's `nama_pool` for dynamic PPPoE, on the assumption that RouterOS accepts a pool name as `remote-address` on `/ppp/secret` the same way it does on `/ppp/profile`. It doesn't: verified directly against a live RouterOS device, `/ppp/secret/add` with `remote-address=<pool-name>` always fails with `invalid value for argument remote-address`, while the identical value on `/ppp/profile/add` succeeds. This caused every dynamic-PPPoE provision to fail in production (`invalid value for argument remote-address`).
+
+We considered syncing the pool name onto the PPP **profile** instead (which does accept pool names), but `ensurePppProfile()` keys one RouterOS profile per bandwidth package, shared across every IP Pool on a router — setting a profile-level pool would break any other customer on the same bandwidth package but a different pool.
+
+Instead, the app now auto-allocates a specific free literal IP from the layanan's IP Pool range (`IpPool::nextFreeAddress()`), stores it in `layanan_pelanggan.ip_dynamic`, and sends that as `remote-address` (`MikrotikService::allocateDynamicIp()`). If the selected pool has no free address left, it automatically falls back to another IP Pool on the same router with capacity; if none have capacity, provisioning fails loudly instead of silently. Allocation is idempotent — an already-assigned IP is kept as long as it's still within the current pool's range.

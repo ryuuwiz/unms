@@ -21,8 +21,12 @@
 
     @if ($step === 1)
         <form wire:submit="nextStep" class="space-y-6">
-            <x-searchable-select field="pelanggan_id" label="Pilih Pelanggan"
-                placeholder="Cari nama, no. HP, atau no. registrasi..." />
+            <flux:field>
+                <flux:label>Pelanggan</flux:label>
+                <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm dark:border-zinc-800 dark:bg-zinc-900/50">
+                    {{ $this->pelanggan?->labelSelector() }}
+                </div>
+            </flux:field>
 
             <x-searchable-select field="paket_layanan_id" label="Pilih Paket Layanan"
                 placeholder="Cari nama paket..." />

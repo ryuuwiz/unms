@@ -258,3 +258,50 @@ test('pool name is unique per router, not globally', function () {
     isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $routerB, ['nama_pool' => 'Pool-Rumah'])
         ->call('save')->assertHasNoErrors();
 });
+
+test('pool name rejects spaces and special characters -- RouterOS remote-address requires a clean identifier', function () {
+    $router = Router::factory()->create();
+
+    isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router, ['nama_pool' => 'Pool Rumah 01'])
+        ->call('save')->assertHasErrors(['nama_pool']);
+
+    isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router, ['nama_pool' => 'Pool-Rumah_01'])
+        ->call('save')->assertHasNoErrors();
+});
+
+test('nextFreeAddress and hasFreeAddress reflect ip_dynamic already allocated to active layanan', function () {
+    $router = Router::factory()->create();
+    $pool = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'rentang_ip_awal' => '10.0.0.2',
+        'rentang_ip_akhir' => '10.0.0.4',
+    ]);
+
+    expect($pool->nextFreeAddress())->toBe('10.0.0.2')
+        ->and($pool->hasFreeAddress())->toBeTrue();
+
+    LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.2', 'status' => 'aktif']);
+    LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.3', 'status' => 'proses']);
+
+    expect($pool->nextFreeAddress())->toBe('10.0.0.4')
+        ->and($pool->hasFreeAddress())->toBeTrue();
+
+    LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.4', 'status' => 'suspend']);
+
+    expect($pool->nextFreeAddress())->toBeNull()
+        ->and($pool->hasFreeAddress())->toBeFalse();
+});
+
+test('used addresses ignore terminated layanan so their ip becomes free again', function () {
+    $router = Router::factory()->create();
+    $pool = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'rentang_ip_awal' => '10.0.0.2',
+        'rentang_ip_akhir' => '10.0.0.2',
+    ]);
+
+    LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.2', 'status' => 'berhenti']);
+
+    expect($pool->hasFreeAddress())->toBeTrue()
+        ->and($pool->nextFreeAddress())->toBe('10.0.0.2');
+});

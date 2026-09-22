@@ -31,6 +31,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $ppp_username
  * @property string $ppp_password_terenkripsi
  * @property string|null $ip_static
+ * @property string|null $ip_dynamic
  * @property int|null $odp_port_id
  * @property string|null $alamat_pemasangan
  * @property float|null $latitude
@@ -61,6 +62,7 @@ use Spatie\Activitylog\Support\LogOptions;
     'ppp_username',
     'ppp_password_terenkripsi',
     'ip_static',
+    'ip_dynamic',
     'odp_port_id',
     'alamat_pemasangan',
     'latitude',
@@ -178,8 +180,12 @@ class LayananPelanggan extends Model
     /**
      * Tentukan nilai remote-address yang harus dikirim ke PPP Secret RouterOS.
      *
-     * Prioritas: ip_static (jika jenis IP Static) → nama IP Pool (ipPool->nama_pool untuk PPPoE dinamis) → null.
-     * RouterOS secara otomatis menyewakan IP dinamis dari pool terkait jika remote-address diset nama pool.
+     * Prioritas: ip_static (jika jenis IP Static) → ip_dynamic (IP literal hasil auto-assign dari IP Pool
+     * untuk PPPoE dinamis, lihat MikrotikService::allocateDynamicIp()) → null.
+     *
+     * PENTING: nama IP Pool TIDAK BOLEH dikirim langsung sebagai remote-address -- pada `/ppp/secret`,
+     * RouterOS menolaknya dengan "invalid value for argument remote-address" (berbeda dari `/ppp/profile`,
+     * yang menerima nama pool). remote-address harus selalu berupa alamat IP literal.
      */
     public function resolveRemoteAddress(): ?string
     {
@@ -187,7 +193,7 @@ class LayananPelanggan extends Model
             return $this->ip_static;
         }
 
-        return $this->ipPool?->nama_pool;
+        return $this->ip_dynamic;
     }
 
     /**

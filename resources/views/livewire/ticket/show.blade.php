@@ -54,7 +54,7 @@
                     Pemasangan telah selesai di lapangan. Admin perlu membuat Data Registrasi Billing agar PPP Secret terprovisi, layanan aktif, dan tagihan pertama terbit.
                 </p>
                 @can('create', \App\Models\LayananPelanggan::class)
-                    <flux:button size="sm" variant="primary" class="mt-2" :href="route('layanan-pelanggan.create', ['pelanggan_id' => $ticket->pelanggan_id, 'ticket_id' => $ticket->id])" wire:navigate>
+                    <flux:button size="sm" variant="primary" class="mt-2" :href="route('layanan-pelanggan.create', ['pelanggan' => $ticket->pelanggan_id, 'ticket_id' => $ticket->id])" wire:navigate>
                         Buat Data Registrasi Billing
                     </flux:button>
                 @endcan
