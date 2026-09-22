@@ -16,8 +16,11 @@
         <flux:field>
             <flux:label>Router Gateway</flux:label>
             <flux:select wire:model="router_id" placeholder="Pilih router...">
+                <flux:select.option value="">-</flux:select.option>
                 @foreach ($routers as $router)
-                    <flux:select.option value="{{ $router->id }}">{{ $router->nama_router }} ({{ $router->ip_address }})</flux:select.option>
+                    <flux:select.option value="{{ $router->id }}">{{ $router->nama_router }}
+                        ({{ $router->ip_address }})
+                    </flux:select.option>
                 @endforeach
             </flux:select>
             <flux:error name="router_id" />

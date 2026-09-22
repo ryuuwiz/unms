@@ -38,6 +38,18 @@ class Create extends Component
     public function mount(): void
     {
         $this->authorize('create', IpPool::class);
+        $this->initSingleRouterSelection();
+    }
+
+    /**
+     * Auto-assign router_id jika hanya ada 1 Router terdaftar di sistem.
+     */
+    protected function initSingleRouterSelection(): void
+    {
+        $routers = Router::get(['id']);
+        if ($routers->count() === 1) {
+            $this->router_id = $routers->first()->id;
+        }
     }
 
     /**
