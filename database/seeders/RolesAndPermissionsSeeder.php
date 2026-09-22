@@ -57,6 +57,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'peran.lihat', 'peran.buat', 'peran.ubah', 'peran.hapus',
             // WA Gateway (Fase 5)
             'wa_gateway.lihat', 'wa_gateway.buat', 'wa_gateway.ubah', 'wa_gateway.hapus',
+            // Prefix Registrasi
+            'prefix_registrasi.lihat', 'prefix_registrasi.buat', 'prefix_registrasi.ubah',
         ] as $permName) {
             $p[$permName] = Permission::firstOrCreate(['name' => $permName]);
         }
@@ -92,6 +94,7 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['ticket.lihat'], $p['ticket.buat'], $p['ticket.ubah'], $p['ticket.hapus'], $p['ticket.assign'],
             $p['laporan.lihat'], $p['laporan.ekspor'],
             $p['pengguna.lihat'], $p['pengguna.buat'], $p['pengguna.ubah'],
+            $p['prefix_registrasi.lihat'], $p['prefix_registrasi.buat'], $p['prefix_registrasi.ubah'],
         ]);
 
         // sales: akuisisi pelanggan baru & tiket pemasangan

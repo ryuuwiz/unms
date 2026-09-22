@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             PaketLayananSeeder::class,
             OdpSeeder::class,
             PromoSeeder::class,
+            PengaturanPrefixRegistrasiSeeder::class,
             PelangganSeeder::class,
             TicketSeeder::class,
             PerusahaanSeeder::class,

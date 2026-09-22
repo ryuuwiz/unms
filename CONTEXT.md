@@ -101,8 +101,12 @@ Entitas master data konsumen/klien ISP yang mencakup identitas kontak dan lokasi
 _Avoid_: Client, Customer Account, Member
 
 **No. Registrasi**:
-Pengenal unik untuk setiap pelanggan dengan format default `[Prefix][DDMMYYYY][Counter]` (contoh: `BF2309202601`, `ARS2309202601`, `WG2309202601`), dapat di-custom saat pendaftaran pelanggan, dan dijamin unik di seluruh sistem.
+Pengenal unik untuk setiap pelanggan dengan format default `[Prefix][DDMMYYYY][Counter]` (contoh: `BF2309202601`, `ARS2309202601`), dibentuk dari Prefix Registrasi yang dipilih saat pendaftaran, dapat tetap di-custom penuh secara manual, dan dijamin unik di seluruh sistem.
 _Avoid_: Customer ID, Nomor Pelanggan, No Langganan, CUST-XXXXXX, No Reg Duplikat
+
+**Prefix Registrasi**:
+Kode singkat (2-5 huruf kapital, contoh `BF` untuk Bestfiber, `ARS` untuk Arsyila) yang mewakili brand/unit bisnis dan menjadi awalan No. Registrasi pelanggan. Dikelola dinamis oleh staff lewat halaman Pengaturan Prefix Registrasi (tabel `pengaturan_prefix_registrasi`), dapat dinonaktifkan tanpa dihapus sehingga No. Registrasi lama yang sudah terbit tetap valid.
+_Avoid_: Kode Cabang Hardcode, Prefix Bebas Tanpa Kelola
 
 **Format Identitas Pelanggan**:
 Format standar representasi identitas pelanggan untuk antarmuka staf backoffice dan selector sistem dengan susunan `[No. Reg]_[Nama Pelanggan]` (contoh: `WG2309202601_Budi Santoso`). Pada dropdown selector dilengkapi informasi sekunder di dalam kurung: `WG2309202601_Budi Santoso (0812xxxx • Cluster Melati)`.

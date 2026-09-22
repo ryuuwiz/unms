@@ -86,7 +86,7 @@ class PelangganSeeder extends Seeder
         foreach ($pelangganData as $index => $item) {
             $perumahan = $perumahans[$index % $perumahans->count()];
 
-            $customPrefixes = ['BF', 'WG', 'ARS', 'BF', 'WG'];
+            $customPrefixes = ['BF', 'ARS'];
             $prefix = $customPrefixes[$index % count($customPrefixes)];
             $noReg = sprintf('%s%s%02d', $prefix, now()->format('dmY'), $index + 1);
 

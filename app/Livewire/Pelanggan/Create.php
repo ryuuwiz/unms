@@ -6,6 +6,7 @@ use App\Enums\StatusPelanggan;
 use App\Enums\TipePelanggan;
 use App\Models\Odp;
 use App\Models\Pelanggan;
+use App\Models\PengaturanPrefixRegistrasi;
 use App\Models\Perumahan;
 use App\Services\CustomerDocumentService;
 use Flux\Flux;
@@ -24,6 +25,8 @@ class Create extends Component
     use WithFileUploads;
 
     public string $no_reg = '';
+
+    public ?int $prefix_registrasi_id = null;
 
     public string $tipe_pelanggan = 'rumah';
 
@@ -77,6 +80,19 @@ class Create extends Component
         $this->authorize('create', Pelanggan::class);
     }
 
+    public function updatedPrefixRegistrasiId(?int $value): void
+    {
+        if (blank($value)) {
+            return;
+        }
+
+        $prefix = PengaturanPrefixRegistrasi::find($value);
+
+        if ($prefix) {
+            $this->no_reg = Pelanggan::generateNoReg($prefix->kode);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -84,6 +100,10 @@ class Create extends Component
     {
         return [
             'no_reg' => ['nullable', 'string', 'max:50', 'unique:pelanggan,no_reg'],
+            'prefix_registrasi_id' => [
+                Rule::requiredIf(fn () => blank(trim($this->no_reg))),
+                'nullable', 'integer', 'exists:pengaturan_prefix_registrasi,id',
+            ],
             'tipe_pelanggan' => ['required', 'string', 'in:rumah,bisnis'],
             'nik' => ['nullable', 'string', 'digits:16'],
             'nama_depan' => ['required', 'string', 'max:100'],
@@ -115,6 +135,7 @@ class Create extends Component
     {
         return [
             'no_reg.unique' => 'Nomor Registrasi sudah digunakan oleh pelanggan lain.',
+            'prefix_registrasi_id.required' => 'Pilih prefix, atau isi No. Registrasi secara manual.',
             'nama_depan.required' => 'Nama depan pelanggan wajib diisi.',
             'no_hp.required' => 'Nomor WhatsApp / HP wajib diisi.',
             'no_hp.regex' => 'Format nomor HP tidak valid. Gunakan awalan 08 atau +628 (contoh: 08123456789).',
@@ -152,7 +173,10 @@ class Create extends Component
             'dibuat_oleh' => Auth::id(),
         ];
 
-        if (! empty(trim($this->no_reg))) {
+        if (blank(trim($this->no_reg))) {
+            $prefix = PengaturanPrefixRegistrasi::findOrFail($this->prefix_registrasi_id);
+            $data['no_reg'] = Pelanggan::generateNoReg($prefix->kode);
+        } else {
             $data['no_reg'] = strtoupper(trim($this->no_reg));
         }
 
@@ -219,6 +243,7 @@ class Create extends Component
     {
         return view('livewire.pelanggan.create', [
             'perumahans' => Perumahan::orderBy('nama_perumahan')->get(),
+            'prefixList' => PengaturanPrefixRegistrasi::active()->orderBy('kode')->get(),
             'tipes' => TipePelanggan::cases(),
             'statuses' => StatusPelanggan::cases(),
         ]);

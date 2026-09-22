@@ -4,6 +4,7 @@ use App\Enums\StatusPelanggan;
 use App\Enums\UserStatus;
 use App\Livewire\Pelanggan\Create;
 use App\Models\Pelanggan;
+use App\Models\PengaturanPrefixRegistrasi;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,8 +36,11 @@ test('teknisi without pelanggan.buat cannot access create pelanggan page', funct
 });
 
 test('can create a pelanggan with valid data, normalized phone, and sequential no_reg', function () {
+    $prefix = PengaturanPrefixRegistrasi::factory()->create(['kode' => 'BF']);
+
     Livewire::actingAs($this->salesUser)
         ->test(Create::class)
+        ->set('prefix_registrasi_id', $prefix->id)
         ->set('nama_depan', 'Ahmad')
         ->set('nama_belakang', 'Dahlan')
         ->set('email', 'ahmad@example.com')
@@ -104,6 +108,16 @@ test('rejects invalid phone numbers', function () {
         ->set('alamat_lengkap', 'Jl. Test')
         ->call('save')
         ->assertHasErrors(['no_hp' => 'regex']);
+});
+
+test('requires prefix selection when no_reg is left blank', function () {
+    Livewire::actingAs($this->salesUser)
+        ->test(Create::class)
+        ->set('nama_depan', 'Budi')
+        ->set('no_hp', '081234567893')
+        ->set('alamat_lengkap', 'Jl. Test')
+        ->call('save')
+        ->assertHasErrors(['prefix_registrasi_id' => 'required']);
 });
 
 test('requires mandatory fields', function () {

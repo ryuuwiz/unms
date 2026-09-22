@@ -262,6 +262,13 @@ return [
                     'active' => 'settings.gateway',
                     'permission' => 'peran.lihat',
                 ],
+                [
+                    'title' => 'Prefix Registrasi',
+                    'icon' => 'tag',
+                    'route' => 'settings.prefix-registrasi',
+                    'active' => 'settings.prefix-registrasi',
+                    'permission' => 'prefix_registrasi.lihat',
+                ],
             ],
         ],
     ],

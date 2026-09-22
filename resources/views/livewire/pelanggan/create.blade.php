@@ -13,9 +13,17 @@
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <flux:field>
-                    <flux:label>No. Registrasi <span class="text-zinc-400 font-normal">(opsional)</span></flux:label>
-                    <flux:input wire:model="no_reg" placeholder="Otomatis (contoh: BF2308202601) atau isi custom" />
-                    <flux:description>Kosongkan untuk generate otomatis berbasis tanggal dan urutan unik.</flux:description>
+                    <flux:label>No. Registrasi</flux:label>
+                    <div class="flex gap-2">
+                        <flux:select wire:model.live="prefix_registrasi_id" placeholder="Prefix" class="w-28">
+                            @foreach ($prefixList as $prefixOption)
+                                <flux:select.option value="{{ $prefixOption->id }}">{{ $prefixOption->kode }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:input wire:model="no_reg" placeholder="Otomatis atau isi custom" class="flex-1" />
+                    </div>
+                    <flux:description>Pilih prefix untuk generate otomatis, atau isi No. Registrasi custom secara manual.</flux:description>
+                    <flux:error name="prefix_registrasi_id" />
                     <flux:error name="no_reg" />
                 </flux:field>
 

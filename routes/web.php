@@ -29,6 +29,7 @@ use App\Livewire\Promo;
 use App\Livewire\Roles;
 use App\Livewire\Router;
 use App\Livewire\Settings\PengaturanGateway;
+use App\Livewire\Settings\PengaturanPrefixRegistrasi;
 use App\Livewire\Settings\WhatsappSettings;
 use App\Livewire\Ticket;
 use App\Livewire\Users;
@@ -184,6 +185,11 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('permission:peran.lihat')->group(function () {
         Route::get('/settings/gateway', PengaturanGateway::class)->name('settings.gateway');
         Route::get('/settings/whatsapp', WhatsappSettings::class)->name('settings.whatsapp');
+    });
+
+    // ─── Pengaturan Prefix Registrasi ──────────────────────────────
+    Route::middleware('permission:prefix_registrasi.lihat')->group(function () {
+        Route::get('/settings/prefix-registrasi', PengaturanPrefixRegistrasi::class)->name('settings.prefix-registrasi');
     });
 
     // ─── SysBlast Gateway & Antrian ───────────────────────────────
