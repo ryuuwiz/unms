@@ -77,8 +77,7 @@ test('satu pelanggan dapat mendaftarkan beberapa layanan bertingkat dengan ppp_u
     $pppUsername1 = $comp1->get('ppp_username');
     expect($pppUsername1)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/');
 
-    $comp1->set('ppp_password', 'secret123')
-        ->set('tanggal_mulai', now()->toDateString())
+    $comp1->set('tanggal_mulai', now()->toDateString())
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));
@@ -99,8 +98,7 @@ test('satu pelanggan dapat mendaftarkan beberapa layanan bertingkat dengan ppp_u
     expect($pppUsername2)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/')
         ->and($pppUsername2)->not->toBe($pppUsername1);
 
-    $comp2->set('ppp_password', 'secret456')
-        ->set('tanggal_mulai', now()->toDateString())
+    $comp2->set('tanggal_mulai', now()->toDateString())
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));
@@ -295,7 +293,6 @@ test('pendaftaran layanan mendukung nama_site dan koordinat lokasi spesifik per 
         ->set('alamat_pemasangan', 'Gedung Wisma Sudirman Lt. 5')
         ->set('latitude', -6.2146)
         ->set('longitude', 106.8212)
-        ->set('ppp_password', 'password123')
         ->call('save')
         ->assertHasNoErrors()
         ->assertRedirect(route('layanan-pelanggan.index'));

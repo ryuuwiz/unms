@@ -10,6 +10,7 @@ use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Router;
 use Flux\Flux;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -47,7 +48,8 @@ class Edit extends Component
 
     public string $ppp_username = '';
 
-    public string $ppp_password = '';
+    /** Holds the generated PPP password after a reset, cleared on navigate. */
+    public string $generatedPppPassword = '';
 
     public string $jenis_koneksi = 'pppoe';
 
@@ -72,7 +74,6 @@ class Edit extends Component
         $this->latitude = $layananPelanggan->latitude;
         $this->longitude = $layananPelanggan->longitude;
         $this->ppp_username = $layananPelanggan->ppp_username;
-        $this->ppp_password = ''; // Kosongkan untuk keamanan
         $this->jenis_koneksi = $layananPelanggan->jenis_koneksi->value;
         $this->status = $layananPelanggan->status->value;
         $this->tanggal_mulai = $layananPelanggan->tanggal_mulai->toDateString();
@@ -107,7 +108,6 @@ class Edit extends Component
                 'regex:/^'.$escapedNoReg.'_[0-9]{5}$/',
                 "unique:layanan_pelanggan,ppp_username,{$this->layananId}",
             ],
-            'ppp_password' => ['nullable', 'string', 'min:4', 'max:64'],
             'status' => ['required', 'string'],
             'tanggal_mulai' => ['required', 'date'],
             'tanggal_expired' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
@@ -168,7 +168,6 @@ class Edit extends Component
             'ppp_username.required' => 'Username PPP wajib diisi.',
             'ppp_username.regex' => 'Format username PPP tidak valid. Harus berupa No.Reg pelanggan diikuti underscore dan 5 digit angka (contoh: BF2308202601_00001).',
             'ppp_username.max' => 'Username PPP maksimal 64 karakter.',
-            'ppp_password.min' => 'Password PPP minimal 4 karakter.',
             'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
         ]);
 
@@ -188,15 +187,28 @@ class Edit extends Component
             'tanggal_expired' => $this->tanggal_expired ?: null,
         ];
 
-        // Hanya update password jika diisi
-        if (! empty($this->ppp_password)) {
-            $data['ppp_password_terenkripsi'] = $this->ppp_password;
-        }
-
         $layanan->update($data);
 
         Flux::toast(variant: 'success', text: 'Data Registrasi Billing berhasil diperbarui.');
         $this->redirectRoute('layanan-pelanggan.index', navigate: true);
+    }
+
+    /**
+     * Generate PPP Password baru secara acak (8 karakter alfanumerik) dan simpan langsung --
+     * tidak pernah menerima input manual staf. Lihat CONTEXT.md "PPP Password Credential".
+     */
+    public function regeneratePppPassword(): void
+    {
+        $layanan = LayananPelanggan::findOrFail($this->layananId);
+        $this->authorize('update', $layanan);
+
+        $newPassword = Str::password(8, symbols: false);
+
+        $layanan->update(['ppp_password_terenkripsi' => $newPassword]);
+
+        $this->generatedPppPassword = $newPassword;
+
+        Flux::toast(variant: 'success', text: 'PPP Password berhasil digenerate.');
     }
 
     /**

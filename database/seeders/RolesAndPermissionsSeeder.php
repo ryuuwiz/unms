@@ -31,6 +31,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'pelanggan.lihat_ktp', 'pelanggan.lihat_dokumen', 'pelanggan.unggah_dokumen', 'pelanggan.hapus_dokumen',
             // Layanan Pelanggan
             'layanan_pelanggan.lihat', 'layanan_pelanggan.buat', 'layanan_pelanggan.ubah', 'layanan_pelanggan.hapus',
+            'layanan_pelanggan.lihat_ppp_password',
             // Invoice & Pembayaran (Fase 2)
             'invoice.lihat', 'invoice.buat', 'invoice.hapus', 'invoice.cetak',
             'siklus_tagihan.ubah',

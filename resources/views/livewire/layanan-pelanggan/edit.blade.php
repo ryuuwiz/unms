@@ -69,19 +69,11 @@
             </flux:field>
         @endif
 
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <flux:field>
-                <flux:label>Username PPP</flux:label>
-                <flux:input wire:model="ppp_username" />
-                <flux:error name="ppp_username" />
-            </flux:field>
-
-            <flux:field>
-                <flux:label>Password PPP <span class="text-zinc-400 font-normal">(isi jika ingin ubah)</span></flux:label>
-                <flux:input wire:model="ppp_password" type="password" placeholder="Kosongkan jika tidak diubah" />
-                <flux:error name="ppp_password" />
-            </flux:field>
-        </div>
+        <flux:field>
+            <flux:label>Username PPP</flux:label>
+            <flux:input wire:model="ppp_username" />
+            <flux:error name="ppp_username" />
+        </flux:field>
 
         {{-- Informasi Lokasi Pemasangan Spesifik Site (Multi-Site Ready) --}}
         <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-4 dark:border-zinc-800 dark:bg-zinc-900/30">
@@ -146,4 +138,46 @@
             <flux:button type="submit" variant="primary" icon="check">Perbarui Layanan</flux:button>
         </div>
     </form>
+
+    <flux:separator />
+
+    {{-- PPP Password Section --}}
+    <div class="space-y-3">
+        <div>
+            <flux:heading size="sm">Password PPP</flux:heading>
+            <flux:subheading size="sm">Password PPP selalu dibuat otomatis secara acak, tidak pernah diinput manual. Generate password baru jika teknisi perlu konfigurasi ulang CPE pelanggan.</flux:subheading>
+        </div>
+
+        @if ($generatedPppPassword)
+            <flux:callout variant="success" icon="key">
+                <flux:callout.heading>Password PPP baru berhasil digenerate</flux:callout.heading>
+                <flux:callout.text>
+                    Salin password di bawah dan berikan ke teknisi untuk konfigurasi CPE pelanggan. Password ini hanya ditampilkan sekali.
+                </flux:callout.text>
+                <div class="mt-3 flex items-center gap-3 rounded-md bg-white/60 px-4 py-2 font-mono text-sm dark:bg-zinc-800/60">
+                    <span class="flex-1 select-all tracking-widest">{{ $generatedPppPassword }}</span>
+                    <flux:button
+                        size="sm"
+                        variant="ghost"
+                        icon="clipboard"
+                        x-on:click="navigator.clipboard.writeText('{{ $generatedPppPassword }}'); $el.innerText = 'Disalin!'"
+                    >
+                        Salin
+                    </flux:button>
+                </div>
+            </flux:callout>
+        @endif
+
+        <div>
+            <flux:button
+                wire:click="regeneratePppPassword"
+                wire:confirm="Yakin ingin generate password PPP baru? Password lama akan langsung tidak berlaku."
+                variant="ghost"
+                icon="arrow-path"
+                size="sm"
+            >
+                Generate Password Baru
+            </flux:button>
+        </div>
+    </div>
 </div>

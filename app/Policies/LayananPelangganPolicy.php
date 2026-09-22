@@ -31,4 +31,12 @@ class LayananPelangganPolicy
     {
         return $user->can('layanan_pelanggan.hapus');
     }
+
+    /**
+     * Apakah user bisa mengungkap PPP Password (plaintext) layanan ini.
+     */
+    public function viewPppPassword(User $user, LayananPelanggan $layananPelanggan): bool
+    {
+        return $user->can('layanan_pelanggan.lihat_ppp_password');
+    }
 }

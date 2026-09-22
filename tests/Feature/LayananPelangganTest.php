@@ -67,7 +67,6 @@ test('admin can create layanan pelanggan through 2-step wizard', function () {
         ->set('router_id', $this->router->id)
         ->set('ip_pool_id', $this->ipPool->id)
         ->set('ppp_username', $validUsername)
-        ->set('ppp_password', 'secret_ppp_pass')
         ->set('jenis_koneksi', 'pppoe')
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
@@ -89,10 +88,12 @@ test('admin can create layanan pelanggan through 2-step wizard', function () {
         ->and($layanan->status)->toBe(StatusLayanan::Proses)
         ->and($layanan->site_id)->toStartWith('SITE-');
 
-    // Check encrypted PPP password in DB
+    // PPP password harus di-generate otomatis oleh sistem (8 karakter alfanumerik), tidak pernah
+    // mengambil input manual staf -- lihat CONTEXT.md "PPP Password Credential".
     $rawPass = DB::table('layanan_pelanggan')->where('id', $layanan->id)->value('ppp_password_terenkripsi');
-    expect($rawPass)->not->toBe('secret_ppp_pass')
-        ->and(Crypt::decryptString($rawPass))->toBe('secret_ppp_pass');
+    $decrypted = Crypt::decryptString($rawPass);
+    expect($decrypted)->toHaveLength(8)
+        ->and($decrypted)->toMatch('/^[a-zA-Z0-9]{8}$/');
 });
 
 test('validasi step 1 gagal jika pelanggan belum dipilih', function () {
@@ -123,7 +124,6 @@ test('validasi gagal dengan pesan jelas jika router belum dipilih di step 2', fu
         ->call('nextStep')
         ->set('router_id', null)
         ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-        ->set('ppp_password', 'secret123')
         ->set('tanggal_mulai', now()->toDateString())
         ->call('save')
         ->assertHasErrors(['router_id' => 'required']);
@@ -140,7 +140,6 @@ test('validasi gagal jika ip_pool_id kosong pada koneksi pppoe', function () {
         ->set('router_id', $routerWithoutPool->id)
         ->set('jenis_koneksi', 'pppoe')
         ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-        ->set('ppp_password', 'secret123')
         ->set('tanggal_mulai', now()->toDateString())
         ->call('save')
         ->assertHasErrors(['ip_pool_id' => 'required']);
@@ -159,7 +158,6 @@ test('validasi gagal jika ip_pool_id dari router lain dipilih pada create', func
         ->set('jenis_koneksi', 'pppoe')
         ->set('ip_pool_id', $poolRouterLain->id)
         ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-        ->set('ppp_password', 'secret123')
         ->set('tanggal_mulai', now()->toDateString())
         ->call('save')
         ->assertHasErrors(['ip_pool_id']);
@@ -216,7 +214,6 @@ test('router offline tetap tampil dan dapat dipilih pada form create billing', f
         ->set('router_id', $offlineRouter->id)
         ->set('ip_pool_id', $offlinePool->id)
         ->set('ppp_username', $validUsername)
-        ->set('ppp_password', 'secret_ppp_pass')
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
@@ -283,7 +280,6 @@ test('admin can create layanan pelanggan with ip_static', function () {
         ->set('jenis_koneksi', 'ip_static')
         ->set('ip_static', '192.168.100.25')
         ->set('ppp_username', $validUsername)
-        ->set('ppp_password', 'secret_ppp_pass')
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
@@ -307,7 +303,6 @@ test('pendaftaran layanan dengan format ip_static tidak valid ditolak', function
         ->set('jenis_koneksi', 'ip_static')
         ->set('ip_static', 'bukan-ip-valid')
         ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-        ->set('ppp_password', 'secret123')
         ->set('tanggal_mulai', now()->toDateString())
         ->call('save')
         ->assertHasErrors(['ip_static' => 'ipv4']);
@@ -331,7 +326,6 @@ test('ppp_username dengan format lama (bebas) ditolak validasi', function () {
         ->call('nextStep')
         ->set('router_id', $this->router->id)
         ->set('ppp_username', 'user_budi_01')  // format lama — harus ditolak
-        ->set('ppp_password', 'secret123')
         ->set('tanggal_mulai', now()->toDateString())
         ->call('save')
         ->assertHasErrors(['ppp_username' => 'regex']);
@@ -345,7 +339,6 @@ test('ppp_username format benar tapi prefix no_reg salah ditolak', function () {
         ->call('nextStep')
         ->set('router_id', $this->router->id)
         ->set('ppp_username', 'WRONGREG_00001')  // prefix tidak cocok no_reg
-        ->set('ppp_password', 'secret123')
         ->set('tanggal_mulai', now()->toDateString())
         ->call('save')
         ->assertHasErrors(['ppp_username' => 'regex']);
@@ -395,6 +388,45 @@ test('validasi gagal jika ip_pool_id dari router lain dipilih pada edit', functi
         ->assertHasErrors(['ip_pool_id']);
 });
 
+test('admin can regenerate ppp password and it is revealed once on the edit page', function () {
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+        'ppp_password_terenkripsi' => 'password_lama',
+    ]);
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(Edit::class, ['layananPelanggan' => $layanan])
+        ->call('regeneratePppPassword')
+        ->assertSet('generatedPppPassword', fn ($value) => strlen($value) === 8 && ctype_alnum($value));
+
+    $newPassword = $component->get('generatedPppPassword');
+    $component->assertSee($newPassword);
+
+    $layanan->refresh();
+    expect($layanan->ppp_password_terenkripsi)->toBe($newPassword)
+        ->and($layanan->ppp_password_terenkripsi)->not->toBe('password_lama');
+});
+
+test('teknisi without layanan_pelanggan.ubah permission cannot open edit page to regenerate ppp password', function () {
+    $teknisi = User::factory()->create(['status' => UserStatus::Active]);
+    $teknisi->assignRole('teknisi');
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+        'ppp_password_terenkripsi' => 'password_lama',
+    ]);
+
+    Livewire::actingAs($teknisi)
+        ->test(Edit::class, ['layananPelanggan' => $layanan])
+        ->assertForbidden();
+
+    expect($layanan->fresh()->ppp_password_terenkripsi)->toBe('password_lama');
+});
+
 test('can list and filter layanans by status', function () {
     LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
@@ -430,7 +462,6 @@ test('pendaftaran layanan ditolak jika pelanggan sudah memiliki layanan aktif pa
         ->set('router_id', $this->router->id)
         ->set('ip_pool_id', $this->ipPool->id)
         ->set('ppp_username', $newUsername)
-        ->set('ppp_password', 'secret1234')
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
@@ -464,7 +495,6 @@ test('pelanggan dapat memiliki banyak layanan jika router atau paket berbeda (mu
         ->set('router_id', $secondRouter->id)
         ->set('ip_pool_id', $secondPool->id)
         ->set('ppp_username', $newUsername)
-        ->set('ppp_password', 'secret1234')
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
@@ -493,7 +523,6 @@ test('registrasi dengan tagihan full 1 bulan membuat invoice sebesar harga paket
         ->set('router_id', $this->router->id)
         ->set('ip_pool_id', $this->ipPool->id)
         ->set('ppp_username', $validUsername)
-        ->set('ppp_password', 'secret_ppp_pass')
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')
@@ -530,7 +559,6 @@ test('registrasi dengan tagihan proporsional sisa hari membuat invoice sesuai pe
         ->set('router_id', $this->router->id)
         ->set('ip_pool_id', $this->ipPool->id)
         ->set('ppp_username', $validUsername)
-        ->set('ppp_password', 'secret_ppp_pass')
         ->set('tanggal_mulai', $tanggalMulai->toDateString())
         ->set('jenis_tagihan_pertama', 'prorata')
         ->call('save')
@@ -577,7 +605,6 @@ test('registrasi dengan tagihan promo memotong harga dan mencatat penggunaan pro
         ->set('router_id', $this->router->id)
         ->set('ip_pool_id', $this->ipPool->id)
         ->set('ppp_username', $validUsername)
-        ->set('ppp_password', 'secret_ppp_pass')
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'promo')
         ->set('promo_id', $promo->id)
@@ -606,7 +633,6 @@ test('validasi gagal jika opsi promo dipilih tanpa memilih promo_id', function (
         ->set('router_id', $this->router->id)
         ->set('ip_pool_id', $this->ipPool->id)
         ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-        ->set('ppp_password', 'secret123')
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'promo')
         ->call('save')
@@ -622,7 +648,6 @@ test('validasi gagal jika jenis_tagihan_pertama belum dipilih', function () {
         ->set('router_id', $this->router->id)
         ->set('ip_pool_id', $this->ipPool->id)
         ->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-        ->set('ppp_password', 'secret123')
         ->set('tanggal_mulai', now()->toDateString())
         ->call('save')
         ->assertHasErrors(['jenis_tagihan_pertama' => 'required']);
@@ -645,7 +670,6 @@ test('layanan pelanggan tidak tersimpan jika pembuatan tagihan pertama gagal (at
         ->set('router_id', $this->router->id)
         ->set('ip_pool_id', $this->ipPool->id)
         ->set('ppp_username', $validUsername)
-        ->set('ppp_password', 'secret_ppp_pass')
         ->set('tanggal_mulai', now()->toDateString())
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->call('save')

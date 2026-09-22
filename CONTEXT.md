@@ -120,6 +120,10 @@ _Avoid_: Subscription, Akun Internet, Koneksi, Layanan Saja
 Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_84920`) — prefix adalah No.Reg pelanggan, suffix adalah 5-digit angka acak (*CSPRNG token* `10000`–`99999`) yang dijamin unik global di tabel `layanan_pelanggan`. Di-generate otomatis oleh sistem saat layanan dibuat; staff dapat override asal format dipatuhi. Disimpan di kolom `ppp_username` tabel `layanan_pelanggan`.
 _Avoid_: Username Bebas, PPP User Manual, Format Lama (`user_budi_01`)
 
+**PPP Password Credential**:
+Kredensial autentikasi PPPoE pelanggan yang selalu di-generate sistem secara acak (8 karakter alfanumerik) saat Data Registrasi Billing dibuat atau di-reset, tidak pernah diinput manual oleh staf. Ditampilkan hanya sekali (*reveal-once-at-generation*) kepada staf yang men-trigger pembuatan/reset tersebut lewat toast/modal sekali-lihat; setelahnya tersembunyi di semua tempat dan hanya bisa diungkap ulang oleh `super_admin` (izin `layanan_pelanggan.lihat_ppp_password`) lewat aksi *reveal* beraudit trail Spatie Activitylog, mengikuti pola yang sama dengan Watermark Dokumen Identitas.
+_Avoid_: Password Manual Staf, Password Bebas, Plaintext Permanen di Halaman, Reveal Tanpa Audit
+
 **Site ID**:
 Pengenal unik titik instalasi layanan pelanggan (format `SITE-XXXXXXXX`).
 _Avoid_: Service ID, Lokasi ID

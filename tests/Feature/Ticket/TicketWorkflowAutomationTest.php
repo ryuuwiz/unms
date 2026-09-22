@@ -140,7 +140,6 @@ it('menautkan tiket Pemasangan selesai ke layanan yang dibuat darinya dan memati
         ->call('nextStep')
         ->set('router_id', $router->id)
         ->set('ip_pool_id', $pool->id)
-        ->set('ppp_password', 'secret_ppp_pass')
         ->set('jenis_tagihan_pertama', 'full_bulan')
         ->set('auto_provision', false)
         ->call('save')

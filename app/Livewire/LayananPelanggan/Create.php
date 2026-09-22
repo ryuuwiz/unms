@@ -22,6 +22,7 @@ use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -62,8 +63,6 @@ class Create extends Component
     public ?float $longitude = null;
 
     public string $ppp_username = '';
-
-    public string $ppp_password = '';
 
     public string $jenis_koneksi = 'pppoe';
 
@@ -160,7 +159,6 @@ class Create extends Component
                 'regex:/^'.$escapedNoReg.'_[0-9]{5}$/',
                 'unique:layanan_pelanggan,ppp_username',
             ],
-            'ppp_password' => ['required', 'string', 'min:4', 'max:64'],
             'tanggal_mulai' => ['required', 'date'],
             'auto_provision' => ['boolean'],
             'jenis_tagihan_pertama' => ['required', Rule::enum(JenisTagihanPertama::class)],
@@ -360,8 +358,6 @@ class Create extends Component
             'ppp_username.max' => 'Username PPP maksimal 64 karakter.',
             'ppp_username.regex' => 'Format username PPP tidak valid. Harus berupa No.Reg pelanggan diikuti underscore dan 5 digit angka (contoh: BF2308202601_00001).',
             'ppp_username.unique' => 'Username PPP sudah digunakan.',
-            'ppp_password.required' => 'Password PPP wajib diisi.',
-            'ppp_password.min' => 'Password PPP minimal 4 karakter.',
             'tanggal_mulai.required' => 'Tanggal mulai wajib diisi.',
         ]);
 
@@ -387,8 +383,12 @@ class Create extends Component
             ? $mulai->copy()->addMonths($paket->masa_aktif_nilai)
             : $mulai->copy()->addDays($paket->masa_aktif_nilai);
 
+        // Password PPP selalu di-generate sistem (tidak pernah diinput manual staf) --
+        // lihat CONTEXT.md "PPP Password Credential". Ditampilkan sekali lewat toast di bawah.
+        $pppPassword = Str::password(8, symbols: false);
+
         try {
-            $layanan = DB::transaction(function () use ($expired) {
+            $layanan = DB::transaction(function () use ($expired, $pppPassword) {
                 $layanan = LayananPelanggan::create([
                     'pelanggan_id' => $this->pelanggan_id,
                     'paket_layanan_id' => $this->paket_layanan_id,
@@ -400,7 +400,7 @@ class Create extends Component
                     'ip_pool_id' => $this->jenis_koneksi === 'pppoe' ? $this->ip_pool_id : null,
                     'ip_static' => $this->jenis_koneksi === 'ip_static' ? $this->ip_static : null,
                     'ppp_username' => $this->ppp_username,
-                    'ppp_password_terenkripsi' => $this->ppp_password,
+                    'ppp_password_terenkripsi' => $pppPassword,
                     'jenis_koneksi' => $this->jenis_koneksi,
                     'status' => StatusLayanan::Proses,
                     'provisioning_status' => ProvisioningStatus::Pending,
@@ -455,7 +455,12 @@ class Create extends Component
                     'finished_at' => now(),
                 ]);
 
-                Flux::toast(variant: 'success', text: "Data Registrasi Billing {$layanan->ppp_username} berhasil didaftarkan dan langsung terprovisi aktif di {$router->nama_router}.");
+                Flux::toast(
+                    variant: 'success',
+                    heading: 'Data Registrasi Billing Berhasil & Terprovisi',
+                    text: "{$layanan->ppp_username} aktif di {$router->nama_router}. PPP Password: {$pppPassword} — salin sekarang, tidak akan ditampilkan lagi kecuali oleh Super Admin.",
+                    duration: 30000,
+                );
             } catch (\Throwable $e) {
                 // Kegagalan sudah tercatat pada layanan (provisioning_status = Failed +
                 // last_provisioning_error) oleh MikrotikService; tanpa retry buta karena
@@ -471,10 +476,20 @@ class Create extends Component
                     'finished_at' => now(),
                 ]);
 
-                Flux::toast(variant: 'warning', text: "Data Registrasi Billing didaftarkan. Provisi ke router gagal: {$e->getMessage()} Perbaiki data lalu gunakan tombol Provisi di daftar layanan.");
+                Flux::toast(
+                    variant: 'warning',
+                    heading: 'Data Registrasi Billing Dibuat, Provisi Gagal',
+                    text: "Provisi ke router gagal: {$e->getMessage()} Perbaiki data lalu gunakan tombol Provisi di daftar layanan. PPP Password: {$pppPassword} — salin sekarang, tidak akan ditampilkan lagi kecuali oleh Super Admin.",
+                    duration: 30000,
+                );
             }
         } else {
-            Flux::toast(variant: 'success', text: 'Data Registrasi Billing berhasil didaftarkan.');
+            Flux::toast(
+                variant: 'success',
+                heading: 'Data Registrasi Billing Berhasil Dibuat',
+                text: "PPP Password: {$pppPassword} — salin sekarang, tidak akan ditampilkan lagi kecuali oleh Super Admin.",
+                duration: 30000,
+            );
         }
 
         $this->redirectRoute('layanan-pelanggan.index', navigate: true);

@@ -94,19 +94,17 @@
                 </flux:field>
             @endif
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <flux:field>
-                    <flux:label>Username PPP</flux:label>
-                    <flux:input wire:model="ppp_username" placeholder="Contoh: BF2308202601_00001" />
-                    <flux:error name="ppp_username" />
-                </flux:field>
+            <flux:field>
+                <flux:label>Username PPP</flux:label>
+                <flux:input wire:model="ppp_username" placeholder="Contoh: BF2308202601_00001" />
+                <flux:error name="ppp_username" />
+            </flux:field>
 
-                <flux:field>
-                    <flux:label>Password PPP</flux:label>
-                    <flux:input wire:model="ppp_password" type="password" placeholder="Minimal 4 karakter" />
-                    <flux:error name="ppp_password" />
-                </flux:field>
-            </div>
+            <flux:callout icon="key" variant="secondary">
+                <flux:callout.text>
+                    Password PPP dibuat otomatis secara acak (8 karakter) saat data disimpan dan ditampilkan sekali lewat notifikasi setelah berhasil. Setelah itu hanya Super Admin yang bisa mengungkapnya kembali.
+                </flux:callout.text>
+            </flux:callout>
 
             {{-- Informasi Lokasi Pemasangan Spesifik Site (Multi-Site Ready) --}}
             <div class="rounded-lg border border-zinc-200 bg-zinc-50/50 p-4 space-y-4 dark:border-zinc-800 dark:bg-zinc-900/30">

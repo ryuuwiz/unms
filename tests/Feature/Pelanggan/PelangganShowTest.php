@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
 
 uses(RefreshDatabase::class);
 
@@ -337,6 +338,69 @@ test('can switch to audit tab and render activity logs', function () {
         ->assertSet('activeTab', 'audit')
         ->assertSee('Log Aktivitas Data Pelanggan')
         ->assertSee('Memperbarui data pelanggan');
+});
+
+test('ppp password is masked by default and reveal button only visible to super admin', function () {
+    $admin = User::factory()->create(['status' => UserStatus::Active]);
+    $admin->assignRole('admin');
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'ppp_password_terenkripsi' => 'plaintext_rahasia',
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->set('activeTab', 'subscriptions')
+        ->assertSee('Pass: ••••••••')
+        ->assertDontSee('plaintext_rahasia')
+        ->assertSeeHtml("wire:click=\"revealPppPassword({$layanan->id})\"");
+
+    Livewire::actingAs($admin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->set('activeTab', 'subscriptions')
+        ->assertSee('Pass: ••••••••')
+        ->assertDontSee('plaintext_rahasia')
+        ->assertDontSeeHtml("wire:click=\"revealPppPassword({$layanan->id})\"");
+});
+
+test('super admin can reveal ppp password and the reveal is audit logged', function () {
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'ppp_password_terenkripsi' => 'plaintext_rahasia',
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->set('activeTab', 'subscriptions')
+        ->call('revealPppPassword', $layanan->id)
+        ->assertSet('revealedPppPasswordValue', 'plaintext_rahasia')
+        ->assertSee('Pass: plaintext_rahasia');
+
+    $activity = Activity::where('subject_type', LayananPelanggan::class)
+        ->where('subject_id', $layanan->id)
+        ->where('causer_id', $this->superAdmin->id)
+        ->latest('id')
+        ->first();
+
+    expect($activity)->not->toBeNull()
+        ->and($activity->getProperty('action'))->toBe('reveal_ppp_password');
+});
+
+test('admin without lihat_ppp_password permission cannot reveal ppp password', function () {
+    $admin = User::factory()->create(['status' => UserStatus::Active]);
+    $admin->assignRole('admin');
+
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'ppp_password_terenkripsi' => 'plaintext_rahasia',
+    ]);
+
+    Livewire::actingAs($admin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->set('activeTab', 'subscriptions')
+        ->call('revealPppPassword', $layanan->id)
+        ->assertForbidden();
 });
 
 test('handles invalid encrypted nik gracefully without throwing DecryptException', function () {

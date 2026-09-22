@@ -587,8 +587,24 @@
                                             {{ $layanan->ppp_username }}
                                         </span>
                                     </div>
-                                    <div class="text-[11px] text-zinc-500 font-mono">
-                                        Pass: {{ $layanan->ppp_password_terenkripsi }}
+                                    <div class="flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">
+                                        @if ($revealedPppPasswordLayananId === $layanan->id)
+                                            <span>Pass: {{ $revealedPppPasswordValue }}</span>
+                                        @else
+                                            <span>Pass: ••••••••</span>
+                                            @can('viewPppPassword', $layanan)
+                                                <button
+                                                    type="button"
+                                                    wire:click="revealPppPassword({{ $layanan->id }})"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="revealPppPassword({{ $layanan->id }})"
+                                                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                                                    title="Tampilkan Password (Super Admin)"
+                                                >
+                                                    <flux:icon name="eye" class="size-3" />
+                                                </button>
+                                            @endcan
+                                        @endif
                                     </div>
                                 </div>
 

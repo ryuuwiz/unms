@@ -62,6 +62,11 @@ class Show extends Component
 
     public ?int $tambahInvoicePromoId = null;
 
+    /** Layanan yang PPP Password-nya baru diungkap (di-reset saat navigate). */
+    public ?int $revealedPppPasswordLayananId = null;
+
+    public ?string $revealedPppPasswordValue = null;
+
     public string $tambahInvoiceKodePromo = '';
 
     public string $tambahInvoiceKeterangan = '';
@@ -381,6 +386,29 @@ class Show extends Component
                 );
             }
         }
+    }
+
+    /**
+     * Ungkap PPP Password (plaintext) layanan -- dibatasi Super Admin & beraudit trail.
+     * Lihat CONTEXT.md "PPP Password Credential".
+     */
+    public function revealPppPassword(int $layananId): void
+    {
+        $pelanggan = Pelanggan::findOrFail($this->pelangganId);
+        $layanan = $pelanggan->layanans()->findOrFail($layananId);
+        $this->authorize('viewPppPassword', $layanan);
+
+        activity('layanan_pelanggan')
+            ->performedOn($layanan)
+            ->causedBy(auth()->user())
+            ->withProperties([
+                'action' => 'reveal_ppp_password',
+                'ip' => request()->ip(),
+            ])
+            ->log("Mengungkap PPP Password layanan {$layanan->ppp_username} milik pelanggan {$pelanggan->identitasLengkap()}");
+
+        $this->revealedPppPasswordLayananId = $layanan->id;
+        $this->revealedPppPasswordValue = $layanan->ppp_password_terenkripsi;
     }
 
     public function openUbahPaketModal(int $layananId): void
