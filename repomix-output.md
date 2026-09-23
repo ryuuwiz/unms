@@ -539,10 +539,12 @@ app/
       CreateNewUser.php
       ResetUserPassword.php
     LayananPelanggan/
+      DaftarkanLayananAction.php
       PerpanjangMasaAktifAction.php
       UbahStatusLayananAction.php
     Ticket/
       AssignPicAction.php
+      UbahStatusDivisiTicketAction.php
       UbahStatusTicketAction.php
   Concerns/
     PasswordValidationRules.php
@@ -552,6 +554,7 @@ app/
       CekVirtualAccountExpiredCommand.php
       CheckExpiredInvoicesCommand.php
       CheckLayananIsolirCommand.php
+      CheckTunggakanInvoicePertamaCommand.php
       EnsurePublicMediaBucketCommand.php
       GenerateInvoicesCommand.php
       InstallAppCommand.php
@@ -579,6 +582,8 @@ app/
       PaymentCallbackData.php
       PaymentLinkResponse.php
       PingConnectionResult.php
+    Storage/
+      S3HealthCheckResult.php
     Xendit/
       XenditCallbackData.php
   Enums/
@@ -588,6 +593,7 @@ app/
       DivisiTicket.php
       JenisTicket.php
       PrioritasTicket.php
+      StatusDivisiTicket.php
       StatusTicket.php
       SumberTicket.php
     Wa/
@@ -603,6 +609,7 @@ app/
     MetodePembayaran.php
     MikrotikJobStatus.php
     MikrotikJobType.php
+    PriceMode.php
     ProvisioningStatus.php
     StatusInvoice.php
     StatusLayanan.php
@@ -618,6 +625,7 @@ app/
     InvoicePaidEvent.php
     LayananPelangganStatusChangedEvent.php
   Exceptions/
+    DuplikatLayananAktifException.php
     MikrotikConnectionException.php
     MikrotikException.php
     TransisiStatusTidakValidException.php
@@ -691,6 +699,8 @@ app/
     Maps/
       EstimasiKabel.php
       Lokasi.php
+    MediaLibrary/
+      Index.php
     Odp/
       Create.php
       Edit.php
@@ -786,6 +796,7 @@ app/
     AkunPelanggan.php
     AntrianWaBlast.php
     AturanPengingatTagihan.php
+    BerkasUmum.php
     Invoice.php
     IpPool.php
     Kecamatan.php
@@ -811,6 +822,7 @@ app/
     Ticket.php
     TicketDivisi.php
     TicketHistori.php
+    TicketPemasangan.php
     TransaksiPaymentGateway.php
     User.php
     WaTemplate.php
@@ -858,6 +870,8 @@ app/
         IpaymuDriver.php
         XenditDriver.php
       PaymentGatewayManager.php
+    Storage/
+      S3HealthCheckService.php
     Whatsapp/
       Contracts/
         WhatsappGatewayDriverInterface.php
@@ -873,6 +887,7 @@ app/
     CustomerDocumentService.php
   Support/
     BandwidthConverter.php
+    MediaLibraryVisibility.php
   Utils/
     IpNetworkHelper.php
 bootstrap/
@@ -990,8 +1005,15 @@ database/
     2026_09_18_211420_add_tunggakan_columns_to_invoice_table.php
     2026_09_21_153614_strip_link_portal_tiket_from_wa_template.php
     2026_09_21_161433_make_ip_pool_nama_pool_unique_per_router.php
+    2026_09_22_081923_add_ip_dynamic_to_layanan_pelanggan_table.php
     2026_09_22_094734_create_pengaturan_prefix_registrasi_table.php
     2026_09_22_094735_update_pelanggan_no_reg_column_comment.php
+    2026_09_22_171831_add_price_mode_to_layanan_pelanggan_table.php
+    2026_09_22_195049_make_router_and_ppp_username_nullable_on_layanan_pelanggan_table.php
+    2026_09_22_195100_make_ppp_password_nullable_on_layanan_pelanggan_table.php
+    2026_09_22_201534_add_status_to_ticket_divisi_table.php
+    2026_09_22_201535_create_ticket_pemasangan_table.php
+    2026_09_23_023902_create_berkas_umum_table.php
   seeders/
     AturanPengingatTagihanSeeder.php
     DatabaseSeeder.php
@@ -1069,6 +1091,12 @@ docs/
     0041-ticket-outcomes-drive-status-not-billing.md
     0042-dynamic-prefix-registrasi-pelanggan.md
     0043-pisah-menu-pengaturan-personal-gateway-sysblast.md
+    0044-ppp-secret-remote-address-must-be-literal-ip.md
+    0045-tenggat-pembayaran-invoice-pertama-terpisah-dari-isolir-bulanan.md
+    0046-media-library-admin-mengecualikan-dokumen-pribadi-pelanggan.md
+    0047-media-library-gabung-storage-monitoring-dan-berkas-umum.md
+    0048-media-library-picker-selalu-copy-bukan-reassign.md
+    0049-portal-pelanggan-domain-terpisah.md
   gowa/
     openapi.yaml
   plan/
@@ -1083,6 +1111,10 @@ docs/
       sprint-b2-cache-layer-ppp-status.md
       sprint-b3-cek-kelayakan-batch-query.md
       sprint-b5-monitoring-mikrotik-superadmin.md
+    tickets/
+      proses_ticket.md
+    refactor-layanan-pelanggan.md
+    ticket-pemasangan-workflow.md
   prd/
     0001-arsitektur-unms.md
     0002-xendit-payment-gateway.md
@@ -1092,6 +1124,9 @@ docs/
     0006-maps-odp.md
   research/
     isp-billing-workflow-automation.md
+  resources/
+    simbill-plan.md
+    simbill-prd.md
   comprehensive_documentation.md
   data_unms.md
   docker-deployment-guide.md
@@ -1111,7 +1146,6 @@ public/
   .htaccess
   apple-touch-icon.png
   favicon.ico
-  favicon.svg
   index.php
   robots.txt
 resources/
@@ -1204,6 +1238,8 @@ resources/
       maps/
         estimasi-kabel.blade.php
         lokasi.blade.php
+      media-library/
+        index.blade.php
       odp/
         create.blade.php
         edit.blade.php
@@ -1337,6 +1373,7 @@ tests/
       RegistrationTest.php
     Billing/
       AturanPengingatLivewireTest.php
+      CheckTunggakanInvoicePertamaCommandTest.php
       GenerateFirstInvoiceTest.php
       GenerateInvoicesCommandTest.php
       InvoicePaymentConfirmedEmailTest.php
@@ -1353,6 +1390,8 @@ tests/
       ProcessWhatsappWebhookJobTest.php
       RouterSyncOverlapTest.php
       SyncIpPoolOverlapTest.php
+    MediaLibrary/
+      IndexTest.php
     Mikrotik/
       MikrotikJobsTest.php
       MikrotikPingCommandTest.php
@@ -1376,6 +1415,8 @@ tests/
       PelangganPolicyTest.php
       PelangganShowPppStatusTest.php
       PelangganShowTest.php
+    Services/
+      S3HealthCheckServiceTest.php
     Settings/
       PerusahaanTest.php
       ProfileUpdateTest.php
@@ -1390,6 +1431,7 @@ tests/
       TicketLivewireTest.php
       TicketMediaAndWhatsappNotificationTest.php
       TicketModelTest.php
+      TicketPemasanganWorkflowTest.php
       TicketWorkflowAutomationTest.php
       UbahStatusTicketActionTest.php
     Webhook/
@@ -1421,6 +1463,7 @@ tests/
     PengaturanGatewayTest.php
     PengaturanPrefixRegistrasiTest.php
     PortalAuthTest.php
+    PortalDomainRoutingTest.php
     PortalInvoicePaymentTest.php
     ProfilBandwidthTest.php
     PromoTest.php
@@ -7030,6 +7073,27 @@ If no path argument is given, use `.` (current directory).
 }
 ````
 
+## File: .ai/rules/livewire-uploads.md
+````markdown
+---
+paths:
+  - app/Livewire/**/*.php
+  - config/livewire.php
+  - .env.docker.example
+---
+
+# Livewire File Uploads & S3
+
+## `AWS_ENDPOINT` must be reachable by the browser, not just the app container
+Whenever `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK` resolves to a disk with the `s3` driver (it falls back to `FILESYSTEM_DISK` when unset — `Livewire\Features\SupportFileUploads\FileUploadConfiguration::disk()`), Livewire has the **browser itself** PUT/GET directly against `AWS_ENDPOINT` via presigned URLs for every `WithFileUploads` component (upload *and* preview thumbnail) — it does not proxy through the Laravel backend at all. An endpoint that only resolves inside the Docker network (e.g. the Compose service name `rustfs:9000`) breaks every file upload in the app client-side with a generic "gagal diunggah" / "failed to upload" validation error, even though server-to-server S3 calls (MediaLibrary writes, `Storage::disk('s3')->put()`) keep working fine — don't let that mask the bug during backend-only debugging. See `docs/adr/0037-livewire-s3-endpoint-browser-reachability.md`.
+
+Current split (deliberate, do not unify):
+- **Local Sail**: `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=local` — single instance, so proxying through the app is simplest and needs no per-developer machine setup. `AWS_ENDPOINT=http://rustfs:9000` stays fine here since the browser never touches it.
+- **Production** (`.env.docker.example`): `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=s3` explicitly (needed for replica-safety — 2+ replicas per ADR-0036, no confirmed sticky-session routing), with `AWS_ENDPOINT` pointed at the same public domain as `AWS_URL` (`https://s3.buroq.gobilling.id`), never an internal-only service name.
+
+Guarded by `tests/Unit/EnvTemplateS3UploadTest.php` against `.env.docker.example` regressing.
+````
+
 ## File: .ai/rules/mikrotik.md
 ````markdown
 ---
@@ -11726,6 +11790,20 @@ Most changes need more than one rule file.
 ## File: .claude/.headroom_wrap_settings.lock
 ````
 
+````
+
+## File: .claude/settings.json
+````json
+{
+  "enabledPlugins": {
+    "mattpocock-skills@claude-plugins-official": true,
+    "laravel-boost@claude-plugins-official": true
+  },
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787/p/your-project",
+    "ENABLE_TOOL_SEARCH": "true"
+  }
+}
 ````
 
 ## File: .codex/config.toml
@@ -22869,17 +22947,6 @@ public function label(): string
 public function color(): string
 ````
 
-## File: app/Enums/MikrotikJobStatus.php
-````php
-namespace App\Enums;
-⋮----
-enum MikrotikJobStatus: string
-⋮----
-public function label(): string
-⋮----
-public function color(): string
-````
-
 ## File: app/Enums/MikrotikJobType.php
 ````php
 namespace App\Enums;
@@ -23193,55 +23260,6 @@ namespace App\Http\Controllers;
 abstract class Controller
 ````
 
-## File: app/Http/Controllers/ImpersonateController.php
-````php
-namespace App\Http\Controllers;
-⋮----
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Lab404\Impersonate\Services\ImpersonateManager;
-⋮----
-class ImpersonateController extends Controller
-⋮----
-public function __construct(
-⋮----
-public function take(Request $request, int|string $id, ?string $guardName = null): RedirectResponse
-⋮----
-$guardName = $guardName ?? $this->manager->getDefaultSessionGuard();
-⋮----
-$currentUser = $request->user();
-⋮----
-if (! $currentUser || ! method_exists($currentUser, 'canImpersonate') || ! $currentUser->canImpersonate()) {
-⋮----
-if ($this->manager->isImpersonating()) {
-⋮----
-if ($id == $currentUser->getAuthIdentifier() && ($this->manager->getCurrentAuthGuardName() === $guardName)) {
-⋮----
-$userToImpersonate = $this->manager->findUserById($id, $guardName);
-⋮----
-if (! method_exists($userToImpersonate, 'canBeImpersonated') || ! $userToImpersonate->canBeImpersonated()) {
-⋮----
-if ($this->manager->take($currentUser, $userToImpersonate, $guardName)) {
-⋮----
-return redirect()->route('portal.dashboard');
-⋮----
-return redirect()->route('dashboard');
-⋮----
-return redirect()->back()->with('error', 'Gagal memulai sesi impersonasi.');
-⋮----
-public function leave(): RedirectResponse
-⋮----
-if (! $this->manager->isImpersonating()) {
-⋮----
-$impersonatedGuard = $this->manager->getImpersonatorGuardUsingName();
-⋮----
-$this->manager->leave();
-⋮----
-return redirect()->route('pelanggan.index');
-⋮----
-return redirect()->route('users.index');
-````
-
 ## File: app/Http/Controllers/InvoicePdfController.php
 ````php
 namespace App\Http\Controllers;
@@ -23317,6 +23335,58 @@ $decryptedContent = $documentService->getDecryptedContent($media);
 $mimeType = $media->getCustomProperty('original_mime_type') ?: ($media->mime_type ?: 'application/octet-stream');
 ````
 
+## File: app/Jobs/Mikrotik/CleanupPppSecretOnOldRouterJob.php
+````php
+namespace App\Jobs\Mikrotik;
+⋮----
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Models\MikrotikJobLog;
+use App\Models\Router;
+use App\Services\Mikrotik\MikrotikService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
+use Throwable;
+⋮----
+class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
+⋮----
+public int $tries = 1;
+⋮----
+public int $uniqueFor = 300;
+⋮----
+public function __construct(
+⋮----
+$this->onQueue('mikrotik-high');
+⋮----
+public function uniqueId(): string
+⋮----
+public function middleware(): array
+⋮----
+->releaseAfter(5)
+->expireAfter(30)
+->shared(),
+⋮----
+public function handle(MikrotikService $mikrotikService): void
+⋮----
+$router = Router::find($this->oldRouterId);
+⋮----
+$log = MikrotikJobLog::create([
+⋮----
+$mikrotikService->deletePppoeSecret($router, $this->pppUsername);
+⋮----
+$log->update([
+⋮----
+'finished_at' => Carbon::now(),
+⋮----
+'error_message' => $e->getMessage(),
+````
+
 ## File: app/Jobs/Mikrotik/PingRouterJob.php
 ````php
 namespace App\Jobs\Mikrotik;
@@ -23365,6 +23435,52 @@ $log->update([
 RecoverPppRouterJob::dispatch($this->router);
 ⋮----
 'error_message' => $e->getMessage(),
+````
+
+## File: app/Jobs/Mikrotik/ProvisionRouterJob.php
+````php
+namespace App\Jobs\Mikrotik;
+⋮----
+use App\Models\Router;
+use App\Models\User;
+use App\Notifications\MikrotikJobFailedNotification;
+use App\Services\Mikrotik\MikrotikService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Queue\SerializesModels;
+use Throwable;
+⋮----
+class ProvisionRouterJob implements ShouldQueue
+⋮----
+public int $tries = 3;
+⋮----
+public array $backoff = [30, 120, 300];
+⋮----
+public function __construct(
+⋮----
+$this->onQueue('mikrotik-low');
+⋮----
+public function middleware(): array
+⋮----
+->releaseAfter(180)
+->expireAfter(600),
+⋮----
+public function handle(MikrotikService $mikrotikService): void
+⋮----
+$mikrotikService->provisionRouterFull(
+⋮----
+public function failed(?Throwable $exception): void
+⋮----
+$recipients = User::role(['super_admin', 'noc'])->get();
+⋮----
+$log = $this->router->jobLogs()
+->latest()
+->first();
+⋮----
+$recipient->notify(new MikrotikJobFailedNotification($log));
 ````
 
 ## File: app/Jobs/Mikrotik/RecoverPppRouterJob.php
@@ -23430,6 +23546,221 @@ public function failed(?Throwable $exception): void
 ⋮----
 $log = $this->router->jobLogs()
 ->where('job_type', MikrotikJobType::ReconcilePppoe)
+->latest()
+->first();
+⋮----
+$recipients = User::role(['super_admin', 'noc'])->get();
+⋮----
+$recipient->notify(new MikrotikJobFailedNotification($log));
+````
+
+## File: app/Jobs/Mikrotik/SyncBandwidthProfileToRoutersJob.php
+````php
+namespace App\Jobs\Mikrotik;
+⋮----
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Enums\StatusRouter;
+use App\Models\MikrotikJobLog;
+use App\Models\ProfilBandwidth;
+use App\Models\Router;
+use App\Models\User;
+use App\Notifications\MikrotikJobFailedNotification;
+use App\Services\Mikrotik\MikrotikService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Throwable;
+⋮----
+class SyncBandwidthProfileToRoutersJob implements ShouldBeUnique, ShouldQueue
+⋮----
+public int $tries = 3;
+⋮----
+public int $uniqueFor = 60;
+⋮----
+public array $backoff = [15, 60, 180];
+⋮----
+public function __construct(
+⋮----
+$this->onQueue('mikrotik-low');
+⋮----
+public function uniqueId(): string
+⋮----
+public function handle(MikrotikService $mikrotikService): void
+⋮----
+$routers = Router::where('status_koneksi', StatusRouter::Online)->get();
+⋮----
+if ($routers->isEmpty()) {
+⋮----
+$lock = Cache::lock("mikrotik:router:{$router->id}", 120);
+⋮----
+if (! $lock->get()) {
+Log::info('Melewati sinkronisasi profil bandwidth: router sedang dikunci oleh proses lain.', [
+⋮----
+$log = MikrotikJobLog::create([
+⋮----
+'attempt_count' => $this->attempts(),
+⋮----
+'rate_limit' => $this->profil->routerOsRateLimit(),
+⋮----
+$mikrotikService->ensurePppProfile($router, $this->profil);
+⋮----
+$log->update([
+⋮----
+'finished_at' => Carbon::now(),
+⋮----
+'error_message' => $e->getMessage(),
+⋮----
+$lock->release();
+⋮----
+public function failed(?Throwable $exception): void
+⋮----
+$log = MikrotikJobLog::where('job_type', MikrotikJobType::SyncProfilBandwidth)
+->latest()
+->first();
+⋮----
+$recipients = User::role(['super_admin', 'noc'])->get();
+⋮----
+$recipient->notify(new MikrotikJobFailedNotification($log));
+````
+
+## File: app/Jobs/Mikrotik/SyncIpPoolToRouterJob.php
+````php
+namespace App\Jobs\Mikrotik;
+⋮----
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Models\IpPool;
+use App\Models\MikrotikJobLog;
+use App\Models\User;
+use App\Notifications\MikrotikJobFailedNotification;
+use App\Services\Mikrotik\MikrotikService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
+use Throwable;
+⋮----
+class SyncIpPoolToRouterJob implements ShouldBeUnique, ShouldQueue
+⋮----
+public int $tries = 3;
+⋮----
+public int $uniqueFor = 300;
+⋮----
+public array $backoff = [30, 120, 300];
+⋮----
+public function __construct(
+⋮----
+$this->onQueue('mikrotik-low');
+⋮----
+public function retryUntil(): \DateTimeInterface
+⋮----
+return now()->addMinutes(10);
+⋮----
+public function uniqueId(): string
+⋮----
+public function middleware(): array
+⋮----
+->releaseAfter(10)
+->expireAfter(60),
+⋮----
+public function handle(MikrotikService $mikrotikService): void
+⋮----
+$log = MikrotikJobLog::create([
+⋮----
+'attempt_count' => $this->attempts(),
+⋮----
+'network' => $this->ipPool->labelNetwork(),
+⋮----
+$result = $mikrotikService->syncIpPool($router, $this->ipPool);
+⋮----
+$log->update([
+⋮----
+'finished_at' => Carbon::now(),
+⋮----
+'error_message' => $e->getMessage(),
+⋮----
+public function failed(?Throwable $exception): void
+⋮----
+$log = MikrotikJobLog::where('ip_pool_id', $this->ipPool->id)
+->where('job_type', MikrotikJobType::SyncIpPool)
+->latest()
+->first();
+⋮----
+$recipients = User::role(['super_admin', 'noc'])->get();
+⋮----
+$recipient->notify(new MikrotikJobFailedNotification($log));
+````
+
+## File: app/Jobs/Mikrotik/UpdatePppoeProfileJob.php
+````php
+namespace App\Jobs\Mikrotik;
+⋮----
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Models\LayananPelanggan;
+use App\Models\MikrotikJobLog;
+use App\Models\User;
+use App\Notifications\MikrotikJobFailedNotification;
+use App\Services\Mikrotik\MikrotikService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
+use Throwable;
+⋮----
+class UpdatePppoeProfileJob implements ShouldBeUnique, ShouldQueue
+⋮----
+public int $tries = 3;
+⋮----
+public int $uniqueFor = 300;
+⋮----
+public array $backoff = [30, 120, 300];
+⋮----
+public function __construct(
+⋮----
+$this->onQueue('mikrotik-high');
+⋮----
+public function uniqueId(): string
+⋮----
+public function middleware(): array
+⋮----
+->releaseAfter(5)
+->expireAfter(30)
+->shared(),
+⋮----
+public function handle(MikrotikService $mikrotikService): void
+⋮----
+$log = MikrotikJobLog::create([
+⋮----
+'attempt_count' => $this->attempts(),
+⋮----
+$result = $mikrotikService->updatePppoeProfile($router, $this->layanan, $this->kickActive);
+⋮----
+$log->update([
+⋮----
+'finished_at' => Carbon::now(),
+⋮----
+'error_message' => $e->getMessage(),
+⋮----
+public function failed(?Throwable $exception): void
+⋮----
+$log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
+->where('job_type', MikrotikJobType::UpdatePppoeProfile)
 ->latest()
 ->first();
 ⋮----
@@ -26065,51 +26396,6 @@ $gateways = $query->orderByDesc('is_default')->orderBy('nama')->get();
 'totalActive' => PengaturanGatewayModel::where('is_active', true)->count(),
 ````
 
-## File: app/Livewire/Settings/Profile.php
-````php
-namespace App\Livewire\Settings;
-⋮----
-use App\Concerns\ProfileValidationRules;
-use Flux\Flux;
-use Illuminate\Support\Facades\Auth;
-use Livewire\Attributes\Title;
-use Livewire\Component;
-⋮----
-class Profile extends Component
-⋮----
-public string $name = '';
-⋮----
-public string $email = '';
-⋮----
-public string $phone = '';
-⋮----
-/**
-     * Mount the component.
-     */
-public function mount(): void
-⋮----
-$this->name = Auth::user()->name;
-$this->email = Auth::user()->email;
-$this->phone = Auth::user()->phone ?? '';
-⋮----
-/**
-     * Update the profile information for the currently authenticated user.
-     */
-public function updateProfileInformation(): void
-⋮----
-$user = Auth::user();
-⋮----
-$validated = $this->validate($this->profileRules($user->id));
-⋮----
-$user->fill($validated);
-⋮----
-if ($user->isDirty('email')) {
-⋮----
-$user->save();
-⋮----
-Flux::toast(variant: 'success', text: __('Profile updated.'));
-````
-
 ## File: app/Livewire/Settings/Security.php
 ````php
 namespace App\Livewire\Settings;
@@ -26843,56 +27129,6 @@ $groupedPermissions = $user->getAllPermissions()
 ->toArray();
 ⋮----
 'roles' => Role::orderBy('name')->get(),
-'statuses' => UserStatus::cases(),
-````
-
-## File: app/Livewire/Users/Index.php
-````php
-namespace App\Livewire\Users;
-⋮----
-use App\Enums\UserStatus;
-use App\Models\User;
-use Illuminate\View\View;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
-use Livewire\Component;
-use Livewire\WithPagination;
-use Spatie\Permission\Models\Role;
-⋮----
-class Index extends Component
-⋮----
-public string $search = '';
-⋮----
-public string $filterRole = '';
-⋮----
-public string $filterStatus = '';
-⋮----
-public function updatingSearch(): void
-⋮----
-$this->resetPage();
-⋮----
-public function updatingFilterRole(): void
-⋮----
-public function updatingFilterStatus(): void
-⋮----
-public function render(): View
-⋮----
-$users = User::query()
-->when($this->search, fn ($q) => $q->where(function ($q) {
-$q->where('name', 'like', "%{$this->search}%")
-->orWhere('email', 'like', "%{$this->search}%");
-⋮----
-->when($this->filterRole, fn ($q) => $q->whereHas(
-⋮----
-fn ($q) => $q->where('name', $this->filterRole)
-⋮----
-->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
-->with('roles')
-->latest()
-->paginate(15);
-⋮----
-$roles = Role::orderBy('name')->get();
-⋮----
 'statuses' => UserStatus::cases(),
 ````
 
@@ -28220,6 +28456,154 @@ public function canBeDeleted(): bool
 return ! $this->pelanggans()->exists() && ! $this->odps()->exists();
 ````
 
+## File: app/Models/Perusahaan.php
+````php
+namespace App\Models;
+⋮----
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+⋮----
+class Perusahaan extends Model implements HasMedia
+⋮----
+protected $table = 'perusahaan';
+⋮----
+protected static function booted(): void
+⋮----
+static::saved(function () {
+Cache::forget(self::CACHE_KEY);
+⋮----
+static::deleted(function () {
+⋮----
+public function getActivitylogOptions(): LogOptions
+⋮----
+return LogOptions::defaults()
+->logAll()
+->logOnlyDirty()
+->dontLogEmptyChanges()
+->useLogName('perusahaan');
+⋮----
+protected function casts(): array
+⋮----
+public function registerMediaCollections(): void
+⋮----
+$this->addMediaCollection('logo')
+->singleFile()
+->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']);
+⋮----
+public function registerMediaConversions(?Media $media = null): void
+⋮----
+$this->addMediaConversion('thumb')
+->width(100)
+->height(100)
+->nonQueued();
+⋮----
+$this->addMediaConversion('invoice')
+->width(400)
+->height(120)
+⋮----
+public static function default(): self
+⋮----
+$cached = Cache::get(self::CACHE_KEY);
+⋮----
+$model->setRawAttributes($cached, true);
+⋮----
+$perusahaan = static::where('is_default', true)->first()
+?? static::first()
+⋮----
+Cache::forever(self::CACHE_KEY, $perusahaan->getAttributes());
+⋮----
+public function getLogoUrlAttribute(): ?string
+⋮----
+if ($this->hasMedia('logo')) {
+return $this->getFirstMediaUrl('logo');
+⋮----
+public function getLogoBase64Attribute(): ?string
+⋮----
+$media = $this->getFirstMedia('logo');
+⋮----
+$content = $this->getLogoContent();
+⋮----
+public function getLogoContent(): ?string
+⋮----
+$disk = Storage::disk($media->disk);
+$path = $media->getPathRelativeToRoot();
+⋮----
+return $disk->exists($path) ? $disk->get($path) : null;
+⋮----
+public function syncFaviconFiles(): void
+⋮----
+$logoContent = $this->getLogoContent();
+⋮----
+$mime = $this->getFirstMedia('logo')?->mime_type;
+⋮----
+$defaultSvg = self::defaultGobillingSvg();
+⋮----
+public static function defaultGobillingSvg(): string
+````
+
+## File: app/Models/ProfilBandwidth.php
+````php
+namespace App\Models;
+⋮----
+use App\Support\BandwidthConverter;
+use Database\Factories\ProfilBandwidthFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+⋮----
+class ProfilBandwidth extends Model
+⋮----
+protected $table = 'profil_bandwidth';
+⋮----
+public function getActivitylogOptions(): LogOptions
+⋮----
+return LogOptions::defaults()
+->logOnly(['nama_bandwidth', 'max_limit_tx', 'max_limit_rx', 'priority'])
+->logOnlyDirty()
+->dontLogEmptyChanges()
+->useLogName('profil_bandwidth');
+⋮----
+protected function casts(): array
+⋮----
+public function pakets(): HasMany
+⋮----
+return $this->hasMany(PaketLayanan::class, 'profil_bandwidth_id');
+⋮----
+public function labelKecepatan(): string
+⋮----
+public function routerOsMaxLimit(): string
+⋮----
+$txBps = BandwidthConverter::mbpsToBps($this->max_limit_tx);
+$rxBps = BandwidthConverter::mbpsToBps($this->max_limit_rx);
+⋮----
+public function routerOsRateLimit(): string
+⋮----
+$maxLimit = $this->routerOsMaxLimit();
+⋮----
+if (! $this->hasBurst()) {
+⋮----
+$burstTxBps = BandwidthConverter::mbpsToBps((int) $this->burst_rate_tx);
+$burstRxBps = BandwidthConverter::mbpsToBps((int) $this->burst_rate_rx);
+⋮----
+? BandwidthConverter::mbpsToBps((int) $this->burst_threshold_tx).'/'.BandwidthConverter::mbpsToBps((int) $this->burst_threshold_rx)
+⋮----
+? BandwidthConverter::mbpsToBps((int) $this->limit_rate_tx).'/'.BandwidthConverter::mbpsToBps((int) $this->limit_rate_rx)
+⋮----
+public function hasBurst(): bool
+````
+
 ## File: app/Models/PromoPenggunaan.php
 ````php
 namespace App\Models;
@@ -28364,22 +28748,6 @@ $this->update(['is_default' => true, 'is_aktif' => true]);
 public function makeClient(): WhatsappClient
 ````
 
-## File: app/Models/TicketDivisi.php
-````php
-namespace App\Models;
-⋮----
-use App\Enums\Ticket\DivisiTicket;
-use Illuminate\Database\Eloquent\Relations\Pivot;
-⋮----
-class TicketDivisi extends Pivot
-⋮----
-protected $table = 'ticket_divisi';
-⋮----
-public $timestamps = false;
-⋮----
-protected function casts(): array
-````
-
 ## File: app/Models/TicketHistori.php
 ````php
 namespace App\Models;
@@ -28472,60 +28840,6 @@ return $query->where('status', StatusTransaksiGateway::Pending);
 public function scopePaid(Builder $query): Builder
 ⋮----
 return $query->where('status', StatusTransaksiGateway::Paid);
-````
-
-## File: app/Models/User.php
-````php
-namespace App\Models;
-⋮----
-use App\Enums\UserStatus;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
-use Lab404\Impersonate\Models\Impersonate;
-use Laravel\Fortify\Contracts\PasskeyUser;
-use Laravel\Fortify\PasskeyAuthenticatable;
-use Spatie\Permission\Traits\HasRoles;
-⋮----
-class User extends Authenticatable implements PasskeyUser
-⋮----
-protected function casts(): array
-⋮----
-public function scopeActive(Builder $query): Builder
-⋮----
-return $query->where('status', UserStatus::Active);
-⋮----
-public function isActive(): bool
-⋮----
-public function canImpersonate(): bool
-⋮----
-return $this->isActive() && $this->hasRole('super_admin');
-⋮----
-public function canBeImpersonated(): bool
-⋮----
-return $this->isActive() && ! $this->hasRole('super_admin');
-⋮----
-public function assignedTickets(): HasMany
-⋮----
-return $this->hasMany(Ticket::class, 'pic_id');
-⋮----
-public function createdTickets(): HasMany
-⋮----
-return $this->hasMany(Ticket::class, 'dibuat_oleh');
-⋮----
-public function initials(): string
-⋮----
-$initials = Str::initials($this->name, true);
-⋮----
-return Str::length($initials) > 1
-? Str::substr($initials, 0, 1).Str::substr($initials, -1)
 ````
 
 ## File: app/Models/WaTemplate.php
@@ -28812,38 +29126,6 @@ return $user->can('ip_pool.ubah');
 public function delete(User $user, IpPool $ipPool): bool
 ⋮----
 return $user->can('ip_pool.hapus');
-````
-
-## File: app/Policies/LayananPelangganPolicy.php
-````php
-namespace App\Policies;
-⋮----
-use App\Models\LayananPelanggan;
-use App\Models\User;
-⋮----
-class LayananPelangganPolicy
-⋮----
-public function viewAny(User $user): bool
-⋮----
-return $user->can('layanan_pelanggan.lihat');
-⋮----
-public function view(User $user, LayananPelanggan $layananPelanggan): bool
-⋮----
-public function create(User $user): bool
-⋮----
-return $user->can('layanan_pelanggan.buat');
-⋮----
-public function update(User $user, LayananPelanggan $layananPelanggan): bool
-⋮----
-return $user->can('layanan_pelanggan.ubah');
-⋮----
-public function delete(User $user, LayananPelanggan $layananPelanggan): bool
-⋮----
-return $user->can('layanan_pelanggan.hapus');
-⋮----
-public function viewPppPassword(User $user, LayananPelanggan $layananPelanggan): bool
-⋮----
-return $user->can('layanan_pelanggan.lihat_ppp_password');
 ````
 
 ## File: app/Policies/OdpPolicy.php
@@ -29874,6 +30156,56 @@ $isSuccess = $response->getStatusCode() === 200;
 'status_code' => $response->getStatusCode(),
 ````
 
+## File: app/Services/CustomerDocumentService.php
+````php
+namespace App\Services;
+⋮----
+use App\Models\Pelanggan;
+use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+⋮----
+class CustomerDocumentService
+⋮----
+public function storeEncryptedMedia(
+⋮----
+$rawContent = file_get_contents($file->getRealPath());
+⋮----
+throw new RuntimeException("Gagal membaca berkas sumber: {$file->getClientOriginalName()}");
+⋮----
+$encryptedPayload = Crypt::encryptString($rawContent);
+⋮----
+$customProperties['original_mime_type'] = $file->getClientMimeType() ?: $file->getMimeType();
+$customProperties['original_size'] = $file->getSize();
+⋮----
+->addMedia($tempPath)
+->usingFileName($file->getClientOriginalName())
+->withCustomProperties($customProperties)
+->toMediaCollection($collection);
+⋮----
+public function getDecryptedContent(Media $media): string
+⋮----
+$disk = Storage::disk($media->disk);
+$path = $media->getPathRelativeToRoot();
+⋮----
+if (! $disk->exists($path)) {
+⋮----
+$encryptedContent = $disk->get($path);
+⋮----
+return Crypt::decryptString($encryptedContent);
+⋮----
+public function generateWatermarkedKtp(Media $media, User $staff): string
+⋮----
+$binary = $this->getDecryptedContent($media);
+⋮----
+$watermarkLine3 = 'Waktu Akses: '.now()->translatedFormat('d F Y H:i:s').' WIB';
+⋮----
+$diagonalText = "GOBILLING VERIFICATION • {$staff->name} • ".now()->format('d/m/Y H:i');
+````
+
 ## File: app/Support/BandwidthConverter.php
 ````php
 namespace App\Support;
@@ -29898,22 +30230,6 @@ public static function formatHumanReadable(int|float $bps): string
 use App\Providers\AppServiceProvider;
 use App\Providers\FortifyServiceProvider;
 use App\Providers\HorizonServiceProvider;
-````
-
-## File: config/app.php
-````php
-/*
-    |--------------------------------------------------------------------------
-    | Maintenance Mode Driver
-    |--------------------------------------------------------------------------
-    |
-    | These configuration options determine the driver used to determine and
-    | manage Laravel's "maintenance mode" status. The "cache" driver will
-    | allow maintenance mode to be controlled across multiple machines.
-    |
-    | Supported drivers: "file", "cache", "array"
-    |
-    */
 ````
 
 ## File: config/auth.php
@@ -33973,6 +34289,107 @@ ADR-0001 and ADR-0034 assumed a 3-container topology to isolate HTTP traffic fro
 - A Horizon crash-loop or a slow MikroTik reconciliation job can still, in principle, contend for CPU/memory with the web process in the same container — this is the risk ADR-0001 originally flagged and it is accepted here as a deliberate trade-off for operational simplicity, not resolved.
 - Any future need to scale Horizon workers independently of HTTP traffic (or vice versa) requires revisiting this decision — it cannot be done by tuning replica count alone, since replicas scale the whole container (Caddy + PHP-FPM + Horizon + scheduler) as one unit.
 - `docs/docker-deployment-guide.md`, which described the old decoupled `app`/`horizon`/`scheduler`/`docker-compose.yml` topology, has been corrected to match this model.
+````
+
+## File: docs/adr/0037-livewire-s3-endpoint-browser-reachability.md
+````markdown
+# Livewire S3 Uploads Require a Browser-Reachable AWS_ENDPOINT
+
+## Context
+
+Every `WithFileUploads` feature (company logo, customer KTP, ticket photos, payment slips) broke with a generic "gagal diunggah" ("failed to upload") validation error, in both local Sail dev and production. Root cause: when Livewire's temporary-upload disk resolves to the `s3` driver (which happens automatically whenever `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK` is unset and `FILESYSTEM_DISK=s3`), Livewire does not proxy uploads through the Laravel backend. Instead the **browser itself** PUTs file bytes directly to a presigned S3 URL, and fetches preview thumbnails via a presigned GET — both built from `AWS_ENDPOINT`, entirely bypassing the app (`vendor/livewire/livewire/src/Features/SupportFileUploads/{WithFileUploads,GenerateSignedUploadUrl,TemporaryUploadedFile}.php`).
+
+`AWS_ENDPOINT` was set to `http://rustfs:9000` — the Docker Compose service name for RustFS, resolvable only *inside* the container network. Server-to-server S3 calls (MediaLibrary's final asset writes, `Storage::disk('s3')->put()`) worked fine from inside the container, masking the bug in backend-only testing. But the browser — on the host machine locally, or on the public internet in production — could never reach that hostname, so every direct-to-S3 PUT/GET failed client-side before Laravel's own validation ever ran.
+
+## Decision
+
+The temporary-upload disk and `AWS_ENDPOINT` must always be resolvable by whichever party actually uses them for network I/O — the browser included, not just the container:
+
+- **Local Sail** (single instance, no replica-affinity concern): set `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=local`, forcing uploads/previews to proxy through the Laravel app instead of going direct-to-S3. `rustfs:9000` stays as `AWS_ENDPOINT` for the app's own (server-to-server) S3 calls, which is fine since the browser is never asked to reach it.
+- **Production** (2+ replicas, ADR-0036, no confirmed sticky-session routing): keep temporary uploads on S3 (`LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=s3`, explicit rather than left to fall back implicitly) so any replica can serve a `save()` request regardless of which replica handled the upload — but point `AWS_ENDPOINT` at the same public domain already used for `AWS_URL` (`https://s3.buroq.gobilling.id`) instead of the internal `rustfs:9000`, so presigned URLs are reachable by both the container and any browser.
+
+### Considered and rejected
+
+- **`/etc/hosts` trick for local dev** (map `127.0.0.1 rustfs` on the host so the same hostname resolves both inside Docker and from the browser): rejected as the default — it mirrors production's shape more closely, but requires a manual one-time step per developer machine and per new hire, for no benefit in a single-instance local environment.
+- **`local` disk for production temp uploads**: rejected — would reintroduce an intermittent "temp file not found" failure whenever the upload request and the later `save()` request land on different replicas.
+
+## Consequences
+
+- Local and production now intentionally use *different* temporary-upload disks (`local` vs `s3`) for the same feature — this is deliberate, not drift; do not "fix" them to match.
+- Any future S3-compatible storage endpoint change (new provider, new domain) must keep `AWS_ENDPOINT` reachable by end-user browsers in whichever environment uses `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=s3`, not just by the app container.
+- Guarded by `tests/Unit/EnvTemplateS3UploadTest.php` against `.env.docker.example` regressing back to an internal-only endpoint or an implicit (unset) temporary upload disk.
+````
+
+## File: docs/adr/0038-rustfs-bucket-public-read-policy.md
+````markdown
+# RustFS/S3 Bucket Needs an Explicit Public-Read Policy for Media URLs
+
+## Context
+
+After fixing `AWS_URL`/`AWS_ENDPOINT` browser-reachability (ADR-0037), media
+URLs resolved to the right host but still 403'd in the browser with:
+
+```xml
+<Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>
+```
+
+RustFS (MinIO-compatible) denies anonymous `GetObject` by default. Flysystem
+sets the `visibility` config (`public` in `config/filesystems.php`'s `s3`
+disk) as a per-object ACL on `PutObject`, and `getObjectAcl` confirmed the
+object *does* carry `FULL_CONTROL` for the owning canonical user — but MinIO/
+RustFS-style servers gate anonymous access at the **bucket policy** level,
+independent of per-object ACLs. A `public` object ACL alone does nothing for
+anonymous GETs; the bucket itself needs an explicit policy statement allowing
+`s3:GetObject` for `Principal: "*"`.
+
+This is invisible from the Laravel/Media Library side entirely — every
+call that matters (`toMediaCollection()`, `Storage::disk('s3')->put()`)
+succeeds and reports success. The failure only surfaces as a browser-side 403
+on the generated URL, with no application-side indicator anything is wrong.
+
+## Decision
+
+Provision the bucket policy as part of container boot, not as a manual
+one-time step or documentation note a developer might miss:
+
+- New Artisan command `app:ensure-public-media-bucket` calls
+  `S3Client::putBucketPolicy()` with a public-read (`GetObject`-only) policy
+  scoped to `AWS_BUCKET`, using the SDK client Flysystem already
+  constructs (`Storage::disk('s3')->getClient()`) — no new dependency.
+- Wired into `docker/entrypoint.sh` after `storage:link`, guarded with
+  `|| true` (same pattern as the other boot-time cache/link commands):
+  never blocks container boot if RustFS is briefly unreachable or the
+  bucket doesn't exist yet.
+- No-ops safely when `FILESYSTEM_DISK` isn't `s3` or `AWS_BUCKET` is unset,
+  so it's a no-op for local-disk-only setups.
+- Idempotent: `putBucketPolicy` fully replaces the policy document on every
+  boot, safe to run on every replica on every deploy.
+
+### Considered and rejected
+
+- **Manual `mc policy set public` / RustFS console step per environment**:
+  rejected — exactly the kind of infra step that's done once by whoever set
+  up staging, forgotten for production, and invisible until a user reports
+  broken images weeks later.
+- **Presigned URLs everywhere (`getTemporaryUrl()`) instead of public
+  objects**: rejected as the default — correct for the already-private `ktp`/
+  `dokumen` collections (which stay on the `local` disk regardless, see
+  `app/Models/Pelanggan.php`), but overkill for public assets like the
+  company logo and ticket photos that have no access-control requirement.
+  Would also require rewriting every `getFirstMediaUrl()` call site.
+
+## Consequences
+
+- Any new S3-compatible provider swapped in later (real AWS, R2, etc.) either
+  already defaults to bucket-owner-only ACLs enforced through IAM (real AWS)
+  — where this command's `putBucketPolicy` call is still valid and mostly a
+  no-op-if-already-public — or needs the same bucket-policy treatment if it's
+  another MinIO-family server.
+- If the bucket ever needs to stop being public (e.g. all media moves behind
+  presigned URLs), removing the `app:ensure-public-media-bucket` call from
+  `entrypoint.sh` is not enough by itself — the previously-applied public
+  policy stays in place until explicitly reverted with
+  `deleteBucketPolicy()`.
 ````
 
 ## File: docs/gowa/openapi.yaml
@@ -44984,6 +45401,11 @@ If you're building this now, **I would use the above architecture as the baselin
 
 ````
 
+## File: lang/id/auth.php
+````php
+
+````
+
 ## File: lang/id/validation.php
 ````php
 
@@ -45187,11 +45609,6 @@ use Livewire\Component;
 
 ````
 
-## File: resources/views/livewire/ip-pool/edit.blade.php
-````php
-
-````
-
 ## File: resources/views/livewire/ip-pool/index.blade.php
 ````php
 
@@ -45377,11 +45794,6 @@ use Livewire\Component;
 
 ````
 
-## File: resources/views/livewire/settings/profile.blade.php
-````php
-
-````
-
 ## File: resources/views/livewire/settings/security.blade.php
 ````php
 
@@ -45403,11 +45815,6 @@ use Livewire\Component;
 ````
 
 ## File: resources/views/livewire/users/create.blade.php
-````php
-
-````
-
-## File: resources/views/livewire/users/index.blade.php
 ````php
 
 ````
@@ -45487,11 +45894,6 @@ use Livewire\Component;
 
 ````
 
-## File: resources/views/pdf/invoice.blade.php
-````php
-
-````
-
 ## File: resources/views/dashboard.blade.php
 ````php
 
@@ -45500,42 +45902,6 @@ use Livewire\Component;
 ## File: resources/views/welcome.blade.php
 ````php
 
-````
-
-## File: routes/console.php
-````php
-use Illuminate\Support\Facades\Schedule;
-⋮----
-Schedule::command('invoice:generate')->dailyAt('01:00')->onOneServer();
-Schedule::command('invoice:cek-kadaluarsa')->dailyAt('02:00')->onOneServer();
-Schedule::command('layanan:cek-isolir')->dailyAt('02:30')->onOneServer();
-⋮----
-Schedule::command('mikrotik:provisi-router --async')
-->everyFifteenMinutes()
-->withoutOverlapping(15)
-->onOneServer()
-->runInBackground();
-⋮----
-Schedule::command('mikrotik:provisi-router --async --clean-orphans')
-->dailyAt('03:00')
-->withoutOverlapping(60)
-⋮----
-Schedule::command('xendit:cek-va-expired')->hourly()->onOneServer();
-⋮----
-Schedule::command('pembayaran:rekonsiliasi')
-⋮----
-->onOneServer();
-⋮----
-Schedule::command('mikrotik:ping')
-->everyFiveMinutes()
-->withoutOverlapping(5)
-⋮----
-Schedule::command('invoice:kirim-pengingat')->hourly()->onOneServer();
-Schedule::command('wa:proses-antrian')->everyFiveMinutes()->onOneServer();
-⋮----
-Schedule::command('horizon:snapshot')->everyFiveMinutes()->onOneServer();
-⋮----
-Schedule::command('horizon:monitor-health')->everyFiveMinutes()->onOneServer();
 ````
 
 ## File: routes/settings.php
@@ -45636,6 +46002,44 @@ services.json
 ````
 *
 !.gitignore
+````
+
+## File: tests/Feature/Auth/AuthenticationTest.php
+````php
+use App\Models\User;
+use Laravel\Fortify\Features;
+⋮----
+$response = $this->get(route('login'));
+⋮----
+$response->assertOk();
+⋮----
+$user = User::factory()->create();
+⋮----
+$response = $this->post(route('login.store'), [
+⋮----
+->assertSessionHasNoErrors()
+->assertRedirect(route('dashboard', absolute: false));
+⋮----
+$this->assertAuthenticated();
+⋮----
+$response->assertSessionHasErrorsIn('email');
+⋮----
+$this->assertGuest();
+⋮----
+$response->assertSessionHasErrors(['email' => trans('auth.failed')]);
+expect(trans('auth.failed'))->not->toBe('These credentials do not match our records.');
+⋮----
+$this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
+⋮----
+Features::twoFactorAuthentication([
+⋮----
+$user = User::factory()->withTwoFactor()->create();
+⋮----
+$response->assertRedirect(route('two-factor.login'));
+⋮----
+$response = $this->actingAs($user)->post(route('logout'));
+⋮----
+$response->assertRedirect(route('home'));
 ````
 
 ## File: tests/Feature/Auth/PasswordConfirmationTest.php
@@ -46030,6 +46434,56 @@ $this->manager->registerDriver('xendit', $shouldNotBeCalledDriver);
 expect($trx->status)->toBe(StatusTransaksiGateway::Pending);
 ````
 
+## File: tests/Feature/Jobs/MikrotikHighQueueOverlapTest.php
+````php
+use App\Jobs\Mikrotik\CleanupPppSecretOnOldRouterJob;
+use App\Jobs\Mikrotik\DisablePppoeAccountJob;
+use App\Jobs\Mikrotik\EnablePppoeAccountJob;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
+use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
+use App\Models\ProfilBandwidth;
+use App\Models\Router;
+use App\Services\Mikrotik\MikrotikService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Facades\Cache;
+⋮----
+$this->router = Router::factory()->online()->create();
+$this->pelanggan = Pelanggan::factory()->create();
+$this->profil = ProfilBandwidth::factory()->create();
+$this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
+$this->layanan = LayananPelanggan::factory()->create([
+⋮----
+$middleware = $job->middleware();
+⋮----
+expect($middleware)->toHaveCount(1);
+expect($middleware[0])->toBeInstanceOf(WithoutOverlapping::class);
+expect($middleware[0]->key)->toBe("mikrotik-router-{$this->router->id}");
+expect($middleware[0]->shareKey)->toBeTrue();
+⋮----
+$lockKeys[] = $middleware[0]->getLockKey($job);
+⋮----
+expect(array_unique($lockKeys))->toHaveCount(1);
+⋮----
+$lock = Cache::lock($lockKey, 30);
+expect($lock->get())->toBeTrue();
+⋮----
+$mockService = Mockery::mock(MikrotikService::class);
+$mockService->shouldNotReceive('createOrUpdatePppoeSecret');
+$this->app->instance(MikrotikService::class, $mockService);
+⋮----
+ProvisionPppoeAccountJob::dispatch($this->layanan);
+⋮----
+$lock->release();
+⋮----
+$mockService->shouldReceive('createOrUpdatePppoeSecret')
+->once()
+->andReturn(['status' => 'success', 'action' => 'created']);
+````
+
 ## File: tests/Feature/Jobs/PppoeJobUniquenessTest.php
 ````php
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
@@ -46101,6 +46555,65 @@ $mockService->shouldReceive('autoRecoverPppSecrets')
 ->andReturn(['recovered' => 0, 'disabled' => 0, 'duplicates_removed' => 0, 'errors' => []]);
 ````
 
+## File: tests/Feature/Jobs/SyncIpPoolOverlapTest.php
+````php
+use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
+use App\Models\IpPool;
+use App\Models\Router;
+use App\Services\Mikrotik\MikrotikService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
+⋮----
+$this->router = Router::factory()->online()->create();
+⋮----
+$pool = IpPool::factory()->create(['router_id' => $this->router->id]);
+⋮----
+Queue::fake();
+⋮----
+SyncIpPoolToRouterJob::dispatch($pool);
+⋮----
+Queue::assertPushed(SyncIpPoolToRouterJob::class, 1);
+⋮----
+$poolA = IpPool::factory()->create(['router_id' => $this->router->id]);
+$poolB = IpPool::factory()->create(['router_id' => $this->router->id]);
+⋮----
+SyncIpPoolToRouterJob::dispatch($poolA);
+SyncIpPoolToRouterJob::dispatch($poolB);
+⋮----
+Queue::assertPushed(SyncIpPoolToRouterJob::class, 2);
+⋮----
+$middleware = (new SyncIpPoolToRouterJob($pool))->middleware();
+⋮----
+expect($middleware)->toHaveCount(1);
+expect($middleware[0])->toBeInstanceOf(WithoutOverlapping::class);
+expect($middleware[0]->key)->toBe("mikrotik-router-{$this->router->id}-pool-sync");
+expect($middleware[0]->releaseAfter)->toBe(10);
+expect($middleware[0]->expiresAfter)->toBe(60);
+⋮----
+expect($jobA->middleware()[0]->getLockKey($jobA))
+->toBe($jobB->middleware()[0]->getLockKey($jobB));
+⋮----
+$lock = Cache::lock($lockKey, 60);
+expect($lock->get())->toBeTrue();
+⋮----
+$mockService = Mockery::mock(MikrotikService::class);
+$mockService->shouldNotReceive('syncIpPool');
+app()->instance(MikrotikService::class, $mockService);
+⋮----
+$lock->release();
+⋮----
+$mockService->shouldReceive('syncIpPool')
+->once()
+->andReturn(['status' => 'success']);
+⋮----
+expect($job->retryUntil())->toBeInstanceOf(DateTimeInterface::class);
+expect($job->retryUntil()->getTimestamp())->toBeGreaterThan(now()->getTimestamp());
+⋮----
+expect($job->retryUntil()->getTimestamp())->toBeGreaterThan(now()->addMinutes(5)->getTimestamp());
+````
+
 ## File: tests/Feature/Mikrotik/MikrotikPingCommandTest.php
 ````php
 use App\Enums\StatusLayanan;
@@ -46149,6 +46662,160 @@ expect($expiredLayanan->fresh()->status)->toBe(StatusLayanan::Suspend)
 ->and($activeLayanan->fresh()->status)->toBe(StatusLayanan::Aktif);
 ⋮----
 Queue::assertPushed(DisablePppoeAccountJob::class, function ($job) use ($expiredLayanan) {
+````
+
+## File: tests/Feature/Mikrotik/MikrotikProvisionRouterTest.php
+````php
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Enums\StatusLayanan;
+use App\Enums\StatusRouter;
+use App\Jobs\Mikrotik\ProvisionRouterJob;
+use App\Jobs\Mikrotik\RecoverPppRouterJob;
+use App\Jobs\Mikrotik\SyncBandwidthProfileToRoutersJob;
+use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
+use App\Models\IpPool;
+use App\Models\LayananPelanggan;
+use App\Models\MikrotikJobLog;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
+use App\Models\ProfilBandwidth;
+use App\Models\Router;
+use App\Models\User;
+use App\Notifications\MikrotikJobFailedNotification;
+use App\Observers\IpPoolObserver;
+use App\Services\Mikrotik\MikrotikService;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
+use RouterOS\Client;
+⋮----
+$this->seed(RolesAndPermissionsSeeder::class);
+⋮----
+$this->router = Router::factory()->online()->create([
+⋮----
+$this->pelanggan = Pelanggan::factory()->create();
+$this->profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Home-20M']);
+$this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
+$this->layanan = LayananPelanggan::factory()->create([
+⋮----
+$pool = IpPool::factory()->create(['router_id' => $this->router->id]);
+⋮----
+$mockService = Mockery::mock(MikrotikService::class)->makePartial();
+⋮----
+$mockService->shouldReceive('testConnection')
+->once()
+->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any(), Mockery::any())
+->andReturn(['status' => 'success']);
+⋮----
+$mockService->shouldReceive('syncIpPool')
+⋮----
+->with(
+Mockery::on(fn ($r) => $r->id === $this->router->id),
+Mockery::on(fn ($p) => $p->id === $pool->id),
+Mockery::any()
+⋮----
+$mockService->shouldReceive('syncAllBandwidthProfiles')
+⋮----
+->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any())
+->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
+⋮----
+$mockService->shouldReceive('autoRecoverPppSecrets')
+⋮----
+->andReturn([
+⋮----
+$mockService->shouldReceive('cleanOrphanedPppSecrets')
+⋮----
+->with(Mockery::on(fn ($r) => $r->id === $this->router->id), false, Mockery::any())
+⋮----
+$result = $mockService->provisionRouterFull($this->router);
+⋮----
+expect($result['status'])->toBe('success')
+->and($result['router_id'])->toBe($this->router->id);
+⋮----
+$log = MikrotikJobLog::where('router_id', $this->router->id)
+->where('job_type', MikrotikJobType::ProvisionRouter)
+->first();
+⋮----
+expect($log)->not->toBeNull()
+->and($log->status)->toBe(MikrotikJobStatus::Success)
+->and($this->router->fresh()->last_sync_at)->not->toBeNull();
+⋮----
+$mockService = Mockery::mock(MikrotikService::class);
+$mockService->shouldReceive('provisionRouterFull')
+⋮----
+$job->handle($mockService);
+⋮----
+expect(true)->toBeTrue();
+⋮----
+Notification::fake();
+⋮----
+$superAdmin = User::factory()->create();
+$superAdmin->assignRole('super_admin');
+⋮----
+$noc = User::factory()->create();
+$noc->assignRole('noc');
+⋮----
+MikrotikJobLog::create([
+⋮----
+$job->failed(new Exception('Connection timeout'));
+⋮----
+Notification::assertSentTo([$superAdmin, $noc], MikrotikJobFailedNotification::class);
+⋮----
+$this->app->instance(MikrotikService::class, $mockService);
+⋮----
+$this->artisan('mikrotik:provisi-router', ['--router' => $this->router->id])
+->expectsOutputToContain('PROVISI & SINKRONISASI MASTER ROUTER MIKROTIK')
+->expectsOutputToContain("Sukses provisi {$this->router->nama_router}")
+->assertSuccessful();
+⋮----
+Queue::fake();
+⋮----
+$this->artisan('mikrotik:provisi-router', ['--async' => true, '--clean-orphans' => true])
+->expectsOutputToContain('Mendispatch job provisi & recovery')
+->expectsOutputToContain('Seluruh job recovery & provisi router berhasil dimasukkan ke antrean')
+⋮----
+Queue::assertPushed(RecoverPppRouterJob::class, function ($job) {
+⋮----
+$pool = IpPool::factory()->create([
+⋮----
+SyncIpPoolToRouterJob::dispatch($pool);
+⋮----
+Queue::assertPushed(SyncIpPoolToRouterJob::class, function ($job) use ($pool) {
+⋮----
+$profil = ProfilBandwidth::factory()->create([
+⋮----
+SyncBandwidthProfileToRoutersJob::dispatch($profil);
+⋮----
+Queue::assertPushed(SyncBandwidthProfileToRoutersJob::class, function ($job) use ($profil) {
+⋮----
+$profil = ProfilBandwidth::factory()->make(['nama_bandwidth' => 'Profile-Dedup-Test']);
+app()->instance('env', 'production');
+$profil->save();
+app()->instance('env', 'testing');
+⋮----
+Queue::assertPushed(SyncBandwidthProfileToRoutersJob::class, 1);
+⋮----
+$mockClient = Mockery::mock(Client::class);
+⋮----
+$mockService->shouldReceive('getClient')->andReturn($mockClient);
+$mockService->shouldReceive('syncAllBandwidthProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
+⋮----
+$mockClient->shouldReceive('query')->andReturnSelf();
+$mockClient->shouldReceive('read')->andReturn([
+⋮----
+$stats = $mockService->autoRecoverPppSecrets($this->router);
+⋮----
+expect($stats['duplicates_removed'])->toBe(1)
+->and($stats['already_synced'])->toBe(1);
+⋮----
+LayananPelanggan::factory()->create([
+⋮----
+$stats = $mockService->cleanOrphanedPppSecrets($this->router, executeDelete: true);
+⋮----
+expect($stats['deleted'])->toBe(0)
+->and($stats['orphans_count'])->toBe(0);
 ````
 
 ## File: tests/Feature/Mikrotik/MikrotikRecoverPppCommandTest.php
@@ -46439,6 +47106,59 @@ expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan, $mo
 ->toThrow(MikrotikException::class, 'Stream timed out');
 ⋮----
 expect($layanan->provisioning_status->value)->toBe('failed');
+````
+
+## File: tests/Feature/Mikrotik/MikrotikServiceMemoizationTest.php
+````php
+use App\Enums\JenisKoneksi;
+use App\Enums\StatusLayanan;
+use App\Models\IpPool;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\ProfilBandwidth;
+use App\Models\Router;
+use App\Services\Mikrotik\MikrotikService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use RouterOS\Client;
+⋮----
+$router = Router::factory()->online()->create();
+$profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Cache-10M']);
+⋮----
+$mockClient = Mockery::mock(Client::class);
+$mockClient->shouldReceive('query')->twice()->andReturnSelf();
+$mockClient->shouldReceive('read')->twice()->andReturn([]);
+⋮----
+$first = $service->ensurePppProfile($router, $profil, $mockClient);
+$second = $service->ensurePppProfile($router, $profil, $mockClient);
+⋮----
+expect($first)->toBe('Profile-Cache-10M')
+->and($second)->toBe('Profile-Cache-10M');
+⋮----
+$pool = IpPool::factory()->create(['router_id' => $router->id]);
+⋮----
+$mockClient->shouldReceive('query')->times(4)->andReturnSelf();
+$mockClient->shouldReceive('read')->times(4)->andReturn([]);
+⋮----
+$first = $service->syncIpPool($router, $pool, $mockClient);
+$second = $service->syncIpPool($router, $pool, $mockClient);
+⋮----
+expect($first['status'])->toBe('success')
+->and($second['status'])->toBe('success');
+⋮----
+$profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Shared-20M']);
+$paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+⋮----
+$layananA = LayananPelanggan::factory()->create([
+⋮----
+$layananB = LayananPelanggan::factory()->create([
+⋮----
+$mockClient->shouldReceive('query')->times(6)->andReturnSelf();
+$mockClient->shouldReceive('read')->times(6)->andReturn([]);
+⋮----
+$service->createOrUpdatePppoeSecret($router, $layananA->fresh(['paketLayanan.profilBandwidth', 'pelanggan']), $mockClient);
+$service->createOrUpdatePppoeSecret($router, $layananB->fresh(['paketLayanan.profilBandwidth', 'pelanggan']), $mockClient);
+⋮----
+expect(true)->toBeTrue();
 ````
 
 ## File: tests/Feature/Mikrotik/UbahStatusLayananActionTest.php
@@ -46939,141 +47659,6 @@ $layananGagal = LayananPelanggan::factory()->create([
 ⋮----
 ->assertSee($layananSukses->ppp_username)
 ->assertSee($layananGagal->ppp_username)
-````
-
-## File: tests/Feature/Settings/PerusahaanTest.php
-````php
-use App\Enums\UserStatus;
-use App\Livewire\Settings\Perusahaan as PerusahaanComponent;
-use App\Models\Perusahaan;
-use App\Models\User;
-use Database\Seeders\PerusahaanSeeder;
-use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
-use Livewire\Livewire;
-⋮----
-$this->seed([
-⋮----
-$this->superAdmin = User::factory()->create(['status' => UserStatus::Active]);
-$this->superAdmin->assignRole('super_admin');
-⋮----
-$this->teknisi = User::factory()->create(['status' => UserStatus::Active]);
-$this->teknisi->assignRole('teknisi');
-⋮----
-$this->get(route('settings.perusahaan'))
-->assertRedirect(route('login'));
-⋮----
-$this->actingAs($this->teknisi)
-->get(route('settings.perusahaan'))
-->assertForbidden();
-⋮----
-Livewire::actingAs($this->superAdmin)
-->test(PerusahaanComponent::class)
-->assertOk()
-->assertSet('nama_perusahaan', 'PT GOBILLING NUSANTARA TEKNOLOGI')
-->assertSet('nama_brand', 'GOBILLING')
-->assertSee('PT GOBILLING NUSANTARA TEKNOLOGI');
-⋮----
-->set('nama_perusahaan', 'PT GOBILLING DIGITAL INDONESIA')
-->set('nama_brand', 'GOBILLING NET')
-->set('tagline', 'Internet Super Cepat & Stabil')
-->set('alamat', 'Cyber Building Lt. 5, Jakarta')
-->set('telepon', '021-9998887')
-->set('whatsapp', '0811-2233-4455')
-->set('email', 'corporate@gobilling.id')
-->set('nama_bank', 'Bank Mandiri')
-->set('nomor_rekening', '1230009988771')
-->set('atas_nama', 'PT GOBILLING DIGITAL')
-->set('catatan_invoice', 'Harap transfer sesuai nominal.')
-->call('save')
-->assertHasNoErrors();
-⋮----
-$company = Perusahaan::default();
-expect($company->nama_perusahaan)->toBe('PT GOBILLING DIGITAL INDONESIA')
-->and($company->nama_brand)->toBe('GOBILLING NET')
-->and($company->tagline)->toBe('Internet Super Cepat & Stabil')
-->and($company->alamat)->toBe('Cyber Building Lt. 5, Jakarta')
-->and($company->telepon)->toBe('021-9998887')
-->and($company->whatsapp)->toBe('0811-2233-4455')
-->and($company->email)->toBe('corporate@gobilling.id')
-->and($company->nama_bank)->toBe('Bank Mandiri')
-->and($company->nomor_rekening)->toBe('1230009988771')
-->and($company->atas_nama)->toBe('PT GOBILLING DIGITAL')
-->and($company->catatan_invoice)->toBe('Harap transfer sesuai nominal.');
-⋮----
-Storage::fake('public');
-⋮----
-$file = UploadedFile::fake()->image('company_logo.png', 400, 150);
-⋮----
-->set('logo', $file)
-⋮----
-expect($company->hasMedia('logo'))->toBeTrue()
-->and($company->logo_url)->not->toBeNull()
-->and($company->logo_base64)->not->toBeNull();
-⋮----
-->call('hapusLogo')
-⋮----
-$companyFresh = Perusahaan::default();
-expect($companyFresh->hasMedia('logo'))->toBeFalse()
-->and($companyFresh->logo_url)->toBeNull()
-->and($companyFresh->logo_base64)->toBeNull();
-⋮----
-Perusahaan::query()->delete();
-cache()->forget(Perusahaan::CACHE_KEY);
-⋮----
-$fallback = Perusahaan::default();
-expect($fallback)->toBeInstanceOf(Perusahaan::class)
-->and($fallback->nama_perusahaan)->not->toBeEmpty();
-````
-
-## File: tests/Feature/Settings/ProfileUpdateTest.php
-````php
-use App\Livewire\Settings\Profile;
-use App\Models\User;
-use Livewire\Livewire;
-⋮----
-$this->actingAs($user = User::factory()->create());
-⋮----
-$this->get('/settings/profile')->assertOk();
-⋮----
-$user = User::factory()->create();
-⋮----
-$this->actingAs($user);
-⋮----
-$response = Livewire::test(Profile::class)
-->set('name', 'Test User')
-->set('email', 'test@example.com')
-->call('updateProfileInformation');
-⋮----
-$response->assertHasNoErrors();
-⋮----
-$user->refresh();
-⋮----
-expect($user->name)->toEqual('Test User');
-expect($user->email)->toEqual('test@example.com');
-expect($user->email_verified_at)->toBeNull();
-⋮----
-->set('email', $user->email)
-⋮----
-expect($user->refresh()->email_verified_at)->not->toBeNull();
-⋮----
-$response = Livewire::test('settings.delete-user-form')
-->set('password', 'password')
-->call('deleteUser');
-⋮----
-->assertHasNoErrors()
-->assertRedirect('/');
-⋮----
-expect($user->fresh())->toBeNull();
-expect(auth()->check())->toBeFalse();
-⋮----
-->set('password', 'wrong-password')
-⋮----
-$response->assertHasErrors(['password']);
-⋮----
-expect($user->fresh())->not->toBeNull();
 ````
 
 ## File: tests/Feature/Settings/SecurityTest.php
@@ -47692,163 +48277,22 @@ expect($driver->getQrCode()['success'])->toBeFalse()
 expect($client->getDriver())->toBeInstanceOf(GowaDriver::class);
 ````
 
+## File: tests/Feature/EnsurePublicMediaBucketCommandTest.php
+````php
+use App\Console\Commands\EnsurePublicMediaBucketCommand;
+⋮----
+$this->artisan(EnsurePublicMediaBucketCommand::class)
+->expectsOutputToContain('Skipping bucket policy setup')
+->assertExitCode(0);
+⋮----
+->expectsOutputToContain('AWS_BUCKET is not configured')
+````
+
 ## File: tests/Feature/ExampleTest.php
 ````php
 $response = $this->get(route('home'));
 ⋮----
 $response->assertRedirect(route('login'));
-````
-
-## File: tests/Feature/ImpersonateTest.php
-````php
-use App\Enums\StatusPelanggan;
-use App\Enums\UserStatus;
-use App\Models\Pelanggan;
-use App\Models\User;
-use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Event;
-use Lab404\Impersonate\Events\LeaveImpersonation;
-use Lab404\Impersonate\Events\TakeImpersonation;
-⋮----
-$this->seed(RolesAndPermissionsSeeder::class);
-⋮----
-$this->superAdmin = User::factory()->create([
-⋮----
-$this->superAdmin->assignRole('super_admin');
-⋮----
-$this->staffUser = User::factory()->create([
-⋮----
-$this->staffUser->assignRole('teknisi');
-⋮----
-Event::fake([TakeImpersonation::class]);
-⋮----
-$response = $this->actingAs($this->superAdmin)
-->get(route('impersonate', ['id' => $this->staffUser->id, 'guardName' => 'web']));
-⋮----
-$response->assertRedirect(route('dashboard'));
-⋮----
-expect(Auth::check())->toBeTrue()
-->and(Auth::id())->toBe($this->staffUser->id)
-->and(app('impersonate')->isImpersonating())->toBeTrue()
-->and(app('impersonate')->getImpersonatorId())->toBe($this->superAdmin->id);
-⋮----
-Event::assertDispatched(TakeImpersonation::class);
-⋮----
-$targetUser = User::factory()->create(['status' => UserStatus::Active]);
-$targetUser->assignRole('admin');
-⋮----
-$response = $this->actingAs($this->staffUser)
-->get(route('impersonate', ['id' => $targetUser->id]));
-⋮----
-$response->assertForbidden();
-expect(app('impersonate')->isImpersonating())->toBeFalse();
-⋮----
-$anotherSuperAdmin = User::factory()->create(['status' => UserStatus::Active]);
-$anotherSuperAdmin->assignRole('super_admin');
-⋮----
-->get(route('impersonate', ['id' => $anotherSuperAdmin->id]));
-⋮----
-$inactiveUser = User::factory()->create(['status' => UserStatus::Inactive]);
-$inactiveUser->assignRole('teknisi');
-⋮----
-->get(route('impersonate', ['id' => $inactiveUser->id]));
-⋮----
-->get(route('impersonate', ['id' => $this->superAdmin->id]));
-⋮----
-$pelanggan = Pelanggan::factory()->create([
-⋮----
-->get(route('impersonate', ['id' => $akun->id, 'guardName' => 'pelanggan']));
-⋮----
-$response->assertRedirect(route('portal.dashboard'));
-⋮----
-expect(Auth::guard('pelanggan')->check())->toBeTrue()
-->and(Auth::guard('pelanggan')->id())->toBe($akun->id)
-⋮----
-Event::fake([LeaveImpersonation::class]);
-⋮----
-$this->actingAs($this->superAdmin)
-⋮----
-expect(app('impersonate')->isImpersonating())->toBeTrue();
-⋮----
-$response = $this->get(route('impersonate.leave'));
-⋮----
-$response->assertRedirect(route('users.index'));
-⋮----
-->and(Auth::id())->toBe($this->superAdmin->id)
-->and(app('impersonate')->isImpersonating())->toBeFalse();
-⋮----
-Event::assertDispatched(LeaveImpersonation::class);
-⋮----
-$response->assertRedirect(route('pelanggan.index'));
-⋮----
-expect(Auth::guard('web')->check())->toBeTrue()
-->and(Auth::guard('web')->id())->toBe($this->superAdmin->id)
-⋮----
-->get(route('impersonate.leave'));
-⋮----
-$response = $this->from(route('portal.dashboard'))->get(route('portal.ganti-password'));
-````
-
-## File: tests/Feature/LaporanTest.php
-````php
-use App\Enums\StatusInvoice;
-use App\Enums\StatusLayanan;
-use App\Enums\UserStatus;
-use App\Livewire\Laporan\Billing;
-use App\Models\Invoice;
-use App\Models\LayananPelanggan;
-use App\Models\PaketLayanan;
-use App\Models\Pelanggan;
-use App\Models\ProfilBandwidth;
-use App\Models\Router;
-use App\Models\User;
-use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
-use Livewire\Livewire;
-⋮----
-$this->seed(RolesAndPermissionsSeeder::class);
-⋮----
-$this->adminUser = User::factory()->create(['status' => UserStatus::Active]);
-$this->adminUser->assignRole('admin');
-⋮----
-$this->profil = ProfilBandwidth::factory()->create();
-$this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id, 'harga' => 200000]);
-$this->router = Router::factory()->create();
-$this->pelanggan = Pelanggan::factory()->create();
-$this->layanan = LayananPelanggan::factory()->create([
-⋮----
-Invoice::factory()->create([
-⋮----
-'tanggal_terbit' => Carbon::today(),
-⋮----
-Livewire::actingAs($this->adminUser)
-->test(Billing::class)
-->assertOk()
-->assertViewHas('totalLunas', fn ($val) => $val === 200000.0);
-⋮----
-$this->layanan->update([
-⋮----
-'tanggal_expired' => Carbon::today()->addDays(3),
-⋮----
-$this->artisan('invoice:generate')
-->assertSuccessful();
-⋮----
-$invoice = Invoice::where('layanan_pelanggan_id', $this->layanan->id)->first();
-expect($invoice)->not->toBeNull()
-->and($invoice->status)->toBe(StatusInvoice::MenungguPembayaran)
-->and((float) $invoice->jumlah)->toBe(200000.0);
-⋮----
-$overdueInvoice = Invoice::factory()->create([
-⋮----
-'tanggal_terbit' => Carbon::today()->subDays(10),
-'tanggal_jatuh_tempo' => Carbon::today()->subDays(3),
-⋮----
-$this->artisan('invoice:cek-kadaluarsa')
-⋮----
-expect($overdueInvoice->fresh()->status)->toBe(StatusInvoice::Kadaluarsa);
 ````
 
 ## File: tests/Feature/LoginWithInactiveUserTest.php
@@ -48946,46 +49390,6 @@ expect($admin2->fresh()->status)->toBe(UserStatus::Inactive);
 expect($user->fresh()->status)->toBe(UserStatus::Inactive);
 ````
 
-## File: tests/Feature/UsersIndexTest.php
-````php
-use App\Enums\UserStatus;
-use App\Livewire\Users\Index;
-use App\Models\User;
-use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
-⋮----
-$this->seed(RolesAndPermissionsSeeder::class);
-⋮----
-$admin = User::factory()->create(['status' => UserStatus::Active]);
-$admin->assignRole('super_admin');
-⋮----
-Livewire::actingAs($admin)
-->test(Index::class)
-->assertOk();
-⋮----
-$user = User::factory()->create(['status' => UserStatus::Active]);
-$user->assignRole('teknisi');
-⋮----
-$this->actingAs($user)
-->get(route('users.index'))
-->assertForbidden();
-⋮----
-User::factory()->create(['name' => 'Budi Santoso', 'status' => UserStatus::Active]);
-User::factory()->create(['name' => 'Siti Aminah', 'status' => UserStatus::Active]);
-⋮----
-->set('search', 'Budi')
-->assertSee('Budi Santoso')
-->assertDontSee('Siti Aminah');
-⋮----
-User::factory()->create(['name' => 'Active User', 'status' => UserStatus::Active]);
-User::factory()->create(['name' => 'Inactive User', 'status' => UserStatus::Inactive]);
-⋮----
-->set('filterStatus', 'inactive')
-->assertSee('Inactive User')
-->assertDontSee('Active User');
-````
-
 ## File: tests/Feature/WilayahTest.php
 ````php
 use App\Enums\UserStatus;
@@ -49333,6 +49737,20 @@ expect(BandwidthConverter::formatHumanReadable(53477376))->toBe('51 Mbps')
 ->and(BandwidthConverter::formatHumanReadable(1073741824))->toBe('1 Gbps');
 ````
 
+## File: tests/Unit/EnvTemplateS3UploadTest.php
+````php
+function parseEnvExample(string $path): array
+⋮----
+expect($env)->toHaveKey('AWS_ENDPOINT')
+->and($env)->toHaveKey('AWS_URL');
+⋮----
+expect($endpointHost)->toBe($urlHost)
+->and($endpointHost)->not->toBe('rustfs');
+⋮----
+expect($env['FILESYSTEM_DISK'] ?? null)->toBe('s3')
+->and($env['LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK'] ?? null)->toBe('s3');
+````
+
 ## File: tests/Unit/ExampleTest.php
 ````php
 expect(true)->toBeTrue();
@@ -49412,6 +49830,108 @@ indent_size = 2
 
 [{compose,docker-compose}.{yml,yaml}]
 indent_size = 4
+````
+
+## File: .env.example
+````
+APP_NAME=GOBILLING
+APP_ENV=local
+APP_KEY=
+APP_PREVIOUS_KEYS=
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=en_US
+
+APP_MAINTENANCE_DRIVER=file
+# APP_MAINTENANCE_STORE=database
+
+# PHP_CLI_SERVER_WORKERS=4
+
+BCRYPT_ROUNDS=12
+
+LOG_CHANNEL=stack
+LOG_STACK=single
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+# Database Configuration
+# For Railway deployment: Railway's MySQL variables (MYSQLHOST, MYSQL_URL, etc.)
+# are automatically detected by GOBILLING's database configuration.
+# If setting manually in Railway: DB_HOST=${{MySQL.MYSQLHOST}}
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=gobilling
+DB_USERNAME=root
+DB_PASSWORD=
+
+SESSION_DRIVER=database
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_PATH=/
+SESSION_DOMAIN=null
+
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=local
+MEDIA_DISK=local
+QUEUE_CONNECTION=database
+
+CACHE_STORE=database
+# CACHE_PREFIX=
+
+MEMCACHED_HOST=127.0.0.1
+
+# Redis Configuration (Optional / Railway Redis)
+# Railway's Redis variables (REDISHOST, REDIS_URL, etc.) are automatically detected.
+REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=log
+MAIL_SCHEME=null
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="${APP_NAME}"
+
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+# Set FILESYSTEM_DISK=s3 and MEDIA_DISK=s3 to use RustFS/S3 storage locally,
+# see docs/adr/0037 for AWS_ENDPOINT browser-reachability requirements.
+# AWS_URL must also be browser-reachable (not the internal rustfs:9000 host) —
+# with Sail's default port mapping this is http://localhost:9000/<bucket>.
+AWS_ENDPOINT=
+AWS_URL=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+
+VITE_APP_NAME="${APP_NAME}"
+
+# WhatsApp Gateway (fallback default dipakai saat WhatsappClient dibuat tanpa koneksi Sysblas
+# spesifik — kredensial koneksi sebenarnya dikelola per-koneksi lewat menu Pengaturan > Koneksi
+# WhatsApp, disimpan di tabel `sysblas`, bukan lewat env ini)
+GOWA_HOST=http://localhost:3000
+GOWA_USERNAME=
+GOWA_PASSWORD=
+GOWA_NUMBER=
+
+WAHA_HOST=https://waha.example.com
+WAHA_SESSION=default
+WAHA_API_KEY=
+WAHA_USERNAME=
+WAHA_PASSWORD=
+WAHA_NUMBER=
+
+# MikroTik: cache TTL untuk status PPP realtime & timeout koneksi status check (detik)
+MIKROTIK_STATUS_CACHE_TTL=20
+MIKROTIK_STATUS_TIMEOUT=3
 ````
 
 ## File: .flyenv
@@ -54679,27 +55199,6 @@ Any new portal invoice/payment page that should be reachable from a notification
 Payment-link generation is centralized in `PaymentGatewayManager::resolvePaymentUrl(Invoice)` (sync status, reuse or regenerate the gateway link, return the URL) — both `Show::bayar()` and `Bayar::lanjutkanPembayaran()` call this instead of duplicating the sync/generate logic. Xendit here only produces one flat Hosted Invoice link (not per-channel VA/QRIS/e-wallet products), so channel fee cards on the `Bayar` page are informational estimates only, not a live per-channel price — don't wire a channel picker to different backend calls unless the Xendit integration itself changes to per-channel payment requests.
 ````
 
-## File: .ai/rules/livewire-uploads.md
-````markdown
----
-paths:
-  - app/Livewire/**/*.php
-  - config/livewire.php
-  - .env.docker.example
----
-
-# Livewire File Uploads & S3
-
-## `AWS_ENDPOINT` must be reachable by the browser, not just the app container
-Whenever `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK` resolves to a disk with the `s3` driver (it falls back to `FILESYSTEM_DISK` when unset — `Livewire\Features\SupportFileUploads\FileUploadConfiguration::disk()`), Livewire has the **browser itself** PUT/GET directly against `AWS_ENDPOINT` via presigned URLs for every `WithFileUploads` component (upload *and* preview thumbnail) — it does not proxy through the Laravel backend at all. An endpoint that only resolves inside the Docker network (e.g. the Compose service name `rustfs:9000`) breaks every file upload in the app client-side with a generic "gagal diunggah" / "failed to upload" validation error, even though server-to-server S3 calls (MediaLibrary writes, `Storage::disk('s3')->put()`) keep working fine — don't let that mask the bug during backend-only debugging. See `docs/adr/0037-livewire-s3-endpoint-browser-reachability.md`.
-
-Current split (deliberate, do not unify):
-- **Local Sail**: `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=local` — single instance, so proxying through the app is simplest and needs no per-developer machine setup. `AWS_ENDPOINT=http://rustfs:9000` stays fine here since the browser never touches it.
-- **Production** (`.env.docker.example`): `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=s3` explicitly (needed for replica-safety — 2+ replicas per ADR-0036, no confirmed sticky-session routing), with `AWS_ENDPOINT` pointed at the same public domain as `AWS_URL` (`https://s3.buroq.gobilling.id`), never an internal-only service name.
-
-Guarded by `tests/Unit/EnvTemplateS3UploadTest.php` against `.env.docker.example` regressing.
-````
-
 ## File: .claude/agents/alpine.md
 ````markdown
 ---
@@ -56340,20 +56839,6 @@ Examples:
 - Non-standard layout (modules, DDD): the open-ended pass catches the layout itself as convention #1. Adapt the globs in the mapping table to the observed paths.
 ````
 
-## File: .claude/settings.json
-````json
-{
-  "enabledPlugins": {
-    "mattpocock-skills@claude-plugins-official": true,
-    "laravel-boost@claude-plugins-official": true
-  },
-  "env": {
-    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787/p/your-project",
-    "ENABLE_TOOL_SEARCH": "true"
-  }
-}
-````
-
 ## File: .hermes/plans/2026-09-15_171510-railpack-json-alternative-build.md
 ````markdown
 # Railpack.json — alternative build path to the Dockerfile
@@ -56801,6 +57286,57 @@ is caught before spending time on a full BuildKit build.
   primary build path for that platform, if one is chosen later.
 ````
 
+## File: app/Actions/LayananPelanggan/DaftarkanLayananAction.php
+````php
+namespace App\Actions\LayananPelanggan;
+⋮----
+use App\Enums\JenisTagihanPertama;
+use App\Enums\PriceMode;
+use App\Enums\StatusLayanan;
+use App\Exceptions\DuplikatLayananAktifException;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Promo;
+use App\Models\Ticket;
+use App\Services\Billing\BillingService;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+⋮----
+class DaftarkanLayananAction
+⋮----
+public function __construct(private BillingService $billing) {}
+⋮----
+public function execute(array $data): LayananPelanggan
+⋮----
+$paket = PaketLayanan::findOrFail($data['paket_layanan_id']);
+$mulai = Carbon::parse($data['tanggal_mulai']);
+⋮----
+? $mulai->copy()->addMonths($paket->masa_aktif_nilai)
+: $mulai->copy()->addDays($paket->masa_aktif_nilai);
+⋮----
+return DB::transaction(function () use ($data, $expired) {
+$layanan = LayananPelanggan::create([
+⋮----
+'tanggal_expired' => $expired->toDateString(),
+⋮----
+$this->billing->generateFirstInvoice(
+⋮----
+jenis: JenisTagihanPertama::from($data['jenis_tagihan_pertama']),
+⋮----
+Ticket::whereKey($data['ticket_id'])
+->where('pelanggan_id', $data['pelanggan_id'])
+->where('perlu_aktivasi_manual', true)
+->update(['layanan_pelanggan_id' => $layanan->id, 'perlu_aktivasi_manual' => false]);
+⋮----
+public function assertBelumAdaDuplikat(int $pelangganId, int $routerId, int $paketId): void
+⋮----
+$ada = LayananPelanggan::where('pelanggan_id', $pelangganId)
+->where('router_id', $routerId)
+->where('paket_layanan_id', $paketId)
+->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Proses, StatusLayanan::Suspend])
+->exists();
+````
+
 ## File: app/Actions/LayananPelanggan/PerpanjangMasaAktifAction.php
 ````php
 namespace App\Actions\LayananPelanggan;
@@ -56832,6 +57368,116 @@ $newExpired = $baseDate->addDays($masaNilai);
 ⋮----
 $layanan->update([
 'tanggal_expired' => $newExpired->toDateString(),
+````
+
+## File: app/Actions/Ticket/UbahStatusDivisiTicketAction.php
+````php
+namespace App\Actions\Ticket;
+⋮----
+use App\Enums\StatusInvoice;
+use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\StatusDivisiTicket;
+use App\Enums\Ticket\StatusTicket;
+use App\Models\Ticket;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+⋮----
+class UbahStatusDivisiTicketAction
+⋮----
+public function __construct(private UbahStatusTicketAction $ubahStatusTicketAction) {}
+⋮----
+public function execute(Ticket $ticket, DivisiTicket $divisi, StatusDivisiTicket $statusBaru, User $actor): Ticket
+⋮----
+$this->assertInvoicePertamaLunas($ticket);
+⋮----
+DB::table('ticket_divisi')
+->where('ticket_id', $ticket->id)
+->where('divisi', $divisi->value)
+->update(['status' => $statusBaru->value]);
+⋮----
+$ticket->unsetRelation('divisis')->load('divisis');
+⋮----
+if ($ticket->semuaDivisiWajibSelesai() && $ticket->status !== StatusTicket::Selesai) {
+$this->ubahStatusTicketAction->execute(
+⋮----
+return $ticket->fresh(['divisis']);
+⋮----
+private function assertInvoicePertamaLunas(Ticket $ticket): void
+⋮----
+$lunas = $layanan->invoices()
+->whereNull('periode_tagihan')
+->where('status', StatusInvoice::Lunas)
+->exists();
+````
+
+## File: app/Console/Commands/CheckTunggakanInvoicePertamaCommand.php
+````php
+namespace App\Console\Commands;
+⋮----
+use App\Actions\LayananPelanggan\UbahStatusLayananAction;
+use App\Enums\StatusInvoice;
+use App\Enums\StatusLayanan;
+use App\Models\LayananPelanggan;
+use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
+⋮----
+class CheckTunggakanInvoicePertamaCommand extends Command
+⋮----
+protected $signature = 'layanan:cek-tunggakan-pertama';
+⋮----
+protected $description = 'Isolir layanan yang belum pernah membayar invoice pertama (instalasi) melewati Tenggat Pembayaran Invoice Pertama (H+1)';
+⋮----
+public function handle(UbahStatusLayananAction $ubahStatusAction): int
+⋮----
+$this->info('Memeriksa layanan dengan invoice pertama yang belum dibayar melewati tenggat...');
+⋮----
+$today = Carbon::today();
+⋮----
+$layanans = LayananPelanggan::query()
+->where('status', StatusLayanan::Aktif)
+->whereDoesntHave('invoices', fn ($q) => $q->whereNotNull('periode_tagihan'))
+->whereHas('invoices', fn ($q) => $q
+->whereNull('periode_tagihan')
+->whereIn('status', StatusInvoice::terbuka())
+->where('tanggal_jatuh_tempo', '<', $today)
+⋮----
+->get();
+⋮----
+$ubahStatusAction->execute(
+⋮----
+$this->info("Berhasil mengisolir {$count} layanan yang menunggak invoice pertama.");
+````
+
+## File: app/Console/Commands/EnsurePublicMediaBucketCommand.php
+````php
+namespace App\Console\Commands;
+⋮----
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Storage;
+⋮----
+class EnsurePublicMediaBucketCommand extends Command
+⋮----
+protected $signature = 'app:ensure-public-media-bucket';
+⋮----
+protected $description = 'Apply a public-read bucket policy on the S3/RustFS media bucket so browsers can load media URLs directly.';
+⋮----
+public function handle(): int
+⋮----
+$this->components->info("Default disk is [{$disk}], not [s3]. Skipping bucket policy setup.");
+⋮----
+$this->components->warn('AWS_BUCKET is not configured. Skipping bucket policy setup.');
+⋮----
+$client = Storage::disk('s3')->getClient();
+⋮----
+if (! $client->doesBucketExist($bucket)) {
+$client->createBucket(['Bucket' => $bucket]);
+$this->components->info("Created missing bucket [{$bucket}].");
+⋮----
+$client->putBucketPolicy(['Bucket' => $bucket, 'Policy' => $policy]);
+$this->components->info("Public-read bucket policy applied to [{$bucket}].");
+⋮----
+$this->components->warn("Could not apply bucket policy to [{$bucket}]: {$e->getMessage()}");
 ````
 
 ## File: app/Console/Commands/GenerateInvoicesCommand.php
@@ -56911,11 +57557,61 @@ Redis::connection()->ping();
 Redis::purge();
 ````
 
+## File: app/DTO/Storage/S3HealthCheckResult.php
+````php
+namespace App\DTO\Storage;
+⋮----
+use Livewire\Wireable;
+⋮----
+readonly class S3HealthCheckResult implements Wireable
+⋮----
+public function __construct(
+⋮----
+public static function notApplicable(string $diskName): self
+⋮----
+public function isHealthy(): bool
+⋮----
+public function toLivewire(): array
+⋮----
+public static function fromLivewire($value): static
+````
+
+## File: app/Enums/Ticket/StatusDivisiTicket.php
+````php
+namespace App\Enums\Ticket;
+⋮----
+enum StatusDivisiTicket: string
+⋮----
+public function label(): string
+⋮----
+public function color(): string
+````
+
 ## File: app/Enums/JenisTagihanPertama.php
 ````php
 namespace App\Enums;
 ⋮----
 enum JenisTagihanPertama: string
+⋮----
+public function label(): string
+````
+
+## File: app/Enums/MikrotikJobStatus.php
+````php
+namespace App\Enums;
+⋮----
+enum MikrotikJobStatus: string
+⋮----
+public function label(): string
+⋮----
+public function color(): string
+````
+
+## File: app/Enums/PriceMode.php
+````php
+namespace App\Enums;
+⋮----
+enum PriceMode: string
 ⋮----
 public function label(): string
 ````
@@ -56931,6 +57627,19 @@ public static function terbuka(): array
 public function label(): string
 ⋮----
 public function color(): string
+````
+
+## File: app/Exceptions/DuplikatLayananAktifException.php
+````php
+namespace App\Exceptions;
+⋮----
+use Exception;
+⋮----
+class DuplikatLayananAktifException extends Exception
+⋮----
+public function __construct()
+⋮----
+parent::__construct(
 ````
 
 ## File: app/Http/Controllers/Webhook/PaymentWebhookController.php
@@ -57059,6 +57768,76 @@ $scope->setContext('whatsapp_webhook_rejected', [
 ProcessWhatsappWebhookJob::dispatch($log->id);
 ````
 
+## File: app/Http/Controllers/ImpersonateController.php
+````php
+namespace App\Http\Controllers;
+⋮----
+use App\Models\User;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
+use Lab404\Impersonate\Services\ImpersonateManager;
+⋮----
+class ImpersonateController extends Controller
+⋮----
+public function __construct(
+⋮----
+public function take(Request $request, int|string $id, ?string $guardName = null): RedirectResponse
+⋮----
+$guardName = $guardName ?? $this->manager->getDefaultSessionGuard();
+⋮----
+$currentUser = $request->user();
+⋮----
+if (! $currentUser || ! method_exists($currentUser, 'canImpersonate') || ! $currentUser->canImpersonate()) {
+⋮----
+if ($this->manager->isImpersonating()) {
+⋮----
+if ($id == $currentUser->getAuthIdentifier() && ($this->manager->getCurrentAuthGuardName() === $guardName)) {
+⋮----
+$userToImpersonate = $this->manager->findUserById($id, $guardName);
+⋮----
+if (! method_exists($userToImpersonate, 'canBeImpersonated') || ! $userToImpersonate->canBeImpersonated()) {
+⋮----
+if ($guardName === 'pelanggan' && $portalDomain && $portalDomain !== $request->getHost()) {
+$handoffUrl = URL::temporarySignedRoute('portal.impersonate.consume', now()->addSeconds(60), [
+'impersonator' => $currentUser->getKey(),
+'pelanggan' => $userToImpersonate->getKey(),
+⋮----
+return redirect()->away($handoffUrl);
+⋮----
+if ($this->manager->take($currentUser, $userToImpersonate, $guardName)) {
+⋮----
+return redirect()->route('portal.dashboard');
+⋮----
+return redirect()->route('dashboard');
+⋮----
+return redirect()->back()->with('error', 'Gagal memulai sesi impersonasi.');
+⋮----
+public function consumePortalHandoff(Request $request): RedirectResponse
+⋮----
+abort_unless($request->hasValidSignature(), 403);
+⋮----
+$currentUser = User::findOrFail($request->integer('impersonator'));
+⋮----
+if (! method_exists($currentUser, 'canImpersonate') || ! $currentUser->canImpersonate()) {
+⋮----
+$userToImpersonate = $this->manager->findUserById($request->integer('pelanggan'), 'pelanggan');
+⋮----
+if ($this->manager->take($currentUser, $userToImpersonate, 'pelanggan')) {
+⋮----
+return redirect()->route('portal.login')->with('error', 'Gagal memulai sesi impersonasi.');
+⋮----
+public function leave(): RedirectResponse
+⋮----
+if (! $this->manager->isImpersonating()) {
+⋮----
+$impersonatedGuard = $this->manager->getImpersonatorGuardUsingName();
+⋮----
+$this->manager->leave();
+⋮----
+return redirect()->route('users.index');
+````
+
 ## File: app/Http/Middleware/ValidateXenditCallbackToken.php
 ````php
 namespace App\Http\Middleware;
@@ -57099,64 +57878,13 @@ return response()->json([
 return $next($request);
 ````
 
-## File: app/Jobs/Mikrotik/CleanupPppSecretOnOldRouterJob.php
-````php
-namespace App\Jobs\Mikrotik;
-⋮----
-use App\Enums\MikrotikJobStatus;
-use App\Enums\MikrotikJobType;
-use App\Models\MikrotikJobLog;
-use App\Models\Router;
-use App\Services\Mikrotik\MikrotikService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\WithoutOverlapping;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
-use Throwable;
-⋮----
-class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
-⋮----
-public int $tries = 1;
-⋮----
-public int $uniqueFor = 300;
-⋮----
-public function __construct(
-⋮----
-$this->onQueue('mikrotik-high');
-⋮----
-public function uniqueId(): string
-⋮----
-public function middleware(): array
-⋮----
-->releaseAfter(5)
-->expireAfter(30)
-->shared(),
-⋮----
-public function handle(MikrotikService $mikrotikService): void
-⋮----
-$router = Router::find($this->oldRouterId);
-⋮----
-$log = MikrotikJobLog::create([
-⋮----
-$mikrotikService->deletePppoeSecret($router, $this->pppUsername);
-⋮----
-$log->update([
-⋮----
-'finished_at' => Carbon::now(),
-⋮----
-'error_message' => $e->getMessage(),
-````
-
 ## File: app/Jobs/Mikrotik/DisablePppoeAccountJob.php
 ````php
 namespace App\Jobs\Mikrotik;
 ⋮----
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
+use App\Enums\StatusRouter;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\User;
@@ -57194,15 +57922,17 @@ public function middleware(): array
 ⋮----
 public function handle(MikrotikService $mikrotikService): void
 ⋮----
-$log = MikrotikJobLog::create([
+MikrotikJobLog::create([
 ⋮----
 'attempt_count' => $this->attempts(),
+⋮----
+'finished_at' => Carbon::now(),
+⋮----
+$log = MikrotikJobLog::create([
 ⋮----
 $mikrotikService->disablePppoeSecret($router, $this->layanan, $this->disconnectActive);
 ⋮----
 $log->update([
-⋮----
-'finished_at' => Carbon::now(),
 ⋮----
 'error_message' => $e->getMessage(),
 ⋮----
@@ -57224,6 +57954,7 @@ namespace App\Jobs\Mikrotik;
 ⋮----
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
+use App\Enums\StatusRouter;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\User;
@@ -57261,15 +57992,17 @@ public function middleware(): array
 ⋮----
 public function handle(MikrotikService $mikrotikService): void
 ⋮----
-$log = MikrotikJobLog::create([
+MikrotikJobLog::create([
 ⋮----
 'attempt_count' => $this->attempts(),
+⋮----
+'finished_at' => Carbon::now(),
+⋮----
+$log = MikrotikJobLog::create([
 ⋮----
 $mikrotikService->enablePppoeSecret($router, $this->layanan);
 ⋮----
 $log->update([
-⋮----
-'finished_at' => Carbon::now(),
 ⋮----
 'error_message' => $e->getMessage(),
 ⋮----
@@ -57285,134 +58018,15 @@ $recipients = User::role(['super_admin', 'noc'])->get();
 $recipient->notify(new MikrotikJobFailedNotification($log));
 ````
 
-## File: app/Jobs/Mikrotik/ProvisionRouterJob.php
-````php
-namespace App\Jobs\Mikrotik;
-⋮----
-use App\Models\Router;
-use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
-use App\Services\Mikrotik\MikrotikService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\WithoutOverlapping;
-use Illuminate\Queue\SerializesModels;
-use Throwable;
-⋮----
-class ProvisionRouterJob implements ShouldQueue
-⋮----
-public int $tries = 3;
-⋮----
-public array $backoff = [30, 120, 300];
-⋮----
-public function __construct(
-⋮----
-$this->onQueue('mikrotik-low');
-⋮----
-public function middleware(): array
-⋮----
-->releaseAfter(180)
-->expireAfter(600),
-⋮----
-public function handle(MikrotikService $mikrotikService): void
-⋮----
-$mikrotikService->provisionRouterFull(
-⋮----
-public function failed(?Throwable $exception): void
-⋮----
-$recipients = User::role(['super_admin', 'noc'])->get();
-⋮----
-$log = $this->router->jobLogs()
-->latest()
-->first();
-⋮----
-$recipient->notify(new MikrotikJobFailedNotification($log));
-````
-
-## File: app/Jobs/Mikrotik/SyncBandwidthProfileToRoutersJob.php
+## File: app/Jobs/Mikrotik/ProvisionPppoeAccountJob.php
 ````php
 namespace App\Jobs\Mikrotik;
 ⋮----
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
-use App\Enums\StatusRouter;
-use App\Models\MikrotikJobLog;
-use App\Models\ProfilBandwidth;
-use App\Models\Router;
-use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
-use App\Services\Mikrotik\MikrotikService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
-use Throwable;
-⋮----
-class SyncBandwidthProfileToRoutersJob implements ShouldBeUnique, ShouldQueue
-⋮----
-public int $tries = 3;
-⋮----
-public int $uniqueFor = 60;
-⋮----
-public array $backoff = [15, 60, 180];
-⋮----
-public function __construct(
-⋮----
-$this->onQueue('mikrotik-low');
-⋮----
-public function uniqueId(): string
-⋮----
-public function handle(MikrotikService $mikrotikService): void
-⋮----
-$routers = Router::where('status_koneksi', StatusRouter::Online)->get();
-⋮----
-if ($routers->isEmpty()) {
-⋮----
-$lock = Cache::lock("mikrotik:router:{$router->id}", 120);
-⋮----
-if (! $lock->get()) {
-Log::info('Melewati sinkronisasi profil bandwidth: router sedang dikunci oleh proses lain.', [
-⋮----
-$log = MikrotikJobLog::create([
-⋮----
-'attempt_count' => $this->attempts(),
-⋮----
-'rate_limit' => $this->profil->routerOsRateLimit(),
-⋮----
-$mikrotikService->ensurePppProfile($router, $this->profil);
-⋮----
-$log->update([
-⋮----
-'finished_at' => Carbon::now(),
-⋮----
-'error_message' => $e->getMessage(),
-⋮----
-$lock->release();
-⋮----
-public function failed(?Throwable $exception): void
-⋮----
-$log = MikrotikJobLog::where('job_type', MikrotikJobType::SyncProfilBandwidth)
-->latest()
-->first();
-⋮----
-$recipients = User::role(['super_admin', 'noc'])->get();
-⋮----
-$recipient->notify(new MikrotikJobFailedNotification($log));
-````
-
-## File: app/Jobs/Mikrotik/UpdatePppoeProfileJob.php
-````php
-namespace App\Jobs\Mikrotik;
-⋮----
-use App\Enums\MikrotikJobStatus;
-use App\Enums\MikrotikJobType;
+use App\Enums\StatusLayanan;
+use App\Exceptions\MikrotikConnectionException;
+use App\Exceptions\MikrotikException;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\User;
@@ -57428,7 +58042,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Throwable;
 ⋮----
-class UpdatePppoeProfileJob implements ShouldBeUnique, ShouldQueue
+class ProvisionPppoeAccountJob implements ShouldBeUnique, ShouldQueue
 ⋮----
 public int $tries = 3;
 ⋮----
@@ -57454,18 +58068,22 @@ $log = MikrotikJobLog::create([
 ⋮----
 'attempt_count' => $this->attempts(),
 ⋮----
-$result = $mikrotikService->updatePppoeProfile($router, $this->layanan, $this->kickActive);
+$result = $mikrotikService->createOrUpdatePppoeSecret($router, $this->layanan);
 ⋮----
 $log->update([
 ⋮----
 'finished_at' => Carbon::now(),
 ⋮----
+$this->layanan->update(['status' => StatusLayanan::Aktif]);
+⋮----
 'error_message' => $e->getMessage(),
+⋮----
+$this->failed($e);
 ⋮----
 public function failed(?Throwable $exception): void
 ⋮----
 $log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
-->where('job_type', MikrotikJobType::UpdatePppoeProfile)
+->where('job_type', MikrotikJobType::ProvisionPppoe)
 ->latest()
 ->first();
 ⋮----
@@ -58138,6 +58756,107 @@ fn ($q) => $q->latest(),
 'statuses' => StatusLayanan::cases(),
 ````
 
+## File: app/Livewire/MediaLibrary/Index.php
+````php
+namespace App\Livewire\MediaLibrary;
+⋮----
+use App\DTO\Storage\S3HealthCheckResult;
+use App\Models\BerkasUmum;
+use App\Services\Storage\S3HealthCheckService;
+use App\Support\MediaLibraryVisibility;
+use Flux\Flux;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\View\View;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
+use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
+use Livewire\WithPagination;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+⋮----
+class Index extends Component
+⋮----
+public string $search = '';
+⋮----
+public string $collectionFilter = '';
+⋮----
+public ?S3HealthCheckResult $healthResult = null;
+⋮----
+/** @var array<int, TemporaryUploadedFile> */
+public array $uploads = [];
+⋮----
+public function mount(S3HealthCheckService $service): void
+⋮----
+$this->authorizeLihat();
+⋮----
+$this->healthResult = $service->check();
+⋮----
+public function runCheck(S3HealthCheckService $service): void
+⋮----
+public function updatingSearch(): void
+⋮----
+$this->resetPage();
+⋮----
+public function updatingCollectionFilter(): void
+⋮----
+public function uploadFiles(): void
+⋮----
+abort_unless(auth()->user()->can('media_library.unggah'), 403);
+⋮----
+$this->validate([
+⋮----
+BerkasUmum::create(['uploaded_by' => auth()->id()])
+->addMedia($file->getRealPath())
+->usingFileName($file->getClientOriginalName())
+->toMediaCollection('berkas');
+⋮----
+Flux::toast(variant: 'success', text: 'Berkas berhasil diunggah.');
+⋮----
+public function deleteMedia(int $id): void
+⋮----
+abort_unless(auth()->user()->can('media_library.hapus'), 403);
+⋮----
+$media = $this->baseQuery()->whereKey($id)->first();
+⋮----
+Flux::toast(variant: 'danger', text: 'Berkas tidak ditemukan atau tidak bisa dihapus dari sini.');
+⋮----
+$media->delete();
+⋮----
+Flux::toast(variant: 'success', text: "Berkas {$namaBerkas} berhasil dihapus.");
+⋮----
+private function baseQuery(): Builder
+⋮----
+return MediaLibraryVisibility::query();
+⋮----
+private function authorizeLihat(): void
+⋮----
+abort_unless(auth()->user()->can('media_library.lihat'), 403);
+⋮----
+public function render(): View
+⋮----
+$collections = $this->baseQuery()
+->distinct()
+->orderBy('collection_name')
+->pluck('collection_name');
+⋮----
+$media = $this->baseQuery()
+->when($this->search !== '', fn (Builder $q) => $q->where('file_name', 'like', '%'.$this->search.'%'))
+->when($this->collectionFilter !== '', fn (Builder $q) => $q->where('collection_name', $this->collectionFilter))
+->latest('id')
+->paginate(20);
+⋮----
+$totalCount = Media::count();
+$totalSize = (int) Media::sum('size');
+⋮----
+$perCollection = Media::query()
+->selectRaw('model_type, collection_name, count(*) as jumlah, sum(size) as total_ukuran')
+->groupBy('model_type', 'collection_name')
+->orderByDesc('total_ukuran')
+->get();
+````
+
 ## File: app/Livewire/Pelanggan/Create.php
 ````php
 namespace App\Livewire\Pelanggan;
@@ -58354,6 +59073,71 @@ $q->where('kode', 'like', "%{$this->search}%")
 'prefixes' => $query->orderBy('kode')->get(),
 ````
 
+## File: app/Livewire/Settings/Profile.php
+````php
+namespace App\Livewire\Settings;
+⋮----
+use App\Concerns\ProfileValidationRules;
+use Flux\Flux;
+use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
+use Livewire\WithFileUploads;
+⋮----
+class Profile extends Component
+⋮----
+public string $name = '';
+⋮----
+public string $email = '';
+⋮----
+public string $phone = '';
+⋮----
+/** @var mixed */
+public $fotoProfil = null;
+⋮----
+/**
+     * Mount the component.
+     */
+public function mount(): void
+⋮----
+$this->name = Auth::user()->name;
+$this->email = Auth::user()->email;
+$this->phone = Auth::user()->phone ?? '';
+⋮----
+/**
+     * Unggah/ganti foto diri. Koleksi singleFile otomatis mengganti foto lama.
+     */
+public function uploadFotoProfil(): void
+⋮----
+$this->validate([
+⋮----
+$user = Auth::user();
+⋮----
+$user->clearMediaCollection('foto_profil');
+⋮----
+$user->addMediaFromDisk(
+FileUploadConfiguration::path($this->fotoProfil->getFilename(), false),
+FileUploadConfiguration::disk()
+⋮----
+->usingFileName($this->fotoProfil->getClientOriginalName())
+->toMediaCollection('foto_profil');
+⋮----
+Flux::toast(variant: 'success', text: 'Foto profil berhasil diperbarui.');
+⋮----
+public function updateProfileInformation(): void
+⋮----
+$validated = $this->validate($this->profileRules($user->id));
+⋮----
+$user->fill($validated);
+⋮----
+if ($user->isDirty('email')) {
+⋮----
+$user->save();
+⋮----
+Flux::toast(variant: 'success', text: __('Profile updated.'));
+````
+
 ## File: app/Livewire/Settings/WhatsappSettings.php
 ````php
 namespace App\Livewire\Settings;
@@ -58444,120 +59228,54 @@ $templates = $query->orderBy('kategori')->orderBy('nama')->get();
 'kategoriList' => KategoriTemplateWa::cases(),
 ````
 
-## File: app/Livewire/Ticket/Show.php
+## File: app/Livewire/Users/Index.php
 ````php
-namespace App\Livewire\Ticket;
+namespace App\Livewire\Users;
 ⋮----
-use App\Actions\Ticket\AssignPicAction;
-use App\Actions\Ticket\UbahStatusTicketAction;
-use App\Enums\Ticket\StatusTicket;
-use App\Models\Ticket;
-use App\Models\TicketHistori;
+use App\Enums\UserStatus;
 use App\Models\User;
-use App\Services\Whatsapp\WhatsappService;
-use Exception;
-use Flux\Flux;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
-use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
-use Livewire\WithFileUploads;
+use Livewire\WithPagination;
+use Spatie\Permission\Models\Role;
 ⋮----
-class Show extends Component
+class Index extends Component
 ⋮----
-public Ticket $ticket;
+public string $search = '';
 ⋮----
-public bool $showUbahStatusModal = false;
+public string $filterRole = '';
 ⋮----
-public string $statusBaru = '';
+public string $filterStatus = '';
 ⋮----
-public string $catatanStatus = '';
+public function updatingSearch(): void
 ⋮----
-// State Modal Assign PIC
-public bool $showAssignPicModal = false;
+$this->resetPage();
 ⋮----
-public ?int $selectedPicId = null;
+public function updatingFilterRole(): void
 ⋮----
-public string $catatanAssign = '';
-⋮----
-// State Modal Tambah Catatan
-public bool $showCatatanModal = false;
-⋮----
-public string $catatanProses = '';
-⋮----
-public bool $catatanIsInternal = false;
-⋮----
-/** @var mixed */
-public $fotoPengerjaan = null;
-⋮----
-public function mount(Ticket $ticket): void
-⋮----
-$this->authorize('view', $ticket);
-⋮----
-$this->loadTicket();
-⋮----
-protected function loadTicket(): void
-⋮----
-$this->ticket->load([
-⋮----
-public function openUbahStatusModal(): void
-⋮----
-$transisiValid = $this->ticket->status->transisiValid();
-⋮----
-public function prosesUbahStatus(UbahStatusTicketAction $action): void
-⋮----
-$this->validate([
-⋮----
-$statusBaruEnum = StatusTicket::tryFrom($this->statusBaru);
-⋮----
-Flux::toast(variant: 'danger', text: 'Status tujuan tidak valid.');
-⋮----
-$actor = Auth::user();
-$action->execute(
-⋮----
-Flux::toast(variant: 'success', text: "Status tiket {$this->ticket->nomor_ticket} berhasil diubah ke {$statusBaruEnum->label()}.");
-⋮----
-Flux::toast(variant: 'danger', text: $e->getMessage());
-⋮----
-public function openAssignPicModal(): void
-⋮----
-public function prosesAssignPic(AssignPicAction $action): void
-⋮----
-$newPic = $this->selectedPicId ? User::find($this->selectedPicId) : null;
-⋮----
-Flux::toast(variant: 'success', text: "PIC tiket {$this->ticket->nomor_ticket} berhasil diperbarui: {$picName}.");
-⋮----
-public function openCatatanModal(): void
-⋮----
-public function simpanCatatan(): void
-⋮----
-$histori = TicketHistori::create([
-⋮----
-'oleh_pengguna_id' => Auth::id(),
-⋮----
-$histori->addMediaFromDisk(
-FileUploadConfiguration::path($this->fotoPengerjaan->getFilename(), false),
-FileUploadConfiguration::disk()
-⋮----
-->usingFileName($this->fotoPengerjaan->getClientOriginalName())
-->toMediaCollection('foto_pengerjaan');
-⋮----
-Log::error('Gagal menyimpan foto pengerjaan: '.$e->getMessage());
-⋮----
-$params = $whatsappService->buildTicketParams($this->ticket, trim($this->catatanProses));
-$whatsappService->antrikanPesan(
-⋮----
-Log::error('Gagal kirim WA catatan baru: '.$e->getMessage());
-⋮----
-Flux::toast(variant: 'success', text: 'Catatan proses penanganan berhasil ditambahkan.');
+public function updatingFilterStatus(): void
 ⋮----
 public function render(): View
 ⋮----
-$staffList = User::query()->active()->orderBy('name')->get();
+$users = User::query()
+->when($this->search, fn ($q) => $q->where(function ($q) {
+$q->where('name', 'like', "%{$this->search}%")
+->orWhere('email', 'like', "%{$this->search}%");
+⋮----
+->when($this->filterRole, fn ($q) => $q->whereHas(
+⋮----
+fn ($q) => $q->where('name', $this->filterRole)
+⋮----
+->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
+->with(['roles', 'media'])
+->latest()
+->paginate(15);
+⋮----
+$roles = Role::orderBy('name')->get();
+⋮----
+'statuses' => UserStatus::cases(),
 ````
 
 ## File: app/Livewire/Dashboard.php
@@ -58670,200 +59388,24 @@ private function totalPembayaran(CarbonInterface $dari, CarbonInterface $sampai)
 return (float) Pembayaran::whereBetween('dibayar_pada', [$dari, $sampai])->sum('jumlah_dibayar');
 ````
 
-## File: app/Models/IpPool.php
+## File: app/Models/BerkasUmum.php
 ````php
 namespace App\Models;
 ⋮----
-use Database\Factories\IpPoolFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 ⋮----
-class IpPool extends Model
+class BerkasUmum extends Model implements HasMedia
 ⋮----
-protected $table = 'ip_pool';
+protected $table = 'berkas_umum';
 ⋮----
-protected function casts(): array
+public function pengunggah(): BelongsTo
 ⋮----
-public function router(): BelongsTo
-⋮----
-return $this->belongsTo(Router::class, 'router_id');
-⋮----
-public function layanans(): HasMany
-⋮----
-return $this->hasMany(LayananPelanggan::class, 'ip_pool_id');
-⋮----
-public function jobLogs(): HasMany
-⋮----
-return $this->hasMany(MikrotikJobLog::class, 'ip_pool_id');
-⋮----
-public function labelNetwork(): string
-⋮----
-public static function findOverlapping(int $routerId, string $awal, string $akhir, ?int $ignoreId = null): ?self
-⋮----
-return static::where('router_id', $routerId)
-->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
-->get()
-->first(fn (self $pool): bool => ip2long($awal) <= ip2long($pool->rentang_ip_akhir)
-⋮----
-public function canBeDeleted(): bool
-⋮----
-return ! $this->layanans()->withTrashed()->exists();
-⋮----
-public function getGatewayAddress(): string
-````
-
-## File: app/Models/LayananPelanggan.php
-````php
-namespace App\Models;
-⋮----
-use App\Enums\JenisKoneksi;
-use App\Enums\ProvisioningStatus;
-use App\Enums\StatusLayanan;
-use App\Models\Concerns\GracefullyDecryptsAttributes;
-use Database\Factories\LayananPelangganFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Spatie\Activitylog\Models\Concerns\LogsActivity;
-use Spatie\Activitylog\Support\LogOptions;
-⋮----
-class LayananPelanggan extends Model
-⋮----
-protected $table = 'layanan_pelanggan';
-⋮----
-public function getActivitylogOptions(): LogOptions
-⋮----
-return LogOptions::defaults()
-->logOnly(['status', 'paket_layanan_id', 'router_id', 'tanggal_expired', 'nama_site'])
-->logOnlyDirty()
-->dontLogEmptyChanges()
-->useLogName('layanan_pelanggan');
-⋮----
-protected static function booted(): void
-⋮----
-static::creating(function (LayananPelanggan $layanan) {
-⋮----
-$layanan->site_id = static::generateSiteId();
-⋮----
-protected function casts(): array
-⋮----
-public function pelanggan(): BelongsTo
-⋮----
-return $this->belongsTo(Pelanggan::class, 'pelanggan_id');
-⋮----
-public function paketLayanan(): BelongsTo
-⋮----
-return $this->belongsTo(PaketLayanan::class, 'paket_layanan_id');
-⋮----
-public function router(): BelongsTo
-⋮----
-return $this->belongsTo(Router::class, 'router_id');
-⋮----
-public function ipPool(): BelongsTo
-⋮----
-return $this->belongsTo(IpPool::class, 'ip_pool_id');
-⋮----
-public function odpPort(): BelongsTo
-⋮----
-return $this->belongsTo(OdpPort::class, 'odp_port_id');
-⋮----
-public function resolveRemoteAddress(): ?string
-⋮----
-public function resolveLocalAddress(): ?string
-⋮----
-return $this->ipPool->getGatewayAddress();
-⋮----
-public function jobLogs(): HasMany
-⋮----
-return $this->hasMany(MikrotikJobLog::class, 'layanan_pelanggan_id');
-⋮----
-public function invoices(): HasMany
-⋮----
-return $this->hasMany(Invoice::class, 'layanan_pelanggan_id');
-⋮----
-public function tickets(): HasMany
-⋮----
-return $this->hasMany(Ticket::class, 'layanan_pelanggan_id');
-⋮----
-public function scopeAktif(Builder $query): Builder
-⋮----
-return $query->where('status', StatusLayanan::Aktif);
-⋮----
-public function scopeExpiredSebelum(Builder $query, Carbon $tanggal): Builder
-⋮----
-return $query->where('tanggal_expired', '<=', $tanggal);
-⋮----
-public function scopePerluPerhatian(Builder $query, int $leadDays, string $jenis = 'all'): Builder
-⋮----
-$today = Carbon::today();
-⋮----
-$dari = $jenis === 'soon' ? $today : $today->copy()->subDays(30);
-$sampai = $jenis === 'overdue' ? $today->copy()->subDay() : $today->copy()->addDays($leadDays);
-⋮----
-->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Suspend])
-->whereBetween('tanggal_expired', [$dari->toDateString(), $sampai->toDateString()]);
-⋮----
-public function isExpired(): bool
-⋮----
-return $this->tanggal_expired->isPast();
-⋮----
-public function statusBadgeLabel(): string
-⋮----
-if ($this->isExpired() && $this->status !== StatusLayanan::Berhenti && $this->status !== StatusLayanan::Proses) {
-⋮----
-return $this->status->label();
-⋮----
-public function statusBadgeColor(): string
-⋮----
-return $this->status->color();
-⋮----
-public function isAktif(): bool
-⋮----
-return $this->status === StatusLayanan::Aktif && ! $this->isExpired();
-⋮----
-public function getNextPeriodeTagihan(): string
-⋮----
-return Carbon::today()->format('Y-m');
-⋮----
-return Carbon::parse($this->tanggal_expired)->format('Y-m');
-⋮----
-public static function generateSiteId(): string
-⋮----
-$siteId = 'SITE-'.strtoupper(Str::random(8));
-} while (static::where('site_id', $siteId)->exists());
-⋮----
-public static function generatePppUsername(Pelanggan $pelanggan): string
-⋮----
-return DB::transaction(function () use ($pelanggan) {
-⋮----
-$exists = static::withTrashed()
-->lockForUpdate()
-->where('ppp_username', $username)
-->exists();
-⋮----
-throw new \RuntimeException('Gagal menghasilkan ppp_username unik setelah 10 percobaan.');
-⋮----
-public static function extractCounter(string $pppUsername): ?int
-⋮----
-public function getNamaSiteLabelAttribute(): string
-⋮----
-public function getAlamatEfektifAttribute(): string
-⋮----
-public function getLatitudeEfektifAttribute(): ?float
-⋮----
-public function getLongitudeEfektifAttribute(): ?float
+return $this->belongsTo(User::class, 'uploaded_by');
 ````
 
 ## File: app/Models/Pelanggan.php
@@ -59121,154 +59663,6 @@ $jatuhTempo->addMonthNoOverflow();
 return (int) $this->tanggalTerbit($jatuhTempo)->diffInDays($jatuhTempo);
 ````
 
-## File: app/Models/Perusahaan.php
-````php
-namespace App\Models;
-⋮----
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
-use Spatie\Activitylog\Models\Concerns\LogsActivity;
-use Spatie\Activitylog\Support\LogOptions;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
-⋮----
-class Perusahaan extends Model implements HasMedia
-⋮----
-protected $table = 'perusahaan';
-⋮----
-protected static function booted(): void
-⋮----
-static::saved(function () {
-Cache::forget(self::CACHE_KEY);
-⋮----
-static::deleted(function () {
-⋮----
-public function getActivitylogOptions(): LogOptions
-⋮----
-return LogOptions::defaults()
-->logAll()
-->logOnlyDirty()
-->dontLogEmptyChanges()
-->useLogName('perusahaan');
-⋮----
-protected function casts(): array
-⋮----
-public function registerMediaCollections(): void
-⋮----
-$this->addMediaCollection('logo')
-->singleFile()
-->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']);
-⋮----
-public function registerMediaConversions(?Media $media = null): void
-⋮----
-$this->addMediaConversion('thumb')
-->width(100)
-->height(100)
-->nonQueued();
-⋮----
-$this->addMediaConversion('invoice')
-->width(400)
-->height(120)
-⋮----
-public static function default(): self
-⋮----
-$cached = Cache::get(self::CACHE_KEY);
-⋮----
-$model->setRawAttributes($cached, true);
-⋮----
-$perusahaan = static::where('is_default', true)->first()
-?? static::first()
-⋮----
-Cache::forever(self::CACHE_KEY, $perusahaan->getAttributes());
-⋮----
-public function getLogoUrlAttribute(): ?string
-⋮----
-if ($this->hasMedia('logo')) {
-return $this->getFirstMediaUrl('logo');
-⋮----
-public function getLogoBase64Attribute(): ?string
-⋮----
-$media = $this->getFirstMedia('logo');
-⋮----
-$content = $this->getLogoContent();
-⋮----
-public function getLogoContent(): ?string
-⋮----
-$disk = Storage::disk($media->disk);
-$path = $media->getPathRelativeToRoot();
-⋮----
-return $disk->exists($path) ? $disk->get($path) : null;
-⋮----
-public function syncFaviconFiles(): void
-⋮----
-$logoContent = $this->getLogoContent();
-⋮----
-$mime = $this->getFirstMedia('logo')?->mime_type;
-⋮----
-$defaultSvg = self::defaultGobillingSvg();
-⋮----
-public static function defaultGobillingSvg(): string
-````
-
-## File: app/Models/ProfilBandwidth.php
-````php
-namespace App\Models;
-⋮----
-use App\Support\BandwidthConverter;
-use Database\Factories\ProfilBandwidthFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\Models\Concerns\LogsActivity;
-use Spatie\Activitylog\Support\LogOptions;
-⋮----
-class ProfilBandwidth extends Model
-⋮----
-protected $table = 'profil_bandwidth';
-⋮----
-public function getActivitylogOptions(): LogOptions
-⋮----
-return LogOptions::defaults()
-->logOnly(['nama_bandwidth', 'max_limit_tx', 'max_limit_rx', 'priority'])
-->logOnlyDirty()
-->dontLogEmptyChanges()
-->useLogName('profil_bandwidth');
-⋮----
-protected function casts(): array
-⋮----
-public function pakets(): HasMany
-⋮----
-return $this->hasMany(PaketLayanan::class, 'profil_bandwidth_id');
-⋮----
-public function labelKecepatan(): string
-⋮----
-public function routerOsMaxLimit(): string
-⋮----
-$txBps = BandwidthConverter::mbpsToBps($this->max_limit_tx);
-$rxBps = BandwidthConverter::mbpsToBps($this->max_limit_rx);
-⋮----
-public function routerOsRateLimit(): string
-⋮----
-$maxLimit = $this->routerOsMaxLimit();
-⋮----
-if (! $this->hasBurst()) {
-⋮----
-$burstTxBps = BandwidthConverter::mbpsToBps((int) $this->burst_rate_tx);
-$burstRxBps = BandwidthConverter::mbpsToBps((int) $this->burst_rate_rx);
-⋮----
-? BandwidthConverter::mbpsToBps((int) $this->burst_threshold_tx).'/'.BandwidthConverter::mbpsToBps((int) $this->burst_threshold_rx)
-⋮----
-? BandwidthConverter::mbpsToBps((int) $this->limit_rate_tx).'/'.BandwidthConverter::mbpsToBps((int) $this->limit_rate_rx)
-⋮----
-public function hasBurst(): bool
-````
-
 ## File: app/Models/Promo.php
 ````php
 namespace App\Models;
@@ -59327,178 +59721,119 @@ return static::query()->aktif()->where('kode_promo', trim($kode))->first();
 public function hitungDiskon(float $nominal): float
 ````
 
-## File: app/Models/Ticket.php
+## File: app/Models/TicketDivisi.php
 ````php
 namespace App\Models;
 ⋮----
 use App\Enums\Ticket\DivisiTicket;
-use App\Enums\Ticket\JenisTicket;
-use App\Enums\Ticket\PrioritasTicket;
-use App\Enums\Ticket\StatusTicket;
-use App\Enums\Ticket\SumberTicket;
-use Database\Factories\TicketFactory;
+use App\Enums\Ticket\StatusDivisiTicket;
+use Illuminate\Database\Eloquent\Relations\Pivot;
+⋮----
+class TicketDivisi extends Pivot
+⋮----
+protected $table = 'ticket_divisi';
+⋮----
+public $timestamps = false;
+⋮----
+protected function casts(): array
+````
+
+## File: app/Models/TicketPemasangan.php
+````php
+namespace App\Models;
+⋮----
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\Pivot;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Spatie\Activitylog\Models\Concerns\LogsActivity;
-use Spatie\Activitylog\Support\LogOptions;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
 ⋮----
-class Ticket extends Model implements HasMedia
+class TicketPemasangan extends Model
 ⋮----
-protected $table = 'ticket';
+protected $table = 'ticket_pemasangan';
 ⋮----
-protected static function booted(): void
+protected $primaryKey = 'ticket_id';
 ⋮----
-static::creating(function (Ticket $ticket) {
-⋮----
-$ticket->nomor_ticket = static::generateNomorTicket();
-⋮----
-$ticket->sla_target_selesai = Carbon::now()->addHours($ticket->prioritas->durasiSlaHours());
-⋮----
-public function getActivitylogOptions(): LogOptions
-⋮----
-return LogOptions::defaults()
-->logOnly(['nomor_ticket', 'jenis', 'status', 'prioritas', 'pic_id', 'perlu_aktivasi_manual'])
-->logOnlyDirty()
-->dontLogEmptyChanges()
-->useLogName('ticket');
+public $incrementing = false;
 ⋮----
 protected function casts(): array
 ⋮----
-public static function generateNomorTicket(): string
+public function ticket(): BelongsTo
 ⋮----
-$year = Carbon::now()->format('Y');
+return $this->belongsTo(Ticket::class, 'ticket_id');
 ⋮----
-$last = DB::table('ticket')
-->where('nomor_ticket', 'like', $prefix.'%')
-->orderByDesc('id')
-->lockForUpdate()
-->value('nomor_ticket');
+public function odpPort(): BelongsTo
 ⋮----
-public function divisis(): HasMany
+return $this->belongsTo(OdpPort::class, 'odp_port_id');
 ⋮----
-return $this->hasMany(TicketDivisi::class, 'ticket_id');
+public function diaktivasiOleh(): BelongsTo
 ⋮----
-public function hasDivisi(DivisiTicket $divisi): bool
+return $this->belongsTo(User::class, 'diaktivasi_oleh');
 ⋮----
-if ($this->relationLoaded('divisis')) {
-return $this->divisis->contains(fn (TicketDivisi $item) => $item->divisi === $divisi);
+public function sudahDiaktivasi(): bool
+````
+
+## File: app/Models/User.php
+````php
+namespace App\Models;
 ⋮----
-return DB::table('ticket_divisi')
-->where('ticket_id', $this->id)
-->where('divisi', $divisi->value)
-->exists();
+use App\Enums\UserStatus;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
+use Lab404\Impersonate\Models\Impersonate;
+use Laravel\Fortify\Contracts\PasskeyUser;
+use Laravel\Fortify\PasskeyAuthenticatable;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\Permission\Traits\HasRoles;
 ⋮----
-public function getDivisValues(): array
+class User extends Authenticatable implements HasMedia, PasskeyUser
 ⋮----
-return $this->divisis->map(fn (TicketDivisi $item) => $item->divisi->value)->values()->toArray();
+public function registerMediaCollections(): void
 ⋮----
-->pluck('divisi')
-->toArray();
+$this->addMediaCollection('foto_profil')->singleFile();
 ⋮----
-public function pelanggan(): BelongsTo
+public function fotoProfilUrl(): ?string
 ⋮----
-return $this->belongsTo(Pelanggan::class, 'pelanggan_id');
+return $this->getFirstMediaUrl('foto_profil') ?: null;
 ⋮----
-public function layananPelanggan(): BelongsTo
+protected function casts(): array
 ⋮----
-return $this->belongsTo(LayananPelanggan::class, 'layanan_pelanggan_id');
+public function scopeActive(Builder $query): Builder
 ⋮----
-public function pic(): BelongsTo
+return $query->where('status', UserStatus::Active);
 ⋮----
-return $this->belongsTo(User::class, 'pic_id');
+public function isActive(): bool
 ⋮----
-public function dibuatOleh(): BelongsTo
+public function canImpersonate(): bool
 ⋮----
-return $this->belongsTo(User::class, 'dibuat_oleh');
+return $this->isActive() && $this->hasRole('super_admin');
 ⋮----
-public function histori(): HasMany
+public function canBeImpersonated(): bool
 ⋮----
-return $this->hasMany(TicketHistori::class, 'ticket_id')->orderByDesc('id');
+return $this->isActive() && ! $this->hasRole('super_admin');
 ⋮----
-public function perluInvoicePindahAlamat(): bool
+public function assignedTickets(): HasMany
 ⋮----
-if ($this->jenis !== JenisTicket::PindahAlamat || ! $this->isSelesai()) {
+return $this->hasMany(Ticket::class, 'pic_id');
 ⋮----
-$selesaiPada = $this->histori()->where('status_baru', StatusTicket::Selesai)->value('created_at');
+public function createdTickets(): HasMany
 ⋮----
-return ! Invoice::query()
-->where('pelanggan_id', $this->pelanggan_id)
-->when($this->layanan_pelanggan_id, fn ($q) => $q->where('layanan_pelanggan_id', $this->layanan_pelanggan_id))
-->whereNull('periode_tagihan')
-->where('created_at', '>=', $selesaiPada)
+return $this->hasMany(Ticket::class, 'dibuat_oleh');
 ⋮----
-public function isSelesai(): bool
+public function initials(): string
 ⋮----
-public function isBatal(): bool
+$initials = Str::initials($this->name, true);
 ⋮----
-public function isOverdue(): bool
-⋮----
-if ($this->isSelesai() || $this->isBatal() || ! $this->sla_target_selesai) {
-⋮----
-return Carbon::now()->isAfter($this->sla_target_selesai);
-⋮----
-public function sisaWaktuSla(): string
-⋮----
-if ($this->isSelesai()) {
-⋮----
-if ($this->isBatal()) {
-⋮----
-if ($this->isOverdue()) {
-return 'Lewat '.Carbon::now()->diffForHumans($this->sla_target_selesai, true);
-⋮----
-return Carbon::now()->diffForHumans($this->sla_target_selesai, true);
-⋮----
-public function scopeAssignedTo(Builder $query, int $userId): Builder
-⋮----
-return $query->where('pic_id', $userId);
-⋮----
-public function scopeDivisi(Builder $query, DivisiTicket|string $divisi): Builder
-⋮----
-return $query->whereHas('divisis', function (Builder $q) use ($val) {
-$q->where('ticket_divisi.divisi', $val);
-⋮----
-public function scopeStatus(Builder $query, StatusTicket|string $status): Builder
-⋮----
-return $query->where('status', $val);
-⋮----
-public function scopeJenis(Builder $query, JenisTicket|string $jenis): Builder
-⋮----
-return $query->where('jenis', $val);
-⋮----
-public function scopeOverdue(Builder $query): Builder
-⋮----
-return $query->whereNotIn('status', [StatusTicket::Selesai->value, StatusTicket::Batal->value])
-->whereNotNull('sla_target_selesai')
-->where('sla_target_selesai', '<', Carbon::now());
-⋮----
-public function scopeSearch(Builder $query, string $term): Builder
-⋮----
-return $query->where(function (Builder $q) use ($term) {
-$q->where('nomor_ticket', 'like', "%{$term}%")
-->orWhere('deskripsi', 'like', "%{$term}%")
-->orWhereHas('pelanggan', function (Builder $customerQuery) use ($term) {
-$customerQuery->where('nama_depan', 'like', "%{$term}%")
-->orWhere('nama_belakang', 'like', "%{$term}%")
-->orWhere('no_reg', 'like', "%{$term}%")
-->orWhere('no_hp', 'like', "%{$term}%");
-⋮----
-->orWhereHas('layananPelanggan', function (Builder $layananQuery) use ($term) {
-$layananQuery->where('site_id', 'like', "%{$term}%")
-->orWhere('ppp_username', 'like', "%{$term}%");
-⋮----
-->orWhereHas('pic', function (Builder $picQuery) use ($term) {
-$picQuery->where('name', 'like', "%{$term}%");
+return Str::length($initials) > 1
+? Str::substr($initials, 0, 1).Str::substr($initials, -1)
 ````
 
 ## File: app/Observers/LayananPelangganObserver.php
@@ -59569,52 +59904,36 @@ public function kirimUjiCoba(User $user, Invoice $invoice): bool
 return $user->hasRole('super_admin');
 ````
 
-## File: app/Policies/TicketPolicy.php
+## File: app/Policies/LayananPelangganPolicy.php
 ````php
 namespace App\Policies;
 ⋮----
-use App\Enums\Ticket\JenisTicket;
-use App\Enums\Ticket\StatusTicket;
-use App\Models\Ticket;
+use App\Models\LayananPelanggan;
 use App\Models\User;
 ⋮----
-class TicketPolicy
+class LayananPelangganPolicy
 ⋮----
 public function viewAny(User $user): bool
 ⋮----
-return $user->can('ticket.lihat');
+return $user->can('layanan_pelanggan.lihat');
 ⋮----
-public function view(User $user, Ticket $ticket): bool
-⋮----
-if (! $user->can('ticket.lihat')) {
-⋮----
-if ($user->hasRole('teknisi')) {
-⋮----
-if ($user->hasRole('sales')) {
+public function view(User $user, LayananPelanggan $layananPelanggan): bool
 ⋮----
 public function create(User $user): bool
 ⋮----
-return $user->can('ticket.buat');
+return $user->can('layanan_pelanggan.buat');
 ⋮----
-public function update(User $user, Ticket $ticket): bool
+public function update(User $user, LayananPelanggan $layananPelanggan): bool
 ⋮----
-if (! $user->can('ticket.ubah')) {
+return $user->can('layanan_pelanggan.ubah');
 ⋮----
-public function delete(User $user, Ticket $ticket): bool
+public function delete(User $user, LayananPelanggan $layananPelanggan): bool
 ⋮----
-return $user->can('ticket.hapus');
+return $user->can('layanan_pelanggan.hapus');
 ⋮----
-public function ubahStatus(User $user, Ticket $ticket, StatusTicket $statusBaru): bool
+public function viewPppPassword(User $user, LayananPelanggan $layananPelanggan): bool
 ⋮----
-if ($user->hasRole(['super_admin', 'admin'])) {
-⋮----
-if ($user->hasRole('noc')) {
-⋮----
-public function assignPic(User $user, Ticket $ticket, ?User $pic = null): bool
-⋮----
-if (! $user->can('ticket.assign')) {
-⋮----
-if ($pic && ! $pic->isActive()) {
+return $user->can('layanan_pelanggan.lihat_ppp_password');
 ````
 
 ## File: app/Services/PaymentGateway/Drivers/XenditDriver.php
@@ -59898,6 +60217,45 @@ public function pingConnection(PengaturanGateway $setting): PingConnectionResult
 return $driver->pingConnection($setting);
 ````
 
+## File: app/Services/Storage/S3HealthCheckService.php
+````php
+namespace App\Services\Storage;
+⋮----
+use App\DTO\Storage\S3HealthCheckResult;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Throwable;
+⋮----
+class S3HealthCheckService
+⋮----
+public function check(): S3HealthCheckResult
+⋮----
+return S3HealthCheckResult::notApplicable($diskName);
+⋮----
+checkedAt: Carbon::now()->toDateTimeString(),
+⋮----
+$bucketOk = Storage::disk('s3')->getClient()->doesBucketExist($bucket);
+⋮----
+errorMessage: "Gagal menghubungi S3: {$e->getMessage()}",
+⋮----
+[$publicUrlOk, $urlError] = $this->checkPublicUrlReachable();
+⋮----
+private function checkPublicUrlReachable(): array
+⋮----
+$marker = 'ping '.Carbon::now()->toIso8601String();
+⋮----
+Storage::disk('s3')->put(self::PING_PATH, $marker);
+$url = Storage::disk('s3')->url(self::PING_PATH);
+⋮----
+$response = Http::timeout(5)->get($url);
+⋮----
+if (! $response->successful()) {
+return [false, "URL publik mengembalikan HTTP {$response->status()} (cek kebijakan public-read bucket)."];
+⋮----
+return [false, "Gagal mengakses URL publik: {$e->getMessage()}"];
+````
+
 ## File: app/Services/Whatsapp/WhatsappWebhookService.php
 ````php
 namespace App\Services\Whatsapp;
@@ -60077,54 +60435,22 @@ $expectedToken = (string) (PengaturanGateway::getXenditSetting()->getCredential(
 $receivedToken = (string) ($request->header('x-callback-token') ?? $request->header('X-Callback-Token', ''));
 ````
 
-## File: app/Services/CustomerDocumentService.php
+## File: app/Support/MediaLibraryVisibility.php
 ````php
-namespace App\Services;
+namespace App\Support;
 ⋮----
 use App\Models\Pelanggan;
-use App\Models\User;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Storage;
-use RuntimeException;
+use Illuminate\Database\Eloquent\Builder;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 ⋮----
-class CustomerDocumentService
+class MediaLibraryVisibility
 ⋮----
-public function storeEncryptedMedia(
+public static function query(): Builder
 ⋮----
-$rawContent = file_get_contents($file->getRealPath());
-⋮----
-throw new RuntimeException("Gagal membaca berkas sumber: {$file->getClientOriginalName()}");
-⋮----
-$encryptedPayload = Crypt::encryptString($rawContent);
-⋮----
-$customProperties['original_mime_type'] = $file->getClientMimeType() ?: $file->getMimeType();
-$customProperties['original_size'] = $file->getSize();
-⋮----
-->addMedia($tempPath)
-->usingFileName($file->getClientOriginalName())
-->withCustomProperties($customProperties)
-->toMediaCollection($collection);
-⋮----
-public function getDecryptedContent(Media $media): string
-⋮----
-$disk = Storage::disk($media->disk);
-$path = $media->getPathRelativeToRoot();
-⋮----
-if (! $disk->exists($path)) {
-⋮----
-$encryptedContent = $disk->get($path);
-⋮----
-return Crypt::decryptString($encryptedContent);
-⋮----
-public function generateWatermarkedKtp(Media $media, User $staff): string
-⋮----
-$binary = $this->getDecryptedContent($media);
-⋮----
-$watermarkLine3 = 'Waktu Akses: '.now()->translatedFormat('d F Y H:i:s').' WIB';
-⋮----
-$diagonalText = "GOBILLING VERIFICATION • {$staff->name} • ".now()->format('d/m/Y H:i');
+return Media::query()
+->whereNot(function (Builder $q) {
+$q->where('model_type', Pelanggan::class)
+->whereIn('collection_name', self::COLLECTION_TERLARANG);
 ````
 
 ## File: app/Utils/IpNetworkHelper.php
@@ -60169,6 +60495,22 @@ fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
 ⋮----
 Integration::handles($exceptions);
 })->create();
+````
+
+## File: config/app.php
+````php
+/*
+    |--------------------------------------------------------------------------
+    | Maintenance Mode Driver
+    |--------------------------------------------------------------------------
+    |
+    | These configuration options determine the driver used to determine and
+    | manage Laravel's "maintenance mode" status. The "cache" driver will
+    | allow maintenance mode to be controlled across multiple machines.
+    |
+    | Supported drivers: "file", "cache", "array"
+    |
+    */
 ````
 
 ## File: config/services.php
@@ -60300,6 +60642,22 @@ $table->dropUnique(['router_id', 'nama_pool']);
 $table->unique('nama_pool');
 ````
 
+## File: database/migrations/2026_09_22_081923_add_ip_dynamic_to_layanan_pelanggan_table.php
+````php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+⋮----
+public function up(): void
+⋮----
+Schema::table('layanan_pelanggan', function (Blueprint $table) {
+$table->string('ip_dynamic')->nullable()->after('ip_static');
+⋮----
+public function down(): void
+⋮----
+$table->dropColumn('ip_dynamic');
+````
+
 ## File: database/migrations/2026_09_22_094734_create_pengaturan_prefix_registrasi_table.php
 ````php
 use Illuminate\Database\Migrations\Migration;
@@ -60334,6 +60692,114 @@ $table->string('no_reg')->comment('Format: [Prefix][DDMMYYYY][Counter], contoh B
 public function down(): void
 ⋮----
 $table->string('no_reg')->comment('Format: REG-YYYY-NNNNNN')->change();
+````
+
+## File: database/migrations/2026_09_22_171831_add_price_mode_to_layanan_pelanggan_table.php
+````php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+⋮----
+public function up(): void
+⋮----
+Schema::table('layanan_pelanggan', function (Blueprint $table) {
+$table->string('price_mode')->default('paket')->after('paket_layanan_id')
+->comment('paket = ikut harga PaketLayanan saat ini, custom = pakai price_custom tetap');
+$table->decimal('price_custom', 12, 2)->nullable()->after('price_mode')
+->comment('Harga dasar bulanan tetap, dipakai saat price_mode = custom');
+⋮----
+public function down(): void
+⋮----
+$table->dropColumn(['price_mode', 'price_custom']);
+````
+
+## File: database/migrations/2026_09_22_195049_make_router_and_ppp_username_nullable_on_layanan_pelanggan_table.php
+````php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+⋮----
+public function up(): void
+⋮----
+Schema::table('layanan_pelanggan', function (Blueprint $table) {
+$table->foreignId('router_id')->nullable()->change();
+$table->string('ppp_username')->nullable()->change();
+⋮----
+public function down(): void
+⋮----
+$table->foreignId('router_id')->nullable(false)->change();
+$table->string('ppp_username')->nullable(false)->change();
+````
+
+## File: database/migrations/2026_09_22_195100_make_ppp_password_nullable_on_layanan_pelanggan_table.php
+````php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+⋮----
+public function up(): void
+⋮----
+Schema::table('layanan_pelanggan', function (Blueprint $table) {
+$table->text('ppp_password_terenkripsi')->nullable()->change();
+⋮----
+public function down(): void
+⋮----
+$table->text('ppp_password_terenkripsi')->nullable(false)->change();
+````
+
+## File: database/migrations/2026_09_22_201534_add_status_to_ticket_divisi_table.php
+````php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+⋮----
+public function up(): void
+⋮----
+Schema::table('ticket_divisi', function (Blueprint $table) {
+$table->string('status')->default('belum')->after('divisi')
+->comment('Status sign-off divisi ini pada tiket: belum, progress, selesai. Dipakai penuh oleh Ticket Pemasangan.');
+⋮----
+public function down(): void
+⋮----
+$table->dropColumn('status');
+````
+
+## File: database/migrations/2026_09_22_201535_create_ticket_pemasangan_table.php
+````php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+⋮----
+public function up(): void
+⋮----
+Schema::create('ticket_pemasangan', function (Blueprint $table) {
+$table->foreignId('ticket_id')->primary()->constrained('ticket')->cascadeOnDelete();
+$table->foreignId('odp_port_id')->nullable()->constrained('odp_port')->nullOnDelete();
+$table->timestamp('diaktivasi_pada')->nullable();
+$table->foreignId('diaktivasi_oleh')->nullable()->constrained('users')->nullOnDelete();
+$table->timestamps();
+⋮----
+public function down(): void
+⋮----
+Schema::dropIfExists('ticket_pemasangan');
+````
+
+## File: database/migrations/2026_09_23_023902_create_berkas_umum_table.php
+````php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+⋮----
+public function up(): void
+⋮----
+Schema::create('berkas_umum', function (Blueprint $table) {
+$table->id();
+$table->foreignId('uploaded_by')->nullable()->constrained('users')->nullOnDelete();
+$table->timestamps();
+⋮----
+public function down(): void
+⋮----
+Schema::dropIfExists('berkas_umum');
 ````
 
 ## File: database/seeders/DatabaseSeeder.php
@@ -60524,107 +60990,6 @@ $existingDeviceId = Sysblas::where('nomor', $defaultNumber)->value('session_name
 Sysblas::updateOrCreate(
 ````
 
-## File: docs/adr/0037-livewire-s3-endpoint-browser-reachability.md
-````markdown
-# Livewire S3 Uploads Require a Browser-Reachable AWS_ENDPOINT
-
-## Context
-
-Every `WithFileUploads` feature (company logo, customer KTP, ticket photos, payment slips) broke with a generic "gagal diunggah" ("failed to upload") validation error, in both local Sail dev and production. Root cause: when Livewire's temporary-upload disk resolves to the `s3` driver (which happens automatically whenever `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK` is unset and `FILESYSTEM_DISK=s3`), Livewire does not proxy uploads through the Laravel backend. Instead the **browser itself** PUTs file bytes directly to a presigned S3 URL, and fetches preview thumbnails via a presigned GET — both built from `AWS_ENDPOINT`, entirely bypassing the app (`vendor/livewire/livewire/src/Features/SupportFileUploads/{WithFileUploads,GenerateSignedUploadUrl,TemporaryUploadedFile}.php`).
-
-`AWS_ENDPOINT` was set to `http://rustfs:9000` — the Docker Compose service name for RustFS, resolvable only *inside* the container network. Server-to-server S3 calls (MediaLibrary's final asset writes, `Storage::disk('s3')->put()`) worked fine from inside the container, masking the bug in backend-only testing. But the browser — on the host machine locally, or on the public internet in production — could never reach that hostname, so every direct-to-S3 PUT/GET failed client-side before Laravel's own validation ever ran.
-
-## Decision
-
-The temporary-upload disk and `AWS_ENDPOINT` must always be resolvable by whichever party actually uses them for network I/O — the browser included, not just the container:
-
-- **Local Sail** (single instance, no replica-affinity concern): set `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=local`, forcing uploads/previews to proxy through the Laravel app instead of going direct-to-S3. `rustfs:9000` stays as `AWS_ENDPOINT` for the app's own (server-to-server) S3 calls, which is fine since the browser is never asked to reach it.
-- **Production** (2+ replicas, ADR-0036, no confirmed sticky-session routing): keep temporary uploads on S3 (`LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=s3`, explicit rather than left to fall back implicitly) so any replica can serve a `save()` request regardless of which replica handled the upload — but point `AWS_ENDPOINT` at the same public domain already used for `AWS_URL` (`https://s3.buroq.gobilling.id`) instead of the internal `rustfs:9000`, so presigned URLs are reachable by both the container and any browser.
-
-### Considered and rejected
-
-- **`/etc/hosts` trick for local dev** (map `127.0.0.1 rustfs` on the host so the same hostname resolves both inside Docker and from the browser): rejected as the default — it mirrors production's shape more closely, but requires a manual one-time step per developer machine and per new hire, for no benefit in a single-instance local environment.
-- **`local` disk for production temp uploads**: rejected — would reintroduce an intermittent "temp file not found" failure whenever the upload request and the later `save()` request land on different replicas.
-
-## Consequences
-
-- Local and production now intentionally use *different* temporary-upload disks (`local` vs `s3`) for the same feature — this is deliberate, not drift; do not "fix" them to match.
-- Any future S3-compatible storage endpoint change (new provider, new domain) must keep `AWS_ENDPOINT` reachable by end-user browsers in whichever environment uses `LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK=s3`, not just by the app container.
-- Guarded by `tests/Unit/EnvTemplateS3UploadTest.php` against `.env.docker.example` regressing back to an internal-only endpoint or an implicit (unset) temporary upload disk.
-````
-
-## File: docs/adr/0038-rustfs-bucket-public-read-policy.md
-````markdown
-# RustFS/S3 Bucket Needs an Explicit Public-Read Policy for Media URLs
-
-## Context
-
-After fixing `AWS_URL`/`AWS_ENDPOINT` browser-reachability (ADR-0037), media
-URLs resolved to the right host but still 403'd in the browser with:
-
-```xml
-<Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>
-```
-
-RustFS (MinIO-compatible) denies anonymous `GetObject` by default. Flysystem
-sets the `visibility` config (`public` in `config/filesystems.php`'s `s3`
-disk) as a per-object ACL on `PutObject`, and `getObjectAcl` confirmed the
-object *does* carry `FULL_CONTROL` for the owning canonical user — but MinIO/
-RustFS-style servers gate anonymous access at the **bucket policy** level,
-independent of per-object ACLs. A `public` object ACL alone does nothing for
-anonymous GETs; the bucket itself needs an explicit policy statement allowing
-`s3:GetObject` for `Principal: "*"`.
-
-This is invisible from the Laravel/Media Library side entirely — every
-call that matters (`toMediaCollection()`, `Storage::disk('s3')->put()`)
-succeeds and reports success. The failure only surfaces as a browser-side 403
-on the generated URL, with no application-side indicator anything is wrong.
-
-## Decision
-
-Provision the bucket policy as part of container boot, not as a manual
-one-time step or documentation note a developer might miss:
-
-- New Artisan command `app:ensure-public-media-bucket` calls
-  `S3Client::putBucketPolicy()` with a public-read (`GetObject`-only) policy
-  scoped to `AWS_BUCKET`, using the SDK client Flysystem already
-  constructs (`Storage::disk('s3')->getClient()`) — no new dependency.
-- Wired into `docker/entrypoint.sh` after `storage:link`, guarded with
-  `|| true` (same pattern as the other boot-time cache/link commands):
-  never blocks container boot if RustFS is briefly unreachable or the
-  bucket doesn't exist yet.
-- No-ops safely when `FILESYSTEM_DISK` isn't `s3` or `AWS_BUCKET` is unset,
-  so it's a no-op for local-disk-only setups.
-- Idempotent: `putBucketPolicy` fully replaces the policy document on every
-  boot, safe to run on every replica on every deploy.
-
-### Considered and rejected
-
-- **Manual `mc policy set public` / RustFS console step per environment**:
-  rejected — exactly the kind of infra step that's done once by whoever set
-  up staging, forgotten for production, and invisible until a user reports
-  broken images weeks later.
-- **Presigned URLs everywhere (`getTemporaryUrl()`) instead of public
-  objects**: rejected as the default — correct for the already-private `ktp`/
-  `dokumen` collections (which stay on the `local` disk regardless, see
-  `app/Models/Pelanggan.php`), but overkill for public assets like the
-  company logo and ticket photos that have no access-control requirement.
-  Would also require rewriting every `getFirstMediaUrl()` call site.
-
-## Consequences
-
-- Any new S3-compatible provider swapped in later (real AWS, R2, etc.) either
-  already defaults to bucket-owner-only ACLs enforced through IAM (real AWS)
-  — where this command's `putBucketPolicy` call is still valid and mostly a
-  no-op-if-already-public — or needs the same bucket-policy treatment if it's
-  another MinIO-family server.
-- If the bucket ever needs to stop being public (e.g. all media moves behind
-  presigned URLs), removing the `app:ensure-public-media-bucket` call from
-  `entrypoint.sh` is not enough by itself — the previously-applied public
-  policy stays in place until explicitly reverted with
-  `deleteBucketPolicy()`.
-````
-
 ## File: docs/adr/0039-xendit-mock-only-in-testing-env.md
 ````markdown
 # Xendit Mock Only Ever Triggers on `APP_ENV=testing`, Never `local`
@@ -60760,6 +61125,298 @@ Sebelumnya `config/menu.php` menaruh "Pengaturan Gateway" di grup generik "Admin
 - Siapa pun yang menyentuh `settings.whatsapp` ke depan perlu tahu halaman ini murni template pesan, bukan koneksi — cek `App\Models\Sysblas`/menu Koneksi API untuk itu.
 ````
 
+## File: docs/adr/0044-ppp-secret-remote-address-must-be-literal-ip.md
+````markdown
+# PPP Secret remote-address must be a literal IP, auto-allocated with pool-fallback
+
+`LayananPelanggan::resolveRemoteAddress()` used to return the IP Pool's `nama_pool` for dynamic PPPoE, on the assumption that RouterOS accepts a pool name as `remote-address` on `/ppp/secret` the same way it does on `/ppp/profile`. It doesn't: verified directly against a live RouterOS device, `/ppp/secret/add` with `remote-address=<pool-name>` always fails with `invalid value for argument remote-address`, while the identical value on `/ppp/profile/add` succeeds. This caused every dynamic-PPPoE provision to fail in production (`invalid value for argument remote-address`).
+
+We considered syncing the pool name onto the PPP **profile** instead (which does accept pool names), but `ensurePppProfile()` keys one RouterOS profile per bandwidth package, shared across every IP Pool on a router — setting a profile-level pool would break any other customer on the same bandwidth package but a different pool.
+
+Instead, the app now auto-allocates a specific free literal IP from the layanan's IP Pool range (`IpPool::nextFreeAddress()`), stores it in `layanan_pelanggan.ip_dynamic`, and sends that as `remote-address` (`MikrotikService::allocateDynamicIp()`). If the selected pool has no free address left, it automatically falls back to another IP Pool on the same router with capacity; if none have capacity, provisioning fails loudly instead of silently. Allocation is idempotent — an already-assigned IP is kept as long as it's still within the current pool's range.
+````
+
+## File: docs/adr/0045-tenggat-pembayaran-invoice-pertama-terpisah-dari-isolir-bulanan.md
+````markdown
+# Tenggat Pembayaran Invoice Pertama Dicek Terpisah dari Isolir Bulanan
+
+Sebelum perubahan ini, layanan baru yang tidak pernah membayar invoice pertamanya tetap `Aktif` (internet tetap nyala) sampai `tanggal_expired` penuh (mis. 1 bulan) tercapai, karena `layanan:cek-isolir` hanya membaca `tanggal_expired`, bukan status invoice. Kami memilih menambah command terpisah (`layanan:cek-tunggakan-pertama`, jadwal per-jam) yang secara sempit mengisolir layanan `Aktif` dengan invoice pertama (`periode_tagihan` NULL) yang masih terbuka melewati H+1 dari tanggal mulai — alih-alih menggeneralisasi pemicu isolir bulanan menjadi "invoice apa pun yang kadaluarsa".
+
+Alasan: mekanisme isolir bulanan berbasis `tanggal_expired` + Siklus Tagihan sudah stabil dan teruji; menggantinya berisiko regresi pada alur yang sudah berjalan baik untuk kasus yang tidak diminta. Command terpisah ini murni aditif dan memanggil `UbahStatusLayananAction` yang sama, jadi realtime disable PPP-nya identik dengan isolir bulanan biasa.
+
+Konsekuensi: ada dua jalur command yang bisa men-suspend sebuah layanan (`layanan:cek-isolir` harian berbasis `tanggal_expired`, dan `layanan:cek-tunggakan-pertama` per-jam berbasis invoice pertama) — keduanya idempoten dan aman berjalan bersamaan karena sama-sama lewat `UbahStatusLayananAction`.
+````
+
+## File: docs/adr/0046-media-library-admin-mengecualikan-dokumen-pribadi-pelanggan.md
+````markdown
+# Media Library Admin Mengecualikan Dokumen Pribadi Pelanggan (KTP/Dokumen)
+
+Halaman Media Library baru (`media-library.index`) menampilkan semua berkas media lintas model untuk keperluan monitoring/manajemen staf — kecuali collection `ktp` dan `dokumen` milik `Pelanggan`. Dua collection itu (ADR-0024) wajib diakses lewat controller streaming khusus yang menegakkan watermark dinamis dan audit trail Activitylog; menampilkannya di browser media generik (thumbnail + link unduh langsung) akan jadi jalan pintas yang melewati kedua kontrol itu sepenuhnya.
+
+Keduanya tetap muncul di panel statistik pemakaian storage di bagian atas halaman Media Library itu sendiri (jumlah berkas, total ukuran) — cukup untuk tujuan monitoring kapasitas, tanpa membuka aksesnya. (Panel ini semula ada di halaman terpisah "Storage & S3 Monitoring", digabung ke halaman Media Library — lihat ADR-0047.)
+
+Konsekuensi: penambahan collection privat baru di masa depan (mengikuti pola `useDisk('local')` seperti `ktp`/`dokumen`) harus ditambahkan manual ke daftar pengecualian di `App\Support\MediaLibraryVisibility::COLLECTION_TERLARANG` — tidak ada mekanisme otomatis yang mendeteksi "collection ini privat" dari konfigurasi Media Library itu sendiri. Aturan ini diekstrak ke satu class bersama karena dipakai lebih dari satu tempat: halaman Media Library sendiri, dan picker "pilih dari Media Library" di halaman lain (mis. logo Perusahaan) — lihat CONTEXT.md "Media Library Picker".
+````
+
+## File: docs/adr/0047-media-library-gabung-storage-monitoring-dan-berkas-umum.md
+````markdown
+# Media Library Menggabungkan Storage Monitoring, Berkas Umum Dianchor ke Model Kosong
+
+Halaman "Storage & S3 Monitoring" (`settings.storage`) dan halaman "Media Library" (`media-library.index`) digabung jadi satu halaman di route `media-library.index`, dengan nama "Media Library" di header dan navlist. Alasan: keduanya sama-sama menampilkan data dari tabel `media` yang sama (satu untuk browse/hapus per-berkas, satu untuk statistik agregat + health check koneksi S3) — dua halaman terpisah untuk satu sumber data yang sama hanya menambah satu klik tanpa manfaat pemisahan konteks yang nyata. Permission `sistem_storage.lihat` dihapus (redundan dengan `media_library.lihat`); `S3HealthCheckService` tetap dipakai apa adanya, hanya dipanggil dari komponen Livewire yang digabung.
+
+Fitur unggah bebas (gambar, xlsx/xls/csv/docx/pdf, maks 20MB) ditambahkan ke halaman ini untuk berkas yang tidak terkait record bisnis manapun. Spatie MediaLibrary mewajibkan setiap media punya owner Eloquent polimorfik, dan setiap model `HasMedia` yang ada (Ticket, Pelanggan, User, Perusahaan) merepresentasikan sesuatu yang punya arti bisnis sendiri di luar sekadar "pemilik berkas" — memaksakan unggahan bebas ke salah satunya akan mencampur artinya. Pilihan yang dipertimbangkan: anchor ke `User` pengunggah (ditolak — akan membuat "berkas saya" rancu dengan foto profil, dan berkas ikut hilang/yatim secara konsep kalau user dihapus). Diputuskan: model baru `BerkasUmum`, sengaja kosong (cuma `id`, `uploaded_by` nullable, timestamps) semata sebagai anchor polimorfik, satu row per berkas.
+
+Konsekuensi: setiap model bisnis baru yang perlu unggahan tetap harus mengimplementasikan `HasMedia` sendiri (pola ini tidak berubah) — `BerkasUmum` khusus untuk kasus "tidak ada record bisnis yang relevan". Menambah field ke `BerkasUmum` (mis. label/keterangan) di masa depan adalah migrasi non-breaking karena modelnya sengaja minimal.
+````
+
+## File: docs/adr/0048-media-library-picker-selalu-copy-bukan-reassign.md
+````markdown
+# Media Library Picker Selalu Copy, Tidak Pernah Reassign Owner Media
+
+Fitur "pilih dari Media Library" (dipakai pertama kali di field Logo Perusahaan) memungkinkan memilih gambar yang sudah ada di Media Library sebagai nilai suatu field, alih-alih mengunggah berkas baru. Spatie MediaLibrary mengikat setiap baris `media` ke tepat satu owner polimorfik (`model_type` + `model_id`) dan satu `collection_name`. Dipertimbangkan dua pendekatan saat sebuah gambar dipilih: (a) **reassign** baris `media` yang sama supaya `model_type`/`model_id`/`collection_name`-nya berubah menunjuk ke owner baru, atau (b) **copy** — menduplikasi berkas jadi baris `media` baru di collection tujuan, berkas asli dan ownernya tidak disentuh.
+
+Diputuskan: selalu **copy**, lewat `Media::copy($model, $collectionName)`. Reassign akan diam-diam mencabut berkas dari pemilik aslinya begitu picker dipakai — mis. sebuah foto tiket yang dipilih jadi logo perusahaan akan hilang dari tiket itu sendiri, karena `collection_name`/owner berubah. Konsekuensinya tidak jelas dari UI picker (yang hanya menampilkan thumbnail, bukan detail "sedang dipakai di mana") sehingga risiko kehilangan data diam-diam terlalu besar untuk aturan default. Copy mengorbankan sedikit duplikasi penyimpanan demi jaminan bahwa memilih gambar tidak pernah merusak pemakaian yang sudah ada di tempat lain.
+
+Konsekuensi: setiap picker baru yang dibangun di atas pola ini (field manapun yang butuh "pilih dari Media Library") wajib memakai `copy()`, bukan menulis ulang `model_type`/`model_id`/`collection_name` media yang dipilih secara langsung.
+````
+
+## File: docs/adr/0049-portal-pelanggan-domain-terpisah.md
+````markdown
+# Portal Pelanggan Dapat Diakses Lewat Domain Terpisah, Tautan Lama Tetap Hidup
+
+Portal Pelanggan (guard `pelanggan`, ADR-0007) semula hanya hidup di path `/portal/*` pada domain staf yang sama. Sekarang rute yang sama juga didaftarkan (via `Route::domain(config('app.portal_domain'))`) di bawah domain khusus (mis. `portal.gobilling.id`) tanpa prefix path, supaya pelanggan punya alamat yang lebih rapi. Ini TIDAK membatalkan keputusan "Multi-Guard Monolit" ADR-0007 — masih satu codebase, satu deployment, hanya dua host yang mengarah ke container yang sama (DNS + TLS + Host-routing untuk domain baru diatur di Dokploy, di luar repo ini; `docker/Caddyfile` tidak berubah karena sudah host-agnostic).
+
+Mount lama di `/portal/*` pada domain staf **tidak dihapus dan tidak di-redirect** — `WhatsappService` mengirim tautan tagihan bertanda tangan (signed URL, masa berlaku 30 hari) yang sudah beredar ke pelanggan nyata, dan signature Laravel mencakup host + path penuh, sehingga mengubah salah satunya langsung merusak tautan yang sudah terkirim. Kedua mount didaftarkan dari satu closure yang sama (`$registerRutePortalPelanggan` di `routes/web.php`) supaya tidak drift; mount domain baru didaftarkan belakangan sehingga `route('portal.*')` (dipakai WhatsappService, redirect impersonasi, dan seluruh navigasi internal Portal) selalu resolve ke domain baru untuk tautan/aksi yang dibuat sejak sekarang.
+
+Konsekuensi pada impersonasi staf->pelanggan (`ImpersonateController`): begitu Portal punya domain sendiri, login guard `pelanggan` tidak boleh lagi terjadi langsung di request ke domain staf, karena cookie sesi yang dihasilkan akan ter-scope ke domain staf, sementara seluruh navigasi internal Portal memakai `route('portal.*')` yang sekarang menunjuk domain lain — sesi akan "logout" di klik pertama. Dipertimbangkan melebarkan `SESSION_DOMAIN` ke `.gobilling.id` supaya cookie dibagi lintas subdomain (ditolak — melebarkan kepercayaan SEMUA cookie sesi, termasuk sesi staf, ke subdomain manapun di `gobilling.id` sekarang dan nanti, padahal yang butuh lintas domain cuma satu momen ini). Diputuskan: `take()` di domain staf hanya menerbitkan tautan bertanda tangan berumur pendek (60 detik) ke `portal.impersonate.consume` (hanya terdaftar di domain Portal); login `pelanggan` sungguhan baru terjadi saat tautan itu dikonsumsi, di request yang host-nya memang domain Portal, sehingga cookie ter-scope dengan benar tanpa melebarkan `SESSION_DOMAIN`. Simetris, `leave()` pada guard `pelanggan` memaksa redirect balik ke `config('app.url')` secara eksplisit (bukan `route()` biasa) karena aksi itu bisa dipanggil dari halaman yang sedang dirender di domain Portal, dan `route()` untuk rute tanpa domain constraint memakai host request saat ini sebagai default.
+
+Konsekuensi lain: setiap penambahan rute Portal baru di masa depan harus ditambahkan ke closure bersama itu, bukan ke salah satu mount saja, supaya kedua domain tetap sinkron.
+````
+
+## File: docs/plan/tickets/proses_ticket.md
+````markdown
+Button proses yang muncul di tickets harus sesuai dengan scope role divisi dan permission divisi.
+
+# Divisi NOC 
+klik Proses NOC di tickets/view/{id}
+Proses Ticket {id_tiket} {divisi_noc}
+- Jenis Ticket
+- Status Ticket: On Progress, Selesai, Cancel
+- Mode Registrasi Mikrotik: Proses Registrasi Mikrotik (Sistem akan mengirim perintah ke router (PPPoE) dan baru menyimpan histori jika berhasil), Sudah Registrasi Mikrotik (PPP sudah dibuat manual / sebelumnya. Sistem hanya update histori ticket).
+- Pilihan paket: Paket Bawaan (Gunakan paket layanan saat ini dan hanya router yang memiliki paket ini), Paket Berbeda (Pilih paket lain yang tersedia pada router yang dipilih).
+- Router (NOC): Pilih router tempat PPP / IP statis akan dibuat.
+- Paket di Router: Mode Paket Bawaan: hanya paket bawaan layanan dan router yang memiliki paket tersebut yang dapat dipilih. Mode Paket Berbeda: dapat memilih paket lain yang tersedia pada router.
+- PPP Username & Password: Generate otomatis dari No. Reg (PPP saat ini: (tidak diubah jika mode auto)), Isi manual (username wajib unik). (Mode otomatis: jika username PPP layanan sudah ada, sistem tidak akan generate ulang.
+Mode manual: username wajib unik, password boleh dikosongkan (akan di-generate).)
+- Catatan Proses *: (contoh: PPP sudah dibuat di router R1, ODP 02-03, pelanggan sudah konfirmasi aktif). Catatan ini akan tersimpan di histori proses ticket.
+
+# Divisi ADMIN 
+klik Proses ADMIN di tickets/view/{id}
+Proses Ticket {id_tiket} {divisi_admin}
+- Jenis Ticket
+- Status Ticket
+- Aksi Admin: Ubah Paket Layanan 
+(Paket hanya tersedia di router aktif, silahkan hub NOC jika ingin mengubah Paket tertentu.
+Jika dipilih, paket layanan akan diubah saat proses ini disimpan.
+Pengaturan harga (auto/manual) tetap mengikuti konfigurasi layanan.)
+- Catatan Proses *
+Catatan ini akan tersimpan di histori proses ticket.
+
+# Atur Teknisi Ticket {id_tickets}
+Pilih Teknisi yang Menangani
+Klik kartu teknisi untuk memilih / menghapus pilihan. 
+(kartu foto dan nama teknisi)
+• Biarkan semua tidak terpilih jika ingin menghapus semua teknisi (unassign).
+• Hanya user dengan divisi teknisi yang muncul di daftar ini.
+
+# Divisi Customer Service 
+klik Proses Customer Service di tickets/view/{id}
+Proses Ticket {id_tiket} {divisi_customer_service}
+- Jenis Ticket
+- Status Ticket
+- Aksi Customer Service
+CS dapat menambahkan catatan komunikasi dengan pelanggan pada kolom Catatan Proses di bawah.
+Perubahan teknis (router, paket, dsb.) hanya dapat dilakukan oleh divisi terkait.
+- Catatan Proses *
+Catatan ini akan tersimpan di histori proses ticket.
+````
+
+## File: docs/plan/refactor-layanan-pelanggan.md
+````markdown
+# Refactor Plan: Layanan Pelanggan
+Tab "Kontak Member" → "List Kontak" → Klik Detail Pelanggan yang dipilih → Muncul halaman data pelanggan.
+Terdapat section Layanan/Pemasangan berisi tabel dengan header:
+Label Layanan
+PPP USERNAME
+Paket / Router
+Status
+Aksi
+Button Tambah Layanan akan ke halaman dengan contoh berikut:
+Form Tambah Layanan untuk Pelanggan:
+RYU KURNIANTO · Nomor Reg: BF26090331
+Nama Pelanggan: RYU KURNIANTO
+No. Reg: BF26090331
+Data Layanan
+Atur jenis layanan dan paket yang akan digunakan untuk pemasangan ini. Username PPP / IP Statis akan diatur nanti melalui ticket pemasangan.
+—
+Jenis Layanan: PPPOE
+—
+Paket Layanan: Select Paket Layanan
+Harga default mengikuti paket, bisa diubah di bagian Pengaturan Harga Layanan.
+—
+Harga Paket (Default)
+Rp 0
+Auto terisi saat pilih paket.
+Alamat Pemasangan
+Alamat pemasangan bisa sama dengan alamat utama pelanggan atau berbeda (misal cabang, lantai lain, rumah orang tua, dll).
+—
+Pilih Sumber Alamat:
+Gunakan alamat utama pelanggan
+Alamat pemasangan berbeda
+Alamat Utama Pelanggan
+No. 5, Curug Asri No.15B , JL.RAYA CURUG , Kel. CURUG , Kec. BOJONG SARI , DEPOK
+Koordinat: -6.425593, 106.753773
+—
+Perumahan/Cluster (opsional): Pilih Perumahan / Cluster
+Pilih perumahan, lalu ketik untuk mencari. Sistem otomatis bisa menambahkan nama perumahan + kelurahan, kecamatan & kota ke alamat pemasangan, serta koordinat jika tersedia.
+—
+Alamat Pemasangan (Detail): (input textarea) No. 5 - Curug Asri No.15B
+Jika memilih Gunakan alamat utama maka sistem akan otomatis mengisi alamat dan koordinat dari data pelanggan dan mengunci field di bawah. Pilih Alamat pemasangan berbeda jika ingin mengisi alamat lain / memilih perumahan.
+Input:
+Latitude
+Longitude
+SHOW MAP LOCATION BERDASARKAN LATITUDE DAN LONGITUDE.
+Klik pada peta atau geser marker untuk mengubah titik pemasangan. Kolom Latitude dan Longitude akan terisi otomatis.
+Pengaturan Tagihan Pertama
+Atur bagaimana sistem membuat invoice pertama setelah layanan ini disimpan. Layanan akan berstatus PROSES sampai ticket pemasangan selesai.
+"Invoice pertama tetap dibuat di awal saat layanan disimpan, sehingga pelanggan bisa bayar duluan. Untuk mode jatuh tempo mengikuti pemasangan selesai,tempo/expired awal tetap memakai fixed date, lalu nanti dikunci ulang saat ticket pemasangan selesai."
+Select:
+Tagih Proporsional
+Hitung tagihan sesuai hari sampai jatuh tempo {tanggal_jatuh_tempo} (perkiraan jatuh tempo: {yyyy-mm-dd}). Siklus billing layanan memakai fixed date.
+Tagih 1 bulan penuh
+Langsung buat tagihan 1 bulan penuh berdasarkan harga layanan. Siklus billing memakai fixed date.
+Gratis (Promo)
+Buat invoice nominal 0 dan status langsung lunas. Siklus billing layanan memaki fixed date.
+Pengaturan Harga Layanan
+Harga dasar ini akan menjadi acuan penagihan bulanan untuk layanan ini.
+Select:
+Gunakan harga paket (auto)
+Gunakan harga khusus (manual)
+Harga Layanan (Custom, per bulan): Input → Rp. Masukan angka saja, mis: 250000
+"Konfigurasi harga tersimpan di kolom price_mode dan price_custom pada layanan, sehingga jika harga paket diubah, layanan lama bisa tetap memakai harga saat dibuat."
+Isi hanya jika memilih harga khusus (manual). Jika kosong, sistem akan memakai harga dari paket.
+Estimasi Invoice Pertama
+Estimasi ini dihitung otomatis berdasarkan paket, mode harga, dan pilihan tagihan pertama. (Jatuh tempo awal: tanggal {tanggal_jatuh_tempo} — perkiraan: yyyy-mm-dd)
+—
+Perkiraan yang harus dibayar
+Rp 0
+Pilih paket untuk melihat estimasi.
+—
+Rincian
+Mode tagihan: -
+Harga dasar: Rp 0
+Periode sampai: 2026-10-10
+"Estimasi ini hanya untuk panduan. Nilai final mengikuti perhitungan backend saat layanan disimpan."
+Section: 
+Ringkasan Pelanggan
+Nama: RYU KURNIANTO
+No. Reg: BF26090331
+No. HP: 081314984970
+Status: 
+Section:
+Mode Billing
+ Default - Fixed Date
+Semua layanan baru tetap memakai jatuh tempo fixed date secara default: tanggal 10.
+"Opsi tempo mengikuti pemasangan selesai belum aktif di Settings. Form hanya menampilkan mode fixed date."
+Section:
+Catatan
+Layanan ini akan tercatat di Layanan / Pemasangan pada detail pelanggan.
+Status awal: PROSES, belum dibuat PPP / IP statis.
+Invoice pertama langsung dibuat saat layanan disimpan.
+Site ID dibuat otomatis di backend dari APP_ID + 7 digit unik.
+Ticketing pemasangan, gangguan, pencabutan, dan lainnya dikelola di halaman detail layanan.
+````
+
+## File: docs/plan/ticket-pemasangan-workflow.md
+````markdown
+# Rencana: Alur Ticket Pemasangan Lengkap + Penyederhanaan Tambah Data Registrasi Billing
+
+Hasil sesi grilling+domain-modeling (bukan spekulasi) — setiap keputusan di bawah sudah dikonfirmasi eksplisit oleh user. Dokumen ini gabungan/penerus dari `docs/plan/refactor-layanan-pelanggan.md`: field yang plan itu bilang "diatur nanti melalui ticket pemasangan" (Router, IP Pool, Username PPP) sekarang benar-benar dipindah ke sini.
+
+## Latar belakang & keputusan kunci
+
+Router/IP Pool/Username PPP **tidak lagi diisi saat Tambah Data Registrasi Billing**. Layanan dibuat murni komersial (paket, harga, alamat, tagihan pertama), status awal `PROSES`, `router_id`/`ppp_username` kosong. Field-field itu baru diisi lewat aksi **"Aktivasi"** oleh NOC di dalam Ticket Pemasangan, setelah teknisi menyelesaikan sebagian pekerjaan lapangan.
+
+Ini keputusan yang membatalkan sebagian implementasi sesi sebelumnya (yang sempat meng-auto-resolve router/pool/ppp saat `LayananPelanggan/Create.php::save()`) — bagian itu harus di-revert.
+
+## Bagian A — Penyederhanaan Tambah Data Registrasi Billing ✅ SELESAI
+
+1. **`Create.php` (LayananPelanggan)**: hapus total properti & validasi `router_id`, `ip_pool_id`, `ip_static`, `ppp_username`, `jenis_koneksi`-picker beserta blok panggilan `MikrotikService`/`MikrotikJobLog` di `save()`. Form ini menyimpan: paket, `price_mode`/`price_custom`, alamat (sumber utama/custom, perumahan, peta — sudah ada dari sesi sebelumnya), tagihan pertama. `jenis_koneksi` layanan baru **selalu PPPoE** (IP Static tidak didukung di form ini — lihat poin 4).
+2. **`DaftarkanLayananAction`**: hapus parameter/logic yang berhubungan dengan router/ip_pool/ip_static/ppp_username. Tidak ada lagi pemanggilan Mikrotik di action ini.
+3. **Migration**: `layanan_pelanggan.router_id` dan `ppp_username` jadi **nullable** (sekarang NOT NULL) — **sudah dieksekusi**. Audit semua pemakai `$layanan->router`/`$layanan->ppp_username` yang mengasumsikan selalu ada (Observer, `resolveRemoteAddress()`, listing Index, dsb.) — tambahkan null-guard di mana perlu, jangan asumsikan lagi.
+4. **PPP Username override & IP Static**: kemampuan staf mengubah `ppp_username` manual dan mengubah `jenis_koneksi` ke IP Static **tetap ada, tapi hanya di `Edit.php`** (tidak diubah), tidak lagi di `Create.php`.
+5. ~~`PaketLayanan.ip_pool_id` otomatis~~ **DIBATALKAN** (koreksi arsitektur): IP Pool terikat ke satu router spesifik, sedangkan Paket Layanan lintas-router — satu `ip_pool_id` tetap per paket akan salah begitu NOC memilih router yang berbeda dari yang "dianggap" paket itu. Sebagai gantinya: **NOC memilih IP Pool secara manual saat Aktivasi**, difilter ke pool milik router yang baru saja dipilih (persis pola `updatedRouterId()`/auto-select-jika-cuma-1-pool yang dulu ada di `Create.php`, sekarang dipindah ke Aktivasi). Bukan sepenuhnya otomatis, tapi jujur secara arsitektur — lihat B3 yang sudah direvisi.
+6. **Duplikat check** (`assertBelumAdaDuplikat`, sekarang butuh `router_id`) pindah ke titik Aktivasi, bukan lagi saat create (karena router baru diketahui di situ).
+
+## Bagian B — Alur Ticket Pemasangan ✅ SELESAI
+
+### B1. Skema baru
+
+- **`ticket_divisi`** (pivot yang sudah ada, `ticket_id` + `divisi`): tambah kolom `status` — enum seragam `belum` / `progress` / `selesai` untuk semua divisi (NOC/CS/Admin praktiknya cuma pakai `belum`→`selesai`, tidak pernah `progress`; hanya Teknisi yang benar-benar pakai tiga-tiganya).
+- **`ticket_pemasangan`** (tabel detail baru, 1:1 dengan `ticket`, hanya relevan untuk `jenis=pemasangan`): `ticket_id`, `odp_port_id` (FK ke `odp_port`, diisi teknisi), kolom timestamp/actor untuk audit Aktivasi (`diaktivasi_pada`, `diaktivasi_oleh`). Tidak menyimpan ulang router/ppp — begitu Aktivasi jalan, nilai itu sudah ada di `layanan_pelanggan` sendiri (single source of truth).
+- **Media collections** (Spatie MediaLibrary, `Ticket` sudah `implements HasMedia`, tinggal definisikan `registerMediaCollections()`): `foto_pemasangan` (multiple), `foto_speedtest` (single/multiple), `foto_tanda_tangan_mou` (single), `foto_bersama_pelanggan_teknisi` (single/multiple).
+- **`User`**: tambah MediaLibrary collection `foto_profil` (single) — berlaku untuk semua user semua divisi, bukan cuma teknisi.
+- **Role `customer_service`**: `DivisiTicket::CustomerService` sudah ada di enum tapi role Spatie-nya belum pernah di-seed (cuma ada `super_admin`, `admin`, `sales`, `noc`, `teknisi`). Tambahkan role ini di `RolesAndPermissionsSeeder` supaya CS punya identitas RBAC sendiri, bukan menumpang `admin`.
+
+### B2. Assignment teknisi
+
+Reuse `Ticket.pic_id` yang sudah ada sebagai "teknisi yang ditugaskan" (tidak ada kolom assignee baru). "Foto teknisi di detail ticket" = `$ticket->pic->getFirstMediaUrl('foto_profil')`. Assignee untuk NOC/CS/Admin tidak disimpan sebagai field — siapa yang menandai selesai sudah cukup tercatat lewat `TicketHistori`/Activitylog.
+
+### B3. Aksi "Aktivasi" (NOC)
+
+Aksi baru (bukan tombol "Provisi" yang sudah ada di `Index.php` — itu untuk retry setelah router/ppp ter-assign, beda tujuan), muncul di halaman detail ticket, permission NOC:
+
+1. **Gate**: disabled sampai status divisi Teknisi minimal `progress` **dan** `ticket_pemasangan.odp_port_id` sudah terisi **dan** minimal 1 foto di `foto_pemasangan`.
+2. NOC pilih **Router** dari dropdown nyata (hanya `status_koneksi = Online`) — satu dari dua pilihan manual asli di alur ini, karena topologi jaringan/lokasi customer memang butuh keputusan manusia.
+3. NOC pilih **IP Pool**, difilter ke pool milik router yang baru dipilih di langkah 2 — auto-select kalau router itu cuma punya 1 pool (reuse pola `updatedRouterId()` yang dulu ada di `Create.php`), tampil sebagai dropdown kalau lebih dari satu (lihat koreksi di A5 — bukan diambil dari Paket, karena Paket lintas-router).
+4. Sistem otomatis generate `ppp_username` (`LayananPelanggan::generatePppUsername()`, tidak berubah dari sekarang); `odp_port_id` disalin dari `ticket_pemasangan`.
+5. Profil Bandwidth ditampilkan **read-only** (sudah tetap mengikuti paket sejak pendaftaran, tidak bisa diganti di sini).
+6. Cek duplikat (`assertBelumAdaDuplikat`) dengan router yang baru dipilih.
+7. Simpan field-field di atas ke `layanan_pelanggan`, lalu panggil `MikrotikService::createOrUpdatePppoeSecret()` + set status `Aktif` — persis logic yang dulu ada di `Create.php::save()`, sekarang di sini. Gagal di langkah Mikrotik → field sudah tersimpan, jadi tombol "Provisi" yang sudah ada di `Index.php` otomatis jadi jalur retry-nya.
+
+### B4. Urutan & gating status per-divisi
+
+- **Teknisi**: `belum` → `progress` (setelah pilih ODP+port & upload ≥1 foto pemasangan) → `selesai` (setelah Aktivasi NOC selesai, upload foto speedtest + foto tanda tangan MOU + foto bersama).
+- **NOC**: `belum` → `selesai`. Tidak digating oleh status Teknisi selain gate Aktivasi di B3 — begitu Aktivasi berhasil dijalankan, NOC boleh langsung tandai selesai kapan saja (tidak dipaksa urutan lebih lanjut, sesuai keputusan: hanya 2 gate yang benar-benar dipaksa: Aktivasi butuh progres Teknisi, Admin butuh pembayaran — bukan rantai NOC→CS→Admin).
+- **CS**: `belum` → `selesai`. Tidak digating oleh divisi lain.
+- **Admin**: `belum` → `selesai`, **hard block** sampai invoice pertama layanan berstatus `Lunas`.
+
+### B5. Status keseluruhan tiket (master)
+
+`StatusTicket` (state machine yang sudah ada, dengan efek samping `UbahStatusTicketAction`) **diturunkan otomatis**: begitu status keempat divisi (Teknisi, NOC, CS, Admin) semua `selesai`, sistem otomatis menjalankan transisi ke `StatusTicket::Selesai` lewat `UbahStatusTicketAction` yang sudah ada (supaya efek samping seperti perubahan `StatusPelanggan` tetap jalan). Staf tidak lagi klik "Selesaikan Ticket" manual terpisah untuk tiket jenis Pemasangan.
+
+## Yang sengaja TIDAK dikerjakan (YAGNI, sesuai diskusi)
+
+- Tidak ada UI picker IP Pool manual di mana pun dalam alur ini — sepenuhnya dari `paket->ip_pool_id`.
+- Tidak ada rantai gating NOC→CS→Admin selain dua gate eksplisit di atas.
+- Tidak ada perubahan pada alur Gangguan/Pencabutan/Pindah Alamat — kolom `ticket_divisi.status` baru cuma dipakai/di-gate untuk `jenis=Pemasangan`.
+- Profil Bandwidth tidak bisa di-override saat Aktivasi.
+
+## Urutan implementasi (selesai dikerjakan, urutan asli)
+
+1. ✅ Bagian A (sederhanakan Create, migration nullable, koreksi IP Pool jadi manual saat Aktivasi bukan dari Paket).
+2. ✅ Skema Bagian B1 (migration `ticket_divisi.status`, tabel `ticket_pemasangan`, role `customer_service`, permission `layanan_pelanggan.aktivasi`, foto profil User).
+3. ✅ UI teknisi tahap 1 (upload foto, pilih ODP+port, status → progress) — `Ticket/Show.php::simpanProgressLapangan()`.
+4. ✅ Aksi Aktivasi NOC (B3) — `Ticket/Show.php::prosesAktivasi()`, termasuk mengikat OdpPort ke layanan.
+5. ✅ UI teknisi tahap 2 + tandai selesai; NOC/CS/Admin tandai selesai; auto-derive status master (B5) — `UbahStatusDivisiTicketAction`.
+6. ✅ Tombol "Buat Ticket Pemasangan" di `Pelanggan/Show.php` untuk layanan `PROSES` tanpa router (entry point alur baru).
+
+**Catatan implementasi yang menyimpang dari draft awal, dengan alasan:**
+- `UbahStatusTicketAction::execute()` mendapat parameter baru `bool $otomatis = false` — auto-derive status master (langkah 5) melewati state-machine `transisiValid()` dan Policy `ubahStatus` biasa, karena otorisasi sesungguhnya sudah dicek di level per-divisi (`ubahStatusDivisi`), dan urutan divisi yang bebas (bukan NOC→CS→Admin berurutan) berarti status keseluruhan tiket bisa perlu lompat langsung ke Selesai dari status apa pun.
+- Flag `perlu_aktivasi_manual` (mekanisme lama) sekarang hanya di-set kalau tiket **belum** merujuk `layanan_pelanggan_id` saat dibuat -- supaya alur lama (tiket dulu, baru billing) dan alur baru (billing dulu, baru tiket dengan Aktivasi) tidak saling tabrak.
+- Percobaan awal membuat foto profil User meng-cleanup otomatis lewat `singleFile()` Spatie MediaLibrary tidak konsisten lewat siklus request Livewire (`Auth::user()` + `FileAdder` internal); diganti `clearMediaCollection()` eksplisit sebelum unggah -- lebih sederhana dan pasti benar daripada terus menelusuri internal vendor.
+````
+
 ## File: docs/research/isp-billing-workflow-automation.md
 ````markdown
 # ISP billing: automating ticket → activation → billing
@@ -60810,6 +61467,1123 @@ Researched 2026-09-21. Every claim below names its source and how it was read. G
 - No primary documentation for Indonesian ISP billing systems (RTRWNet/Mikbill/ISPmanager/Mikhmon) was found through search; nothing about them is claimed here. Indonesian practice for isolir (moving a suspended customer to an isolir profile or address-list versus disabling the secret) is therefore unverified.
 - Splynx wiki pages and the UISP help article did not render in the fetch tool (JS-rendered / 403). Those claims rest on search extracts of the official pages and should be re-read in a browser before being cited elsewhere.
 - Sonar: no doc page found that describes provisioning or IP assignment on install completion.
+````
+
+## File: docs/resources/simbill-plan.md
+````markdown
+# SimBill Rebuild — Implementation Plan
+
+2026-09-21 · @Someone
+
+Implements project/d1e2546f-6692-4089-a8ca-e4d981cc91a5 in eight phases, each cut into tasks small enough for one coding-agent session.
+
+## 1. How to use this plan
+
+Each coding-agent session gets a small context pack, this tab's global rules plus exactly one phase tab, and completes exactly one task.
+
+The PRD says what to build; this plan says in what order, in what shape, and how to prove each piece works. If the two disagree, stop, fix the PRD, then continue.
+
+### Rules for every session
+
+1. **Load the pack, nothing more.** Sections 2 and 3 of this tab, the phase tab for the current task, `docs/HANDOFF.md`, and the files the task names under "Files". Do not read the whole repository or the whole PRD.
+2. **One task per session.** A task touches at most 10 files, adds about 500 lines of code at most, and ends with a command that proves it works. If it grows past that, split it and add a row to the phase tab.
+3. **Follow the numbers.** Phases run in order and tasks run in order inside a phase, unless a task lists a different "Needs".
+4. **Test first where a test is cheap.** Write the failing test named in "Done when", then the code.
+5. **Respect contracts.** Each phase tab lists the interfaces later phases rely on. Changing one means editing that phase tab in the same change.
+6. **Close with a handoff.** Update `docs/HANDOFF.md` before ending (format in section 3).
+7. **Gate each phase.** Do not start the next phase until the phase exit test passes in CI.
+
+### Context budget
+
+Sizes are approximate and exist to keep every session small.
+
+| Item | Size | Loaded |
+| --- | --- | --- |
+| Global rules (sections 2 and 3 of this tab) | About 1,300 words | Every session |
+| Current phase tab | About 800 words | Every session in that phase |
+| PRD requirement rows cited by the task | 100 to 400 words | Only the cited `FR-` and `NFR-` rows |
+| `docs/HANDOFF.md` | 40 lines at most | Every session |
+| Files named by the task | 10 at most | Per task |
+
+To hand a phase to an agent, export that one tab as Markdown and paste it with sections 2 and 3 of this tab. Never paste the whole document.
+
+## 2. Global rules
+
+Every task follows one repository layout, one set of stack defaults and one set of conventions, so an agent never has to rediscover them.
+
+### Repository layout
+
+```text
+simbill/
+  package.json            # "type": "module"
+  .env.example
+  docker-compose.yml      # mariadb + freeradius for tests
+  src/
+    server.js             # web process
+    worker.js             # scheduler process
+    config/               # the only place that reads process.env
+    db/                   # pool.js, migrate.js, migrations/NNN_name.sql
+    lib/                  # logger, crypto, money, time, errors, events
+    modules/<name>/       # routes.js service.js repo.js schema.js *.test.js
+    integrations/<name>/  # radius, mikrotik, whatsapp, telegram, payments, acs
+    jobs/                 # one file per scheduled job
+  public/                 # frontend, static ES modules, no build
+    index.html  app.js  api.js  i18n/{id,en}.json  modules/  css/
+  scripts/                # install.sh, setup-*.sh, update.sh, backup.sh
+  test/                   # e2e tests and fakes/ for external services
+  docs/HANDOFF.md
+```
+
+### Stack defaults
+
+These fill the PRD's open choices so work can start. Change one here and every later task follows it.
+
+| Concern | Default |
+| --- | --- |
+| Runtime and language | Node.js 24 LTS, JavaScript with JSDoc types, ES modules |
+| HTTP | Express, JSON API under `/api/v1` |
+| Database access | `mysql2` with plain SQL in `repo.js` files, no ORM |
+| Migrations | Numbered forward-only `.sql` files; a small runner records them in `schema_migrations` |
+| Validation | `zod` at every route boundary |
+| Passwords and tokens | `argon2` and signed tokens via `jose` |
+| Logging | `pino`, one JSON line per request with a request ID |
+| Tests | Built-in `node --test`; integration tests use real MariaDB and FreeRADIUS from `docker-compose.yml` |
+| Lint and format | ESLint and Prettier |
+| Scheduling | `node-cron` in `worker.js`, guarded by MariaDB `GET_LOCK` |
+| PDF and QR | `puppeteer-core` with system Chrome; `qrcode` |
+| Frontend | Vanilla JavaScript modules, hash router, a small `html` template helper, no framework |
+
+### Conventions
+
+- **Module shape.** `routes.js` parses input and calls `service.js`; `service.js` holds the rules; `repo.js` holds only SQL. Routes never touch SQL.
+- **Integrations.** Each has one `index.js` exporting a small interface and a fake in `test/fakes/`. Business code imports the interface, never a vendor library.
+- **Internal events.** `lib/events.js` carries `invoice.created`, `payment.settled`, `customer.suspended` and `customer.restored`. Later phases subscribe instead of editing earlier modules.
+- **Data.** Tables are plural snake\_case with `BIGINT UNSIGNED` keys; money is `BIGINT` rupiah; timestamps are `DATETIME` in `Asia/Jakarta` (+07:00).
+- **API shape.** Success is `{ "data": ... }`; failure is `{ "error": { "code", "message" } }`; lists take `page` and `per_page` and add `meta.total`.
+- **Permissions.** Every route declares `requireRole([...])`. Reseller and technician scoping goes through one helper, never ad-hoc `WHERE` clauses.
+- **No leaks.** `repo.js` selects explicit columns. Password hashes, RADIUS secrets and gateway keys never appear in a response or a log line.
+- **Idempotency.** Jobs and webhooks are safe to run twice; the database enforces it with unique keys.
+- **UI text.** Every string lives in `public/i18n/id.json` and `en.json`; no literals in JavaScript or HTML.
+- **Commits.** One task, one commit: `feat(p1): T1.4 customers API`, with the PRD IDs in the body.
+
+### Definition of done for every task
+
+1. `npm test` and `npm run lint` pass.
+2. Migrations apply to an empty database and re-run without error.
+3. No new endpoint returns a secret; the response-scan test (from task 0.5) still passes.
+4. New user-facing strings exist in both languages.
+5. `docs/HANDOFF.md` is updated.
+
+## 3. Session prompt and handoff
+
+Paste this prompt at the start of each session, filled in from the phase tab's task row, and keep `docs/HANDOFF.md` current so the next session starts from facts, not from re-reading code.
+
+### Session prompt
+
+```markdown
+You are implementing task T{phase}.{n} of the SimBill rebuild.
+
+Context pack (pasted above): Global rules, the Phase {phase} tab, docs/HANDOFF.md.
+
+Task: {"What to build" cell}
+PRD rows to satisfy: {FR-/NFR- IDs}
+Files: {"Files" cell}
+Needs: {earlier tasks, or "previous task"}
+Done when: {"Done when" cell}
+
+Do:
+1. Read only the listed files and docs/HANDOFF.md.
+2. Write the failing test named in "Done when".
+3. Implement until it passes, then run `npm test` and `npm run lint`.
+4. Update docs/HANDOFF.md.
+
+Do not:
+- Change an interface under "Contracts" without editing the phase tab.
+- Add a dependency that is not in the stack defaults without asking.
+- Touch files outside the list; if you must, say why in HANDOFF.md.
+- Start the next task.
+
+If the task will pass 10 files or about 500 lines, stop and propose a split.
+If the same failure survives two fix attempts, write it under "Open" and stop.
+```
+
+### Handoff note
+
+Keep the whole file under 40 lines. Compress finished work into "State" instead of appending a log.
+
+```markdown
+# Handoff
+Last task: T1.4 customers API (done)
+Next task: T1.5 KTP upload
+State: 3 to 5 lines on what exists (tables, routes, services)
+Contracts added: function and route signatures other tasks rely on
+Gotchas: anything that surprised you or cost time
+Open: questions for the human, or a blocker with the exact error
+```
+
+### When a task goes wrong
+
+- **Too big.** Split the row into two rows in the phase tab, renumber, and do the first half.
+- **PRD gap.** Note it under "Open" and pick the conservative reading; do not invent a feature.
+- **Contract change needed.** Stop; the change goes into the phase tab first, and every later phase that consumes it is checked.
+
+## 4. Phase map
+
+The work is 75 tasks in eight phases; phases 0 to 2 give the first usable release, matching section 12 of the PRD. Each phase has its own tab named "Phase N".
+
+```mermaid
+flowchart LR
+  P0["0 Foundation"] --> P1["1 Core billing"]
+  P1 --> P2["2 Network"]
+  P2 --> P3["3 Messaging"]
+  P2 --> P6["6 Field ops"]
+  P3 --> P4["4 Payments"]
+  P3 --> P6
+  P4 --> P5["5 Hotspot, resellers"]
+  P5 --> P7["7 Hardening"]
+  P6 --> P7
+```
+
+| Phase | Tasks | Needs | Migration numbers | PRD coverage |
+| --- | --- | --- | --- | --- |
+| 0. Foundation | 8 | None | 001 to 009 | NFR-SEC-01 to 04, FR-SYS-04, NFR-OBS-02, NFR-TST-01 |
+| 1. Core billing | 11 | 0 | 010 to 019 | FR-CUS, FR-PKG, FR-INV, FR-PAY-01 and 02, FR-SYS-02 |
+| 2. Network and automation | 9 | 1 | 020 to 029 | FR-RAD, FR-MTK, FR-SES, FR-SUS-02, 03 and 05, FR-PAY-03 |
+| 3. Messaging | 10 | 2 | 030 to 039 | FR-WA, FR-TG, FR-SUS-01 and 04, NFR-OBS-03 |
+| 4. Online payments | 10 | 2, 3 | 040 to 049 | FR-PGW |
+| 5. Hotspot and resellers | 10 | 4 | 050 to 059 | FR-VCH, FR-RSL |
+| 6. Field operations | 9 | 2, 3 | 060 to 069 | FR-TKT, FR-MAP, FR-ACS, FR-CUS-04 map linkage, UI-10 |
+| 7. Reporting and hardening | 8 | All | 070 to 079 | FR-SYS-01 and 03, FR-API-01, NFR-PERF, NFR-REL, remaining NFR-SEC, UI-03 and 04 |
+
+Each phase owns a block of migration numbers, so agents working on different phases in parallel never collide on a filename. Phases 5 and 6 depend on different earlier phases and can run in parallel with separate agents.
+````
+
+## File: docs/resources/simbill-prd.md
+````markdown
+SimBill Rebuild — Product Requirements Document
+Sep 21, 2026 · @Ryu Kurnianto Putra
+1. Overview
+SimBill Rebuild is a self-hosted billing and RADIUS management platform for ISPs, RT/RW Net operators and hotspot operators in Indonesia, built on the same technology stack as the upstream SimBill product.
+Background. Upstream SimBill is an ISP billing application on Node.js, Express and MariaDB. It authenticates PPPoE and hotspot users through FreeRADIUS and MikroTik, notifies customers over WhatsApp and Telegram, accepts online payments, and manages ONU devices over TR-069. Everything sits in one Indonesian-language dashboard that also works on phones.
+Problem. Small operators often run billing, RADIUS, router provisioning, customer messaging and ONU checks as separate tools and reconcile them by hand. The gaps show up as late invoices, manual suspensions and disputes over who is still online. One system that owns the customer record and writes it to RADIUS and the router removes that reconciliation work.
+Approach. This PRD specifies an independent implementation, written from the publicly described features and architecture of the upstream project (SimBill-Project and simbill-dist), not from its source code. It keeps the upstream stack, data-flow rules and role model so operators can carry over their data and habits.
+Scope
+In scope
+Out of scope for the first release
+PPPoE and hotspot customers, packages, invoices, payments
+Multi-tenant SaaS hosting for several ISPs
+FreeRADIUS integration, MikroTik provisioning, live sessions
+Native Android apps (the REST API must support them)
+Vouchers and a reseller panel with a balance ledger
+Full accounting, tax and inventory modules
+WhatsApp and Telegram bots, four payment gateways
+Zero-touch ONU provisioning beyond signal and status checks
+Tickets, ODC/ODP map, TR-069 optical-signal check
+Compiled-binary distribution and license activation
+Reports, backup and restore, Indonesian and English UI, dark mode
+In-app self-update from GitHub Releases (deferred)
+2. Goals, non-goals and success metrics
+The rebuild succeeds when one operator can run the full customer lifecycle, from signup to invoice to suspension, without touching RADIUS or the router by hand.
+Goals
+1. Single source of truth: the customer record drives RADIUS credentials, MikroTik profiles and notifications.
+2. Automated billing: monthly invoices, reminders and auto-suspend run on a schedule with no operator action.
+3. Trustworthy online status: session state comes only from radacct, and stale data is marked, never shown as healthy.
+4. Self-service payment: customers pay through Midtrans, Xendit, Duitku or Tripay and the invoice closes itself.
+5. Field-ready: technicians and resellers get a phone-friendly view limited to what their role needs.
+6. Simple operations: a fresh Ubuntu or Debian VPS reaches a working panel from one install command.
+Non-goals
+• Replacing FreeRADIUS, MikroTik RouterOS or the ACS with in-house equivalents.
+• Supporting routers other than MikroTik in the first release.
+• Building a general accounting system; reporting stops at income, periods and net profit.
+Success metrics
+All targets are proposed and need confirmation against a real operator's size.
+Metric
+Target
+How it is measured
+Monthly invoice run, 5,000 customers
+Under 10 minutes
+Job duration log
+Suspend after grace period expires
+Within 15 minutes
+Scheduler log vs. radacct stop time
+Payment webhook to invoice marked paid
+Under 30 seconds at p95
+Webhook receipt vs. payment timestamp
+Dashboard load, 5,000 customers
+Under 2 seconds at p95
+Browser timing on a 4 GB, 2-core VPS
+Fresh install to working login
+Under 15 minutes
+Timed run on a clean VPS
+Duplicate or replayed payments applied twice
+Zero
+Unique gateway reference constraint plus test
+Bulk edits to radacct stop times by the app
+Zero
+Code review and query audit
+3. Users and roles
+The system has six roles: four staff roles (superadmin, admin, operator, teknisi), resellers, and customers. The staff role names and the limited technician view come from upstream; the operator/admin split and the customer role are proposed here.
+Role
+Who they are
+Main jobs
+Superadmin
+ISP owner or IT lead
+Manages staff accounts, settings, gateways, backup and restore
+Admin
+Office or billing manager
+Runs customers, invoices, packages, vouchers, resellers and reports
+Operator
+Front-desk or support staff
+Registers customers, records payments, opens tickets
+Teknisi
+Field technician
+Sees assigned tickets, the network map and device status
+Reseller
+Outlet or sub-agent
+Manages own customers and vouchers, tops up balance
+Customer
+End subscriber
+Checks bills, pays online, reports faults via the apps and bots
+Permission matrix
+"Own" means only records the user created or is assigned. "View" is read-only.
+Module
+Superadmin
+Admin
+Operator
+Teknisi
+Reseller
+Customer
+Customers
+Full
+Full
+Full
+View
+Own
+Own profile
+Packages
+Full
+Full
+View
+None
+View
+None
+Invoices and payments
+Full
+Full
+Record payments
+None
+Own
+Own
+Vouchers and templates
+Full
+Full
+View
+None
+Own
+None
+Reseller accounts and balance
+Full
+Full
+None
+None
+Own
+None
+NAS, RADIUS, active sessions
+Full
+Full
+View
+View
+None
+None
+Network map (ODC/ODP)
+Full
+Full
+View
+Full
+None
+None
+Tickets
+Full
+Full
+Full
+Assigned
+None
+Create
+TR-069 devices
+Full
+Full
+View
+Full
+None
+Own signal check
+Financial reports
+Full
+Full
+None
+None
+Own
+None
+Settings, gateways, backup
+Full
+None
+None
+None
+None
+None
+Staff accounts and admin log
+Full
+View log
+None
+None
+None
+None
+4. System architecture and tech stack
+The system is one Node.js application on a MariaDB database shared with FreeRADIUS, plus add-on services for messaging and TR-069; the stack matches upstream except that the Node.js baseline moves from 20 to 24 LTS.
+Upstream pins Node.js 20, which reached end-of-life on 2026-04-30. Node.js 24 is Active LTS until 2028-04-30 and 22 is in maintenance until 2027-04-30, per the Node.js Release Working Group.
+Technology stack
+Layer
+Choice
+Notes
+Runtime
+Node.js 24 LTS (22 LTS minimum)
+Upstream installs Node.js 20
+Language
+JavaScript
+TypeScript is an open question (section 13)
+Web framework
+Express
+REST API plus static frontend
+Database
+MariaDB 10.6 or newer
+One database, billing_radius, shared with FreeRADIUS
+Authentication
+FreeRADIUS with the sql module
+UDP 1812 auth, 1813 accounting
+Router integration
+MikroTik RouterOS API
+Ports 8728 and 8729 (TLS)
+TR-069
+ACS Lite (GoACS)
+Own database and user goacs, port 7547
+WhatsApp
+WAHA (Docker) and WA Mandiri (Baileys)
+The legacy whatsapp-web.js QR path is excluded
+Telegram
+Bot API
+Two-way commands
+Payments
+Midtrans, Xendit, Duitku, Tripay
+One driver per gateway
+PDF
+Headless Chrome
+A4 and 58 mm thermal invoices
+Process manager
+pm2
+Web process billing-radius, plus a worker process for scheduled jobs
+Scheduler
+node-cron in the worker
+Keeps jobs from running twice when the web process restarts
+Frontend
+HTML, CSS, JavaScript SPA, no build step
+Native ES modules split across files; upstream ships one admin.html
+Host OS
+Ubuntu 22.04 or 24.04, Debian 11 or 12
+2 CPU cores, 4 GB RAM or more; x86-64-v2 CPU for WAHA
+Topology
+flowchart LR
+  U["Admin, reseller, teknisi<br/>browser"] --> A["SimBill app :3000<br/>Node.js + Express"]
+  A --> D[("MariaDB<br/>billing_radius")]
+  R["FreeRADIUS<br/>1812/1813"] --> D
+  N["MikroTik NAS<br/>PPPoE + Hotspot"] -->|RADIUS| R
+  A -->|RouterOS API| N
+  C["Customers"] --> N
+  A --> W["WhatsApp gateway<br/>WAHA / WA Mandiri"]
+  A --> T["Telegram Bot API"]
+  P["Payment gateways"] -->|webhook| A
+  A --> G["ACS Lite (GoACS)<br/>:7547"]
+  O["ONU / CPE"] -->|TR-069| G
+The app writes customer credentials to the database, FreeRADIUS reads them to authenticate sessions that MikroTik forwards, and accounting flows back into the same database.
+Ports and exposure
+Port
+Service
+Exposure
+3000
+SimBill panel and API
+Behind a TLS reverse proxy
+1812, 1813 (UDP)
+FreeRADIUS
+NAS addresses only
+3306
+MariaDB
+Localhost only
+3100
+WAHA
+Localhost only
+3200
+WA Mandiri gateway
+Localhost only
+7547
+ACS Lite (TR-069)
+Reachable by CPE devices
+8728, 8729
+MikroTik API
+Never public; allow only the app server's address
+Core data flows
+1. An operator changes a customer, package or invoice in the panel; the app writes credentials to radcheck and radusergroup.
+2. A customer connects over PPPoE or hotspot; MikroTik asks FreeRADIUS, which authenticates from billing_radius.
+3. Session and usage records land in radacct; the panel reads it for online status and last-seen.
+4. A payment gateway calls the webhook; the app marks the invoice paid and lifts any suspension.
+5. The scheduler sends reminders and suspensions; messages go out through the WhatsApp gateway.
+6. The ACS collects ONU telemetry such as optical power; the app reads it through the ACS API.
+Architecture rules
+• radacct is the source of truth for online status and is read-only for the app; it never bulk-updates acctstoptime.
+• Vouchers and PPPoE customers share the radcheck username namespace, so one uniqueness check guards both.
+• The application time zone is Asia/Jakarta; server logs may stay in UTC.
+• Secrets live in .env with mode 600; operational settings live in the setting table.
+5. Functional requirements: customers and billing
+This module owns the customer record, the package catalogue, monthly invoicing, payments and the reminder-then-suspend cycle. Requirements use the form "the system shall"; each has an acceptance criterion a tester can check.
+5.1 Customers
+ID
+Requirement
+Acceptance criterion
+FR-CUS-01
+Create, edit and deactivate PPPoE and hotspot customers with name, phone, address, package, username and password
+Saving writes matching rows to radcheck and radusergroup within 5 seconds
+FR-CUS-02
+Enforce one username namespace across customers and vouchers
+A duplicate username is rejected with a clear message, including on import
+FR-CUS-03
+Store a KTP photo per customer
+JPEG or PNG up to 5 MB; viewable only by authenticated staff roles
+FR-CUS-04
+Record location coordinates and link the customer to an ODC and ODP
+The customer appears on the network map under the correct node
+FR-CUS-05
+Search and filter by name, username, phone, status, package and ODP, with paging
+Results return in under 1 second at 5,000 customers
+FR-CUS-06
+Export customers and import them with a dry-run preview
+The preview lists every username collision and row error before anything is written
+A customer moves through these states; only the transitions shown are allowed.
+stateDiagram-v2
+  [*] --> Pending
+  Pending --> Active: installed
+  Active --> Suspended: overdue past grace
+  Suspended --> Active: invoice paid
+  Active --> Terminated: contract ended
+  Suspended --> Terminated: contract ended
+  Terminated --> [*]
+5.2 Packages
+ID
+Requirement
+Acceptance criterion
+FR-PKG-01
+Define packages with name, type (PPPoE, hotspot or both), monthly price and a bandwidth profile
+A package can be saved only with a valid rate limit and price
+FR-PKG-02
+Map each package to a RADIUS group carrying its reply attributes, such as the MikroTik rate limit
+Saving a package creates or updates its group rows in the RADIUS tables
+FR-PKG-03
+Changing a customer's package updates RADIUS and the router profile
+The new speed applies at the customer's next session, or immediately after a forced disconnect
+FR-PKG-04
+Block deletion of a package that still has customers
+Deletion returns the count of customers using it
+5.3 Invoices
+ID
+Requirement
+Acceptance criterion
+FR-INV-01
+Generate monthly invoices for all active customers on a configurable day
+Re-running the job for the same period creates no duplicates, enforced by a unique index on customer and period
+FR-INV-02
+Create one-off invoices for items such as installation fees
+Appears in the customer's invoice list and totals
+FR-INV-03
+Track status as unpaid, paid or void, and derive overdue from the due date
+Overdue invoices are filterable and counted on the dashboard
+FR-INV-04
+Print invoices with a QR code on A4 and 58 mm thermal layouts
+PDF renders in under 3 seconds; the QR encodes the payment link or invoice number
+5.4 Payments
+ID
+Requirement
+Acceptance criterion
+FR-PAY-01
+Staff can record a manual payment (cash or transfer) with amount, date and note
+The invoice is marked paid when payments reach its total; an admin-log entry is written
+FR-PAY-02
+Print a payment receipt
+Thermal receipt shows invoice number, amount, date and cashier
+FR-PAY-03
+Paying an invoice of a suspended customer restores service automatically
+Within 1 minute the customer is active, RADIUS group restored, session re-established, and a confirmation sent
+5.5 Reminders and auto-suspend
+ID
+Requirement
+Acceptance criterion
+FR-SUS-01
+Send a WhatsApp reminder a configurable number of days before the due date (default 3)
+One reminder per invoice per offset; failures retry up to 3 times with backoff
+FR-SUS-02
+Suspend customers whose invoice is unpaid past the due date plus grace days
+The customer moves to the isolir group and the live session is disconnected; runs at least hourly
+FR-SUS-03
+Allow a per-customer "never suspend" flag
+Flagged customers are skipped and listed in the job log
+FR-SUS-04
+Send suspension and reactivation notices from editable templates
+Templates support name, invoice number, amount and due-date variables
+FR-SUS-05
+Scheduled jobs are idempotent and take a lock
+Two overlapping runs never process the same customer twice
+6. Functional requirements: network integration
+This module connects billing decisions to the network: RADIUS records, MikroTik routers, live sessions, the ODC/ODP map and ONU signal checks over TR-069.
+6.1 RADIUS
+ID
+Requirement
+Acceptance criterion
+FR-RAD-01
+Maintain credentials in radcheck, group membership in radusergroup, and group attributes in radgroupcheck and radgroupreply; use radreply for per-user overrides
+A test authentication with a customer's credentials returns Access-Accept with the package's rate limit
+FR-RAD-02
+Manage NAS devices in the nas table with name, address, shared secret and type
+The panel flags when FreeRADIUS needs a reload to pick up a new or changed NAS
+FR-RAD-03
+Show each NAS's health: API reachable and time of last accounting packet
+Status refreshes at least every 30 seconds; an unreachable NAS is flagged
+FR-RAD-04
+Derive online status only from radacct and mark sessions with no recent update as stale
+A session with no interim update for twice the interim interval shows "stale", never "online"
+FR-RAD-05
+Show recent authentication failures per user from radpostauth
+Support staff can see the last 20 rejects with reason and time
+6.2 MikroTik
+ID
+Requirement
+Acceptance criterion
+FR-MTK-01
+Sync PPP and hotspot profiles from packages through the RouterOS API
+A dry run shows the diff; applying twice changes nothing the second time
+FR-MTK-02
+Disconnect a live session on demand
+The session ends within 5 seconds; failures are logged and retried
+FR-MTK-03
+Prefer the TLS API port and store router credentials encrypted
+Credentials are never returned by any API response
+FR-MTK-04
+Show real-time interface traffic per NAS on the dashboard
+Graph updates at least every 5 seconds while the page is open
+6.3 Active sessions and dashboard
+ID
+Requirement
+Acceptance criterion
+FR-SES-01
+List active PPPoE and hotspot sessions with username, IP, NAS, uptime and up/down bytes, with search and a disconnect action
+Loads in under 2 seconds for 2,000 sessions
+FR-SES-02
+Dashboard summarising revenue, users online, offline and suspended, NAS health and traffic
+Figures refresh at least every 10 seconds; each tile shows its data age
+6.4 Network map
+ID
+Requirement
+Acceptance criterion
+FR-MAP-01
+Maintain ODC and ODP records with name, coordinates, parent and port capacity
+An ODP cannot be linked to more customers than its ports
+FR-MAP-02
+Show customers, ODC and ODP on an interactive map with marker clustering
+5,000 markers render in under 3 seconds; clicking a marker opens the record
+The map uses Leaflet with OpenStreetMap tiles; this choice is proposed and open to change.
+6.5 TR-069 and ONU signal
+ID
+Requirement
+Acceptance criterion
+FR-ACS-01
+Connect to ACS Lite through its HTTP API, with URL and API key kept in settings
+A "test connection" button reports success or the failure reason
+FR-ACS-02
+List devices with serial, model and last inform time, linked to a customer
+A device links by PPPoE username or a stored serial mapping
+FR-ACS-03
+Check an ONU's optical signal (attenuation) on demand from the panel or the Telegram bot
+Returns a reading within 30 seconds or a timeout message
+FR-ACS-04
+Classify readings as good, warning or critical against configurable thresholds
+Readings older than the freshness limit show as stale, never as good
+FR-ACS-05
+Treat the ACS as an external service
+The app never reads or writes the ACS database directly
+7. Functional requirements: vouchers, messaging, payments and operations
+This module covers everything around the core: hotspot vouchers, resellers, WhatsApp and Telegram, online payments, field tickets, reports and system functions.
+7.1 Vouchers
+ID
+Requirement
+Acceptance criterion
+FR-VCH-01
+Generate vouchers in bulk for a hotspot package with prefix, code length and quantity
+A batch of 1,000 completes in under 30 seconds; every code is unique in the shared radcheck namespace
+FR-VCH-02
+Design voucher templates with logo, fields and paper size
+The preview matches the printed output on A4 grid and thermal layouts
+FR-VCH-03
+Enforce validity period or data quota through RADIUS attributes
+An expired or exhausted voucher is rejected at authentication
+FR-VCH-04
+Record each voucher sale with price and seller
+Voucher revenue appears in reports, split by admin and reseller sales
+7.2 Resellers
+ID
+Requirement
+Acceptance criterion
+FR-RSL-01
+Provide a separate reseller dashboard limited to the reseller's own customers and vouchers
+Requests for another reseller's records return not found; covered by automated tests
+FR-RSL-02
+Keep reseller balance in an append-only ledger
+Balance always equals the sum of ledger rows and never goes negative
+FR-RSL-03
+Top up balance manually by staff or online through a payment gateway
+Every top-up writes one ledger row, even if the gateway retries the callback
+FR-RSL-04
+Charge the reseller price when generating vouchers or activating customers
+Insufficient balance blocks the action with a clear message
+FR-RSL-05
+Reseller reports for sales, balance history and customers
+Filterable by date range and exportable to CSV
+7.3 WhatsApp
+ID
+Requirement
+Acceptance criterion
+FR-WA-01
+Send through a gateway interface with WAHA as the primary driver and WA Mandiri as an alternative
+Switching driver is a setting change; a test-message button confirms it works
+FR-WA-02
+Queue outbound messages with a configurable rate limit and retry
+Messages per minute never exceed the limit; failed messages show their error in the log
+FR-WA-03
+Answer customer commands such as checking unpaid invoices, identified by registered phone number
+An unknown number receives a generic reply and no customer data
+FR-WA-04
+Edit message templates in the panel with variables
+A template with an unknown variable is rejected on save
+7.4 Telegram
+ID
+Requirement
+Acceptance criterion
+FR-TG-01
+Provide a staff bot with commands for customer status and ONU signal check
+Only Telegram accounts linked to a staff user receive any data
+FR-TG-02
+Post alerts to a staff group for new tickets, received payments and NAS outages
+Each alert type can be switched on or off in settings
+7.5 Payment gateways
+ID
+Requirement
+Acceptance criterion
+FR-PGW-01
+Support Midtrans, Xendit, Duitku and Tripay, each as a driver with create-payment, status check and webhook
+Each driver passes a full sandbox payment test
+FR-PGW-02
+Enable each gateway and store its keys from the panel
+Keys are encrypted at rest and masked in the UI
+FR-PGW-03
+Verify every webhook with the gateway's signature or callback token
+A forged callback returns 401 and is logged
+FR-PGW-04
+Make webhook handling idempotent
+A repeated callback returns success and changes nothing; gateway reference is unique in the database
+FR-PGW-05
+Put a payment link on the invoice, the QR code and the WhatsApp reminder
+Paying through the link closes the invoice and triggers FR-PAY-03
+FR-PGW-06
+Re-check pending payments with the gateway to recover missed webhooks
+Payments pending for over 15 minutes are re-checked automatically
+7.6 Tickets
+ID
+Requirement
+Acceptance criterion
+FR-TKT-01
+Create a ticket for a customer with category, description and priority
+Priority is one of low, normal, high or urgent
+FR-TKT-02
+Assign a technician; technicians see only tickets assigned to them
+Assignment triggers a notification to the technician
+FR-TKT-03
+Move tickets through open, assigned, in progress, resolved and closed
+Each change is stored with user and time
+7.7 Reports, logs, backup and API
+ID
+Requirement
+Acceptance criterion
+FR-SYS-01
+Financial reports: summary, income by period and net profit, with recorded expenses
+Net profit equals income minus expenses for the chosen period
+FR-SYS-02
+Keep an admin activity log of user, action, record, time and IP
+Log entries cannot be edited or deleted from the panel
+FR-SYS-03
+Back up and restore the database from the panel
+Backup runs without locking tables; restore is superadmin-only and takes a snapshot first
+FR-SYS-04
+Keep operational settings in one place: brand name, gateway tokens, ACS URL and key
+Sensitive values are encrypted and masked
+FR-API-01
+Expose a versioned REST API under /api/v1, documented in OpenAPI, for the customer and admin mobile apps
+Every endpoint enforces role scope; token auth with expiry
+8. Data model
+The database has two kinds of tables: FreeRADIUS tables the app must treat with care, and application tables the app fully owns. Table and column names below are proposed; the table groups follow the upstream architecture.
+Core entities
+erDiagram
+  PACKAGES ||--o{ CUSTOMERS : "subscribed to"
+  PACKAGES ||--o{ VOUCHERS : "defines"
+  CUSTOMERS ||--o{ INVOICES : "billed"
+  INVOICES ||--o{ PAYMENTS : "settled by"
+  CUSTOMERS ||--o{ TICKETS : "reports"
+  ODC ||--o{ ODP : "feeds"
+  ODP ||--o{ CUSTOMERS : "serves"
+  RESELLERS ||--o{ CUSTOMERS : "owns"
+  RESELLERS ||--o{ VOUCHERS : "sells"
+  RESELLERS ||--o{ BALANCE_LEDGER : "has"
+Table groups
+Group
+Tables
+Rules
+FreeRADIUS
+radcheck, radreply, radusergroup, radgroupcheck, radgroupreply, radacct, radpostauth, nas
+Created by the FreeRADIUS setup step, never by app migrations. The app writes credentials and groups; it only reads radacct and radpostauth
+Access
+users, roles, api_tokens, telegram_links
+Staff and reseller accounts, role scope, mobile-app tokens
+Catalogue and customers
+packages, customers, customer_documents, odc, odp
+KTP files stored on disk; the table keeps only the path
+Billing
+invoices, invoice_items, payments, expenses
+Money is stored as integer rupiah, never floating point
+Vouchers and resellers
+voucher_batches, vouchers, voucher_templates, resellers, balance_ledger
+Ledger rows are only ever inserted
+Messaging
+message_templates, message_queue, message_log
+Queue rows carry attempt count and last error
+Operations
+tickets, ticket_events, activity_log, job_runs
+job_runs records each scheduled job's start, end and result
+Settings
+setting
+Key and value; sensitive values encrypted
+ACS
+Separate database goacs
+Owned by ACS Lite; the app never connects to it
+Required constraints and conventions
+Rule
+Reason
+Unique username across customers and vouchers, checked against radcheck
+Both share one RADIUS namespace
+Unique (customer_id, period) on monthly invoices
+Makes invoice generation safe to re-run
+Unique (gateway, gateway_ref) on payments
+Makes webhook handling idempotent
+No UPDATE or DELETE on balance_ledger from the app
+Balance stays auditable
+Soft delete: customers become Terminated and invoices become Void
+Financial history is never lost
+DB server, app and FreeRADIUS all use Asia/Jakarta (+07:00)
+radacct times must compare correctly with invoice dates
+Indexes on radacct(username, acctstoptime), invoices(status, due_date) and customers(status, package_id)
+Needed to meet the section 2 performance targets
+Numbered, forward-only migrations run by a migration tool, excluding the RADIUS tables
+Repeatable installs and upgrades
+9. UI/UX requirements
+The panel is a single-page web app in Indonesian and English that works on a phone, shows each role only its own menu, and never hides how old its data is.
+Navigation by role
+Role
+Menu
+Superadmin, Admin
+Dashboard, Customers, Packages, Invoices, Vouchers, Resellers, Network (NAS, sessions, map), Devices, Tickets, Reports, Messaging, Payments, Settings and backup
+Operator
+Dashboard, Customers, Invoices, Tickets, Sessions
+Teknisi
+Dashboard, My tickets, Map, Devices
+Reseller
+Dashboard, My customers, My vouchers, Top up, Reports
+Customers use the mobile apps and the WhatsApp and Telegram bots, not this panel.
+Requirements
+ID
+Requirement
+Acceptance criterion
+UI-01
+Every core screen works on a phone
+No horizontal page scroll at 360 px width on the core screens
+UI-02
+Show only the menus and actions a role may use
+The API still enforces permissions; hiding is convenience, not security
+UI-03
+Indonesian is the default language, English is available, chosen per user
+All strings come from locale files; a missing key falls back to Indonesian; money shows as Rp and dates as dd/mm/yyyy
+UI-04
+Light and dark themes that follow the system setting, with a manual override
+Body text meets a 4.5:1 contrast ratio in both themes
+UI-05
+Large lists use server-side paging, sorting and filtering
+A 5,000-row list never loads all rows into the browser
+UI-06
+Destructive or bulk actions ask for confirmation and show a result summary
+Delete, suspend-all and restore each show a confirm dialog naming the count affected
+UI-07
+Live figures show their age, and old data is labelled stale
+Any tile older than its refresh interval turns grey with a "stale" label
+UI-08
+Print layouts for A4 invoices, 58 mm receipts and voucher sheets
+Output matches the on-screen preview
+UI-09
+Serve the frontend as static ES modules with no build step, with libraries vendored locally
+The panel loads on a server with no outbound internet, except map tiles
+UI-10
+Provide a technician-friendly ticket view with a tap-to-call phone number and a map link
+A technician can open a ticket and start navigation in two taps
+10. Non-functional requirements
+The system must stay safe with customer personal data and payment callbacks, keep customers online when the app is down, and run on a modest 2-core, 4 GB VPS.
+Security
+ID
+Requirement
+Acceptance criterion
+NFR-SEC-01
+No fixed default credentials. The installer generates a random admin password shown once, or forces a change at first login
+No build contains a hard-coded admin password. Upstream ships admin / admin123; this is a deliberate change
+NFR-SEC-02
+Hash passwords with bcrypt or argon2; issue short-lived signed tokens for sessions
+Tokens expire; the signing secret is generated at install and preserved across upgrades
+NFR-SEC-03
+Rate-limit and lock out repeated failed logins
+After 5 failures in 15 minutes the account or address is blocked for a cool-down period
+NFR-SEC-04
+Use parameterised queries only, and never return secrets or password hashes from any endpoint
+An automated test scans API responses for hashes, RADIUS secrets and gateway keys
+NFR-SEC-05
+Encrypt stored secrets (gateway keys, router and ACS credentials) and keep .env at mode 600
+Database dump alone does not reveal any gateway key
+NFR-SEC-06
+Serve the panel over HTTPS behind a reverse proxy with automatic certificates
+Plain HTTP redirects to HTTPS; the install guide covers domain and SSL setup
+NFR-SEC-07
+Bind MariaDB, WAHA and WA Mandiri to localhost, and restrict the MikroTik API to the app server's address
+A post-install check lists listening ports and fails on any unexpected public one
+NFR-SEC-08
+Protect KTP photos and other uploads behind authentication
+Direct URL access without a valid session returns 401
+NFR-SEC-09
+Public webhook endpoints verify signatures, are rate-limited and reveal nothing in responses
+Responses contain only a status code and a generic body
+Performance and reliability
+ID
+Requirement
+Acceptance criterion
+NFR-PERF-01
+Meet the section 2 targets on a 2-core, 4 GB VPS at 5,000 customers
+Load test at that size passes every target
+NFR-PERF-02
+List and search API calls stay fast
+p95 under 500 ms at 5,000 customers and 2,000 concurrent sessions
+NFR-REL-01
+Customer authentication does not depend on the app
+With the app process stopped, existing customers still authenticate through FreeRADIUS
+NFR-REL-02
+Billing continues when WhatsApp, a payment gateway, the ACS or a router is down
+Failed calls are queued or retried and shown in the UI; no invoice or suspension job aborts
+NFR-REL-03
+Restart automatically after a crash or reboot
+pm2 restarts both processes; scheduled jobs resume without duplicates
+NFR-REL-04
+Automated nightly database backup with retention of 7 daily and 4 weekly copies
+A restore drill from the latest backup succeeds on a clean server
+Observability, compatibility and quality
+ID
+Requirement
+Acceptance criterion
+NFR-OBS-01
+Write structured JSON logs with a request ID, rotated automatically
+Logs never contain passwords, tokens or full gateway payloads with secrets
+NFR-OBS-02
+Provide a health endpoint covering database, RADIUS reachability and last job runs
+Returns non-200 when the database is down or a job has missed two runs
+NFR-OBS-03
+Alert staff on Telegram when a job fails or a NAS goes down
+Alert arrives within 5 minutes of the failure
+NFR-CMP-01
+Support Ubuntu 22.04 and 24.04 and Debian 11 and 12 on x86-64
+Installer tested on all four; arm64 is later work
+NFR-CMP-02
+Work with MikroTik RouterOS 6 and 7
+Provisioning and disconnect pass on both versions
+NFR-CMP-03
+Support current Chrome, Firefox, Safari and Edge, and Android Chrome
+Core flows pass on the latest two versions of each
+NFR-TST-01
+Automated unit and integration tests run in CI against MariaDB and FreeRADIUS containers
+An end-to-end test creates a customer and gets Access-Accept from a real RADIUS client
+NFR-TST-02
+Payment gateway drivers are tested against sandbox environments and recorded fixtures
+Every driver has replayable webhook fixtures, including forged and duplicate callbacks
+11. Deployment, installation and updates
+A fresh Ubuntu or Debian VPS reaches a working panel from one command, and updates keep data safe and roll back on failure. The script set mirrors upstream, with a release tarball replacing the compiled binary and a backup script added.
+Install scripts
+Every script must be idempotent, non-interactive (no package prompts) and non-fatal for optional add-ons.
+Script
+What it does
+Port
+install.sh
+Orchestrates: Node.js and pm2, release download, database, app start, then add-ons
+None
+setup-db.sh
+Installs MariaDB, creates database and user, runs migrations, creates the first admin, writes .env
+3306
+setup-freeradius.sh
+Installs FreeRADIUS with the sql module against billing_radius and verifies the config
+1812, 1813
+setup-waha.sh
+Runs WAHA in Docker and stores its token in settings
+3100
+setup-wa-gateway.sh
+Installs the WA Mandiri (Baileys) gateway
+3200
+setup-acslite.sh
+Installs ACS Lite with its own database and a systemd unit
+7547
+update.sh
+Updates the app, optionally the add-ons
+None
+backup.sh (new)
+Nightly database and uploads backup with retention
+None
+Each component has an opt-out flag, for example SIMBILL_SKIP_RADIUS=1, for servers that already run it.
+Configuration
+The app reads /opt/simbill/.env at start and refuses to run, with a clear message, if a required value is missing.
+Variable
+Purpose
+PORT
+Web port, default 3000
+DB_HOST, DB_NAME, DB_USER, DB_PASS
+Database connection
+JWT_SECRET
+Signs session tokens; must be kept across upgrades or every session is invalidated
+SECRETS_KEY (new)
+Encrypts stored gateway keys and credentials
+SIMBILL_HOME
+Install directory, default /opt/simbill
+TZ
+Must be Asia/Jakarta
+Updates and rollback
+1. update.sh first backs up .env, the database and the uploads folder.
+2. It downloads the new release, runs pending migrations and restarts both pm2 processes.
+3. It checks the health endpoint; on failure it restores the previous version and database snapshot.
+4. Uploads and .env are never overwritten.
+In-app self-update from GitHub Releases is deferred past the first release.
+Backup and restore
+• backup.sh runs nightly with mysqldump --single-transaction for billing_radius, plus the ACS database and the uploads folder.
+• Retention is 7 daily and 4 weekly copies; an optional off-server copy is configurable.
+• Restore is documented and rehearsed on a clean server as part of release testing (NFR-REL-04).
+Rollout rule
+Every release is tried on one test server with one test customer before it reaches production, as upstream advises operators to do. Database jobs that touch many rows run in small batches with pauses, to avoid deadlocks with FreeRADIUS.
+12. Release plan and milestones
+The first usable release is phases 0 to 2, which give billing with automatic suspend on a real router; later phases follow in order of operator value. Calendar dates are set once team size is known (section 13).
+Phase
+Scope
+Requirements
+Exit criterion
+0. Foundation
+Repo and CI, migrations, staff accounts and roles, settings, installer skeleton, FreeRADIUS and database setup, health endpoint
+NFR-SEC-01 to 04, FR-SYS-04, NFR-OBS-02, NFR-TST-01
+Fresh VPS installs, admin logs in, and CI passes an end-to-end RADIUS Access-Accept test
+1. Core billing
+Customers, packages, invoices, manual payments, activity log, PDF invoices and receipts
+FR-CUS-01 to 06, FR-PKG, FR-INV, FR-PAY-01 and 02, FR-SYS-02
+A customer is created, authenticates through RADIUS, is invoiced and paid, and both PDF layouts print
+2. Network and automation
+RADIUS management, MikroTik sync and disconnect, sessions, dashboard, auto-suspend and restore
+FR-RAD, FR-MTK, FR-SES, FR-SUS-02, 03 and 05, FR-PAY-03
+A test customer on a real MikroTik is suspended when overdue and restored when paid, unattended
+3. Messaging
+WhatsApp gateway and bot, Telegram bot, reminders and notices
+FR-WA, FR-TG, FR-SUS-01 and 04
+Reminder, suspension notice and a customer bot command all work through WAHA
+4. Online payments
+Four gateway drivers, webhooks, payment links
+FR-PGW
+Sandbox payments pass on all four gateways, including forged and duplicate callbacks
+5. Hotspot and resellers
+Vouchers, templates, reseller panel and ledger
+FR-VCH, FR-RSL
+Reseller top-up, voucher batch, hotspot login and ledger reconcile to the rupiah
+6. Field operations
+Tickets, ODC/ODP map, TR-069 signal check
+FR-TKT, FR-MAP, FR-ACS, FR-CUS-04 map linkage, UI-10
+A technician takes a ticket, finds the customer on the map and checks the ONU signal
+7. Reporting and hardening
+Financial reports, backup and restore, REST API, load and restore tests, i18n and theme polish
+FR-SYS-01 and 03, FR-API-01, NFR-PERF, NFR-REL, UI-03 and 04
+5,000-customer load test and a restore drill pass, then a pilot with one operator
+8. Deferred
+In-app self-update, arm64 build, native mobile apps
+None yet
+Scheduled after the pilot
+FR-CUS-04 stores coordinates and the ODP link in phase 1; the map view that uses them arrives in phase 6.
+13. Risks, assumptions and open questions
+The largest risks are legal (copying upstream) and operational (unofficial WhatsApp gateways and RADIUS data integrity); the largest open decision is who the product is for.
+Licensing note
+The upstream repository listing shows no license file, its README describes a license-activation system, and its install scripts point at a separate distribution repository. Treat the upstream code, assets and brand as all rights reserved unless the owner states otherwise. Implementers should work from this PRD and public documentation only, must not copy code, images, the mobile apps or the SimBill name, and should choose their own product name if the rebuild will be distributed. This is a project note, not legal advice.
+Risks
+Risk
+Impact
+Mitigation
+Copying upstream code or branding
+Infringement claim, forced takedown
+Clean-room approach and own branding (licensing note above)
+WhatsApp via unofficial gateways (WAHA, Baileys)
+Number blocked, messages stop
+Rate limits (FR-WA-02), opt-in messaging, and an official WhatsApp Business API driver behind the same interface later
+App corrupts or deadlocks radacct
+Wrong online status, billing disputes
+Read-only rule for radacct, batch jobs with pauses
+Forged or duplicated payment callbacks
+Free service or double credit
+FR-PGW-03 and 04, sandbox and fixture tests
+Customer personal data (KTP photos, phone numbers) leaks
+Regulatory and reputational harm
+NFR-SEC-05 and 08; review retention and consent against Indonesia's Personal Data Protection Law (UU PDP) before launch
+RouterOS 6 and 7 API differences
+Provisioning or disconnect fails on some routers
+Test both versions (NFR-CMP-02)
+Ageing dependencies, as happened with Node.js 20
+Unpatched runtime in production
+Lockfile, dependency audit in CI, runtime upgrade in the release checklist
+Scope is large for a small team
+Late or half-finished release
+Phases 0 to 2 form a usable first release
+Reliance on ACS Lite (a third-party service)
+ONU checks unavailable
+Wrap it behind one client (FR-ACS-05); the rest of the product works without it
+Assumptions
+• One ISP per installation (single-tenant), rupiah only, and a monthly billing cycle.
+• MikroTik is the only router vendor, and FreeRADIUS uses its standard SQL schema.
+• The operator has root access to a VPS with a public address.
+• Upstream features are taken from its README files; its source tree was not reviewed, so behaviours not written there are proposals.
+Open questions
+[ ] Is this rebuild for your own use or to be sold or distributed? This decides branding, licensing and whether multi-tenant hosting comes later.
+[ ] Should the schema be drop-in compatible with an existing SimBill database, or start clean with an import script?
+[ ] Do the existing upstream Android apps need to keep working, which would force API compatibility, or will new apps be built against /api/v1?
+[ ] JavaScript or TypeScript for the codebase?
+[ ] May the frontend use a small library such as Alpine.js or Vue (vendored, no build step), or must it be plain JavaScript?
+[ ] Should invoices support proration for mid-month starts, partial payments and PPN tax?
+[ ] Who bears payment gateway fees: the operator or the customer?
+[ ] What are the default grace period and reminder offset for the first operator?
+[ ] Team size and target dates, so section 12 can carry a calendar.
+Sources
+All pages were opened on 2026-09-21.
+• danilsyah/SimBill-Project: README feature list, technology table, default install and configuration.
+• idpanyoet/simbill-dist: architecture, data flows, install scripts, ports and troubleshooting.
+• Node.js Release Working Group: LTS status and end-of-life dates for Node.js 20, 22, 24 and 26.
 ````
 
 ## File: docs/docker-deployment-guide.md
@@ -61300,11 +63074,6 @@ App runs but returns 502?
 - Verify the app binds to 0.0.0.0, not 127.0.0.1
 ````
 
-## File: lang/id/auth.php
-````php
-
-````
-
 ## File: resources/css/app.css
 ````css
 @source '../../app';
@@ -61436,12 +63205,12 @@ input:focus[data-flux-control],
 
 ````
 
-## File: resources/views/livewire/layanan-pelanggan/index.blade.php
+## File: resources/views/livewire/ip-pool/edit.blade.php
 ````php
 
 ````
 
-## File: resources/views/livewire/pelanggan/create.blade.php
+## File: resources/views/livewire/media-library/index.blade.php
 ````php
 
 ````
@@ -61451,7 +63220,7 @@ input:focus[data-flux-control],
 
 ````
 
-## File: resources/views/livewire/settings/perusahaan.blade.php
+## File: resources/views/livewire/settings/profile.blade.php
 ````php
 
 ````
@@ -61459,6 +63228,59 @@ input:focus[data-flux-control],
 ## File: resources/views/livewire/users/edit.blade.php
 ````php
 
+````
+
+## File: resources/views/livewire/users/index.blade.php
+````php
+
+````
+
+## File: resources/views/livewire/dashboard.blade.php
+````php
+
+````
+
+## File: resources/views/pdf/invoice.blade.php
+````php
+
+````
+
+## File: routes/console.php
+````php
+use Illuminate\Support\Facades\Schedule;
+⋮----
+Schedule::command('invoice:generate')->dailyAt('01:00')->onOneServer();
+Schedule::command('invoice:cek-kadaluarsa')->dailyAt('02:00')->onOneServer();
+Schedule::command('layanan:cek-isolir')->dailyAt('02:30')->onOneServer();
+⋮----
+Schedule::command('layanan:cek-tunggakan-pertama')->hourly()->onOneServer();
+⋮----
+Schedule::command('mikrotik:provisi-router --async')
+->everyFifteenMinutes()
+->withoutOverlapping(15)
+->onOneServer()
+->runInBackground();
+⋮----
+Schedule::command('mikrotik:provisi-router --async --clean-orphans')
+->dailyAt('03:00')
+->withoutOverlapping(60)
+⋮----
+Schedule::command('xendit:cek-va-expired')->hourly()->onOneServer();
+⋮----
+Schedule::command('pembayaran:rekonsiliasi')
+⋮----
+->onOneServer();
+⋮----
+Schedule::command('mikrotik:ping')
+->everyFiveMinutes()
+->withoutOverlapping(5)
+⋮----
+Schedule::command('invoice:kirim-pengingat')->hourly()->onOneServer();
+Schedule::command('wa:proses-antrian')->everyFiveMinutes()->onOneServer();
+⋮----
+Schedule::command('horizon:snapshot')->everyFiveMinutes()->onOneServer();
+⋮----
+Schedule::command('horizon:monitor-health')->everyFiveMinutes()->onOneServer();
 ````
 
 ## File: scripts/load-test/README.md
@@ -61556,109 +63378,54 @@ suite.
 function signedPost(bodyObj)
 ````
 
-## File: tests/Feature/Auth/AuthenticationTest.php
+## File: tests/Feature/Billing/CheckTunggakanInvoicePertamaCommandTest.php
 ````php
-use App\Models\User;
-use Laravel\Fortify\Features;
-⋮----
-$response = $this->get(route('login'));
-⋮----
-$response->assertOk();
-⋮----
-$user = User::factory()->create();
-⋮----
-$response = $this->post(route('login.store'), [
-⋮----
-->assertSessionHasNoErrors()
-->assertRedirect(route('dashboard', absolute: false));
-⋮----
-$this->assertAuthenticated();
-⋮----
-$response->assertSessionHasErrorsIn('email');
-⋮----
-$this->assertGuest();
-⋮----
-$response->assertSessionHasErrors(['email' => trans('auth.failed')]);
-expect(trans('auth.failed'))->not->toBe('These credentials do not match our records.');
-⋮----
-$this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
-⋮----
-Features::twoFactorAuthentication([
-⋮----
-$user = User::factory()->withTwoFactor()->create();
-⋮----
-$response->assertRedirect(route('two-factor.login'));
-⋮----
-$response = $this->actingAs($user)->post(route('logout'));
-⋮----
-$response->assertRedirect(route('home'));
-````
-
-## File: tests/Feature/Billing/GenerateFirstInvoiceTest.php
-````php
-use App\Enums\JenisTagihanPertama;
+use App\Enums\ProvisioningStatus;
+use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
+use App\Jobs\Mikrotik\DisablePppoeAccountJob;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
-use App\Models\Promo;
-use App\Services\Billing\BillingService;
+use App\Models\Pelanggan;
+use App\Models\ProfilBandwidth;
+use App\Models\Router;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Queue;
 ⋮----
 $this->seed(RolesAndPermissionsSeeder::class);
 ⋮----
-$this->paket = PaketLayanan::factory()->create([
+$this->router = Router::factory()->online()->create();
+$this->pelanggan = Pelanggan::factory()->create();
+$this->profil = ProfilBandwidth::factory()->create();
+$this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
 ⋮----
-$rincian = $this->billing->hitungRincianTagihanPertama(
+$this->buatLayanan = fn (): LayananPelanggan => LayananPelanggan::factory()->create([
 ⋮----
-expect($rincian['jumlah'])->toBe(300000.0)
-->and($rincian['diskon'])->toBe(0.0)
-->and($rincian['jumlah_setelah_promo'])->toBe(300000.0)
-->and($rincian['hari_ditagih'])->toBeNull()
-->and($rincian['hari_total_periode'])->toBeNull();
+'terprovisi_pada' => Carbon::now()->subDays(2),
 ⋮----
-$tanggalMulai = \Illuminate\Support\Carbon::create(2026, 9, 21);
+Queue::fake([DisablePppoeAccountJob::class]);
 ⋮----
-expect($rincian['hari_total_periode'])->toBe(30)
-->and($rincian['hari_ditagih'])->toBe(10)
-->and($rincian['jumlah'])->toBe(round(300000 / 30 * 10, 2))
-->and($rincian['jumlah_setelah_promo'])->toBe(round(300000 / 30 * 10, 2));
+Invoice::factory()->create([
 ⋮----
-$promo = Promo::factory()->create([
+'tanggal_jatuh_tempo' => Carbon::yesterday(),
 ⋮----
-->and($rincian['diskon'])->toBe(50000.0)
-->and($rincian['jumlah_setelah_promo'])->toBe(250000.0);
+$this->artisan('layanan:cek-tunggakan-pertama')->assertSuccessful();
 ⋮----
-$layanan = LayananPelanggan::factory()->create([
+expect($layanan->fresh()->status)->toBe(StatusLayanan::Suspend);
+Queue::assertPushed(DisablePppoeAccountJob::class);
 ⋮----
-'tanggal_mulai' => now()->toDateString(),
-'tanggal_expired' => now()->addMonth()->toDateString(),
+'tanggal_jatuh_tempo' => Carbon::today(),
 ⋮----
-$invoice = $this->billing->generateFirstInvoice($layanan, JenisTagihanPertama::SatuBulanFull);
+expect($layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
 ⋮----
-expect($invoice->periode_tagihan)->toBeNull()
-->and((float) $invoice->jumlah_setelah_promo)->toBe(300000.0)
-->and($invoice->layanan_pelanggan_id)->toBe($layanan->id);
+'tanggal_jatuh_tempo' => Carbon::today()->subMonth(),
 ⋮----
-$tanggalMulai = now()->startOfMonth()->addDays(10);
-$tanggalExpired = $tanggalMulai->copy()->addMonthNoOverflow();
+$layanan->update(['status' => StatusLayanan::Proses]);
 ⋮----
-'tanggal_mulai' => $tanggalMulai->toDateString(),
-'tanggal_expired' => $tanggalExpired->toDateString(),
-⋮----
-$tagihanPertama = $this->billing->generateFirstInvoice($layanan, JenisTagihanPertama::ProporsionalSisaHari);
-⋮----
-$this->artisan('invoice:generate', ['--force' => true])->assertSuccessful();
-⋮----
-$invoices = Invoice::where('layanan_pelanggan_id', $layanan->id)->get();
-⋮----
-expect($invoices)->toHaveCount(2);
-⋮----
-$tagihanSiklus = $invoices->firstWhere('id', '!=', $tagihanPertama->id);
-expect($tagihanSiklus)->not->toBeNull()
-->and($tagihanSiklus->periode_tagihan)->toBe($tanggalExpired->format('Y-m'))
-->and((float) $tagihanSiklus->jumlah_setelah_promo)->toBe(300000.0);
+expect($layanan->fresh()->status)->toBe(StatusLayanan::Proses);
 ````
 
 ## File: tests/Feature/Billing/GenerateInvoicesCommandTest.php
@@ -61859,56 +63626,6 @@ expect($baru->fresh()->status)->toBe(StatusInvoice::Dibatalkan)
 ->set('deletingId', $lama->id)
 ````
 
-## File: tests/Feature/Jobs/MikrotikHighQueueOverlapTest.php
-````php
-use App\Jobs\Mikrotik\CleanupPppSecretOnOldRouterJob;
-use App\Jobs\Mikrotik\DisablePppoeAccountJob;
-use App\Jobs\Mikrotik\EnablePppoeAccountJob;
-use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
-use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
-use App\Models\LayananPelanggan;
-use App\Models\PaketLayanan;
-use App\Models\Pelanggan;
-use App\Models\ProfilBandwidth;
-use App\Models\Router;
-use App\Services\Mikrotik\MikrotikService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Queue\Middleware\WithoutOverlapping;
-use Illuminate\Support\Facades\Cache;
-⋮----
-$this->router = Router::factory()->online()->create();
-$this->pelanggan = Pelanggan::factory()->create();
-$this->profil = ProfilBandwidth::factory()->create();
-$this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
-$this->layanan = LayananPelanggan::factory()->create([
-⋮----
-$middleware = $job->middleware();
-⋮----
-expect($middleware)->toHaveCount(1);
-expect($middleware[0])->toBeInstanceOf(WithoutOverlapping::class);
-expect($middleware[0]->key)->toBe("mikrotik-router-{$this->router->id}");
-expect($middleware[0]->shareKey)->toBeTrue();
-⋮----
-$lockKeys[] = $middleware[0]->getLockKey($job);
-⋮----
-expect(array_unique($lockKeys))->toHaveCount(1);
-⋮----
-$lock = Cache::lock($lockKey, 30);
-expect($lock->get())->toBeTrue();
-⋮----
-$mockService = Mockery::mock(MikrotikService::class);
-$mockService->shouldNotReceive('createOrUpdatePppoeSecret');
-$this->app->instance(MikrotikService::class, $mockService);
-⋮----
-ProvisionPppoeAccountJob::dispatch($this->layanan);
-⋮----
-$lock->release();
-⋮----
-$mockService->shouldReceive('createOrUpdatePppoeSecret')
-->once()
-->andReturn(['status' => 'success', 'action' => 'created']);
-````
-
 ## File: tests/Feature/Jobs/ProcessWhatsappWebhookJobTest.php
 ````php
 use App\Enums\StatusWebhookLog;
@@ -61962,307 +63679,107 @@ expect($antrian->fresh()->status)->toBe(StatusAntrianWa::Gagal)
 ->and($antrian->fresh()->pesan_error)->toBe('Kegagalan awal, seharusnya tidak ditimpa');
 ````
 
-## File: tests/Feature/Mikrotik/MikrotikProvisionRouterTest.php
+## File: tests/Feature/MediaLibrary/IndexTest.php
 ````php
-use App\Enums\MikrotikJobStatus;
-use App\Enums\MikrotikJobType;
-use App\Enums\StatusLayanan;
-use App\Enums\StatusRouter;
-use App\Jobs\Mikrotik\ProvisionRouterJob;
-use App\Jobs\Mikrotik\RecoverPppRouterJob;
-use App\Jobs\Mikrotik\SyncBandwidthProfileToRoutersJob;
-use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
-use App\Models\IpPool;
-use App\Models\LayananPelanggan;
-use App\Models\MikrotikJobLog;
-use App\Models\PaketLayanan;
+use App\DTO\Storage\S3HealthCheckResult;
+use App\Enums\UserStatus;
+use App\Livewire\MediaLibrary\Index;
+use App\Models\BerkasUmum;
 use App\Models\Pelanggan;
-use App\Models\ProfilBandwidth;
-use App\Models\Router;
+use App\Models\Ticket;
 use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
-use App\Observers\IpPoolObserver;
-use App\Services\Mikrotik\MikrotikService;
+use App\Services\Storage\S3HealthCheckService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Queue;
-use RouterOS\Client;
+use Illuminate\Http\UploadedFile;
+use Livewire\Livewire;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Spatie\Permission\Models\Role;
+⋮----
+function buatMediaDummy($model, string $collection): Media
+⋮----
+return $model->addMedia($path)->preservingOriginal()->toMediaCollection($collection);
 ⋮----
 $this->seed(RolesAndPermissionsSeeder::class);
 ⋮----
-$this->router = Router::factory()->online()->create([
+$this->superAdmin = User::factory()->create(['status' => UserStatus::Active]);
+$this->superAdmin->assignRole('super_admin');
 ⋮----
-$this->pelanggan = Pelanggan::factory()->create();
-$this->profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Home-20M']);
-$this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
-$this->layanan = LayananPelanggan::factory()->create([
+$this->admin = User::factory()->create(['status' => UserStatus::Active]);
+$this->admin->assignRole('admin');
 ⋮----
-$pool = IpPool::factory()->create(['router_id' => $this->router->id]);
+Livewire::actingAs($this->superAdmin)
+->test(Index::class)
+->assertOk();
 ⋮----
-$mockService = Mockery::mock(MikrotikService::class)->makePartial();
+Livewire::actingAs($this->admin)
 ⋮----
-$mockService->shouldReceive('testConnection')
-->once()
-->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any(), Mockery::any())
-->andReturn(['status' => 'success']);
+->assertForbidden();
 ⋮----
-$mockService->shouldReceive('syncIpPool')
+$ticket = Ticket::factory()->create();
 ⋮----
-->with(
-Mockery::on(fn ($r) => $r->id === $this->router->id),
-Mockery::on(fn ($p) => $p->id === $pool->id),
-Mockery::any()
-⋮----
-$mockService->shouldReceive('syncAllBandwidthProfiles')
-⋮----
-->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any())
-->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
-⋮----
-$mockService->shouldReceive('autoRecoverPppSecrets')
-⋮----
-->andReturn([
-⋮----
-$mockService->shouldReceive('cleanOrphanedPppSecrets')
-⋮----
-->with(Mockery::on(fn ($r) => $r->id === $this->router->id), false, Mockery::any())
-⋮----
-$result = $mockService->provisionRouterFull($this->router);
-⋮----
-expect($result['status'])->toBe('success')
-->and($result['router_id'])->toBe($this->router->id);
-⋮----
-$log = MikrotikJobLog::where('router_id', $this->router->id)
-->where('job_type', MikrotikJobType::ProvisionRouter)
-->first();
-⋮----
-expect($log)->not->toBeNull()
-->and($log->status)->toBe(MikrotikJobStatus::Success)
-->and($this->router->fresh()->last_sync_at)->not->toBeNull();
-⋮----
-$mockService = Mockery::mock(MikrotikService::class);
-$mockService->shouldReceive('provisionRouterFull')
-⋮----
-$job->handle($mockService);
-⋮----
-expect(true)->toBeTrue();
-⋮----
-Notification::fake();
-⋮----
-$superAdmin = User::factory()->create();
-$superAdmin->assignRole('super_admin');
-⋮----
-$noc = User::factory()->create();
-$noc->assignRole('noc');
-⋮----
-MikrotikJobLog::create([
-⋮----
-$job->failed(new Exception('Connection timeout'));
-⋮----
-Notification::assertSentTo([$superAdmin, $noc], MikrotikJobFailedNotification::class);
-⋮----
-$this->app->instance(MikrotikService::class, $mockService);
-⋮----
-$this->artisan('mikrotik:provisi-router', ['--router' => $this->router->id])
-->expectsOutputToContain('PROVISI & SINKRONISASI MASTER ROUTER MIKROTIK')
-->expectsOutputToContain("Sukses provisi {$this->router->nama_router}")
-->assertSuccessful();
-⋮----
-Queue::fake();
-⋮----
-$this->artisan('mikrotik:provisi-router', ['--async' => true, '--clean-orphans' => true])
-->expectsOutputToContain('Mendispatch job provisi & recovery')
-->expectsOutputToContain('Seluruh job recovery & provisi router berhasil dimasukkan ke antrean')
-⋮----
-Queue::assertPushed(RecoverPppRouterJob::class, function ($job) {
-⋮----
-$pool = IpPool::factory()->create([
-⋮----
-SyncIpPoolToRouterJob::dispatch($pool);
-⋮----
-Queue::assertPushed(SyncIpPoolToRouterJob::class, function ($job) use ($pool) {
-⋮----
-$profil = ProfilBandwidth::factory()->create([
-⋮----
-SyncBandwidthProfileToRoutersJob::dispatch($profil);
-⋮----
-Queue::assertPushed(SyncBandwidthProfileToRoutersJob::class, function ($job) use ($profil) {
-⋮----
-$profil = ProfilBandwidth::factory()->make(['nama_bandwidth' => 'Profile-Dedup-Test']);
-app()->instance('env', 'production');
-$profil->save();
-app()->instance('env', 'testing');
-⋮----
-Queue::assertPushed(SyncBandwidthProfileToRoutersJob::class, 1);
-⋮----
-$mockClient = Mockery::mock(Client::class);
-⋮----
-$mockService->shouldReceive('getClient')->andReturn($mockClient);
-$mockService->shouldReceive('syncAllBandwidthProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
-⋮----
-$mockClient->shouldReceive('query')->andReturnSelf();
-$mockClient->shouldReceive('read')->andReturn([
-⋮----
-$stats = $mockService->autoRecoverPppSecrets($this->router);
-⋮----
-expect($stats['duplicates_removed'])->toBe(1)
-->and($stats['already_synced'])->toBe(1);
-⋮----
-LayananPelanggan::factory()->create([
-⋮----
-$stats = $mockService->cleanOrphanedPppSecrets($this->router, executeDelete: true);
-⋮----
-expect($stats['deleted'])->toBe(0)
-->and($stats['orphans_count'])->toBe(0);
-````
-
-## File: tests/Feature/Mikrotik/MikrotikServiceMemoizationTest.php
-````php
-use App\Enums\JenisKoneksi;
-use App\Enums\StatusLayanan;
-use App\Models\IpPool;
-use App\Models\LayananPelanggan;
-use App\Models\PaketLayanan;
-use App\Models\ProfilBandwidth;
-use App\Models\Router;
-use App\Services\Mikrotik\MikrotikService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use RouterOS\Client;
-⋮----
-$router = Router::factory()->online()->create();
-$profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Cache-10M']);
-⋮----
-$mockClient = Mockery::mock(Client::class);
-$mockClient->shouldReceive('query')->twice()->andReturnSelf();
-$mockClient->shouldReceive('read')->twice()->andReturn([]);
-⋮----
-$first = $service->ensurePppProfile($router, $profil, $mockClient);
-$second = $service->ensurePppProfile($router, $profil, $mockClient);
-⋮----
-expect($first)->toBe('Profile-Cache-10M')
-->and($second)->toBe('Profile-Cache-10M');
-⋮----
-$pool = IpPool::factory()->create(['router_id' => $router->id]);
-⋮----
-$mockClient->shouldReceive('query')->times(4)->andReturnSelf();
-$mockClient->shouldReceive('read')->times(4)->andReturn([]);
-⋮----
-$first = $service->syncIpPool($router, $pool, $mockClient);
-$second = $service->syncIpPool($router, $pool, $mockClient);
-⋮----
-expect($first['status'])->toBe('success')
-->and($second['status'])->toBe('success');
-⋮----
-$profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Shared-20M']);
-$paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
-⋮----
-$layananA = LayananPelanggan::factory()->create([
-⋮----
-$layananB = LayananPelanggan::factory()->create([
-⋮----
-$mockClient->shouldReceive('query')->times(6)->andReturnSelf();
-$mockClient->shouldReceive('read')->times(6)->andReturn([]);
-⋮----
-$service->createOrUpdatePppoeSecret($router, $layananA->fresh(['paketLayanan.profilBandwidth', 'pelanggan']), $mockClient);
-$service->createOrUpdatePppoeSecret($router, $layananB->fresh(['paketLayanan.profilBandwidth', 'pelanggan']), $mockClient);
-⋮----
-expect(true)->toBeTrue();
-````
-
-## File: tests/Feature/Mikrotik/MikrotikServiceTest.php
-````php
-use App\Enums\JenisKoneksi;
-use App\Enums\StatusLayanan;
-use App\Enums\StatusRouter;
-use App\Exceptions\MikrotikConnectionException;
-use App\Exceptions\MikrotikException;
-use App\Models\IpPool;
-use App\Models\LayananPelanggan;
-use App\Models\PaketLayanan;
-use App\Models\Pelanggan;
-use App\Models\ProfilBandwidth;
-use App\Models\Router;
-use App\Services\Mikrotik\MikrotikService;
-use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use RouterOS\Client;
-use RouterOS\Exceptions\StreamException;
-⋮----
-$this->seed(RolesAndPermissionsSeeder::class);
-⋮----
-$router = Router::factory()->create([
-⋮----
-expect(fn () => $this->service->testConnection($router, 1))
-->toThrow(MikrotikException::class);
-⋮----
-$router->refresh();
-expect($router->status_koneksi)->toBe(StatusRouter::Offline)
-->and($router->last_ping_status)->toBe('failed')
-->and($router->last_ping_at)->not->toBeNull();
-⋮----
-expect(fn () => $this->service->getClient($router, 1))
-->toThrow(MikrotikConnectionException::class);
-⋮----
-$router = Router::factory()->online()->create();
 $pelanggan = Pelanggan::factory()->create();
-$profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Home-10M']);
-$paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
 ⋮----
-$layanan = LayananPelanggan::factory()->create([
+->assertSee($ticketMedia->file_name)
+->assertDontSee($ktp->file_name)
+->assertDontSee($dokumen->file_name);
 ⋮----
-expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan))
-->toThrow(MikrotikException::class, 'Format username PPPoE');
+->set('collectionFilter', 'foto_kendala')
+->assertSee($kendala->file_name)
+->assertDontSee($pengerjaan->file_name);
 ⋮----
-->toThrow(MikrotikException::class, 'tidak memiliki paket layanan atau profil bandwidth');
+->call('deleteMedia', $media->id)
+->assertHasNoErrors();
 ⋮----
-->toThrow(MikrotikException::class, 'wajib memiliki alokasi IP Pool yang valid');
+expect(Media::find($media->id))->toBeNull();
 ⋮----
-$otherRouter = Router::factory()->online()->create();
+$mediaLihatOnlyRole = Role::firstOrCreate(['name' => 'media_viewer']);
+$mediaLihatOnlyRole->givePermissionTo('media_library.lihat');
 ⋮----
-$ipPool = IpPool::factory()->create(['router_id' => $otherRouter->id]);
+$viewer = User::factory()->create(['status' => UserStatus::Active]);
+$viewer->assignRole('media_viewer');
 ⋮----
-->toThrow(MikrotikException::class, 'terdaftar pada router lain');
+Livewire::actingAs($viewer)
 ⋮----
-expect(fn () => $this->service->ensurePppProfile($router, $profil))
-->toThrow(MikrotikException::class, 'Nama profil bandwidth di UNMS kosong');
+expect(Media::find($media->id))->not->toBeNull();
 ⋮----
-ProfilBandwidth::factory()->create([
+->call('deleteMedia', $ktp->id);
 ⋮----
-$mockClient = Mockery::mock(Client::class);
-$mockClient->shouldReceive('query')->andReturnSelf();
+expect(Media::find($ktp->id))->not->toBeNull();
 ⋮----
-$mockClient->shouldReceive('read')->andReturn([]);
+->assertSee('Tidak berlaku');
 ⋮----
-$res = $this->service->syncAllBandwidthProfiles($router, $mockClient);
+$mock = Mockery::mock(S3HealthCheckService::class);
+$mock->shouldReceive('check')
+->twice()
+->andReturn(new S3HealthCheckResult(
 ⋮----
-expect($res['total'])->toBe(1)
-->and($res['synced'])->toBe(1)
-->and($res['errors'])->toBeEmpty();
+checkedAt: now()->toDateTimeString(),
 ⋮----
-$profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Fast-20M']);
+$this->instance(S3HealthCheckService::class, $mock);
 ⋮----
-$mockService = Mockery::mock(MikrotikService::class)->makePartial();
-$mockService->shouldReceive('syncAllBandwidthProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
+->call('runCheck')
+->assertSee('gobilling-media');
 ⋮----
-$client1 = Mockery::mock(Client::class);
-$client2 = Mockery::mock(Client::class);
+$file = UploadedFile::fake()->create('laporan.xlsx', 100);
 ⋮----
-$client1->shouldReceive('query')->andReturnSelf();
-$client1->shouldReceive('read')->andThrow(new StreamException('Stream timed out'));
+->set('uploads', [$file])
+->call('uploadFiles')
 ⋮----
-$client2->shouldReceive('query')->andReturnSelf();
-$client2->shouldReceive('read')->andReturn([]);
+expect(BerkasUmum::count())->toBe(1)
+->and(Media::where('file_name', 'laporan.xlsx')->exists())->toBeTrue();
 ⋮----
-$mockService->shouldReceive('getClient')->andReturn($client2);
+$file = UploadedFile::fake()->create('script.exe', 100);
 ⋮----
-$mockService->shouldReceive('createOrUpdatePppoeSecret')
-->once()
-->andReturn(['status' => 'success']);
+->assertHasErrors(['uploads.0']);
 ⋮----
-$stats = $mockService->autoRecoverPppSecrets($router, $client1);
+expect(BerkasUmum::count())->toBe(0);
 ⋮----
-expect($stats['recovered'])->toBe(1)
-->and($stats['already_synced'])->toBe(0);
+$mediaLihatOnlyRole = Role::firstOrCreate(['name' => 'media_viewer_upload_test']);
+⋮----
+$viewer->assignRole('media_viewer_upload_test');
+⋮----
+$file = UploadedFile::fake()->image('foto.jpg');
 ````
 
 ## File: tests/Feature/PaymentGateway/ProcessPaymentWebhookJobTest.php
@@ -62515,200 +64032,201 @@ Pelanggan::factory()->create(['no_reg' => 'WG2309202601']);
 ->assertHasErrors(['nama_depan', 'no_hp', 'alamat_lengkap']);
 ````
 
-## File: tests/Feature/Pelanggan/PelangganShowTest.php
+## File: tests/Feature/Services/S3HealthCheckServiceTest.php
 ````php
-use App\Enums\StatusInvoice;
-use App\Enums\StatusLayanan;
-use App\Enums\UserStatus;
-use App\Livewire\Pelanggan\Show;
-use App\Models\Invoice;
-use App\Models\LayananPelanggan;
-use App\Models\PaketLayanan;
-use App\Models\Pelanggan;
-use App\Models\Pembayaran;
-use App\Models\ProfilBandwidth;
-use App\Models\Promo;
-use App\Models\Router;
-use App\Models\User;
-use Database\Seeders\RolesAndPermissionsSeeder;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Queue;
-use Livewire\Livewire;
+use App\Services\Storage\S3HealthCheckService;
 ⋮----
-$this->seed(RolesAndPermissionsSeeder::class);
+$result = app(S3HealthCheckService::class)->check();
+⋮----
+expect($result->applicable)->toBeFalse()
+->and($result->diskName)->toBe('local')
+->and($result->bucketOk)->toBeNull()
+->and($result->publicUrlOk)->toBeNull();
+⋮----
+expect($result->applicable)->toBeTrue()
+->and($result->bucketOk)->toBeFalse()
+->and($result->errorMessage)->toContain('belum dikonfigurasi');
+````
+
+## File: tests/Feature/Settings/PerusahaanTest.php
+````php
+use App\Enums\UserStatus;
+use App\Livewire\Settings\Perusahaan as PerusahaanComponent;
+use App\Models\Pelanggan;
+use App\Models\Perusahaan;
+use App\Models\Ticket;
+use App\Models\User;
+use Database\Seeders\PerusahaanSeeder;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+⋮----
+function buatGambarDummyDi($model, string $collection): Media
+⋮----
+return $model->addMedia($path)->preservingOriginal()->toMediaCollection($collection);
+⋮----
+$this->seed([
 ⋮----
 $this->superAdmin = User::factory()->create(['status' => UserStatus::Active]);
 $this->superAdmin->assignRole('super_admin');
 ⋮----
-$this->pelanggan = Pelanggan::factory()->create([
+$this->teknisi = User::factory()->create(['status' => UserStatus::Active]);
+$this->teknisi->assignRole('teknisi');
+⋮----
+$this->get(route('settings.perusahaan'))
+->assertRedirect(route('login'));
+⋮----
+$this->actingAs($this->teknisi)
+->get(route('settings.perusahaan'))
+->assertForbidden();
 ⋮----
 Livewire::actingAs($this->superAdmin)
-->test(Show::class, ['pelanggan' => $this->pelanggan])
+->test(PerusahaanComponent::class)
 ->assertOk()
-->assertSee('Budi Santoso')
-->assertSee('628123456789')
-->assertSee('budi.santoso@example.com')
-->assertSee('0215551234')
-->assertSee('Jl. Merdeka No. 1, Jakarta')
-->assertSee('Akun Portal Pelanggan');
+->assertSet('nama_perusahaan', 'PT GOBILLING NUSANTARA TEKNOLOGI')
+->assertSet('nama_brand', 'GOBILLING')
+->assertSee('PT GOBILLING NUSANTARA TEKNOLOGI');
 ⋮----
-->assertSee('3201••••••••0001')
-->call('toggleShowNik')
-->assertSee('3201123456780001')
-⋮----
-->assertSee('3201••••••••0001');
-⋮----
-$this->pelanggan->akunPelanggan()->update([
-'password' => Hash::make('custompassword123'),
-⋮----
-->call('resetPasswordPortal')
+->set('nama_perusahaan', 'PT GOBILLING DIGITAL INDONESIA')
+->set('nama_brand', 'GOBILLING NET')
+->set('tagline', 'Internet Super Cepat & Stabil')
+->set('alamat', 'Cyber Building Lt. 5, Jakarta')
+->set('telepon', '021-9998887')
+->set('whatsapp', '0811-2233-4455')
+->set('email', 'corporate@gobilling.id')
+->set('nama_bank', 'Bank Mandiri')
+->set('nomor_rekening', '1230009988771')
+->set('atas_nama', 'PT GOBILLING DIGITAL')
+->set('catatan_invoice', 'Harap transfer sesuai nominal.')
+->call('save')
 ->assertHasNoErrors();
 ⋮----
-$this->pelanggan->akunPelanggan->refresh();
-expect(Hash::check('12345678', $this->pelanggan->akunPelanggan->password))->toBeTrue();
+$company = Perusahaan::default();
+expect($company->nama_perusahaan)->toBe('PT GOBILLING DIGITAL INDONESIA')
+->and($company->nama_brand)->toBe('GOBILLING NET')
+->and($company->tagline)->toBe('Internet Super Cepat & Stabil')
+->and($company->alamat)->toBe('Cyber Building Lt. 5, Jakarta')
+->and($company->telepon)->toBe('021-9998887')
+->and($company->whatsapp)->toBe('0811-2233-4455')
+->and($company->email)->toBe('corporate@gobilling.id')
+->and($company->nama_bank)->toBe('Bank Mandiri')
+->and($company->nomor_rekening)->toBe('1230009988771')
+->and($company->atas_nama)->toBe('PT GOBILLING DIGITAL')
+->and($company->catatan_invoice)->toBe('Harap transfer sesuai nominal.');
 ⋮----
-$pelangganWithCoords = Pelanggan::factory()->create([
+Storage::fake('public');
 ⋮----
-->test(Show::class, ['pelanggan' => $pelangganWithCoords])
+$file = UploadedFile::fake()->image('company_logo.png', 400, 150);
 ⋮----
-->assertSee('Titik Lokasi Pelanggan (Peta)')
-->assertSee('Terpetakan')
-->assertSee('-6.2088000')
-->assertSee('106.8456000')
-->assertSee('Buka di Google Maps')
-->assertSee('Buka di OpenStreetMap');
+->set('logo', $file)
 ⋮----
-$pelangganWithoutCoords = Pelanggan::factory()->create([
+expect($company->hasMedia('logo'))->toBeTrue()
+->and($company->logo_url)->not->toBeNull()
+->and($company->logo_base64)->not->toBeNull();
 ⋮----
-->test(Show::class, ['pelanggan' => $pelangganWithoutCoords])
+->call('hapusLogo')
 ⋮----
-->assertSee('Koordinat belum ditentukan')
-->assertSee('Atur Titik Koordinat');
+$companyFresh = Perusahaan::default();
+expect($companyFresh->hasMedia('logo'))->toBeFalse()
+->and($companyFresh->logo_url)->toBeNull()
+->and($companyFresh->logo_base64)->toBeNull();
 ⋮----
-$profil = ProfilBandwidth::factory()->create();
-$router = Router::factory()->create();
-$paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id, 'harga' => 250000]);
+$ticket = Ticket::factory()->create();
 ⋮----
-$layanan = LayananPelanggan::factory()->create([
+->set('showMediaPicker', true)
+->call('pilihDariMediaLibrary', $gambar->id)
 ⋮----
-$activeInv = Invoice::create([
+->and($company->logo_url)->not->toBeNull();
 ⋮----
-'tanggal_terbit' => Carbon::now(),
-'tanggal_jatuh_tempo' => Carbon::now()->addDays(7),
+$ticket->refresh();
+expect($ticket->hasMedia('foto_kendala'))->toBeTrue()
+->and($ticket->getFirstMedia('foto_kendala')->id)->toBe($gambar->id);
 ⋮----
-$paidInv = Invoice::create([
+$pelanggan = Pelanggan::factory()->create();
 ⋮----
-'tanggal_terbit' => Carbon::now()->subMonth(),
-'tanggal_jatuh_tempo' => Carbon::now()->subMonth()->addDays(7),
-'tanggal_lunas' => Carbon::now()->subMonth()->addDays(2),
+->call('pilihDariMediaLibrary', $ktp->id);
 ⋮----
-Pembayaran::create([
+expect(Perusahaan::default()->hasMedia('logo'))->toBeFalse();
 ⋮----
-'dibayar_pada' => Carbon::now()->subMonth()->addDays(2),
+Perusahaan::query()->delete();
+cache()->forget(Perusahaan::CACHE_KEY);
 ⋮----
-$deletedInv = Invoice::create([
+$fallback = Perusahaan::default();
+expect($fallback)->toBeInstanceOf(Perusahaan::class)
+->and($fallback->nama_perusahaan)->not->toBeEmpty();
+````
+
+## File: tests/Feature/Settings/ProfileUpdateTest.php
+````php
+use App\Livewire\Settings\Profile;
+use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 ⋮----
-'tanggal_terbit' => Carbon::now()->subMonths(2),
-'tanggal_jatuh_tempo' => Carbon::now()->subMonths(2)->addDays(7),
+$this->actingAs($user = User::factory()->create());
 ⋮----
-$deletedInv->delete();
+$this->get('/settings/profile')->assertOk();
 ⋮----
-->call('setTab', 'billing')
-->assertSet('activeTab', 'billing')
-->assertSee('Tagihan Aktif (Belum Lunas / Pending)')
-->assertSee('INV-202608-000001')
-->assertSee('Riwayat Pembayaran Lunas')
-->assertSee('INV-202607-000001')
-->assertSee('Riwayat Invoice Dihapus / Dibatalkan')
-->assertSee('INV-202606-000001')
-->assertSee('Salah paket pelanggan');
+$user = User::factory()->create();
 ⋮----
-$paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id, 'harga' => 300000]);
+$this->actingAs($user);
 ⋮----
-'tanggal_expired' => Carbon::today(),
+$response = Livewire::test(Profile::class)
+->set('name', 'Test User')
+->set('email', 'test@example.com')
+->call('updateProfileInformation');
 ⋮----
-Queue::fake();
+$response->assertHasNoErrors();
 ⋮----
-->call('openBayarModal', $activeInv->id)
-->assertSet('showBayarModal', true)
-->assertSet('selectedInvoiceId', $activeInv->id)
-->set('bayarMetode', 'manual_admin')
-->set('bayarJumlah', 300000)
-->set('bayarReferensi', 'STRUK-999')
-->call('prosesBayarInvoice')
+$user->refresh();
+⋮----
+expect($user->name)->toEqual('Test User');
+expect($user->email)->toEqual('test@example.com');
+expect($user->email_verified_at)->toBeNull();
+⋮----
+->set('email', $user->email)
+⋮----
+expect($user->refresh()->email_verified_at)->not->toBeNull();
+⋮----
+Storage::fake('public');
+⋮----
+$component = Livewire::test(Profile::class)
+->set('fotoProfil', UploadedFile::fake()->image('foto1.jpg'))
+->call('uploadFotoProfil')
+->assertHasNoErrors();
+⋮----
+expect($user->fresh()->fotoProfilUrl())->not->toBeNull();
+$firstUrl = $user->fresh()->fotoProfilUrl();
+⋮----
+->set('fotoProfil', UploadedFile::fake()->image('foto2.jpg'))
+⋮----
+expect($user->getMedia('foto_profil'))->toHaveCount(1)
+->and($user->fotoProfilUrl())->not->toBe($firstUrl);
+⋮----
+Livewire::test(Profile::class)
+->set('fotoProfil', UploadedFile::fake()->create('dokumen.pdf', 100))
+⋮----
+->assertHasErrors(['fotoProfil' => 'image']);
+⋮----
+$response = Livewire::test('settings.delete-user-form')
+->set('password', 'password')
+->call('deleteUser');
+⋮----
 ->assertHasNoErrors()
-->assertSet('showBayarModal', false);
+->assertRedirect('/');
 ⋮----
-$activeInv->refresh();
-expect($activeInv->status)->toBe(StatusInvoice::Lunas);
-expect($activeInv->pembayarans)->toHaveCount(1);
-expect($activeInv->pembayarans->first()->referensi_transaksi)->toBe('STRUK-999');
+expect($user->fresh())->toBeNull();
+expect(auth()->check())->toBeFalse();
 ⋮----
-->call('openTambahInvoiceModal')
-->assertSet('showTambahInvoiceModal', true)
-->set('tambahInvoiceLayananId', $layanan->id)
-->set('tambahInvoiceKeterangan', 'Biaya instalasi pemasangan baru')
-->set('tambahInvoiceJumlah', 250000)
-->set('tambahInvoiceTanggalJatuhTempo', now()->addDays(7)->toDateString())
-->call('simpanTambahInvoice')
+->set('password', 'wrong-password')
 ⋮----
-->assertSet('showTambahInvoiceModal', false);
+$response->assertHasErrors(['password']);
 ⋮----
-$invoice = Invoice::where('pelanggan_id', $this->pelanggan->id)->latest('id')->first();
-⋮----
-expect($invoice)->not->toBeNull()
-->and($invoice->periode_tagihan)->toBeNull()
-->and($invoice->keterangan)->toBe('Biaya instalasi pemasangan baru')
-->and((float) $invoice->jumlah_setelah_promo)->toBe(250000.0)
-->and($invoice->layanan_pelanggan_id)->toBe($layanan->id);
-⋮----
-$promo = Promo::factory()->create([
-⋮----
-->set('tambahInvoiceKodePromo', 'install50')
-->assertSet('tambahInvoicePromoId', $promo->id)
-->assertHasNoErrors('tambahInvoiceKodePromo')
-⋮----
-->set('tambahInvoiceKeterangan', 'Biaya instalasi dengan promo')
-⋮----
-expect((float) $invoice->jumlah_setelah_promo)->toBe(200000.0)
-->and($invoice->promo_id)->toBe($promo->id);
-⋮----
-$pelangganLain = Pelanggan::factory()->create();
-⋮----
-$layananLain = LayananPelanggan::factory()->create([
-⋮----
-->set('tambahInvoiceLayananId', $layananLain->id)
-->set('tambahInvoiceKeterangan', 'Percobaan lintas pelanggan')
-->set('tambahInvoiceJumlah', 100000)
-⋮----
-->call('simpanTambahInvoice');
-})->throws(ModelNotFoundException::class);
-⋮----
-->performedOn($this->pelanggan)
-->causedBy($this->superAdmin)
-->log('Memperbarui data pelanggan');
-⋮----
-->call('setTab', 'audit')
-->assertSet('activeTab', 'audit')
-->assertSee('Log Aktivitas Data Pelanggan')
-->assertSee('Memperbarui data pelanggan');
-⋮----
-$pelangganInvalid = Pelanggan::factory()->create();
-⋮----
-DB::table('pelanggan')->where('id', $pelangganInvalid->id)->update([
-⋮----
-$pelangganInvalid->refresh();
-⋮----
-expect($pelangganInvalid->nik)->toBeNull();
-expect($pelangganInvalid->toArray()['nik'])->toBeNull();
-⋮----
-->test(Show::class, ['pelanggan' => $pelangganInvalid])
-⋮----
-->assertSee('—');
+expect($user->fresh())->not->toBeNull();
 ````
 
 ## File: tests/Feature/Settings/WhatsappSettingsTest.php
@@ -62984,131 +64502,167 @@ $listener->handle(new InvoicePaidEvent($invoice, $pembayaran));
 ->and($antrian->pesan)->toContain('300.000');
 ````
 
-## File: tests/Feature/Ticket/TicketWorkflowAutomationTest.php
+## File: tests/Feature/Ticket/TicketPemasanganWorkflowTest.php
 ````php
-use App\Actions\Ticket\UbahStatusTicketAction;
+use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
-use App\Enums\StatusPelanggan;
+use App\Enums\StatusOdpPort;
+use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\JenisTicket;
+use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\UserStatus;
-use App\Livewire\LayananPelanggan\Create as LayananCreate;
 use App\Livewire\Ticket\Create as TicketCreate;
+use App\Livewire\Ticket\Show;
 use App\Models\Invoice;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
+use App\Models\Odp;
+use App\Models\OdpPort;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\Ticket;
-use App\Models\TicketHistori;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 ⋮----
 $this->seed(RolesAndPermissionsSeeder::class);
+Storage::fake('public');
 ⋮----
 $this->admin = User::factory()->create(['status' => UserStatus::Active]);
 $this->admin->assignRole('admin');
 ⋮----
+$this->teknisi = User::factory()->create(['status' => UserStatus::Active]);
+$this->teknisi->assignRole('teknisi');
+⋮----
 $this->noc = User::factory()->create(['status' => UserStatus::Active]);
 $this->noc->assignRole('noc');
 ⋮----
-$pelanggan = Pelanggan::factory()->belumTerpasang()->create();
-$a = LayananPelanggan::factory()->proses()->create(['pelanggan_id' => $pelanggan->id]);
-$b = LayananPelanggan::factory()->proses()->create(['pelanggan_id' => $pelanggan->id]);
+$this->cs = User::factory()->create(['status' => UserStatus::Active]);
+$this->cs->assignRole('customer_service');
 ⋮----
-expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::BelumTerpasang);
+$this->pelanggan = Pelanggan::factory()->create();
+$this->profil = ProfilBandwidth::factory()->create();
+$this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
+$this->layanan = LayananPelanggan::factory()->create([
 ⋮----
-$a->update(['status' => StatusLayanan::Aktif]);
-expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::Aktif);
+$this->router = Router::factory()->online()->create();
+$this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id]);
 ⋮----
-$b->update(['status' => StatusLayanan::Suspend]);
+$this->odp = Odp::factory()->create();
+$this->odpPort = OdpPort::factory()->create(['odp_id' => $this->odp->id]);
 ⋮----
-$a->update(['status' => StatusLayanan::Suspend]);
-expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::Expired);
+$this->invoicePertama = Invoice::factory()->create([
 ⋮----
-$a->update(['status' => StatusLayanan::Berhenti]);
-$b->update(['status' => StatusLayanan::Berhenti]);
-expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::Off);
+function buatTicketPemasangan(User $admin, Pelanggan $pelanggan, LayananPelanggan $layanan, User $teknisi): Ticket
 ⋮----
-Livewire::actingAs($this->admin)->test(TicketCreate::class)
-->set('jenis', 'pemasangan')
+Livewire::actingAs($admin)
+->test(TicketCreate::class)
+->set('jenis', JenisTicket::Pemasangan->value)
 ->set('pelanggan_id', $pelanggan->id)
-->set('deskripsi', 'Pasang baru rumah')
+->set('layanan_pelanggan_id', $layanan->id)
+->set('pic_id', $teknisi->id)
+->set('deskripsi', 'Pemasangan baru merujuk layanan yang sudah didaftarkan.')
 ->call('save')
 ->assertHasNoErrors();
-expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::ReqPemasangan);
 ⋮----
-$ticket = Ticket::where('pelanggan_id', $pelanggan->id)->firstOrFail();
-$ticket->update(['status' => StatusTicket::MenungguKonfirmasi]);
-app(UbahStatusTicketAction::class)->execute($ticket, StatusTicket::Selesai, $this->admin);
+return Ticket::where('layanan_pelanggan_id', $layanan->id)->firstOrFail();
 ⋮----
-expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::PemasanganSelesai)
-->and($ticket->fresh()->perlu_aktivasi_manual)->toBeTrue();
+expect($ticket->getDivisValues())->toEqualCanonicalizing([
 ⋮----
-$baru = Pelanggan::factory()->create(['status' => StatusPelanggan::ReqPemasangan]);
-$aktif = Pelanggan::factory()->create(['status' => StatusPelanggan::Aktif]);
-⋮----
-$ticket = Ticket::factory()->pemasangan()->create(['pelanggan_id' => $pelanggan->id]);
-app(UbahStatusTicketAction::class)->execute($ticket, StatusTicket::Batal, $this->admin, 'Tidak ada jangkauan');
-⋮----
-expect($baru->fresh()->status)->toBe(StatusPelanggan::BelumTerpasang)
-->and($aktif->fresh()->status)->toBe(StatusPelanggan::Aktif);
-⋮----
-Queue::fake();
-⋮----
-$pelanggan = Pelanggan::factory()->create();
-$dicabut = LayananPelanggan::factory()->create(['pelanggan_id' => $pelanggan->id]);
-$tetap = LayananPelanggan::factory()->create(['pelanggan_id' => $pelanggan->id]);
-$ticket = Ticket::factory()->create([
-⋮----
-app(UbahStatusTicketAction::class)->execute($ticket, StatusTicket::Selesai, $this->noc);
-⋮----
-expect($dicabut->fresh()->status)->toBe(StatusLayanan::Berhenti)
-->and($tetap->fresh()->status)->toBe(StatusLayanan::Aktif)
-->and($pelanggan->fresh()->status)->toBe(StatusPelanggan::Aktif);
-⋮----
-->set('jenis', $jenis)
-⋮----
-->set('deskripsi', 'Permohonan pelanggan')
-⋮----
-->assertHasErrors(['layanan_pelanggan_id']);
-⋮----
-$pelanggan = Pelanggan::factory()->create(['status' => StatusPelanggan::PemasanganSelesai]);
-$ticket = Ticket::factory()->pemasangan()->create([
-⋮----
-$router = Router::factory()->online()->create();
-$pool = IpPool::factory()->create(['router_id' => $router->id]);
-$paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
+expect($ticket->statusDivisi($divisi))->toBe(StatusDivisiTicket::Belum);
 ⋮----
 Livewire::actingAs($this->admin)
-->withQueryParams(['pelanggan_id' => $pelanggan->id, 'ticket_id' => $ticket->id])
-->test(LayananCreate::class)
-->assertSet('pelanggan_id', $pelanggan->id)
-->set('paket_layanan_id', $paket->id)
-->call('nextStep')
-->set('router_id', $router->id)
-->set('ip_pool_id', $pool->id)
-->set('ppp_password', 'secret_ppp_pass')
-->set('jenis_tagihan_pertama', 'full_bulan')
-->set('auto_provision', false)
 ⋮----
-$layanan = LayananPelanggan::where('pelanggan_id', $pelanggan->id)->firstOrFail();
-expect($ticket->fresh()->layanan_pelanggan_id)->toBe($layanan->id)
-->and($ticket->fresh()->perlu_aktivasi_manual)->toBeFalse();
+->set('pelanggan_id', $this->pelanggan->id)
+->set('deskripsi', 'Pemasangan prospek baru, belum ada layanan.')
 ⋮----
-$layanan = LayananPelanggan::factory()->create();
+$ticket = Ticket::where('pelanggan_id', $this->pelanggan->id)->whereNull('layanan_pelanggan_id')->firstOrFail();
+expect($ticket->getDivisValues())->toBe([DivisiTicket::Teknisi->value]);
 ⋮----
-TicketHistori::create([
+Livewire::actingAs($this->teknisi)
+->test(Show::class, ['ticket' => $ticket])
+->set('odp_id', $this->odp->id)
+->set('odp_port_id', $this->odpPort->id)
+->set('fotoPemasangan', [UploadedFile::fake()->image('pasang1.jpg')])
+->call('simpanProgressLapangan')
 ⋮----
-expect($ticket->perluInvoicePindahAlamat())->toBeTrue();
+$ticket->refresh();
+expect($ticket->statusDivisi(DivisiTicket::Teknisi))->toBe(StatusDivisiTicket::Progress)
+->and($ticket->pemasangan?->odp_port_id)->toBe($this->odpPort->id)
+->and($ticket->getMedia('foto_pemasangan'))->toHaveCount(1);
 ⋮----
-Invoice::factory()->create([
+$teknisiLain = User::factory()->create(['status' => UserStatus::Active]);
+$teknisiLain->assignRole('teknisi');
 ⋮----
-expect($ticket->perluInvoicePindahAlamat())->toBeFalse();
+Livewire::actingAs($teknisiLain)
+⋮----
+->assertForbidden();
+⋮----
+Livewire::actingAs($this->noc)
+⋮----
+->call('openAktivasiModal');
+⋮----
+expect($ticket->fresh()->siapDiaktivasi())->toBeFalse();
+$this->layanan->refresh();
+expect($this->layanan->router_id)->toBeNull();
+⋮----
+->call('simpanProgressLapangan');
+⋮----
+->test(Show::class, ['ticket' => $ticket->fresh()])
+->set('aktivasiRouterId', $this->router->id)
+->set('aktivasiIpPoolId', $this->ipPool->id)
+->call('prosesAktivasi')
+⋮----
+expect($this->layanan->router_id)->toBe($this->router->id)
+->and($this->layanan->ip_pool_id)->toBe($this->ipPool->id)
+->and($this->layanan->ppp_username)->not->toBeNull()
+->and($this->layanan->ppp_username)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/')
+->and($this->layanan->odp_port_id)->toBe($this->odpPort->id);
+⋮----
+$this->odpPort->refresh();
+expect($this->odpPort->status)->toBe(StatusOdpPort::Terpakai)
+->and($this->odpPort->layanan_pelanggan_id)->toBe($this->layanan->id);
+⋮----
+expect($ticket->fresh()->pemasangan?->sudahDiaktivasi())->toBeTrue();
+⋮----
+LayananPelanggan::factory()->create([
+⋮----
+->assertHasErrors(['aktivasiRouterId']);
+⋮----
+expect($this->layanan->fresh()->router_id)->toBeNull();
+⋮----
+->call('tandaiDivisiSelesai', DivisiTicket::Admin->value);
+⋮----
+expect($ticket->fresh()->statusDivisi(DivisiTicket::Admin))->toBe(StatusDivisiTicket::Belum);
+⋮----
+->set('fotoSpeedtest', [UploadedFile::fake()->image('speedtest.jpg')])
+->set('fotoMou', UploadedFile::fake()->image('mou.jpg'))
+->set('fotoBersama', [UploadedFile::fake()->image('bersama.jpg')])
+->call('simpanFotoTahapDua')
+->assertHasNoErrors()
+->call('tandaiDivisiSelesai', DivisiTicket::Teknisi->value);
+⋮----
+expect($ticket->fresh()->statusDivisi(DivisiTicket::Teknisi))->toBe(StatusDivisiTicket::Selesai);
+⋮----
+->call('tandaiDivisiSelesai', DivisiTicket::Noc->value);
+⋮----
+Livewire::actingAs($this->cs)
+⋮----
+->call('tandaiDivisiSelesai', DivisiTicket::CustomerService->value);
+⋮----
+expect($ticket->fresh()->status)->not->toBe(StatusTicket::Selesai);
+⋮----
+$this->invoicePertama->update(['status' => StatusInvoice::Lunas, 'tanggal_lunas' => now()]);
+⋮----
+expect($ticket->statusDivisi(DivisiTicket::Admin))->toBe(StatusDivisiTicket::Selesai)
+->and($ticket->status)->toBe(StatusTicket::Selesai)
+->and($ticket->perlu_aktivasi_manual)->toBeFalse();
 ````
 
 ## File: tests/Feature/Webhook/WhatsappWebhookTest.php
@@ -63310,320 +64864,175 @@ $pelanggan = Pelanggan::factory()->create();
 expect($antrian->pesan)->not->toContain('{');
 ````
 
-## File: tests/Feature/EnsurePublicMediaBucketCommandTest.php
+## File: tests/Feature/ImpersonateTest.php
 ````php
-use App\Console\Commands\EnsurePublicMediaBucketCommand;
-⋮----
-$this->artisan(EnsurePublicMediaBucketCommand::class)
-->expectsOutputToContain('Skipping bucket policy setup')
-->assertExitCode(0);
-⋮----
-->expectsOutputToContain('AWS_BUCKET is not configured')
-````
-
-## File: tests/Feature/LayananPelangganObserverTest.php
-````php
-use App\Enums\MikrotikJobStatus;
-use App\Enums\MikrotikJobType;
-use App\Enums\StatusLayanan;
-use App\Jobs\Mikrotik\CleanupPppSecretOnOldRouterJob;
-use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
-use App\Models\IpPool;
-use App\Models\LayananPelanggan;
-use App\Models\MikrotikJobLog;
-use App\Models\PaketLayanan;
+use App\Enums\StatusPelanggan;
+use App\Enums\UserStatus;
 use App\Models\Pelanggan;
-use App\Models\ProfilBandwidth;
-use App\Models\Router;
-use App\Services\Mikrotik\MikrotikService;
+use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
+use Lab404\Impersonate\Events\LeaveImpersonation;
+use Lab404\Impersonate\Events\TakeImpersonation;
 ⋮----
 $this->seed(RolesAndPermissionsSeeder::class);
 ⋮----
-$this->routerLama = Router::factory()->online()->create();
-$this->routerBaru = Router::factory()->online()->create();
-$this->pelanggan = Pelanggan::factory()->create();
-$this->profil = ProfilBandwidth::factory()->create();
-$this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
-$this->poolLama = IpPool::factory()->create(['router_id' => $this->routerLama->id]);
-$this->poolBaru = IpPool::factory()->create(['router_id' => $this->routerBaru->id]);
-$this->layanan = LayananPelanggan::factory()->create([
+$this->superAdmin = User::factory()->create([
 ⋮----
-Queue::fake();
+$this->superAdmin->assignRole('super_admin');
 ⋮----
-$this->layanan->update([
+$this->staffUser = User::factory()->create([
 ⋮----
-Queue::assertPushed(CleanupPppSecretOnOldRouterJob::class, function ($job) {
+$this->staffUser->assignRole('teknisi');
 ⋮----
-Queue::assertPushed(CleanupPppSecretOnOldRouterJob::class, function ($job) use ($oldUsername) {
+Event::fake([TakeImpersonation::class]);
 ⋮----
-$this->layanan->delete();
+$response = $this->actingAs($this->superAdmin)
+->get(route('impersonate', ['id' => $this->staffUser->id, 'guardName' => 'web']));
 ⋮----
-Queue::assertPushed(CleanupPppSecretOnOldRouterJob::class, function ($job) use ($username, $routerId, $layananId) {
+$response->assertRedirect(route('dashboard'));
 ⋮----
-Queue::assertNotPushed(CleanupPppSecretOnOldRouterJob::class);
+expect(Auth::check())->toBeTrue()
+->and(Auth::id())->toBe($this->staffUser->id)
+->and(app('impersonate')->isImpersonating())->toBeTrue()
+->and(app('impersonate')->getImpersonatorId())->toBe($this->superAdmin->id);
 ⋮----
-expect($this->layanan->fresh()->ip_pool_id)->toBeNull();
+Event::assertDispatched(TakeImpersonation::class);
 ⋮----
-expect($this->layanan->fresh()->ip_pool_id)->toBe($this->poolBaru->id);
+$targetUser = User::factory()->create(['status' => UserStatus::Active]);
+$targetUser->assignRole('admin');
 ⋮----
-$paketBaru = PaketLayanan::factory()->create();
+$response = $this->actingAs($this->staffUser)
+->get(route('impersonate', ['id' => $targetUser->id]));
 ⋮----
-Queue::assertPushed(UpdatePppoeProfileJob::class, function ($job) {
+$response->assertForbidden();
+expect(app('impersonate')->isImpersonating())->toBeFalse();
 ⋮----
-Queue::assertNotPushed(UpdatePppoeProfileJob::class);
+$anotherSuperAdmin = User::factory()->create(['status' => UserStatus::Active]);
+$anotherSuperAdmin->assignRole('super_admin');
 ⋮----
-expect($this->layanan->resolveRemoteAddress())->toBe('192.168.1.100');
+->get(route('impersonate', ['id' => $anotherSuperAdmin->id]));
 ⋮----
-$this->layanan->setRelation('ipPool', $this->poolLama);
+$inactiveUser = User::factory()->create(['status' => UserStatus::Inactive]);
+$inactiveUser->assignRole('teknisi');
 ⋮----
-expect($this->layanan->resolveRemoteAddress())->toBe($this->poolLama->nama_pool);
+->get(route('impersonate', ['id' => $inactiveUser->id]));
 ⋮----
-$this->layanan->setRelation('ipPool', null);
+->get(route('impersonate', ['id' => $this->superAdmin->id]));
 ⋮----
-expect($this->layanan->resolveRemoteAddress())->toBeNull();
+$pelanggan = Pelanggan::factory()->create([
 ⋮----
-expect($this->poolLama->getGatewayAddress())->toBe('10.0.0.1');
+->get(route('impersonate', ['id' => $akun->id, 'guardName' => 'pelanggan']));
 ⋮----
-expect($this->poolLama->getGatewayAddress())->toBe('10.0.1.1');
+$handoffUrl = $response->headers->get('Location');
 ⋮----
-expect($this->layanan->resolveLocalAddress())->toBe('10.0.0.1');
+expect($handoffUrl)->toContain(config('app.portal_domain').'/impersonate/consume')
+->and(Auth::guard('pelanggan')->check())->toBeFalse()
+->and(app('impersonate')->isImpersonating())->toBeFalse();
 ⋮----
-expect($this->layanan->resolveLocalAddress())->toBe('10.0.1.1');
+Event::assertNotDispatched(TakeImpersonation::class);
 ⋮----
-expect($this->layanan->resolveLocalAddress())->toBeNull();
+$handoffResponse = $this->actingAs($this->superAdmin)
 ⋮----
-$mockService = Mockery::mock(MikrotikService::class);
-$mockService->shouldReceive('deletePppoeSecret')
-->once()
-->with(
-Mockery::on(fn ($r) => $r->id === $this->routerLama->id),
+$handoffUrl = $handoffResponse->headers->get('Location');
 ⋮----
-->andReturn(true);
+$response = $this->get($handoffUrl);
 ⋮----
-$job->handle($mockService);
+$response->assertRedirect(route('portal.dashboard'));
 ⋮----
-$log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
-->where('job_type', MikrotikJobType::DeletePppoe)
-->first();
+expect(Auth::guard('pelanggan')->check())->toBeTrue()
+->and(Auth::guard('pelanggan')->id())->toBe($akun->id)
 ⋮----
-expect($log)->not->toBeNull()
-->and($log->status)->toBe(MikrotikJobStatus::Success);
+$this->get($tamperedUrl)->assertForbidden();
+expect(Auth::guard('pelanggan')->check())->toBeFalse();
 ⋮----
-->andThrow(new RuntimeException('Connection refused'));
+Event::fake([LeaveImpersonation::class]);
 ⋮----
-->and($log->status)->toBe(MikrotikJobStatus::Failed)
-->and($log->error_message)->toContain('Connection refused');
+$this->actingAs($this->superAdmin)
+⋮----
+expect(app('impersonate')->isImpersonating())->toBeTrue();
+⋮----
+$response = $this->get(route('impersonate.leave'));
+⋮----
+$response->assertRedirect(route('users.index'));
+⋮----
+->and(Auth::id())->toBe($this->superAdmin->id)
+⋮----
+Event::assertDispatched(LeaveImpersonation::class);
+⋮----
+$this->get($handoffResponse->headers->get('Location'));
+⋮----
+$response = $this->get('http://'.config('app.portal_domain').'/impersonate/leave');
+⋮----
+$response->assertRedirect(rtrim(config('app.url'), '/').route('pelanggan.index', absolute: false));
+⋮----
+expect(Auth::guard('web')->check())->toBeTrue()
+->and(Auth::guard('web')->id())->toBe($this->superAdmin->id)
+⋮----
+->get(route('impersonate.leave'));
+⋮----
+$response = $this->from(route('portal.dashboard'))->get(route('portal.ganti-password'));
 ````
 
-## File: tests/Feature/MultiLayananBillingTest.php
+## File: tests/Feature/LaporanTest.php
 ````php
-use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
 use App\Enums\UserStatus;
-use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
-use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
-use App\Livewire\Invoice\Create as InvoiceCreate;
-use App\Livewire\LayananPelanggan\Create as LayananCreate;
-use App\Livewire\Pelanggan\Show;
+use App\Livewire\Laporan\Billing;
 use App\Models\Invoice;
-use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\User;
-use App\Services\Billing\BillingService;
-use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 ⋮----
 $this->seed(RolesAndPermissionsSeeder::class);
 ⋮----
-$this->superAdmin = User::factory()->create(['status' => UserStatus::Active]);
-$this->superAdmin->assignRole('super_admin');
+$this->adminUser = User::factory()->create(['status' => UserStatus::Active]);
+$this->adminUser->assignRole('admin');
 ⋮----
-$this->admin = User::factory()->create(['status' => UserStatus::Active]);
-$this->admin->assignRole('admin');
+$this->profil = ProfilBandwidth::factory()->create();
+$this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id, 'harga' => 200000]);
+$this->router = Router::factory()->create();
+$this->pelanggan = Pelanggan::factory()->create();
+$this->layanan = LayananPelanggan::factory()->create([
 ⋮----
-$this->router = Router::factory()->online()->create();
-$this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id]);
+Invoice::factory()->create([
 ⋮----
-$this->profilHome = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Home-20M']);
-$this->paketHome = PaketLayanan::factory()->create([
+'tanggal_terbit' => Carbon::today(),
 ⋮----
-$this->profilOffice = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Office-50M']);
-$this->paketOffice = PaketLayanan::factory()->create([
+Livewire::actingAs($this->adminUser)
+->test(Billing::class)
+->assertOk()
+->assertViewHas('totalLunas', fn ($val) => $val === 200000.0);
 ⋮----
-$this->pelanggan = Pelanggan::factory()->create([
+$this->travelTo(Carbon::create(2026, 9, 24));
+$this->layanan->update([
 ⋮----
-Queue::fake([ProvisionPppoeAccountJob::class]);
+$this->artisan('invoice:generate')
+->assertSuccessful();
 ⋮----
-$comp1 = Livewire::actingAs($this->admin)
-->test(LayananCreate::class)
-->set('pelanggan_id', $this->pelanggan->id)
-->set('paket_layanan_id', $this->paketHome->id)
-->call('nextStep');
+$invoice = Invoice::where('layanan_pelanggan_id', $this->layanan->id)->first();
+expect($invoice)->not->toBeNull()
+->and($invoice->status)->toBe(StatusInvoice::MenungguPembayaran)
+->and((float) $invoice->jumlah)->toBe(200000.0);
 ⋮----
-$pppUsername1 = $comp1->get('ppp_username');
-expect($pppUsername1)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/');
+$overdueInvoice = Invoice::factory()->create([
 ⋮----
-$comp1->set('ppp_password', 'secret123')
-->set('tanggal_mulai', now()->toDateString())
-->call('save')
-->assertHasNoErrors()
-->assertRedirect(route('layanan-pelanggan.index'));
+'tanggal_terbit' => Carbon::today()->subDays(10),
+'tanggal_jatuh_tempo' => Carbon::today()->subDays(3),
 ⋮----
-$layanan1 = LayananPelanggan::where('ppp_username', $pppUsername1)->first();
-expect($layanan1)->not->toBeNull()
-->and($layanan1->pelanggan_id)->toBe($this->pelanggan->id)
-->and($layanan1->paket_layanan_id)->toBe($this->paketHome->id);
+$this->artisan('invoice:cek-kadaluarsa')
 ⋮----
-$comp2 = Livewire::actingAs($this->admin)
-⋮----
-->set('paket_layanan_id', $this->paketOffice->id)
-⋮----
-$pppUsername2 = $comp2->get('ppp_username');
-expect($pppUsername2)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/')
-->and($pppUsername2)->not->toBe($pppUsername1);
-⋮----
-$comp2->set('ppp_password', 'secret456')
-⋮----
-$layanan2 = LayananPelanggan::where('ppp_username', $pppUsername2)->first();
-expect($layanan2)->not->toBeNull()
-->and($layanan2->pelanggan_id)->toBe($this->pelanggan->id)
-->and($layanan2->paket_layanan_id)->toBe($this->paketOffice->id)
-->and($layanan2->site_id)->not->toBe($layanan1->site_id);
-⋮----
-expect($this->pelanggan->fresh()->layanans)->toHaveCount(2);
-⋮----
-$layananHome = LayananPelanggan::factory()->create([
-⋮----
-$layananOffice = LayananPelanggan::factory()->create([
-⋮----
-$invoiceHome = $billingService->generateInvoice($layananHome, $this->admin->id, null, null, $periode);
-$invoiceOffice = $billingService->generateInvoice($layananOffice, $this->admin->id, null, null, $periode);
-⋮----
-expect($invoiceHome->id)->not->toBe($invoiceOffice->id)
-->and($invoiceHome->layanan_pelanggan_id)->toBe($layananHome->id)
-->and($invoiceHome->jumlah)->toEqual(150000.0)
-->and($invoiceOffice->layanan_pelanggan_id)->toBe($layananOffice->id)
-->and($invoiceOffice->jumlah)->toEqual(450000.0)
-->and($invoiceHome->pelanggan_id)->toBe($this->pelanggan->id)
-->and($invoiceOffice->pelanggan_id)->toBe($this->pelanggan->id);
-⋮----
-expect($this->pelanggan->fresh()->invoices)->toHaveCount(2);
-⋮----
-$expiredAwal = now()->addDays(20)->startOfDay();
-⋮----
-'tanggal_mulai' => now()->subMonth()->toDateString(),
-'tanggal_expired' => $expiredAwal->toDateString(),
-⋮----
-Queue::fake();
-⋮----
-$invoiceHome = $billingService->generateInvoice($layananHome, $this->admin->id, null, null, '2026-09');
-$invoiceOffice = $billingService->generateInvoice($layananOffice, $this->admin->id, null, null, '2026-09');
-⋮----
-$billingService->prosesPembayaranManual($invoiceHome, [
-⋮----
-$invoiceHome->refresh();
-$invoiceOffice->refresh();
-⋮----
-expect($invoiceHome->status)->toBe(StatusInvoice::Lunas)
-->and($invoiceHome->tanggal_lunas)->not->toBeNull();
-⋮----
-$layananHome->refresh();
-expect(Carbon::parse($layananHome->tanggal_expired)->toDateString())->toBe($expiredAwal->copy()->addMonthNoOverflow()->day(10)->toDateString());
-⋮----
-expect($invoiceOffice->status)->toBe(StatusInvoice::MenungguPembayaran)
-->and($invoiceOffice->tanggal_lunas)->toBeNull();
-⋮----
-$layananOffice->refresh();
-expect(Carbon::parse($layananOffice->tanggal_expired)->toDateString())->toBe($expiredAwal->toDateString());
-⋮----
-$mikrotikMock = Mockery::mock(MikrotikService::class);
-⋮----
-$mikrotikMock->shouldReceive('disablePppoeSecret')
-->once()
-->with(
-Mockery::on(fn ($r) => $r->id === $this->router->id),
-Mockery::on(fn ($l) => $l->ppp_username === 'BF2408202601_00001'),
-⋮----
-->andReturn(true);
-⋮----
-$this->app->instance(MikrotikService::class, $mikrotikMock);
-⋮----
-$layananHome->update(['status' => StatusLayanan::Suspend]);
-$mikrotikMock->disablePppoeSecret($this->router, $layananHome, true);
-⋮----
-expect($layananHome->fresh()->status)->toBe(StatusLayanan::Suspend)
-->and($layananOffice->fresh()->status)->toBe(StatusLayanan::Aktif);
-⋮----
-$pelangganLain = Pelanggan::factory()->create(['no_reg' => 'BF2408202699']);
-$layananLain = LayananPelanggan::factory()->create([
-⋮----
-Livewire::actingAs($this->admin)
-->test(InvoiceCreate::class)
-⋮----
-->assertSee($layananHome->site_id)
-->assertSee($layananOffice->site_id)
-->assertDontSee($layananLain->site_id);
-⋮----
-$comp = Livewire::actingAs($this->admin)
-⋮----
-->call('nextStep')
-->set('nama_site', 'Kantor Cabang Sudirman')
-->set('alamat_pemasangan', 'Gedung Wisma Sudirman Lt. 5')
-->set('latitude', -6.2146)
-->set('longitude', 106.8212)
-->set('ppp_password', 'password123')
-⋮----
-$layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)
-->where('nama_site', 'Kantor Cabang Sudirman')
-->first();
-⋮----
-expect($layanan)->not->toBeNull()
-->and($layanan->alamat_pemasangan)->toBe('Gedung Wisma Sudirman Lt. 5')
-->and($layanan->latitude)->toBe(-6.2146)
-->and($layanan->longitude)->toBe(106.8212)
-->and($layanan->alamat_efektif)->toBe('Gedung Wisma Sudirman Lt. 5')
-->and($layanan->latitude_efektif)->toBe(-6.2146)
-->and($layanan->nama_site_label)->toBe('Kantor Cabang Sudirman');
-⋮----
-$this->pelanggan->update([
-⋮----
-$layanan = LayananPelanggan::factory()->create([
-⋮----
-expect($layanan->alamat_efektif)->toBe('Jl. Kebon Sirih No. 10')
-->and($layanan->latitude_efektif)->toBe(-6.1818)
-->and($layanan->longitude_efektif)->toBe(106.8271)
-->and($layanan->nama_site_label)->toBe($layanan->site_id);
-⋮----
-Queue::fake([UpdatePppoeProfileJob::class]);
-⋮----
-$mockMikrotik = Mockery::mock(MikrotikService::class);
-$mockMikrotik->shouldReceive('getPppStatus')->andReturn([
-⋮----
-$this->app->instance(MikrotikService::class, $mockMikrotik);
-⋮----
-->test(Show::class, ['pelanggan' => $this->pelanggan])
-->call('openUbahPaketModal', $layanan->id)
-->assertSet('showUbahPaketModal', true)
-->assertSet('selectedLayananId', $layanan->id)
-->set('newPaketId', $this->paketOffice->id)
-->call('prosesUbahPaket')
-->assertSet('showUbahPaketModal', false);
-⋮----
-expect($layanan->fresh()->paket_layanan_id)->toBe($this->paketOffice->id);
-⋮----
-Queue::assertPushed(UpdatePppoeProfileJob::class, function ($job) use ($layanan) {
+expect($overdueInvoice->fresh()->status)->toBe(StatusInvoice::Kadaluarsa);
 ````
 
 ## File: tests/Feature/PaymentGatewayManagerTest.php
@@ -64032,6 +65441,16 @@ $this->actingAs($teknisi)
 ->assertForbidden();
 ````
 
+## File: tests/Feature/PortalDomainRoutingTest.php
+````php
+expect(route('portal.login'))->toBe('http://'.config('app.portal_domain').'/login')
+->and(route('portal.dashboard'))->toBe('http://'.config('app.portal_domain').'/dashboard');
+⋮----
+$this->get('/portal/login')->assertOk();
+⋮----
+$this->get('http://'.config('app.portal_domain').'/login')->assertOk();
+````
+
 ## File: tests/Feature/StripLinkPortalTiketMigrationTest.php
 ````php
 use App\Models\WaTemplate;
@@ -64045,6 +65464,52 @@ $lain = WaTemplate::factory()->create(['konten' => "Halo {nama_pelanggan}\n\nSal
 ⋮----
 expect($ticket->fresh()->konten)->toBe("Update {nomor_tiket}\n\nSalam,\n{nama_brand}")
 ->and($lain->fresh()->konten)->toBe("Halo {nama_pelanggan}\n\nSalam");
+````
+
+## File: tests/Feature/UsersIndexTest.php
+````php
+use App\Enums\UserStatus;
+use App\Livewire\Users\Index;
+use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+⋮----
+$this->seed(RolesAndPermissionsSeeder::class);
+⋮----
+$admin = User::factory()->create(['status' => UserStatus::Active]);
+$admin->assignRole('super_admin');
+⋮----
+Livewire::actingAs($admin)
+->test(Index::class)
+->assertOk();
+⋮----
+$user = User::factory()->create(['status' => UserStatus::Active]);
+$user->assignRole('teknisi');
+⋮----
+$this->actingAs($user)
+->get(route('users.index'))
+->assertForbidden();
+⋮----
+User::factory()->create(['name' => 'Budi Santoso', 'status' => UserStatus::Active]);
+User::factory()->create(['name' => 'Siti Aminah', 'status' => UserStatus::Active]);
+⋮----
+->set('search', 'Budi')
+->assertSee('Budi Santoso')
+->assertDontSee('Siti Aminah');
+⋮----
+User::factory()->create(['name' => 'Active User', 'status' => UserStatus::Active]);
+User::factory()->create(['name' => 'Inactive User', 'status' => UserStatus::Inactive]);
+⋮----
+->set('filterStatus', 'inactive')
+->assertSee('Inactive User')
+->assertDontSee('Active User');
+⋮----
+$userWithPhoto = User::factory()->create(['name' => 'Punya Foto', 'status' => UserStatus::Active]);
+⋮----
+$userWithPhoto->addMedia($path)->preservingOriginal()->toMediaCollection('foto_profil');
+⋮----
+->assertSee($userWithPhoto->fotoProfilUrl());
 ````
 
 ## File: tests/Feature/WaitForServicesCommandTest.php
@@ -64068,20 +65533,6 @@ DB::purge('mysql');
 ->expectsOutputToContain('FATAL: Database did not become reachable within 1s.')
 ````
 
-## File: tests/Unit/EnvTemplateS3UploadTest.php
-````php
-function parseEnvExample(string $path): array
-⋮----
-expect($env)->toHaveKey('AWS_ENDPOINT')
-->and($env)->toHaveKey('AWS_URL');
-⋮----
-expect($endpointHost)->toBe($urlHost)
-->and($endpointHost)->not->toBe('rustfs');
-⋮----
-expect($env['FILESYSTEM_DISK'] ?? null)->toBe('s3')
-->and($env['LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK'] ?? null)->toBe('s3');
-````
-
 ## File: .claudeignore
 ````
 # Everything below is tracked in git (so not already covered by .gitignore)
@@ -64103,108 +65554,6 @@ bun.lock
 .codex/
 .agents/
 .serena/
-````
-
-## File: .env.example
-````
-APP_NAME=GOBILLING
-APP_ENV=local
-APP_KEY=
-APP_PREVIOUS_KEYS=
-APP_DEBUG=true
-APP_URL=http://localhost:8000
-
-APP_LOCALE=en
-APP_FALLBACK_LOCALE=en
-APP_FAKER_LOCALE=en_US
-
-APP_MAINTENANCE_DRIVER=file
-# APP_MAINTENANCE_STORE=database
-
-# PHP_CLI_SERVER_WORKERS=4
-
-BCRYPT_ROUNDS=12
-
-LOG_CHANNEL=stack
-LOG_STACK=single
-LOG_DEPRECATIONS_CHANNEL=null
-LOG_LEVEL=debug
-
-# Database Configuration
-# For Railway deployment: Railway's MySQL variables (MYSQLHOST, MYSQL_URL, etc.)
-# are automatically detected by GOBILLING's database configuration.
-# If setting manually in Railway: DB_HOST=${{MySQL.MYSQLHOST}}
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=gobilling
-DB_USERNAME=root
-DB_PASSWORD=
-
-SESSION_DRIVER=database
-SESSION_LIFETIME=120
-SESSION_ENCRYPT=false
-SESSION_PATH=/
-SESSION_DOMAIN=null
-
-BROADCAST_CONNECTION=log
-FILESYSTEM_DISK=local
-MEDIA_DISK=local
-QUEUE_CONNECTION=database
-
-CACHE_STORE=database
-# CACHE_PREFIX=
-
-MEMCACHED_HOST=127.0.0.1
-
-# Redis Configuration (Optional / Railway Redis)
-# Railway's Redis variables (REDISHOST, REDIS_URL, etc.) are automatically detected.
-REDIS_CLIENT=phpredis
-REDIS_HOST=127.0.0.1
-REDIS_PASSWORD=null
-REDIS_PORT=6379
-
-MAIL_MAILER=log
-MAIL_SCHEME=null
-MAIL_HOST=127.0.0.1
-MAIL_PORT=2525
-MAIL_USERNAME=null
-MAIL_PASSWORD=null
-MAIL_FROM_ADDRESS="hello@example.com"
-MAIL_FROM_NAME="${APP_NAME}"
-
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_DEFAULT_REGION=us-east-1
-AWS_BUCKET=
-# Set FILESYSTEM_DISK=s3 and MEDIA_DISK=s3 to use RustFS/S3 storage locally,
-# see docs/adr/0037 for AWS_ENDPOINT browser-reachability requirements.
-# AWS_URL must also be browser-reachable (not the internal rustfs:9000 host) —
-# with Sail's default port mapping this is http://localhost:9000/<bucket>.
-AWS_ENDPOINT=
-AWS_URL=
-AWS_USE_PATH_STYLE_ENDPOINT=false
-
-VITE_APP_NAME="${APP_NAME}"
-
-# WhatsApp Gateway (fallback default dipakai saat WhatsappClient dibuat tanpa koneksi Sysblas
-# spesifik — kredensial koneksi sebenarnya dikelola per-koneksi lewat menu Pengaturan > Koneksi
-# WhatsApp, disimpan di tabel `sysblas`, bukan lewat env ini)
-GOWA_HOST=http://localhost:3000
-GOWA_USERNAME=
-GOWA_PASSWORD=
-GOWA_NUMBER=
-
-WAHA_HOST=https://waha.example.com
-WAHA_SESSION=default
-WAHA_API_KEY=
-WAHA_USERNAME=
-WAHA_PASSWORD=
-WAHA_NUMBER=
-
-# MikroTik: cache TTL untuk status PPP realtime & timeout koneksi status check (detik)
-MIKROTIK_STATUS_CACHE_TTL=20
-MIKROTIK_STATUS_TIMEOUT=3
 ````
 
 ## File: boost.json
@@ -64360,48 +65709,6 @@ volumes:
         driver: local
     sail-rustfs:
         driver: local
-````
-
-## File: phpunit.xml
-````xml
-<?xml version="1.0" encoding="UTF-8"?>
-<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
-         colors="true"
->
-    <testsuites>
-        <testsuite name="Unit">
-            <directory>tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Feature">
-            <directory>tests/Feature</directory>
-        </testsuite>
-    </testsuites>
-    <source>
-        <include>
-            <directory>app</directory>
-        </include>
-    </source>
-    <php>
-        <env name="APP_ENV" value="testing"/>
-        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
-        <env name="BCRYPT_ROUNDS" value="4"/>
-        <env name="BROADCAST_CONNECTION" value="null"/>
-        <env name="CACHE_STORE" value="array"/>
-        <env name="DB_DATABASE" value="testing"/>
-        <env name="DB_URL" value=""/>
-        <env name="FILESYSTEM_DISK" value="public"/>
-        <env name="MEDIA_DISK" value="public"/>
-        <env name="MAIL_MAILER" value="array"/>
-        <env name="QUEUE_CONNECTION" value="sync"/>
-        <env name="SESSION_DRIVER" value="array"/>
-        <env name="PULSE_ENABLED" value="false"/>
-        <env name="TELESCOPE_ENABLED" value="false"/>
-        <env name="NIGHTWATCH_ENABLED" value="false"/>
-        <ini name="memory_limit" value="512M"/>
-    </php>
-</phpunit>
 ````
 
 ## File: skills-lock.json
@@ -64653,826 +65960,6 @@ volumes:
 }
 ````
 
-## File: app/Actions/Ticket/UbahStatusTicketAction.php
-````php
-namespace App\Actions\Ticket;
-⋮----
-use App\Actions\LayananPelanggan\UbahStatusLayananAction;
-use App\Enums\StatusLayanan;
-use App\Enums\StatusPelanggan;
-use App\Enums\Ticket\JenisTicket;
-use App\Enums\Ticket\StatusTicket;
-use App\Exceptions\TransisiStatusTidakValidException;
-use App\Models\Ticket;
-use App\Models\TicketHistori;
-use App\Models\User;
-use App\Notifications\TicketStatusBerubahNotification;
-use App\Services\Whatsapp\WhatsappService;
-use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
-use InvalidArgumentException;
-⋮----
-class UbahStatusTicketAction
-⋮----
-public function execute(Ticket $ticket, StatusTicket $statusBaru, User $actor, ?string $catatan = null): Ticket
-⋮----
-if (! in_array($statusBaru, $ticket->status->transisiValid(), true)) {
-⋮----
-if (! Gate::forUser($actor)->allows('ubahStatus', [$ticket, $statusBaru])) {
-⋮----
-"Anda tidak memiliki hak akses untuk mengubah status tiket {$ticket->nomor_ticket} menjadi '{$statusBaru->label()}'."
-⋮----
-DB::transaction(function () use ($ticket, $statusLama, $statusBaru, $actor, $catatan) {
-⋮----
-$ticket->update($updateData);
-⋮----
-TicketHistori::create([
-⋮----
-$this->terapkanEfekKeLayananDanPelanggan($ticket, $statusBaru, $actor);
-⋮----
-$this->dispatchNotifications($ticket, $statusLama, $statusBaru, $actor, $catatan);
-⋮----
-return $ticket->refresh()->load(['histori.olehPengguna', 'pic', 'dibuatOleh']);
-⋮----
-protected function terapkanEfekKeLayananDanPelanggan(Ticket $ticket, StatusTicket $statusBaru, User $actor): void
-⋮----
-app(UbahStatusLayananAction::class)->execute(
-⋮----
-protected function dispatchNotifications(
-⋮----
-$recipients->push($ticket->dibuatOleh);
-⋮----
-$recipients->push($ticket->pic);
-⋮----
-foreach ($recipients->unique('id') as $recipient) {
-$recipient->notify(new TicketStatusBerubahNotification(
-⋮----
-$params = $whatsappService->buildTicketParams($ticket, $catatan);
-$whatsappService->antrikanPesan(
-⋮----
-jenis: "tiket_status_{$statusBaru->value}_{$ticket->histori()->count()}"
-⋮----
-Log::error('Gagal mengantrikan WA update tiket: '.$e->getMessage());
-````
-
-## File: app/Console/Commands/EnsurePublicMediaBucketCommand.php
-````php
-namespace App\Console\Commands;
-⋮----
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
-⋮----
-class EnsurePublicMediaBucketCommand extends Command
-⋮----
-protected $signature = 'app:ensure-public-media-bucket';
-⋮----
-protected $description = 'Apply a public-read bucket policy on the S3/RustFS media bucket so browsers can load media URLs directly.';
-⋮----
-public function handle(): int
-⋮----
-$this->components->info("Default disk is [{$disk}], not [s3]. Skipping bucket policy setup.");
-⋮----
-$this->components->warn('AWS_BUCKET is not configured. Skipping bucket policy setup.');
-⋮----
-$client = Storage::disk('s3')->getClient();
-⋮----
-if (! $client->doesBucketExist($bucket)) {
-$client->createBucket(['Bucket' => $bucket]);
-$this->components->info("Created missing bucket [{$bucket}].");
-⋮----
-$client->putBucketPolicy(['Bucket' => $bucket, 'Policy' => $policy]);
-$this->components->info("Public-read bucket policy applied to [{$bucket}].");
-⋮----
-$this->components->warn("Could not apply bucket policy to [{$bucket}]: {$e->getMessage()}");
-````
-
-## File: app/Jobs/Mikrotik/ProvisionPppoeAccountJob.php
-````php
-namespace App\Jobs\Mikrotik;
-⋮----
-use App\Enums\MikrotikJobStatus;
-use App\Enums\MikrotikJobType;
-use App\Enums\StatusLayanan;
-use App\Exceptions\MikrotikConnectionException;
-use App\Exceptions\MikrotikException;
-use App\Models\LayananPelanggan;
-use App\Models\MikrotikJobLog;
-use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
-use App\Services\Mikrotik\MikrotikService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\WithoutOverlapping;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
-use Throwable;
-⋮----
-class ProvisionPppoeAccountJob implements ShouldBeUnique, ShouldQueue
-⋮----
-public int $tries = 3;
-⋮----
-public int $uniqueFor = 300;
-⋮----
-public array $backoff = [30, 120, 300];
-⋮----
-public function __construct(
-⋮----
-$this->onQueue('mikrotik-high');
-⋮----
-public function uniqueId(): string
-⋮----
-public function middleware(): array
-⋮----
-->releaseAfter(5)
-->expireAfter(30)
-->shared(),
-⋮----
-public function handle(MikrotikService $mikrotikService): void
-⋮----
-$log = MikrotikJobLog::create([
-⋮----
-'attempt_count' => $this->attempts(),
-⋮----
-$result = $mikrotikService->createOrUpdatePppoeSecret($router, $this->layanan);
-⋮----
-$log->update([
-⋮----
-'finished_at' => Carbon::now(),
-⋮----
-$this->layanan->update(['status' => StatusLayanan::Aktif]);
-⋮----
-'error_message' => $e->getMessage(),
-⋮----
-$this->failed($e);
-⋮----
-public function failed(?Throwable $exception): void
-⋮----
-$log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
-->where('job_type', MikrotikJobType::ProvisionPppoe)
-->latest()
-->first();
-⋮----
-$recipients = User::role(['super_admin', 'noc'])->get();
-⋮----
-$recipient->notify(new MikrotikJobFailedNotification($log));
-````
-
-## File: app/Jobs/Mikrotik/SyncIpPoolToRouterJob.php
-````php
-namespace App\Jobs\Mikrotik;
-⋮----
-use App\Enums\MikrotikJobStatus;
-use App\Enums\MikrotikJobType;
-use App\Models\IpPool;
-use App\Models\MikrotikJobLog;
-use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
-use App\Services\Mikrotik\MikrotikService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\WithoutOverlapping;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
-use Throwable;
-⋮----
-class SyncIpPoolToRouterJob implements ShouldBeUnique, ShouldQueue
-⋮----
-public int $tries = 3;
-⋮----
-public int $uniqueFor = 300;
-⋮----
-public array $backoff = [30, 120, 300];
-⋮----
-public function __construct(
-⋮----
-$this->onQueue('mikrotik-low');
-⋮----
-public function retryUntil(): \DateTimeInterface
-⋮----
-return now()->addMinutes(10);
-⋮----
-public function uniqueId(): string
-⋮----
-public function middleware(): array
-⋮----
-->releaseAfter(10)
-->expireAfter(60),
-⋮----
-public function handle(MikrotikService $mikrotikService): void
-⋮----
-$log = MikrotikJobLog::create([
-⋮----
-'attempt_count' => $this->attempts(),
-⋮----
-'network' => $this->ipPool->labelNetwork(),
-⋮----
-$result = $mikrotikService->syncIpPool($router, $this->ipPool);
-⋮----
-$log->update([
-⋮----
-'finished_at' => Carbon::now(),
-⋮----
-'error_message' => $e->getMessage(),
-⋮----
-public function failed(?Throwable $exception): void
-⋮----
-$log = MikrotikJobLog::where('ip_pool_id', $this->ipPool->id)
-->where('job_type', MikrotikJobType::SyncIpPool)
-->latest()
-->first();
-⋮----
-$recipients = User::role(['super_admin', 'noc'])->get();
-⋮----
-$recipient->notify(new MikrotikJobFailedNotification($log));
-````
-
-## File: app/Livewire/IpPool/Create.php
-````php
-namespace App\Livewire\IpPool;
-⋮----
-use App\Livewire\Concerns\ValidatesIpPoolRange;
-use App\Models\IpPool;
-use App\Models\Router;
-use App\Utils\IpNetworkHelper;
-use Flux\Flux;
-use Illuminate\Validation\Rule;
-use Illuminate\View\View;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
-use Livewire\Component;
-⋮----
-class Create extends Component
-⋮----
-public string $nama_pool = '';
-⋮----
-public ?int $router_id = null;
-⋮----
-public string $ip_network = '';
-⋮----
-public ?int $cidr = 24;
-⋮----
-public string $rentang_ip_awal = '';
-⋮----
-public string $rentang_ip_akhir = '';
-⋮----
-public ?int $priority_tx = 8;
-⋮----
-public ?int $priority_rx = 8;
-⋮----
-public function mount(): void
-⋮----
-$this->authorize('create', IpPool::class);
-$this->initSingleRouterSelection();
-⋮----
-protected function initSingleRouterSelection(): void
-⋮----
-$routers = Router::get(['id']);
-if ($routers->count() === 1) {
-$this->router_id = $routers->first()->id;
-⋮----
-protected function rules(): array
-⋮----
-'nama_pool' => ['required', 'string', 'max:100', Rule::unique('ip_pool', 'nama_pool')->where('router_id', $this->router_id)],
-⋮----
-'rentang_ip_akhir' => ['bail', 'required', 'string', 'ipv4', $this->rentangIpAkhirRule()],
-⋮----
-protected function messages(): array
-⋮----
-public function generateRange(): void
-⋮----
-$this->validateOnly('ip_network', ['ip_network' => ['required', 'ipv4']]);
-$this->validateOnly('cidr', ['cidr' => ['required', 'integer', 'min:1', 'max:32']]);
-⋮----
-$range = IpNetworkHelper::calculateSuggestedRange($this->ip_network, $this->cidr);
-⋮----
-Flux::toast(variant: 'success', text: 'Rentang IP saran berhasil dihitung.');
-⋮----
-Flux::toast(variant: 'danger', text: 'Kombinasi Network & CIDR tidak valid untuk rentang IP.');
-⋮----
-public function save(): void
-⋮----
-$this->validate();
-⋮----
-IpPool::create([
-⋮----
-Flux::toast(variant: 'success', text: 'IP Pool berhasil dibuat.');
-⋮----
-$this->redirectRoute('ip-pool.index', navigate: true);
-⋮----
-public function render(): View
-⋮----
-'routers' => Router::orderBy('nama_router')->get(),
-````
-
-## File: app/Livewire/IpPool/Edit.php
-````php
-namespace App\Livewire\IpPool;
-⋮----
-use App\Livewire\Concerns\ValidatesIpPoolRange;
-use App\Models\IpPool;
-use App\Models\Router;
-use App\Utils\IpNetworkHelper;
-use Flux\Flux;
-use Illuminate\Validation\Rule;
-use Illuminate\View\View;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Locked;
-use Livewire\Attributes\Title;
-use Livewire\Component;
-⋮----
-class Edit extends Component
-⋮----
-public int $poolId;
-⋮----
-public string $nama_pool = '';
-⋮----
-public ?int $router_id = null;
-⋮----
-public string $ip_network = '';
-⋮----
-public ?int $cidr = 24;
-⋮----
-public string $rentang_ip_awal = '';
-⋮----
-public string $rentang_ip_akhir = '';
-⋮----
-public ?int $priority_tx = 8;
-⋮----
-public ?int $priority_rx = 8;
-⋮----
-public function mount(IpPool $pool): void
-⋮----
-$this->authorize('update', $pool);
-⋮----
-protected function rules(): array
-⋮----
-'nama_pool' => ['required', 'string', 'max:100', Rule::unique('ip_pool', 'nama_pool')->where('router_id', $this->router_id)->ignore($this->poolId)],
-⋮----
-'rentang_ip_akhir' => ['bail', 'required', 'string', 'ipv4', $this->rentangIpAkhirRule($this->poolId)],
-⋮----
-public function generateRange(): void
-⋮----
-$this->validateOnly('ip_network', ['ip_network' => ['required', 'ipv4']]);
-$this->validateOnly('cidr', ['cidr' => ['required', 'integer', 'min:1', 'max:32']]);
-⋮----
-$range = IpNetworkHelper::calculateSuggestedRange($this->ip_network, $this->cidr);
-⋮----
-Flux::toast(variant: 'success', text: 'Rentang IP saran berhasil dihitung.');
-⋮----
-Flux::toast(variant: 'danger', text: 'Kombinasi Network & CIDR tidak valid untuk rentang IP.');
-⋮----
-public function save(): void
-⋮----
-$pool = IpPool::findOrFail($this->poolId);
-⋮----
-$this->validate();
-⋮----
-if ($this->router_id !== $pool->router_id && ! $pool->canBeDeleted()) {
-$count = $pool->layanans()->withTrashed()->count();
-Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} masih digunakan oleh {$count} layanan pelanggan dan tidak dapat dipindahkan ke router lain.");
-⋮----
-$pool->update([
-⋮----
-Flux::toast(variant: 'success', text: 'IP Pool berhasil diperbarui.');
-⋮----
-$this->redirectRoute('ip-pool.index', navigate: true);
-⋮----
-public function render(): View
-⋮----
-'routers' => Router::orderBy('nama_router')->get(),
-````
-
-## File: app/Livewire/LayananPelanggan/Edit.php
-````php
-namespace App\Livewire\LayananPelanggan;
-⋮----
-use App\Enums\JenisKoneksi;
-use App\Enums\StatusLayanan;
-use App\Livewire\Concerns\HasSearchableOptions;
-use App\Models\IpPool;
-use App\Models\LayananPelanggan;
-use App\Models\PaketLayanan;
-use App\Models\Router;
-use Flux\Flux;
-use Illuminate\Validation\Rule;
-use Illuminate\View\View;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Locked;
-use Livewire\Attributes\Title;
-use Livewire\Component;
-⋮----
-class Edit extends Component
-⋮----
-public int $layananId;
-⋮----
-public string $pelangganNoReg = '';
-⋮----
-public ?int $paket_layanan_id = null;
-⋮----
-public ?int $router_id = null;
-⋮----
-public ?int $ip_pool_id = null;
-⋮----
-public ?string $ip_static = null;
-⋮----
-public string $nama_site = '';
-⋮----
-public string $alamat_pemasangan = '';
-⋮----
-public ?float $latitude = null;
-⋮----
-public ?float $longitude = null;
-⋮----
-public string $ppp_username = '';
-⋮----
-public string $ppp_password = '';
-⋮----
-public string $jenis_koneksi = 'pppoe';
-⋮----
-public string $status = 'aktif';
-⋮----
-public string $tanggal_mulai = '';
-⋮----
-public string $tanggal_expired = '';
-⋮----
-public function mount(LayananPelanggan $layananPelanggan): void
-⋮----
-$this->authorize('update', $layananPelanggan);
-⋮----
-$this->ppp_password = ''; // Kosongkan untuk keamanan
-⋮----
-$this->tanggal_mulai = $layananPelanggan->tanggal_mulai->toDateString();
-⋮----
-/**
-     * @return array<string, mixed>
-     */
-protected function rules(): array
-⋮----
-? ['required', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)]
-: ['nullable', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)],
-⋮----
-public function updatedRouterId(): void
-⋮----
-$pools = IpPool::where('router_id', $this->router_id)->get(['id']);
-if ($pools->count() === 1) {
-$this->ip_pool_id = $pools->first()->id;
-⋮----
-public function updatedJenisKoneksi(): void
-⋮----
-public function save(): void
-⋮----
-$layanan = LayananPelanggan::findOrFail($this->layananId);
-$this->authorize('update', $layanan);
-$this->validate($this->rules(), [
-⋮----
-$layanan->update($data);
-⋮----
-Flux::toast(variant: 'success', text: 'Data Registrasi Billing berhasil diperbarui.');
-$this->redirectRoute('layanan-pelanggan.index', navigate: true);
-⋮----
-protected function searchableFields(): array
-⋮----
-'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
-'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga(),
-⋮----
-public function render(): View
-⋮----
-$routers = Router::orderBy('nama_router')->get();
-⋮----
-? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
-⋮----
-$jenisKoneksi = JenisKoneksi::cases();
-$statuses = StatusLayanan::cases();
-````
-
-## File: app/Livewire/Pelanggan/Show.php
-````php
-namespace App\Livewire\Pelanggan;
-⋮----
-use App\Enums\StatusInvoice;
-use App\Livewire\Concerns\HasSearchableOptions;
-use App\Models\AkunPelanggan;
-use App\Models\Invoice;
-use App\Models\LayananPelanggan;
-use App\Models\PaketLayanan;
-use App\Models\Pelanggan;
-use App\Models\Pembayaran;
-use App\Models\Promo;
-use App\Models\User;
-use App\Services\Billing\BillingService;
-use App\Services\CustomerDocumentService;
-use App\Services\Mikrotik\MikrotikService;
-use Exception;
-use Flux\Flux;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
-use Illuminate\View\View;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
-use Livewire\Component;
-use Livewire\WithFileUploads;
-use Spatie\Activitylog\Models\Activity;
-⋮----
-class Show extends Component
-⋮----
-public int $pelangganId;
-⋮----
-public string $activeTab = 'overview';
-⋮----
-public bool $showNik = false;
-⋮----
-public bool $showKtpModal = false;
-⋮----
-public bool $showUploadKtpModal = false;
-⋮----
-public bool $showUploadDocModal = false;
-⋮----
-public bool $showBayarModal = false;
-⋮----
-public bool $showUbahPaketModal = false;
-⋮----
-public bool $showTambahInvoiceModal = false;
-⋮----
-public ?int $selectedLayananId = null;
-⋮----
-public ?int $newPaketId = null;
-⋮----
-public ?int $tambahInvoiceLayananId = null;
-⋮----
-public ?int $tambahInvoicePromoId = null;
-⋮----
-public string $tambahInvoiceKodePromo = '';
-⋮----
-public string $tambahInvoiceKeterangan = '';
-⋮----
-public ?int $tambahInvoiceJumlah = null;
-⋮----
-public string $tambahInvoiceTanggalJatuhTempo = '';
-⋮----
-public ?int $selectedInvoiceId = null;
-⋮----
-public string $bayarMetode = 'manual_admin';
-⋮----
-public ?float $bayarJumlah = 0.0;
-⋮----
-public string $bayarReferensi = '';
-⋮----
-public string $bayarTanggal = '';
-⋮----
-public string $bayarCatatan = '';
-⋮----
-/** @var mixed */
-public $newKtpFile = null;
-⋮----
-public $docFile = null;
-⋮----
-public string $docJenis = 'MOU / Kontrak';
-⋮----
-public string $docNomor = '';
-⋮----
-public string $docKeterangan = '';
-⋮----
-/**
-     * Cache status realtime PPP per ID layanan pelanggan.
-     *
-     * @var array<int, array<string, mixed>>
-     */
-public array $pppStatuses = [];
-⋮----
-public function mount(Pelanggan $pelanggan): void
-⋮----
-$this->authorize('view', $pelanggan);
-⋮----
-public function setTab(string $tab): void
-⋮----
-public function toggleShowNik(): void
-⋮----
-public function resetPasswordPortal(): void
-⋮----
-$pelanggan = Pelanggan::with('akunPelanggan')->findOrFail($this->pelangganId);
-$this->authorize('update', $pelanggan);
-⋮----
-$pelanggan->akunPelanggan->update([
-⋮----
-Flux::toast(variant: 'danger', text: 'Pelanggan belum memiliki alamat email untuk akun portal.');
-⋮----
-AkunPelanggan::create([
-⋮----
-->performedOn($pelanggan)
-->causedBy(Auth::user())
-->log("Mereset password akun portal pelanggan {$pelanggan->identitasLengkap()} ke default");
-⋮----
-Flux::toast(variant: 'success', text: 'Password portal pelanggan berhasil direset ke default (12345678).');
-⋮----
-public function openBayarModal(int $invoiceId): void
-⋮----
-$invoice = Invoice::where('pelanggan_id', $this->pelangganId)->findOrFail($invoiceId);
-⋮----
-$this->bayarTanggal = Carbon::now()->format('Y-m-d\TH:i');
-⋮----
-public function closeBayarModal(): void
-⋮----
-public function prosesBayarInvoice(BillingService $billingService, MikrotikService $mikrotikService): void
-⋮----
-$this->authorize('create', Pembayaran::class);
-⋮----
-$invoice = Invoice::where('pelanggan_id', $this->pelangganId)->findOrFail($this->selectedInvoiceId);
-⋮----
-$this->validate([
-⋮----
-'bayarJumlah' => ['required', 'numeric', Rule::in([(float) $invoice->jumlah_setelah_promo])],
-⋮----
-$actor = Auth::user();
-⋮----
-$billingService->prosesPembayaranManual(
-⋮----
-$this->closeBayarModal();
-⋮----
-$this->loadPppStatuses($mikrotikService);
-⋮----
-Flux::toast(variant: 'success', text: "Pembayaran invoice {$invoice->no_invoice} berhasil dicatat & layanan diperpanjang!");
-⋮----
-Flux::toast(variant: 'danger', text: $e->getMessage());
-⋮----
-public function openKtpModal(): void
-⋮----
-$pelanggan = Pelanggan::findOrFail($this->pelangganId);
-$this->authorize('viewKtp', $pelanggan);
-⋮----
-public function closeKtpModal(): void
-⋮----
-public function openUploadKtpModal(): void
-⋮----
-public function closeUploadKtpModal(): void
-⋮----
-public function saveKtp(CustomerDocumentService $documentService): void
-⋮----
-$documentService->storeEncryptedMedia($pelanggan, $this->newKtpFile, 'ktp');
-⋮----
-$this->closeUploadKtpModal();
-⋮----
-Flux::toast(variant: 'success', text: 'Foto KTP berhasil dienkripsi dan disimpan.');
-⋮----
-public function openUploadDocModal(): void
-⋮----
-$this->authorize('uploadDokumen', $pelanggan);
-⋮----
-public function closeUploadDocModal(): void
-⋮----
-public function saveDokumen(CustomerDocumentService $documentService): void
-⋮----
-$documentService->storeEncryptedMedia(
-⋮----
-'uploaded_by' => Auth::user()?->name,
-⋮----
-$this->closeUploadDocModal();
-⋮----
-Flux::toast(variant: 'success', text: "Dokumen {$this->docJenis} berhasil dienkripsi dan diunggah.");
-⋮----
-public function deleteDokumen(int $mediaId): void
-⋮----
-$this->authorize('deleteDokumen', $pelanggan);
-⋮----
-$media = $pelanggan->media()->where('id', $mediaId)->where('collection_name', 'dokumen')->firstOrFail();
-⋮----
-$media->delete();
-⋮----
-->withProperties(['file_name' => $fileName, 'media_id' => $mediaId])
-->log("Menghapus dokumen {$fileName} milik pelanggan {$pelanggan->identitasLengkap()}");
-⋮----
-Flux::toast(variant: 'success', text: "Dokumen {$fileName} berhasil dihapus.");
-⋮----
-public function refreshPppStatus(MikrotikService $mikrotikService): void
-⋮----
-$pelanggan = Pelanggan::with(['layanans.router'])->findOrFail($this->pelangganId);
-⋮----
-$this->pppStatuses[$layanan->id] = $mikrotikService->refreshPppStatus(
-⋮----
-Flux::toast(
-⋮----
-public function loadPppStatuses(MikrotikService $mikrotikService): void
-⋮----
-$pelanggan = Pelanggan::with(['layanans.router', 'layanans.paketLayanan.profilBandwidth'])
-->findOrFail($this->pelangganId);
-⋮----
-$this->pppStatuses[$layanan->id] = $mikrotikService->getPppStatus(
-⋮----
-public function openUbahPaketModal(int $layananId): void
-⋮----
-$layanan = $pelanggan->layanans()->findOrFail($layananId);
-$this->authorize('update', $layanan);
-⋮----
-public function closeUbahPaketModal(): void
-⋮----
-public function prosesUbahPaket(MikrotikService $mikrotikService): void
-⋮----
-$layanan = $pelanggan->layanans()->with(['paketLayanan', 'router'])->findOrFail($this->selectedLayananId);
-⋮----
-$this->closeUbahPaketModal();
-Flux::toast(variant: 'warning', text: 'Paket yang dipilih sama dengan paket yang sedang aktif.');
-⋮----
-$newPaket = PaketLayanan::with('profilBandwidth')->findOrFail($this->newPaketId);
-⋮----
-$layanan->update([
-⋮----
-->performedOn($layanan)
-⋮----
-->withProperties([
-'old_paket_id' => $layanan->getOriginal('paket_layanan_id'),
-⋮----
-->log("Mengubah paket {$layanan->site_id} ({$layanan->ppp_username}) dari {$oldPaketNama} ke {$newPaket->nama_paket}");
-⋮----
-public function openTambahInvoiceModal(): void
-⋮----
-$this->authorize('create', Invoice::class);
-⋮----
-$this->tambahInvoiceTanggalJatuhTempo = Carbon::today()->addDays(7)->toDateString();
-$this->resetErrorBag();
-⋮----
-public function closeTambahInvoiceModal(): void
-⋮----
-public function updatedTambahInvoicePromoId(): void
-⋮----
-// Pilihan dropdown selalu menang atas kode yang diketik manual.
-⋮----
-/**
-     * Cocokkan kode promo yang diketik manual dengan promo aktif -- lihat Promo::findAktifByKode()
-     * (juga dipakai Invoice\Create untuk alur tambah invoice manual full-page).
-     */
-public function updatedTambahInvoiceKodePromo(): void
-⋮----
-$this->resetErrorBag('tambahInvoiceKodePromo');
-⋮----
-$promo = Promo::findAktifByKode($kode);
-⋮----
-$this->addError('tambahInvoiceKodePromo', 'Kode promo tidak ditemukan atau sudah tidak aktif.');
-⋮----
-public function simpanTambahInvoice(BillingService $billingService): void
-⋮----
-$layanan = $pelanggan->layanans()->findOrFail($this->tambahInvoiceLayananId);
-$promo = $this->tambahInvoicePromoId ? Promo::find($this->tambahInvoicePromoId) : null;
-⋮----
-$invoice = $billingService->generateManualInvoice(
-⋮----
-dibuatOleh: auth()->id(),
-⋮----
-tanggalJatuhTempo: Carbon::parse($this->tambahInvoiceTanggalJatuhTempo),
-⋮----
-$this->closeTambahInvoiceModal();
-⋮----
-Flux::toast(variant: 'success', text: "Invoice {$invoice->no_invoice} berhasil diterbitkan.");
-⋮----
-protected function searchableFields(): array
-⋮----
-'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
-'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga()
-⋮----
-public function render(): View
-⋮----
-$pelanggan = Pelanggan::with([
-⋮----
-])->findOrFail($this->pelangganId);
-⋮----
-$activityLogs = Activity::forSubject($pelanggan)
-->with('causer')
-->latest()
-->get();
-⋮----
-$dokumens = $pelanggan->getMedia('dokumen');
-$ktpMedia = $pelanggan->getKtpMedia();
-⋮----
-$invoicesAktif = Invoice::where('pelanggan_id', $this->pelangganId)
-->whereIn('status', [StatusInvoice::MenungguPembayaran, StatusInvoice::Kadaluarsa])
-->with(['layananPelanggan.paketLayanan', 'layananPelanggan.router', 'promo', 'transaksiPaymentGateways' => fn ($q) => $q->latest('id')])
-->orderByDesc('tanggal_terbit')
-⋮----
-$invoicesLunas = Invoice::where('pelanggan_id', $this->pelangganId)
-->where('status', StatusInvoice::Lunas)
-->with(['layananPelanggan.paketLayanan', 'promo', 'pembayarans.dicatatOleh'])
-->orderByDesc('tanggal_lunas')
-->orderByDesc('id')
-⋮----
-$invoicesDihapus = Invoice::onlyTrashed()
-->where('pelanggan_id', $this->pelangganId)
-->with(['layananPelanggan.paketLayanan', 'dihapusOleh'])
-->orderByDesc('deleted_at')
-⋮----
-? Invoice::with(['layananPelanggan.paketLayanan', 'promo'])->find($this->selectedInvoiceId)
-⋮----
-? $pelanggan->layanans->firstWhere('id', $this->selectedLayananId)
-⋮----
-$promosAktif = Promo::query()->aktif()->get();
-````
-
 ## File: app/Livewire/Portal/Invoice/Show.php
 ````php
 namespace App\Livewire\Portal\Invoice;
@@ -65534,14 +66021,42 @@ Flux::toast(variant: 'danger', text: 'Gagal memproses pembayaran: '.$e->getMessa
 public function render(): View
 ````
 
-## File: app/Livewire/Settings/Perusahaan.php
+## File: app/Livewire/Ticket/Show.php
 ````php
-namespace App\Livewire\Settings;
+namespace App\Livewire\Ticket;
 ⋮----
-use App\Models\Perusahaan as PerusahaanModel;
+use App\Actions\LayananPelanggan\DaftarkanLayananAction;
+use App\Actions\Ticket\AssignPicAction;
+use App\Actions\Ticket\UbahStatusDivisiTicketAction;
+use App\Actions\Ticket\UbahStatusTicketAction;
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Enums\StatusLayanan;
+use App\Enums\StatusOdpPort;
+use App\Enums\StatusRouter;
+use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\StatusDivisiTicket;
+use App\Enums\Ticket\StatusTicket;
+use App\Exceptions\DuplikatLayananAktifException;
+use App\Models\IpPool;
+use App\Models\LayananPelanggan;
+use App\Models\MikrotikJobLog;
+use App\Models\Odp;
+use App\Models\OdpPort;
+use App\Models\Router;
+use App\Models\Ticket;
+use App\Models\TicketHistori;
+use App\Models\TicketPemasangan;
+use App\Models\User;
+use App\Services\Mikrotik\MikrotikService;
+use App\Services\Whatsapp\WhatsappService;
+use Exception;
 use Flux\Flux;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -65549,83 +66064,229 @@ use Livewire\Component;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\WithFileUploads;
 ⋮----
-class Perusahaan extends Component
+class Show extends Component
 ⋮----
-public string $nama_perusahaan = '';
+public Ticket $ticket;
 ⋮----
-public string $nama_brand = 'GOBILLING';
+public bool $showUbahStatusModal = false;
 ⋮----
-public ?string $tagline = null;
+public string $statusBaru = '';
 ⋮----
-public ?string $alamat = null;
+public string $catatanStatus = '';
 ⋮----
-public ?string $kota = null;
+// State Modal Assign PIC
+public bool $showAssignPicModal = false;
 ⋮----
-public ?string $kode_pos = null;
+public ?int $selectedPicId = null;
 ⋮----
-public ?string $telepon = null;
+public string $catatanAssign = '';
 ⋮----
-public ?string $whatsapp = null;
+// State Modal Tambah Catatan
+public bool $showCatatanModal = false;
 ⋮----
-public ?string $email = null;
+public string $catatanProses = '';
 ⋮----
-public ?string $website = null;
+public bool $catatanIsInternal = false;
 ⋮----
-public ?string $npwp = null;
+/** @var mixed */
+public $fotoPengerjaan = null;
 ⋮----
-public ?string $nama_bank = null;
+// State Pemasangan: progress lapangan Teknisi (tahap 1)
+public ?int $odp_id = null;
 ⋮----
-public ?string $nomor_rekening = null;
+public ?int $odp_port_id = null;
 ⋮----
-public ?string $atas_nama = null;
+/** @var array<int, mixed> */
+public $fotoPemasangan = [];
 ⋮----
-public ?string $catatan_invoice = null;
+// State Pemasangan: bukti tahap 2 Teknisi
 ⋮----
-public ?string $syarat_ketentuan = null;
+public $fotoSpeedtest = [];
 ⋮----
-public ?string $nama_penandatangan = null;
+public $fotoMou = null;
 ⋮----
-public ?string $jabatan_penandatangan = null;
+public $fotoBersama = [];
 ⋮----
-public $logo = null;
+// State Modal Aktivasi Pemasangan (NOC)
+public bool $showAktivasiModal = false;
 ⋮----
-public ?string $existing_logo_url = null;
+public ?int $aktivasiRouterId = null;
 ⋮----
-public function mount(): void
+public ?int $aktivasiIpPoolId = null;
 ⋮----
-$perusahaan = PerusahaanModel::default();
+public function mount(Ticket $ticket): void
 ⋮----
-public function hapusLogo(): void
+$this->authorize('view', $ticket);
 ⋮----
-$perusahaan->clearMediaCollection('logo');
-$perusahaan->syncFaviconFiles();
+$this->loadTicket();
 ⋮----
-Cache::forget(PerusahaanModel::CACHE_KEY);
+protected function loadTicket(): void
 ⋮----
-Flux::toast(variant: 'success', text: 'Logo perusahaan berhasil dihapus!');
+$this->ticket->load([
 ⋮----
-public function save(): void
+public function openUbahStatusModal(): void
+⋮----
+$transisiValid = $this->ticket->status->transisiValid();
+⋮----
+public function prosesUbahStatus(UbahStatusTicketAction $action): void
 ⋮----
 $this->validate([
 ⋮----
-$perusahaan->update($data);
+$statusBaruEnum = StatusTicket::tryFrom($this->statusBaru);
 ⋮----
-$perusahaan = PerusahaanModel::create($data);
+Flux::toast(variant: 'danger', text: 'Status tujuan tidak valid.');
 ⋮----
-$perusahaan->addMediaFromDisk(
-FileUploadConfiguration::path($this->logo->getFilename(), false),
+$actor = Auth::user();
+$action->execute(
+⋮----
+Flux::toast(variant: 'success', text: "Status tiket {$this->ticket->nomor_ticket} berhasil diubah ke {$statusBaruEnum->label()}.");
+⋮----
+Flux::toast(variant: 'danger', text: $e->getMessage());
+⋮----
+public function openAssignPicModal(): void
+⋮----
+public function prosesAssignPic(AssignPicAction $action): void
+⋮----
+$newPic = $this->selectedPicId ? User::find($this->selectedPicId) : null;
+⋮----
+Flux::toast(variant: 'success', text: "PIC tiket {$this->ticket->nomor_ticket} berhasil diperbarui: {$picName}.");
+⋮----
+public function openCatatanModal(): void
+⋮----
+public function simpanCatatan(): void
+⋮----
+$histori = TicketHistori::create([
+⋮----
+'oleh_pengguna_id' => Auth::id(),
+⋮----
+$histori->addMediaFromDisk(
+FileUploadConfiguration::path($this->fotoPengerjaan->getFilename(), false),
 FileUploadConfiguration::disk()
 ⋮----
-->usingFileName($this->logo->getClientOriginalName())
-->toMediaCollection('logo');
+->usingFileName($this->fotoPengerjaan->getClientOriginalName())
+->toMediaCollection('foto_pengerjaan');
 ⋮----
-Log::error('Gagal menyimpan logo perusahaan: '.$e->getMessage());
+Log::error('Gagal menyimpan foto pengerjaan: '.$e->getMessage());
 ⋮----
-$this->existing_logo_url = $perusahaan->getFirstMediaUrl('logo') ?: null;
+$params = $whatsappService->buildTicketParams($this->ticket, trim($this->catatanProses));
+$whatsappService->antrikanPesan(
 ⋮----
-Flux::toast(variant: 'success', text: 'Profil perusahaan dan template tagihan berhasil disimpan!');
+Log::error('Gagal kirim WA catatan baru: '.$e->getMessage());
+⋮----
+Flux::toast(variant: 'success', text: 'Catatan proses penanganan berhasil ditambahkan.');
+⋮----
+public function updatedOdpId(): void
+⋮----
+public function simpanProgressLapangan(): void
+⋮----
+$this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
+⋮----
+'odp_port_id' => ['required', 'integer', Rule::exists('odp_port', 'id')->where('odp_id', $this->odp_id)],
+⋮----
+TicketPemasangan::updateOrCreate(
+⋮----
+$this->ticket->addMediaFromDisk(
+FileUploadConfiguration::path($foto->getFilename(), false),
+⋮----
+)->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_pemasangan');
+⋮----
+if ($this->ticket->statusDivisi(DivisiTicket::Teknisi) === StatusDivisiTicket::Belum) {
+app(UbahStatusDivisiTicketAction::class)->execute(
+⋮----
+actor: Auth::user(),
+⋮----
+Flux::toast(variant: 'success', text: 'Progress lapangan berhasil disimpan.');
+⋮----
+public function openAktivasiModal(): void
+⋮----
+$this->authorize('aktivasiPemasangan', $this->ticket);
+⋮----
+if (! $this->ticket->siapDiaktivasi()) {
+Flux::toast(variant: 'danger', text: 'Belum bisa diaktivasi: pastikan Teknisi sudah memilih ODP+Port dan mengunggah minimal 1 foto pemasangan.');
+⋮----
+$onlineRouters = Router::where('status_koneksi', StatusRouter::Online)->get(['id']);
+if ($onlineRouters->count() === 1) {
+$this->aktivasiRouterId = $onlineRouters->first()->id;
+$this->updatedAktivasiRouterId();
+⋮----
+public function updatedAktivasiRouterId(): void
+⋮----
+$pools = IpPool::where('router_id', $this->aktivasiRouterId)->get(['id']);
+$this->aktivasiIpPoolId = $pools->count() === 1 ? $pools->first()->id : null;
+⋮----
+public function prosesAktivasi(): void
+⋮----
+'aktivasiIpPoolId' => ['required', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->aktivasiRouterId)],
+⋮----
+Flux::toast(variant: 'danger', text: 'Tiket ini belum terhubung ke Data Registrasi Billing.');
+⋮----
+app(DaftarkanLayananAction::class)->assertBelumAdaDuplikat(
+⋮----
+$this->addError('aktivasiRouterId', $e->getMessage());
+⋮----
+$pppUsername = LayananPelanggan::generatePppUsername($layanan->pelanggan);
+⋮----
+DB::transaction(function () use ($layanan, $pppUsername, $odpPortId) {
+$layanan->update([
+⋮----
+OdpPort::whereKey($odpPortId)->update([
+⋮----
+$this->ticket->pemasangan()->update([
+⋮----
+'diaktivasi_oleh' => Auth::id(),
+⋮----
+$router = Router::findOrFail($this->aktivasiRouterId);
+⋮----
+app(MikrotikService::class)->createOrUpdatePppoeSecret($router, $layanan->fresh());
+⋮----
+$layanan->update(['status' => StatusLayanan::Aktif]);
+⋮----
+MikrotikJobLog::create([
+⋮----
+Flux::toast(
+⋮----
+'error_message' => $e->getMessage(),
+⋮----
+text: "Provisi ke router gagal: {$e->getMessage()} Gunakan tombol Provisi di daftar layanan untuk mencoba lagi.",
+⋮----
+public function simpanFotoTahapDua(): void
+⋮----
+)->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_speedtest');
+⋮----
+FileUploadConfiguration::path($this->fotoMou->getFilename(), false),
+⋮----
+)->usingFileName($this->fotoMou->getClientOriginalName())->toMediaCollection('foto_tanda_tangan_mou');
+⋮----
+)->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_bersama_pelanggan_teknisi');
+⋮----
+Flux::toast(variant: 'success', text: 'Foto bukti tahap akhir berhasil diunggah.');
+⋮----
+public function tandaiDivisiSelesai(string $divisiValue): void
+⋮----
+$divisi = DivisiTicket::from($divisiValue);
+$this->authorize('ubahStatusDivisi', [$this->ticket, $divisi]);
+⋮----
+if ($divisi === DivisiTicket::Teknisi && ! $this->ticket->siapTeknisiSelesai()) {
+Flux::toast(variant: 'danger', text: 'Lengkapi foto speedtest, tanda tangan MOU, dan foto bersama sebelum menandai Teknisi selesai.');
+⋮----
+Flux::toast(variant: 'success', text: "{$divisi->label()} berhasil ditandai selesai.");
 ⋮----
 public function render(): View
+⋮----
+$staffList = User::query()->active()->orderBy('name')->get();
+⋮----
+$odps = Odp::orderBy('nama_odp')->get(['id', 'nama_odp']);
+⋮----
+? OdpPort::where('odp_id', $this->odp_id)
+->where(function ($q) {
+$q->where('status', StatusOdpPort::Kosong)->orWhere('id', $this->odp_port_id);
+⋮----
+->orderBy('nomor_port')
+->get()
+⋮----
+$onlineRouters = Router::where('status_koneksi', StatusRouter::Online)->orderBy('nama_router')->get();
+⋮----
+? IpPool::where('router_id', $this->aktivasiRouterId)->orderBy('nama_pool')->get()
 ````
 
 ## File: app/Models/Invoice.php
@@ -65792,6 +66453,336 @@ $customerQuery->where('nama_depan', 'like', "%{$term}%")
 ->orWhereHas('layananPelanggan', function (Builder $layananQuery) use ($term) {
 $layananQuery->where('site_id', 'like', "%{$term}%")
 ->orWhere('ppp_username', 'like', "%{$term}%");
+````
+
+## File: app/Models/IpPool.php
+````php
+namespace App\Models;
+⋮----
+use App\Enums\StatusLayanan;
+use Database\Factories\IpPoolFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+⋮----
+class IpPool extends Model
+⋮----
+protected $table = 'ip_pool';
+⋮----
+protected function casts(): array
+⋮----
+public function router(): BelongsTo
+⋮----
+return $this->belongsTo(Router::class, 'router_id');
+⋮----
+public function layanans(): HasMany
+⋮----
+return $this->hasMany(LayananPelanggan::class, 'ip_pool_id');
+⋮----
+public function jobLogs(): HasMany
+⋮----
+return $this->hasMany(MikrotikJobLog::class, 'ip_pool_id');
+⋮----
+public function labelNetwork(): string
+⋮----
+public static function findOverlapping(int $routerId, string $awal, string $akhir, ?int $ignoreId = null): ?self
+⋮----
+return static::where('router_id', $routerId)
+->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
+->get()
+->first(fn (self $pool): bool => ip2long($awal) <= ip2long($pool->rentang_ip_akhir)
+⋮----
+public function canBeDeleted(): bool
+⋮----
+return ! $this->layanans()->withTrashed()->exists();
+⋮----
+public function getGatewayAddress(): string
+⋮----
+public function usableAddresses(): array
+⋮----
+public function usedAddresses(?int $excludeLayananId = null): array
+⋮----
+return $this->layanans()
+->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Proses, StatusLayanan::Suspend])
+->when($excludeLayananId, fn ($q) => $q->whereKeyNot($excludeLayananId))
+->whereNotNull('ip_dynamic')
+->pluck('ip_dynamic')
+->all();
+⋮----
+public function nextFreeAddress(?int $excludeLayananId = null): ?string
+⋮----
+$used = array_flip($this->usedAddresses($excludeLayananId));
+⋮----
+foreach ($this->usableAddresses() as $address) {
+⋮----
+public function hasFreeAddress(?int $excludeLayananId = null): bool
+⋮----
+return $this->nextFreeAddress($excludeLayananId) !== null;
+````
+
+## File: app/Models/Ticket.php
+````php
+namespace App\Models;
+⋮----
+use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\JenisTicket;
+use App\Enums\Ticket\PrioritasTicket;
+use App\Enums\Ticket\StatusDivisiTicket;
+use App\Enums\Ticket\StatusTicket;
+use App\Enums\Ticket\SumberTicket;
+use Database\Factories\TicketFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+⋮----
+class Ticket extends Model implements HasMedia
+⋮----
+protected $table = 'ticket';
+⋮----
+protected static function booted(): void
+⋮----
+static::creating(function (Ticket $ticket) {
+⋮----
+$ticket->nomor_ticket = static::generateNomorTicket();
+⋮----
+$ticket->sla_target_selesai = Carbon::now()->addHours($ticket->prioritas->durasiSlaHours());
+⋮----
+public function getActivitylogOptions(): LogOptions
+⋮----
+return LogOptions::defaults()
+->logOnly(['nomor_ticket', 'jenis', 'status', 'prioritas', 'pic_id', 'perlu_aktivasi_manual'])
+->logOnlyDirty()
+->dontLogEmptyChanges()
+->useLogName('ticket');
+⋮----
+protected function casts(): array
+⋮----
+public static function generateNomorTicket(): string
+⋮----
+$year = Carbon::now()->format('Y');
+⋮----
+$last = DB::table('ticket')
+->where('nomor_ticket', 'like', $prefix.'%')
+->orderByDesc('id')
+->lockForUpdate()
+->value('nomor_ticket');
+⋮----
+public function divisis(): HasMany
+⋮----
+return $this->hasMany(TicketDivisi::class, 'ticket_id');
+⋮----
+public function hasDivisi(DivisiTicket $divisi): bool
+⋮----
+if ($this->relationLoaded('divisis')) {
+return $this->divisis->contains(fn (TicketDivisi $item) => $item->divisi === $divisi);
+⋮----
+return DB::table('ticket_divisi')
+->where('ticket_id', $this->id)
+->where('divisi', $divisi->value)
+->exists();
+⋮----
+public function getDivisValues(): array
+⋮----
+return $this->divisis->map(fn (TicketDivisi $item) => $item->divisi->value)->values()->toArray();
+⋮----
+->pluck('divisi')
+->toArray();
+⋮----
+public function pemasangan(): HasOne
+⋮----
+return $this->hasOne(TicketPemasangan::class, 'ticket_id');
+⋮----
+public function statusDivisi(DivisiTicket $divisi): StatusDivisiTicket
+⋮----
+$row = $this->relationLoaded('divisis')
+? $this->divisis->first(fn (TicketDivisi $item) => $item->divisi === $divisi)
+: $this->divisis()->where('divisi', $divisi->value)->first();
+⋮----
+public function semuaDivisiWajibSelesai(): bool
+⋮----
+if ($this->statusDivisi($divisi) !== StatusDivisiTicket::Selesai) {
+⋮----
+public function siapDiaktivasi(): bool
+⋮----
+if ($this->statusDivisi(DivisiTicket::Teknisi) === StatusDivisiTicket::Belum) {
+⋮----
+return $this->getMedia('foto_pemasangan')->isNotEmpty();
+⋮----
+public function siapTeknisiSelesai(): bool
+⋮----
+return $this->getMedia('foto_speedtest')->isNotEmpty()
+&& $this->getMedia('foto_tanda_tangan_mou')->isNotEmpty()
+&& $this->getMedia('foto_bersama_pelanggan_teknisi')->isNotEmpty();
+⋮----
+public function pelanggan(): BelongsTo
+⋮----
+return $this->belongsTo(Pelanggan::class, 'pelanggan_id');
+⋮----
+public function layananPelanggan(): BelongsTo
+⋮----
+return $this->belongsTo(LayananPelanggan::class, 'layanan_pelanggan_id');
+⋮----
+public function pic(): BelongsTo
+⋮----
+return $this->belongsTo(User::class, 'pic_id');
+⋮----
+public function dibuatOleh(): BelongsTo
+⋮----
+return $this->belongsTo(User::class, 'dibuat_oleh');
+⋮----
+public function histori(): HasMany
+⋮----
+return $this->hasMany(TicketHistori::class, 'ticket_id')->orderByDesc('id');
+⋮----
+public function perluInvoicePindahAlamat(): bool
+⋮----
+if ($this->jenis !== JenisTicket::PindahAlamat || ! $this->isSelesai()) {
+⋮----
+$selesaiPada = $this->histori()->where('status_baru', StatusTicket::Selesai)->value('created_at');
+⋮----
+return ! Invoice::query()
+->where('pelanggan_id', $this->pelanggan_id)
+->when($this->layanan_pelanggan_id, fn ($q) => $q->where('layanan_pelanggan_id', $this->layanan_pelanggan_id))
+->whereNull('periode_tagihan')
+->where('created_at', '>=', $selesaiPada)
+⋮----
+public function isSelesai(): bool
+⋮----
+public function isBatal(): bool
+⋮----
+public function isOverdue(): bool
+⋮----
+if ($this->isSelesai() || $this->isBatal() || ! $this->sla_target_selesai) {
+⋮----
+return Carbon::now()->isAfter($this->sla_target_selesai);
+⋮----
+public function sisaWaktuSla(): string
+⋮----
+if ($this->isSelesai()) {
+⋮----
+if ($this->isBatal()) {
+⋮----
+if ($this->isOverdue()) {
+return 'Lewat '.Carbon::now()->diffForHumans($this->sla_target_selesai, true);
+⋮----
+return Carbon::now()->diffForHumans($this->sla_target_selesai, true);
+⋮----
+public function scopeAssignedTo(Builder $query, int $userId): Builder
+⋮----
+return $query->where('pic_id', $userId);
+⋮----
+public function scopeDivisi(Builder $query, DivisiTicket|string $divisi): Builder
+⋮----
+return $query->whereHas('divisis', function (Builder $q) use ($val) {
+$q->where('ticket_divisi.divisi', $val);
+⋮----
+public function scopeStatus(Builder $query, StatusTicket|string $status): Builder
+⋮----
+return $query->where('status', $val);
+⋮----
+public function scopeJenis(Builder $query, JenisTicket|string $jenis): Builder
+⋮----
+return $query->where('jenis', $val);
+⋮----
+public function scopeOverdue(Builder $query): Builder
+⋮----
+return $query->whereNotIn('status', [StatusTicket::Selesai->value, StatusTicket::Batal->value])
+->whereNotNull('sla_target_selesai')
+->where('sla_target_selesai', '<', Carbon::now());
+⋮----
+public function scopeSearch(Builder $query, string $term): Builder
+⋮----
+return $query->where(function (Builder $q) use ($term) {
+$q->where('nomor_ticket', 'like', "%{$term}%")
+->orWhere('deskripsi', 'like', "%{$term}%")
+->orWhereHas('pelanggan', function (Builder $customerQuery) use ($term) {
+$customerQuery->where('nama_depan', 'like', "%{$term}%")
+->orWhere('nama_belakang', 'like', "%{$term}%")
+->orWhere('no_reg', 'like', "%{$term}%")
+->orWhere('no_hp', 'like', "%{$term}%");
+⋮----
+->orWhereHas('layananPelanggan', function (Builder $layananQuery) use ($term) {
+$layananQuery->where('site_id', 'like', "%{$term}%")
+->orWhere('ppp_username', 'like', "%{$term}%");
+⋮----
+->orWhereHas('pic', function (Builder $picQuery) use ($term) {
+$picQuery->where('name', 'like', "%{$term}%");
+````
+
+## File: app/Policies/TicketPolicy.php
+````php
+namespace App\Policies;
+⋮----
+use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\JenisTicket;
+use App\Enums\Ticket\StatusTicket;
+use App\Models\Ticket;
+use App\Models\User;
+⋮----
+class TicketPolicy
+⋮----
+public function viewAny(User $user): bool
+⋮----
+return $user->can('ticket.lihat');
+⋮----
+public function view(User $user, Ticket $ticket): bool
+⋮----
+if (! $user->can('ticket.lihat')) {
+⋮----
+if ($user->hasRole('teknisi')) {
+⋮----
+if ($user->hasRole('sales')) {
+⋮----
+public function create(User $user): bool
+⋮----
+return $user->can('ticket.buat');
+⋮----
+public function update(User $user, Ticket $ticket): bool
+⋮----
+if (! $user->can('ticket.ubah')) {
+⋮----
+public function delete(User $user, Ticket $ticket): bool
+⋮----
+return $user->can('ticket.hapus');
+⋮----
+public function ubahStatus(User $user, Ticket $ticket, StatusTicket $statusBaru): bool
+⋮----
+if ($user->hasRole(['super_admin', 'admin'])) {
+⋮----
+if ($user->hasRole('noc')) {
+⋮----
+public function ubahStatusDivisi(User $user, Ticket $ticket, DivisiTicket $divisi): bool
+⋮----
+DivisiTicket::Teknisi => $user->hasRole('teknisi') && $ticket->pic_id === $user->id,
+DivisiTicket::Noc => $user->hasRole('noc'),
+DivisiTicket::CustomerService => $user->hasRole('customer_service'),
+⋮----
+public function aktivasiPemasangan(User $user, Ticket $ticket): bool
+⋮----
+return $user->can('layanan_pelanggan.aktivasi');
+⋮----
+public function assignPic(User $user, Ticket $ticket, ?User $pic = null): bool
+⋮----
+if (! $user->can('ticket.assign')) {
+⋮----
+if ($pic && ! $pic->isActive()) {
 ````
 
 ## File: app/Providers/AppServiceProvider.php
@@ -66541,17 +67532,7 @@ Tabel berikut memetakan matriks kewenangan akses antara masing-masing peran peng
 
 ````
 
-## File: resources/views/livewire/ip-pool/create.blade.php
-````php
-
-````
-
-## File: resources/views/livewire/layanan-pelanggan/edit.blade.php
-````php
-
-````
-
-## File: resources/views/livewire/pelanggan/show.blade.php
+## File: resources/views/livewire/pelanggan/create.blade.php
 ````php
 
 ````
@@ -66561,83 +67542,88 @@ Tabel berikut memetakan matriks kewenangan akses antara masing-masing peran peng
 
 ````
 
+## File: resources/views/livewire/settings/perusahaan.blade.php
+````php
+
+````
+
 ## File: resources/views/livewire/settings/whatsapp-settings.blade.php
 ````php
 
 ````
 
-## File: resources/views/livewire/ticket/create.blade.php
+## File: tests/Feature/Billing/GenerateFirstInvoiceTest.php
 ````php
-
-````
-
-## File: resources/views/livewire/ticket/show.blade.php
-````php
-
-````
-
-## File: resources/views/livewire/dashboard.blade.php
-````php
-
-````
-
-## File: tests/Feature/Jobs/SyncIpPoolOverlapTest.php
-````php
-use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
-use App\Models\IpPool;
-use App\Models\Router;
-use App\Services\Mikrotik\MikrotikService;
+use App\Enums\JenisTagihanPertama;
+use App\Enums\StatusLayanan;
+use App\Models\Invoice;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Promo;
+use App\Services\Billing\BillingService;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Queue\Middleware\WithoutOverlapping;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Carbon;
 ⋮----
-$this->router = Router::factory()->online()->create();
+$this->seed(RolesAndPermissionsSeeder::class);
 ⋮----
-$pool = IpPool::factory()->create(['router_id' => $this->router->id]);
+$this->paket = PaketLayanan::factory()->create([
 ⋮----
-Queue::fake();
+$rincian = $this->billing->hitungRincianTagihanPertama(
 ⋮----
-SyncIpPoolToRouterJob::dispatch($pool);
+expect($rincian['jumlah'])->toBe(300000.0)
+->and($rincian['diskon'])->toBe(0.0)
+->and($rincian['jumlah_setelah_promo'])->toBe(300000.0)
+->and($rincian['hari_ditagih'])->toBeNull()
+->and($rincian['hari_total_periode'])->toBeNull();
 ⋮----
-Queue::assertPushed(SyncIpPoolToRouterJob::class, 1);
+$tanggalMulai = Carbon::create(2026, 9, 21);
 ⋮----
-$poolA = IpPool::factory()->create(['router_id' => $this->router->id]);
-$poolB = IpPool::factory()->create(['router_id' => $this->router->id]);
+expect($rincian['hari_total_periode'])->toBe(30)
+->and($rincian['hari_ditagih'])->toBe(10)
+->and($rincian['jumlah'])->toBe(round(300000 / 30 * 10, 2))
+->and($rincian['jumlah_setelah_promo'])->toBe(round(300000 / 30 * 10, 2));
 ⋮----
-SyncIpPoolToRouterJob::dispatch($poolA);
-SyncIpPoolToRouterJob::dispatch($poolB);
+$promo = Promo::factory()->create([
 ⋮----
-Queue::assertPushed(SyncIpPoolToRouterJob::class, 2);
+->and($rincian['diskon'])->toBe(50000.0)
+->and($rincian['jumlah_setelah_promo'])->toBe(250000.0);
 ⋮----
-$middleware = (new SyncIpPoolToRouterJob($pool))->middleware();
+$layanan = LayananPelanggan::factory()->create([
 ⋮----
-expect($middleware)->toHaveCount(1);
-expect($middleware[0])->toBeInstanceOf(WithoutOverlapping::class);
-expect($middleware[0]->key)->toBe("mikrotik-router-{$this->router->id}-pool-sync");
-expect($middleware[0]->releaseAfter)->toBe(10);
-expect($middleware[0]->expiresAfter)->toBe(60);
+'tanggal_mulai' => now()->toDateString(),
+'tanggal_expired' => now()->addMonth()->toDateString(),
 ⋮----
-expect($jobA->middleware()[0]->getLockKey($jobA))
-->toBe($jobB->middleware()[0]->getLockKey($jobB));
+$invoice = $this->billing->generateFirstInvoice($layanan, JenisTagihanPertama::SatuBulanFull);
 ⋮----
-$lock = Cache::lock($lockKey, 60);
-expect($lock->get())->toBeTrue();
+expect($invoice->periode_tagihan)->toBeNull()
+->and((float) $invoice->jumlah_setelah_promo)->toBe(300000.0)
+->and($invoice->layanan_pelanggan_id)->toBe($layanan->id);
 ⋮----
-$mockService = Mockery::mock(MikrotikService::class);
-$mockService->shouldNotReceive('syncIpPool');
-app()->instance(MikrotikService::class, $mockService);
+$tanggalMulai = Carbon::create(2026, 9, 10);
 ⋮----
-$lock->release();
+'tanggal_mulai' => $tanggalMulai->toDateString(),
+'tanggal_expired' => $tanggalMulai->copy()->addMonth()->toDateString(),
 ⋮----
-$mockService->shouldReceive('syncIpPool')
-->once()
-->andReturn(['status' => 'success']);
+expect($invoice->tanggal_jatuh_tempo->toDateString())->toBe('2026-09-11');
 ⋮----
-expect($job->retryUntil())->toBeInstanceOf(DateTimeInterface::class);
-expect($job->retryUntil()->getTimestamp())->toBeGreaterThan(now()->getTimestamp());
+$tanggalMulai = now()->startOfMonth()->addDays(10);
+$tanggalExpired = $tanggalMulai->copy()->addMonthNoOverflow();
 ⋮----
-expect($job->retryUntil()->getTimestamp())->toBeGreaterThan(now()->addMinutes(5)->getTimestamp());
+'tanggal_expired' => $tanggalExpired->toDateString(),
+⋮----
+$tagihanPertama = $this->billing->generateFirstInvoice($layanan, JenisTagihanPertama::ProporsionalSisaHari);
+⋮----
+$this->artisan('invoice:generate', ['--force' => true])->assertSuccessful();
+⋮----
+$invoices = Invoice::where('layanan_pelanggan_id', $layanan->id)->get();
+⋮----
+expect($invoices)->toHaveCount(2);
+⋮----
+$tagihanSiklus = $invoices->firstWhere('id', '!=', $tagihanPertama->id);
+expect($tagihanSiklus)->not->toBeNull()
+->and($tagihanSiklus->periode_tagihan)->toBe($tanggalExpired->format('Y-m'))
+->and((float) $tagihanSiklus->jumlah_setelah_promo)->toBe(300000.0);
 ````
 
 ## File: tests/Feature/Mikrotik/MikrotikJobsTest.php
@@ -66645,6 +67631,7 @@ expect($job->retryUntil()->getTimestamp())->toBeGreaterThan(now()->addMinutes(5)
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\StatusLayanan;
+use App\Enums\StatusRouter;
 use App\Exceptions\MikrotikConnectionException;
 use App\Exceptions\MikrotikException;
 use App\Jobs\Mikrotik\DisablePppoeAccountJob;
@@ -66731,6 +67718,15 @@ Mockery::on(fn ($l) => $l->id === $this->layanan->id),
 ⋮----
 ->where('job_type', MikrotikJobType::DisablePppoe)
 ⋮----
+$this->router->update(['status_koneksi' => StatusRouter::Offline]);
+$this->layanan->refresh();
+⋮----
+$mockService->shouldNotReceive('enablePppoeSecret');
+⋮----
+->and($log->status)->toBe(MikrotikJobStatus::Dilewati);
+⋮----
+$mockService->shouldNotReceive('disablePppoeSecret');
+⋮----
 $pool = IpPool::factory()->create(['router_id' => $this->router->id]);
 ⋮----
 $mockService->shouldReceive('syncIpPool')
@@ -66779,6 +67775,351 @@ $mockService->shouldNotReceive('ensurePppProfile');
 expect($log)->toBeNull();
 ⋮----
 $lock->release();
+````
+
+## File: tests/Feature/Mikrotik/MikrotikServiceTest.php
+````php
+use App\Enums\JenisKoneksi;
+use App\Enums\StatusLayanan;
+use App\Enums\StatusRouter;
+use App\Exceptions\MikrotikConnectionException;
+use App\Exceptions\MikrotikException;
+use App\Models\IpPool;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
+use App\Models\ProfilBandwidth;
+use App\Models\Router;
+use App\Services\Mikrotik\MikrotikService;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use RouterOS\Client;
+use RouterOS\Exceptions\StreamException;
+⋮----
+$this->seed(RolesAndPermissionsSeeder::class);
+⋮----
+$router = Router::factory()->create([
+⋮----
+expect(fn () => $this->service->testConnection($router, 1))
+->toThrow(MikrotikException::class);
+⋮----
+$router->refresh();
+expect($router->status_koneksi)->toBe(StatusRouter::Offline)
+->and($router->last_ping_status)->toBe('failed')
+->and($router->last_ping_at)->not->toBeNull();
+⋮----
+expect(fn () => $this->service->getClient($router, 1))
+->toThrow(MikrotikConnectionException::class);
+⋮----
+$router = Router::factory()->online()->create();
+$pelanggan = Pelanggan::factory()->create();
+$profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Home-10M']);
+$paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+⋮----
+$layanan = LayananPelanggan::factory()->create([
+⋮----
+expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan))
+->toThrow(MikrotikException::class, 'Format username PPPoE');
+⋮----
+->toThrow(MikrotikException::class, 'tidak memiliki paket layanan atau profil bandwidth');
+⋮----
+->toThrow(MikrotikException::class, 'wajib memiliki alokasi IP Pool yang valid');
+⋮----
+$otherRouter = Router::factory()->online()->create();
+⋮----
+$ipPool = IpPool::factory()->create(['router_id' => $otherRouter->id]);
+⋮----
+->toThrow(MikrotikException::class, 'terdaftar pada router lain');
+⋮----
+$router = Router::factory()->create();
+$pool = IpPool::factory()->create([
+⋮----
+$this->service->allocateDynamicIp($router, $layanan);
+⋮----
+expect($layanan->ip_dynamic)->toBe('10.0.0.2')
+->and($layanan->ip_pool_id)->toBe($pool->id)
+->and($layanan->fresh()->ip_dynamic)->toBe('10.0.0.2');
+⋮----
+expect($layanan->ip_dynamic)->toBe('10.0.0.50');
+⋮----
+$poolPenuh = IpPool::factory()->create([
+⋮----
+$poolCadangan = IpPool::factory()->create([
+⋮----
+LayananPelanggan::factory()->create(['ip_pool_id' => $poolPenuh->id, 'ip_dynamic' => '10.0.0.2', 'status' => 'aktif']);
+⋮----
+expect($layanan->ip_pool_id)->toBe($poolCadangan->id)
+->and($layanan->ip_dynamic)->toBe('10.0.1.2');
+⋮----
+LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.2', 'status' => 'aktif']);
+⋮----
+expect(fn () => $this->service->allocateDynamicIp($router, $layanan))
+->toThrow(MikrotikException::class, 'sudah penuh');
+⋮----
+expect(fn () => $this->service->ensurePppProfile($router, $profil))
+->toThrow(MikrotikException::class, 'Nama profil bandwidth di UNMS kosong');
+⋮----
+ProfilBandwidth::factory()->create([
+⋮----
+$mockClient = Mockery::mock(Client::class);
+$mockClient->shouldReceive('query')->andReturnSelf();
+⋮----
+$mockClient->shouldReceive('read')->andReturn([]);
+⋮----
+$res = $this->service->syncAllBandwidthProfiles($router, $mockClient);
+⋮----
+expect($res['total'])->toBe(1)
+->and($res['synced'])->toBe(1)
+->and($res['errors'])->toBeEmpty();
+⋮----
+$profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Fast-20M']);
+⋮----
+$mockService = Mockery::mock(MikrotikService::class)->makePartial();
+$mockService->shouldReceive('syncAllBandwidthProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
+⋮----
+$client1 = Mockery::mock(Client::class);
+$client2 = Mockery::mock(Client::class);
+⋮----
+$client1->shouldReceive('query')->andReturnSelf();
+$client1->shouldReceive('read')->andThrow(new StreamException('Stream timed out'));
+⋮----
+$client2->shouldReceive('query')->andReturnSelf();
+$client2->shouldReceive('read')->andReturn([]);
+⋮----
+$mockService->shouldReceive('getClient')->andReturn($client2);
+⋮----
+$mockService->shouldReceive('createOrUpdatePppoeSecret')
+->once()
+->andReturn(['status' => 'success']);
+⋮----
+$stats = $mockService->autoRecoverPppSecrets($router, $client1);
+⋮----
+expect($stats['recovered'])->toBe(1)
+->and($stats['already_synced'])->toBe(0);
+````
+
+## File: tests/Feature/Pelanggan/PelangganShowTest.php
+````php
+use App\Enums\StatusInvoice;
+use App\Enums\StatusLayanan;
+use App\Enums\UserStatus;
+use App\Livewire\Pelanggan\Show;
+use App\Models\Invoice;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
+use App\Models\Pembayaran;
+use App\Models\ProfilBandwidth;
+use App\Models\Promo;
+use App\Models\Router;
+use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
+use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
+⋮----
+$this->seed(RolesAndPermissionsSeeder::class);
+⋮----
+$this->superAdmin = User::factory()->create(['status' => UserStatus::Active]);
+$this->superAdmin->assignRole('super_admin');
+⋮----
+$this->pelanggan = Pelanggan::factory()->create([
+⋮----
+Livewire::actingAs($this->superAdmin)
+->test(Show::class, ['pelanggan' => $this->pelanggan])
+->assertOk()
+->assertSee('Budi Santoso')
+->assertSee('628123456789')
+->assertSee('budi.santoso@example.com')
+->assertSee('0215551234')
+->assertSee('Jl. Merdeka No. 1, Jakarta')
+->assertSee('Akun Portal Pelanggan');
+⋮----
+->assertSee('3201••••••••0001')
+->call('toggleShowNik')
+->assertSee('3201123456780001')
+⋮----
+->assertSee('3201••••••••0001');
+⋮----
+$this->pelanggan->akunPelanggan()->update([
+'password' => Hash::make('custompassword123'),
+⋮----
+->call('resetPasswordPortal')
+->assertHasNoErrors();
+⋮----
+$this->pelanggan->akunPelanggan->refresh();
+expect(Hash::check('12345678', $this->pelanggan->akunPelanggan->password))->toBeTrue();
+⋮----
+$pelangganWithCoords = Pelanggan::factory()->create([
+⋮----
+->test(Show::class, ['pelanggan' => $pelangganWithCoords])
+⋮----
+->assertSee('Titik Lokasi Pelanggan (Peta)')
+->assertSee('Terpetakan')
+->assertSee('-6.2088000')
+->assertSee('106.8456000')
+->assertSee('Buka di Google Maps')
+->assertSee('Buka di OpenStreetMap');
+⋮----
+$pelangganWithoutCoords = Pelanggan::factory()->create([
+⋮----
+->test(Show::class, ['pelanggan' => $pelangganWithoutCoords])
+⋮----
+->assertSee('Koordinat belum ditentukan')
+->assertSee('Atur Titik Koordinat');
+⋮----
+$profil = ProfilBandwidth::factory()->create();
+$router = Router::factory()->create();
+$paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id, 'harga' => 250000]);
+⋮----
+$layanan = LayananPelanggan::factory()->create([
+⋮----
+$activeInv = Invoice::create([
+⋮----
+'tanggal_terbit' => Carbon::now(),
+'tanggal_jatuh_tempo' => Carbon::now()->addDays(7),
+⋮----
+$paidInv = Invoice::create([
+⋮----
+'tanggal_terbit' => Carbon::now()->subMonth(),
+'tanggal_jatuh_tempo' => Carbon::now()->subMonth()->addDays(7),
+'tanggal_lunas' => Carbon::now()->subMonth()->addDays(2),
+⋮----
+Pembayaran::create([
+⋮----
+'dibayar_pada' => Carbon::now()->subMonth()->addDays(2),
+⋮----
+$deletedInv = Invoice::create([
+⋮----
+'tanggal_terbit' => Carbon::now()->subMonths(2),
+'tanggal_jatuh_tempo' => Carbon::now()->subMonths(2)->addDays(7),
+⋮----
+$deletedInv->delete();
+⋮----
+->call('setTab', 'billing')
+->assertSet('activeTab', 'billing')
+->assertSee('Tagihan Aktif (Belum Lunas / Pending)')
+->assertSee('INV-202608-000001')
+->assertSee('Riwayat Pembayaran Lunas')
+->assertSee('INV-202607-000001')
+->assertSee('Riwayat Invoice Dihapus / Dibatalkan')
+->assertSee('INV-202606-000001')
+->assertSee('Salah paket pelanggan');
+⋮----
+$paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id, 'harga' => 300000]);
+⋮----
+'tanggal_expired' => Carbon::today(),
+⋮----
+Queue::fake();
+⋮----
+->call('openBayarModal', $activeInv->id)
+->assertSet('showBayarModal', true)
+->assertSet('selectedInvoiceId', $activeInv->id)
+->set('bayarMetode', 'manual_admin')
+->set('bayarJumlah', 300000)
+->set('bayarReferensi', 'STRUK-999')
+->call('prosesBayarInvoice')
+->assertHasNoErrors()
+->assertSet('showBayarModal', false);
+⋮----
+$activeInv->refresh();
+expect($activeInv->status)->toBe(StatusInvoice::Lunas);
+expect($activeInv->pembayarans)->toHaveCount(1);
+expect($activeInv->pembayarans->first()->referensi_transaksi)->toBe('STRUK-999');
+⋮----
+->call('openTambahInvoiceModal')
+->assertSet('showTambahInvoiceModal', true)
+->set('tambahInvoiceLayananId', $layanan->id)
+->set('tambahInvoiceKeterangan', 'Biaya instalasi pemasangan baru')
+->set('tambahInvoiceJumlah', 250000)
+->set('tambahInvoiceTanggalJatuhTempo', now()->addDays(7)->toDateString())
+->call('simpanTambahInvoice')
+⋮----
+->assertSet('showTambahInvoiceModal', false);
+⋮----
+$invoice = Invoice::where('pelanggan_id', $this->pelanggan->id)->latest('id')->first();
+⋮----
+expect($invoice)->not->toBeNull()
+->and($invoice->periode_tagihan)->toBeNull()
+->and($invoice->keterangan)->toBe('Biaya instalasi pemasangan baru')
+->and((float) $invoice->jumlah_setelah_promo)->toBe(250000.0)
+->and($invoice->layanan_pelanggan_id)->toBe($layanan->id);
+⋮----
+$promo = Promo::factory()->create([
+⋮----
+->set('tambahInvoiceKodePromo', 'install50')
+->assertSet('tambahInvoicePromoId', $promo->id)
+->assertHasNoErrors('tambahInvoiceKodePromo')
+⋮----
+->set('tambahInvoiceKeterangan', 'Biaya instalasi dengan promo')
+⋮----
+expect((float) $invoice->jumlah_setelah_promo)->toBe(200000.0)
+->and($invoice->promo_id)->toBe($promo->id);
+⋮----
+$pelangganLain = Pelanggan::factory()->create();
+⋮----
+$layananLain = LayananPelanggan::factory()->create([
+⋮----
+->set('tambahInvoiceLayananId', $layananLain->id)
+->set('tambahInvoiceKeterangan', 'Percobaan lintas pelanggan')
+->set('tambahInvoiceJumlah', 100000)
+⋮----
+->call('simpanTambahInvoice');
+})->throws(ModelNotFoundException::class);
+⋮----
+->performedOn($this->pelanggan)
+->causedBy($this->superAdmin)
+->log('Memperbarui data pelanggan');
+⋮----
+->call('setTab', 'audit')
+->assertSet('activeTab', 'audit')
+->assertSee('Log Aktivitas Data Pelanggan')
+->assertSee('Memperbarui data pelanggan');
+⋮----
+$admin = User::factory()->create(['status' => UserStatus::Active]);
+$admin->assignRole('admin');
+⋮----
+->set('activeTab', 'subscriptions')
+->assertSee('Pass: ••••••••')
+->assertDontSee('plaintext_rahasia')
+->assertSeeHtml("wire:click=\"revealPppPassword({$layanan->id})\"");
+⋮----
+Livewire::actingAs($admin)
+⋮----
+->assertDontSeeHtml("wire:click=\"revealPppPassword({$layanan->id})\"");
+⋮----
+->call('revealPppPassword', $layanan->id)
+->assertSet('revealedPppPasswordValue', 'plaintext_rahasia')
+->assertSee('Pass: plaintext_rahasia');
+⋮----
+$activity = Activity::where('subject_type', LayananPelanggan::class)
+->where('subject_id', $layanan->id)
+->where('causer_id', $this->superAdmin->id)
+->latest('id')
+->first();
+⋮----
+expect($activity)->not->toBeNull()
+->and($activity->getProperty('action'))->toBe('reveal_ppp_password');
+⋮----
+->assertForbidden();
+⋮----
+$pelangganInvalid = Pelanggan::factory()->create();
+⋮----
+DB::table('pelanggan')->where('id', $pelangganInvalid->id)->update([
+⋮----
+$pelangganInvalid->refresh();
+⋮----
+expect($pelangganInvalid->nik)->toBeNull();
+expect($pelangganInvalid->toArray()['nik'])->toBeNull();
+⋮----
+->test(Show::class, ['pelanggan' => $pelangganInvalid])
+⋮----
+->assertSee('—');
 ````
 
 ## File: tests/Feature/DashboardTest.php
@@ -66934,122 +68275,102 @@ Livewire::actingAs($sales)
 ->assertDontSee(route('invoice.show', $invoice), false);
 ````
 
-## File: tests/Feature/IpPoolTest.php
+## File: tests/Feature/LayananPelangganObserverTest.php
 ````php
-use App\Livewire\IpPool\Create;
-use App\Livewire\IpPool\Edit;
-use App\Livewire\IpPool\Index;
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Enums\StatusLayanan;
+use App\Jobs\Mikrotik\CleanupPppSecretOnOldRouterJob;
+use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
+use App\Models\MikrotikJobLog;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
+use App\Models\ProfilBandwidth;
 use App\Models\Router;
-use App\Models\User;
-use App\Utils\IpNetworkHelper;
+use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Livewire;
+use Illuminate\Support\Facades\Queue;
 ⋮----
 $this->seed(RolesAndPermissionsSeeder::class);
 ⋮----
-$this->superAdmin = User::factory()->create();
-$this->superAdmin->assignRole('super_admin');
+$this->routerLama = Router::factory()->online()->create();
+$this->routerBaru = Router::factory()->online()->create();
+$this->pelanggan = Pelanggan::factory()->create();
+$this->profil = ProfilBandwidth::factory()->create();
+$this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
+$this->poolLama = IpPool::factory()->create(['router_id' => $this->routerLama->id]);
+$this->poolBaru = IpPool::factory()->create(['router_id' => $this->routerBaru->id]);
+$this->layanan = LayananPelanggan::factory()->create([
 ⋮----
-$range = IpNetworkHelper::calculateSuggestedRange('192.168.88.0', 24);
+Queue::fake();
 ⋮----
-expect($range)->toBe([
+$this->layanan->update([
 ⋮----
-$invalidRange = IpNetworkHelper::calculateSuggestedRange('192.168.88.0', 32);
-expect($invalidRange)->toBe([
+Queue::assertPushed(CleanupPppSecretOnOldRouterJob::class, function ($job) {
 ⋮----
-$router = Router::factory()->create();
+Queue::assertPushed(CleanupPppSecretOnOldRouterJob::class, function ($job) use ($oldUsername) {
 ⋮----
-Livewire::actingAs($this->superAdmin)
-->test(Create::class)
-->set('nama_pool', 'POOL_1')
-->set('router_id', $router->id)
-->set('ip_network', '10.0.0.0')
-->set('cidr', 24)
-->call('generateRange')
-->assertHasNoErrors()
-->assertSet('rentang_ip_awal', '10.0.0.1')
-->assertSet('rentang_ip_akhir', '10.0.0.254')
-->set('priority_tx', 8)
-->set('priority_rx', 8)
-->call('save')
+$this->layanan->delete();
 ⋮----
-->assertRedirect(route('ip-pool.index'));
+Queue::assertPushed(CleanupPppSecretOnOldRouterJob::class, function ($job) use ($username, $routerId, $layananId) {
 ⋮----
-$pool = IpPool::where('nama_pool', 'POOL_1')->first();
-expect($pool)->not->toBeNull()
-->and($pool->ip_network)->toBe('10.0.0.0')
-->and($pool->cidr)->toBe(24)
-->and($pool->rentang_ip_awal)->toBe('10.0.0.1')
-->and($pool->rentang_ip_akhir)->toBe('10.0.0.254')
-->and($pool->priority_tx)->toBe(8);
+Queue::assertNotPushed(CleanupPppSecretOnOldRouterJob::class);
 ⋮----
-$pool = IpPool::factory()->create([
+expect($this->layanan->fresh()->ip_pool_id)->toBeNull();
 ⋮----
-->test(Index::class)
-->call('confirmDelete', $pool->id)
-->assertSet('deletingId', $pool->id)
-->call('deleteIpPool')
-->assertSet('deletingId', null)
-->assertHasNoErrors();
+expect($this->layanan->fresh()->ip_pool_id)->toBe($this->poolBaru->id);
 ⋮----
-expect(IpPool::find($pool->id))->toBeNull();
+$paketBaru = PaketLayanan::factory()->create();
 ⋮----
-$pelanggan = Pelanggan::factory()->create();
-$paket = PaketLayanan::factory()->create();
+Queue::assertPushed(UpdatePppoeProfileJob::class, function ($job) {
 ⋮----
-LayananPelanggan::factory()->create([
+Queue::assertNotPushed(UpdatePppoeProfileJob::class);
 ⋮----
-expect(IpPool::find($pool->id))->not->toBeNull();
+expect($this->layanan->resolveRemoteAddress())->toBe('192.168.1.100');
 ⋮----
-$otherRouter = Router::factory()->create();
+$this->layanan->setRelation('ipPool', $this->poolLama);
 ⋮----
-->test(Edit::class, ['pool' => $pool])
-->set('router_id', $otherRouter->id)
+expect($this->layanan->resolveRemoteAddress())->toBe('10.0.0.2')
+->and($this->layanan->resolveRemoteAddress())->not->toBe($this->poolLama->nama_pool);
 ⋮----
-expect($pool->fresh()->router_id)->toBe($router->id);
+$this->layanan->setRelation('ipPool', null);
 ⋮----
-expect($pool->fresh()->router_id)->toBe($otherRouter->id);
+expect($this->layanan->resolveRemoteAddress())->toBeNull();
 ⋮----
-$unauthorizedUser = User::factory()->create();
-$unauthorizedUser->assignRole('teknisi');
+expect($this->poolLama->getGatewayAddress())->toBe('10.0.0.1');
 ⋮----
-Livewire::actingAs($unauthorizedUser)
+expect($this->poolLama->getGatewayAddress())->toBe('10.0.1.1');
 ⋮----
-->assertForbidden();
+expect($this->layanan->resolveLocalAddress())->toBe('10.0.0.1');
 ⋮----
-function isiFormIpPool(mixed $component, Router $router, array $overrides = []): mixed
+expect($this->layanan->resolveLocalAddress())->toBe('10.0.1.1');
 ⋮----
-$component->set($field, $value);
+expect($this->layanan->resolveLocalAddress())->toBeNull();
 ⋮----
-isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router, [
+$mockService = Mockery::mock(MikrotikService::class);
+$mockService->shouldReceive('deletePppoeSecret')
+->once()
+->with(
+Mockery::on(fn ($r) => $r->id === $this->routerLama->id),
 ⋮----
-])->call('save')->assertHasErrors(['rentang_ip_akhir']);
+->andReturn(true);
 ⋮----
-expect(IpPool::count())->toBe(0);
+$job->handle($mockService);
 ⋮----
-IpPool::factory()->create([
+$log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
+->where('job_type', MikrotikJobType::DeletePppoe)
+->first();
 ⋮----
-$lain = Router::factory()->create();
-IpPool::factory()->create(['router_id' => $lain->id, 'rentang_ip_awal' => '10.0.0.2', 'rentang_ip_akhir' => '10.0.0.254']);
+expect($log)->not->toBeNull()
+->and($log->status)->toBe(MikrotikJobStatus::Success);
 ⋮----
-isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router)
-->call('save')->assertHasNoErrors();
+->andThrow(new RuntimeException('Connection refused'));
 ⋮----
-$pool = IpPool::factory()->create();
-⋮----
-$routerA = Router::factory()->create();
-$routerB = Router::factory()->create();
-IpPool::factory()->create(['router_id' => $routerA->id, 'nama_pool' => 'Pool-Rumah']);
-⋮----
-isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $routerA, ['nama_pool' => 'Pool-Rumah'])
-->call('save')->assertHasErrors(['nama_pool']);
-⋮----
-isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $routerB, ['nama_pool' => 'Pool-Rumah'])
+->and($log->status)->toBe(MikrotikJobStatus::Failed)
+->and($log->error_message)->toContain('Connection refused');
 ````
 
 ## File: tests/Feature/LivewireS3TempDiskMediaTest.php
@@ -67358,6 +68679,11 @@ APP_ENV=production
 APP_KEY=base64:GENERATE_APP_KEY_DENGAN_PHP_ARTISAN_KEY_GENERATE
 APP_DEBUG=false
 APP_URL=https://buroq.gobilling.id
+
+# Domain khusus Portal Pelanggan (opsional). Jika diisi, rute Portal Pelanggan juga
+# didaftarkan di bawah domain ini tanpa prefix "/portal" -- lihat ADR-0049. DNS + TLS +
+# binding domain ini ke container yang sama dilakukan di Dokploy, bukan di sini.
+PORTAL_DOMAIN=portal.gobilling.id
 
 APP_LOCALE=id
 APP_FALLBACK_LOCALE=en
@@ -68399,268 +69725,665 @@ Key config options in `config/activitylog.php`:
 </laravel-boost-guidelines>
 ````
 
-## File: app/Livewire/Ticket/Create.php
+## File: phpunit.xml
+````xml
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="DB_DATABASE" value="testing"/>
+        <env name="DB_URL" value=""/>
+        <env name="FILESYSTEM_DISK" value="public"/>
+        <env name="MEDIA_DISK" value="public"/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="PORTAL_DOMAIN" value="portal.gobilling.test"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <ini name="memory_limit" value="512M"/>
+    </php>
+</phpunit>
+````
+
+## File: .ai/rules/index.md
+````markdown
+# Project Rules Index
+
+Before planning or editing, find the row whose globs match the file's path and read that rule file.
+
+| Applies to | Rule file |
+| --- | --- |
+| app/Services/Billing/BillingService.php | .ai/rules/billing.md |
+| docker/entrypoint.sh | .ai/rules/docker.md |
+| app/Livewire/Portal/Invoice/** | .ai/rules/invoice.md |
+| app/Livewire/**/*.php, config/livewire.php, .env.docker.example | .ai/rules/livewire-uploads.md |
+| app/Services/Mikrotik/MikrotikService.php | .ai/rules/mikrotik.md |
+| app/Models/Sysblas.php | .ai/rules/models.md |
+| resources/views/livewire/**/*.blade.php, resources/views/components/searchable-select.blade.php, app/Livewire/Concerns/HasSearchableOptions.php | .ai/rules/flux-select-search.md |
+````
+
+## File: app/Actions/Ticket/UbahStatusTicketAction.php
 ````php
-namespace App\Livewire\Ticket;
+namespace App\Actions\Ticket;
 ⋮----
+use App\Actions\LayananPelanggan\UbahStatusLayananAction;
+use App\Enums\StatusLayanan;
 use App\Enums\StatusPelanggan;
-use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\JenisTicket;
-use App\Enums\Ticket\PrioritasTicket;
 use App\Enums\Ticket\StatusTicket;
-use App\Enums\Ticket\SumberTicket;
-use App\Livewire\Concerns\HasSearchableOptions;
-use App\Models\LayananPelanggan;
-use App\Models\Pelanggan;
+use App\Exceptions\TransisiStatusTidakValidException;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
-use App\Notifications\TicketDiassignNotification;
+use App\Notifications\TicketStatusBerubahNotification;
 use App\Services\Whatsapp\WhatsappService;
-use Flux\Flux;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
+⋮----
+class UbahStatusTicketAction
+⋮----
+public function execute(Ticket $ticket, StatusTicket $statusBaru, User $actor, ?string $catatan = null, bool $otomatis = false): Ticket
+⋮----
+if (! $otomatis && ! in_array($statusBaru, $ticket->status->transisiValid(), true)) {
+⋮----
+if (! $otomatis && ! Gate::forUser($actor)->allows('ubahStatus', [$ticket, $statusBaru])) {
+⋮----
+"Anda tidak memiliki hak akses untuk mengubah status tiket {$ticket->nomor_ticket} menjadi '{$statusBaru->label()}'."
+⋮----
+DB::transaction(function () use ($ticket, $statusLama, $statusBaru, $actor, $catatan) {
+⋮----
+$ticket->update($updateData);
+⋮----
+TicketHistori::create([
+⋮----
+$this->terapkanEfekKeLayananDanPelanggan($ticket, $statusBaru, $actor);
+⋮----
+$this->dispatchNotifications($ticket, $statusLama, $statusBaru, $actor, $catatan);
+⋮----
+return $ticket->refresh()->load(['histori.olehPengguna', 'pic', 'dibuatOleh']);
+⋮----
+protected function terapkanEfekKeLayananDanPelanggan(Ticket $ticket, StatusTicket $statusBaru, User $actor): void
+⋮----
+app(UbahStatusLayananAction::class)->execute(
+⋮----
+protected function dispatchNotifications(
+⋮----
+$recipients->push($ticket->dibuatOleh);
+⋮----
+$recipients->push($ticket->pic);
+⋮----
+foreach ($recipients->unique('id') as $recipient) {
+$recipient->notify(new TicketStatusBerubahNotification(
+⋮----
+$params = $whatsappService->buildTicketParams($ticket, $catatan);
+$whatsappService->antrikanPesan(
+⋮----
+jenis: "tiket_status_{$statusBaru->value}_{$ticket->histori()->count()}"
+⋮----
+Log::error('Gagal mengantrikan WA update tiket: '.$e->getMessage());
+````
+
+## File: app/Livewire/IpPool/Create.php
+````php
+namespace App\Livewire\IpPool;
+⋮----
+use App\Livewire\Concerns\ValidatesIpPoolRange;
+use App\Models\IpPool;
+use App\Models\Router;
+use App\Utils\IpNetworkHelper;
+use Flux\Flux;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+⋮----
+class Create extends Component
+⋮----
+public string $nama_pool = '';
+⋮----
+public ?int $router_id = null;
+⋮----
+public string $ip_network = '';
+⋮----
+public ?int $cidr = 24;
+⋮----
+public string $rentang_ip_awal = '';
+⋮----
+public string $rentang_ip_akhir = '';
+⋮----
+public ?int $priority_tx = 8;
+⋮----
+public ?int $priority_rx = 8;
+⋮----
+public function mount(): void
+⋮----
+$this->authorize('create', IpPool::class);
+$this->initSingleRouterSelection();
+⋮----
+protected function initSingleRouterSelection(): void
+⋮----
+$routers = Router::get(['id']);
+if ($routers->count() === 1) {
+$this->router_id = $routers->first()->id;
+⋮----
+protected function rules(): array
+⋮----
+'nama_pool' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_-]+$/', Rule::unique('ip_pool', 'nama_pool')->where('router_id', $this->router_id)],
+⋮----
+'rentang_ip_akhir' => ['bail', 'required', 'string', 'ipv4', $this->rentangIpAkhirRule()],
+⋮----
+protected function messages(): array
+⋮----
+public function generateRange(): void
+⋮----
+$this->validateOnly('ip_network', ['ip_network' => ['required', 'ipv4']]);
+$this->validateOnly('cidr', ['cidr' => ['required', 'integer', 'min:1', 'max:32']]);
+⋮----
+$range = IpNetworkHelper::calculateSuggestedRange($this->ip_network, $this->cidr);
+⋮----
+Flux::toast(variant: 'success', text: 'Rentang IP saran berhasil dihitung.');
+⋮----
+Flux::toast(variant: 'danger', text: 'Kombinasi Network & CIDR tidak valid untuk rentang IP.');
+⋮----
+public function save(): void
+⋮----
+$this->validate();
+⋮----
+IpPool::create([
+⋮----
+Flux::toast(variant: 'success', text: 'IP Pool berhasil dibuat.');
+⋮----
+$this->redirectRoute('ip-pool.index', navigate: true);
+⋮----
+public function render(): View
+⋮----
+'routers' => Router::orderBy('nama_router')->get(),
+````
+
+## File: app/Livewire/IpPool/Edit.php
+````php
+namespace App\Livewire\IpPool;
+⋮----
+use App\Livewire\Concerns\ValidatesIpPoolRange;
+use App\Models\IpPool;
+use App\Models\Router;
+use App\Utils\IpNetworkHelper;
+use Flux\Flux;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+⋮----
+class Edit extends Component
+⋮----
+public int $poolId;
+⋮----
+public string $nama_pool = '';
+⋮----
+public ?int $router_id = null;
+⋮----
+public string $ip_network = '';
+⋮----
+public ?int $cidr = 24;
+⋮----
+public string $rentang_ip_awal = '';
+⋮----
+public string $rentang_ip_akhir = '';
+⋮----
+public ?int $priority_tx = 8;
+⋮----
+public ?int $priority_rx = 8;
+⋮----
+public function mount(IpPool $pool): void
+⋮----
+$this->authorize('update', $pool);
+⋮----
+protected function rules(): array
+⋮----
+'nama_pool' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_-]+$/', Rule::unique('ip_pool', 'nama_pool')->where('router_id', $this->router_id)->ignore($this->poolId)],
+⋮----
+'rentang_ip_akhir' => ['bail', 'required', 'string', 'ipv4', $this->rentangIpAkhirRule($this->poolId)],
+⋮----
+public function generateRange(): void
+⋮----
+$this->validateOnly('ip_network', ['ip_network' => ['required', 'ipv4']]);
+$this->validateOnly('cidr', ['cidr' => ['required', 'integer', 'min:1', 'max:32']]);
+⋮----
+$range = IpNetworkHelper::calculateSuggestedRange($this->ip_network, $this->cidr);
+⋮----
+Flux::toast(variant: 'success', text: 'Rentang IP saran berhasil dihitung.');
+⋮----
+Flux::toast(variant: 'danger', text: 'Kombinasi Network & CIDR tidak valid untuk rentang IP.');
+⋮----
+public function save(): void
+⋮----
+$pool = IpPool::findOrFail($this->poolId);
+⋮----
+$this->validate();
+⋮----
+if ($this->router_id !== $pool->router_id && ! $pool->canBeDeleted()) {
+$count = $pool->layanans()->withTrashed()->count();
+Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} masih digunakan oleh {$count} layanan pelanggan dan tidak dapat dipindahkan ke router lain.");
+⋮----
+$pool->update([
+⋮----
+Flux::toast(variant: 'success', text: 'IP Pool berhasil diperbarui.');
+⋮----
+$this->redirectRoute('ip-pool.index', navigate: true);
+⋮----
+public function render(): View
+⋮----
+'routers' => Router::orderBy('nama_router')->get(),
+````
+
+## File: app/Livewire/LayananPelanggan/Edit.php
+````php
+namespace App\Livewire\LayananPelanggan;
+⋮----
+use App\Enums\JenisKoneksi;
+use App\Enums\StatusLayanan;
+use App\Livewire\Concerns\HasSearchableOptions;
+use App\Models\IpPool;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Router;
+use Flux\Flux;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+⋮----
+class Edit extends Component
+⋮----
+public int $layananId;
+⋮----
+public string $pelangganNoReg = '';
+⋮----
+public ?int $paket_layanan_id = null;
+⋮----
+public ?int $router_id = null;
+⋮----
+public ?int $ip_pool_id = null;
+⋮----
+public ?string $ip_static = null;
+⋮----
+public string $nama_site = '';
+⋮----
+public string $alamat_pemasangan = '';
+⋮----
+public ?float $latitude = null;
+⋮----
+public ?float $longitude = null;
+⋮----
+public string $ppp_username = '';
+⋮----
+/** Holds the generated PPP password after a reset, cleared on navigate. */
+public string $generatedPppPassword = '';
+⋮----
+public string $jenis_koneksi = 'pppoe';
+⋮----
+public string $status = 'aktif';
+⋮----
+public string $tanggal_mulai = '';
+⋮----
+public string $tanggal_expired = '';
+⋮----
+public function mount(LayananPelanggan $layananPelanggan): void
+⋮----
+$this->authorize('update', $layananPelanggan);
+⋮----
+$this->tanggal_mulai = $layananPelanggan->tanggal_mulai->toDateString();
+⋮----
+/**
+     * @return array<string, mixed>
+     */
+protected function rules(): array
+⋮----
+? ['required', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)]
+: ['nullable', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)],
+⋮----
+public function updatedRouterId(): void
+⋮----
+$pools = IpPool::where('router_id', $this->router_id)->get(['id']);
+if ($pools->count() === 1) {
+$this->ip_pool_id = $pools->first()->id;
+⋮----
+public function updatedJenisKoneksi(): void
+⋮----
+public function save(): void
+⋮----
+$layanan = LayananPelanggan::findOrFail($this->layananId);
+$this->authorize('update', $layanan);
+$this->validate($this->rules(), [
+⋮----
+$layanan->update($data);
+⋮----
+Flux::toast(variant: 'success', text: 'Data Registrasi Billing berhasil diperbarui.');
+$this->redirectRoute('layanan-pelanggan.index', navigate: true);
+⋮----
+public function regeneratePppPassword(): void
+⋮----
+$newPassword = Str::password(8, symbols: false);
+⋮----
+$layanan->update(['ppp_password_terenkripsi' => $newPassword]);
+⋮----
+Flux::toast(variant: 'success', text: 'PPP Password berhasil digenerate.');
+⋮----
+protected function searchableFields(): array
+⋮----
+'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
+'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga(),
+⋮----
+public function render(): View
+⋮----
+$routers = Router::orderBy('nama_router')->get();
+⋮----
+? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
+⋮----
+$jenisKoneksi = JenisKoneksi::cases();
+$statuses = StatusLayanan::cases();
+````
+
+## File: app/Livewire/Settings/Perusahaan.php
+````php
+namespace App\Livewire\Settings;
+⋮----
+use App\Models\Perusahaan as PerusahaanModel;
+use App\Support\MediaLibraryVisibility;
+use Flux\Flux;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 ⋮----
-class Create extends Component
+class Perusahaan extends Component
 ⋮----
-public string $jenis = 'pemasangan';
+public bool $showMediaPicker = false;
 ⋮----
-public ?int $pelanggan_id = null;
+public string $nama_perusahaan = '';
 ⋮----
-public ?int $layanan_pelanggan_id = null;
+public string $nama_brand = 'GOBILLING';
 ⋮----
-public string $prioritas = 'sedang';
+public ?string $tagline = null;
 ⋮----
-public array $divisis = [];
+public ?string $alamat = null;
 ⋮----
-public ?int $pic_id = null;
+public ?string $kota = null;
 ⋮----
-public string $dijadwalkan_pada = '';
+public ?string $kode_pos = null;
 ⋮----
-public string $deskripsi = '';
+public ?string $telepon = null;
 ⋮----
-/** @var mixed */
-public $fotoKendala = null;
+public ?string $whatsapp = null;
+⋮----
+public ?string $email = null;
+⋮----
+public ?string $website = null;
+⋮----
+public ?string $npwp = null;
+⋮----
+public ?string $nama_bank = null;
+⋮----
+public ?string $nomor_rekening = null;
+⋮----
+public ?string $atas_nama = null;
+⋮----
+public ?string $catatan_invoice = null;
+⋮----
+public ?string $syarat_ketentuan = null;
+⋮----
+public ?string $nama_penandatangan = null;
+⋮----
+public ?string $jabatan_penandatangan = null;
+⋮----
+public $logo = null;
+⋮----
+public ?string $existing_logo_url = null;
 ⋮----
 public function mount(): void
 ⋮----
-$this->authorize('create', Ticket::class);
+$perusahaan = PerusahaanModel::default();
 ⋮----
-if (request()->has('jenis') && JenisTicket::tryFrom(request()->query('jenis'))) {
-$this->jenis = request()->query('jenis');
-$this->autoSetDivisi();
+public function pilihDariMediaLibrary(int $mediaId): void
 ⋮----
-if (request()->has('pelanggan_id')) {
-$this->pelanggan_id = (int) request()->query('pelanggan_id');
+$media = MediaLibraryVisibility::query()
+->where('mime_type', 'like', 'image/%')
+->whereKey($mediaId)
+->first();
 ⋮----
-if (request()->has('layanan_id')) {
-$this->layanan_pelanggan_id = (int) request()->query('layanan_id');
+Flux::toast(variant: 'danger', text: 'Berkas tidak ditemukan atau bukan gambar.');
 ⋮----
-public function updatedJenis(): void
+$perusahaan = PerusahaanModel::create(['nama_perusahaan' => $this->nama_perusahaan ?: 'GOBILLING', 'nama_brand' => $this->nama_brand, 'is_default' => true]);
 ⋮----
-public function updatedPelangganId(): void
+$media->copy($perusahaan, 'logo');
+$perusahaan->syncFaviconFiles();
 ⋮----
-protected function searchableFields(): array
+Cache::forget(PerusahaanModel::CACHE_KEY);
 ⋮----
-'query' => fn () => Pelanggan::query()->with('perumahan'),
-'label' => fn (Pelanggan $p) => $p->labelSelector(),
+$this->existing_logo_url = $perusahaan->getFirstMediaUrl('logo') ?: null;
 ⋮----
-protected function autoSetDivisi(): void
+Flux::toast(variant: 'success', text: 'Logo dipilih dari Media Library.');
+⋮----
+public function hapusLogo(): void
+⋮----
+$perusahaan->clearMediaCollection('logo');
+⋮----
+Flux::toast(variant: 'success', text: 'Logo perusahaan berhasil dihapus!');
 ⋮----
 public function save(): void
 ⋮----
 $this->validate([
-'jenis' => ['required', Rule::enum(JenisTicket::class)],
 ⋮----
-'prioritas' => ['required', Rule::enum(PrioritasTicket::class)],
+$perusahaan->update($data);
 ⋮----
-'divisis.*' => ['required', Rule::enum(DivisiTicket::class)],
+$perusahaan = PerusahaanModel::create($data);
 ⋮----
-$authUserId = Auth::id();
-⋮----
-$authUser = Auth::user();
-⋮----
-$ticket = DB::transaction(function () use ($authUserId) {
-$ticket = Ticket::create([
-⋮----
-'dijadwalkan_pada' => $this->dijadwalkan_pada ? Carbon::parse($this->dijadwalkan_pada) : null,
-⋮----
-DB::table('ticket_divisi')->insert($divisiRows);
-⋮----
-TicketHistori::create([
-⋮----
-$ticket->addMediaFromDisk(
-FileUploadConfiguration::path($this->fotoKendala->getFilename(), false),
+$perusahaan->addMediaFromDisk(
+FileUploadConfiguration::path($this->logo->getFilename(), false),
 FileUploadConfiguration::disk()
 ⋮----
-->usingFileName($this->fotoKendala->getClientOriginalName())
-->toMediaCollection('foto_kendala');
+->usingFileName($this->logo->getClientOriginalName())
+->toMediaCollection('logo');
 ⋮----
-Log::error('Gagal menyimpan foto kendala tiket: '.$e->getMessage());
+Log::error('Gagal menyimpan logo perusahaan: '.$e->getMessage());
 ⋮----
-$ticket->pic->notify(new TicketDiassignNotification(
-⋮----
-$params = $whatsappService->buildTicketParams($ticket);
-$whatsappService->antrikanPesan(
-⋮----
-Log::error('Gagal kirim WA penugasan teknisi: '.$e->getMessage());
-⋮----
-Log::error('Gagal kirim WA tiket dibuat ke pelanggan: '.$e->getMessage());
-⋮----
-Flux::toast(variant: 'success', text: "Tiket {$ticket->nomor_ticket} berhasil dibuat.");
-⋮----
-$this->redirectRoute('ticket.show', $ticket, navigate: true);
+Flux::toast(variant: 'success', text: 'Profil perusahaan dan template tagihan berhasil disimpan!');
 ⋮----
 public function render(): View
 ⋮----
-? LayananPelanggan::query()
-->with(['paketLayanan', 'router'])
-->where('pelanggan_id', $this->pelanggan_id)
-->get()
+? MediaLibraryVisibility::query()
 ⋮----
-$staffList = User::query()
-->active()
-->orderBy('name')
-->get();
-⋮----
-? Pelanggan::with(['perumahan.kelurahan.kecamatan.kota', 'dibuatOleh'])->find($this->pelanggan_id)
-⋮----
-$prioritasEnum = PrioritasTicket::tryFrom($this->prioritas);
-⋮----
-'jenisList' => JenisTicket::cases(),
-'prioritasList' => PrioritasTicket::cases(),
-'divisiList' => DivisiTicket::cases(),
+->latest('id')
+->paginate(12, pageName: 'pickerPage')
 ````
 
-## File: app/Services/Billing/BillingService.php
+## File: app/Models/LayananPelanggan.php
 ````php
-namespace App\Services\Billing;
+namespace App\Models;
 ⋮----
-use App\Actions\LayananPelanggan\PerpanjangMasaAktifAction;
-use App\Enums\JenisTagihanPertama;
-use App\Enums\MetodePembayaran;
-use App\Enums\StatusInvoice;
-use App\Enums\StatusTransaksiGateway;
-use App\Events\InvoicePaidEvent;
-use App\Models\Invoice;
-use App\Models\LayananPelanggan;
-use App\Models\PaketLayanan;
-use App\Models\Pembayaran;
-use App\Models\PengaturanSiklusTagihan;
-use App\Models\Promo;
-use App\Models\PromoPenggunaan;
-use App\Models\User;
-use Exception;
+use App\Enums\JenisKoneksi;
+use App\Enums\PriceMode;
+use App\Enums\ProvisioningStatus;
+use App\Enums\StatusLayanan;
+use App\Models\Concerns\GracefullyDecryptsAttributes;
+use Database\Factories\LayananPelangganFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 ⋮----
-class BillingService
+class LayananPelanggan extends Model
 ⋮----
-public function generateInvoice(
+protected $table = 'layanan_pelanggan';
 ⋮----
-return DB::transaction(function () use ($layanan, $dibuatOleh, $promo, $tanggalJatuhTempo, $periodeTagihan) {
-$periode = $periodeTagihan ?? $layanan->getNextPeriodeTagihan();
+public function getActivitylogOptions(): LogOptions
 ⋮----
-$existingInvoice = Invoice::where('layanan_pelanggan_id', $layanan->id)
-->where('periode_tagihan', $periode)
-->where('status', '!=', StatusInvoice::Dibatalkan)
+return LogOptions::defaults()
+->logOnly(['status', 'paket_layanan_id', 'router_id', 'tanggal_expired', 'nama_site'])
+->logOnlyDirty()
+->dontLogEmptyChanges()
+->useLogName('layanan_pelanggan');
+⋮----
+protected static function booted(): void
+⋮----
+static::creating(function (LayananPelanggan $layanan) {
+⋮----
+$layanan->site_id = static::generateSiteId();
+⋮----
+protected function casts(): array
+⋮----
+public function pelanggan(): BelongsTo
+⋮----
+return $this->belongsTo(Pelanggan::class, 'pelanggan_id');
+⋮----
+public function paketLayanan(): BelongsTo
+⋮----
+return $this->belongsTo(PaketLayanan::class, 'paket_layanan_id');
+⋮----
+public function router(): BelongsTo
+⋮----
+return $this->belongsTo(Router::class, 'router_id');
+⋮----
+public function ipPool(): BelongsTo
+⋮----
+return $this->belongsTo(IpPool::class, 'ip_pool_id');
+⋮----
+public function odpPort(): BelongsTo
+⋮----
+return $this->belongsTo(OdpPort::class, 'odp_port_id');
+⋮----
+public function resolveRemoteAddress(): ?string
+⋮----
+public function resolveLocalAddress(): ?string
+⋮----
+return $this->ipPool->getGatewayAddress();
+⋮----
+public function jobLogs(): HasMany
+⋮----
+return $this->hasMany(MikrotikJobLog::class, 'layanan_pelanggan_id');
+⋮----
+public function invoices(): HasMany
+⋮----
+return $this->hasMany(Invoice::class, 'layanan_pelanggan_id');
+⋮----
+public function tickets(): HasMany
+⋮----
+return $this->hasMany(Ticket::class, 'layanan_pelanggan_id');
+⋮----
+public function scopeAktif(Builder $query): Builder
+⋮----
+return $query->where('status', StatusLayanan::Aktif);
+⋮----
+public function scopeExpiredSebelum(Builder $query, Carbon $tanggal): Builder
+⋮----
+return $query->where('tanggal_expired', '<=', $tanggal);
+⋮----
+public function scopePerluPerhatian(Builder $query, int $leadDays, string $jenis = 'all'): Builder
+⋮----
+$today = Carbon::today();
+⋮----
+$dari = $jenis === 'soon' ? $today : $today->copy()->subDays(30);
+$sampai = $jenis === 'overdue' ? $today->copy()->subDay() : $today->copy()->addDays($leadDays);
+⋮----
+->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Suspend])
+->whereBetween('tanggal_expired', [$dari->toDateString(), $sampai->toDateString()]);
+⋮----
+public function isExpired(): bool
+⋮----
+return $this->tanggal_expired->isPast();
+⋮----
+public function statusBadgeLabel(): string
+⋮----
+if ($this->isExpired() && $this->status !== StatusLayanan::Berhenti && $this->status !== StatusLayanan::Proses) {
+⋮----
+return $this->status->label();
+⋮----
+public function statusBadgeColor(): string
+⋮----
+return $this->status->color();
+⋮----
+public function isAktif(): bool
+⋮----
+return $this->status === StatusLayanan::Aktif && ! $this->isExpired();
+⋮----
+public function getNextPeriodeTagihan(): string
+⋮----
+return Carbon::today()->format('Y-m');
+⋮----
+return Carbon::parse($this->tanggal_expired)->format('Y-m');
+⋮----
+public static function generateSiteId(): string
+⋮----
+$siteId = 'SITE-'.strtoupper(Str::random(8));
+} while (static::where('site_id', $siteId)->exists());
+⋮----
+public static function generatePppUsername(Pelanggan $pelanggan): string
+⋮----
+return DB::transaction(function () use ($pelanggan) {
+⋮----
+$exists = static::withTrashed()
 ->lockForUpdate()
-->first();
+->where('ppp_username', $username)
+->exists();
 ⋮----
-$diskon = $promo->hitungDiskon($harga);
+throw new \RuntimeException('Gagal menghasilkan ppp_username unik setelah 10 percobaan.');
 ⋮----
-$terbuka = Invoice::query()
-->where('layanan_pelanggan_id', $layanan->id)
-->where('periode_tagihan', '<', $periode)
-->whereIn('status', StatusInvoice::terbuka())
+public static function extractCounter(string $pppUsername): ?int
 ⋮----
-->get();
-$tunggakan = (float) $terbuka->sum('jumlah_setelah_promo');
+public function getNamaSiteLabelAttribute(): string
 ⋮----
-$terbit = Carbon::today();
-$jatuhTempo = $tanggalJatuhTempo ?? $terbit->copy()->addDays(7);
+public function hargaDasar(): float
 ⋮----
-$invoice = Invoice::create([
+public function getAlamatEfektifAttribute(): string
 ⋮----
-$lama->update([
+public function getLatitudeEfektifAttribute(): ?float
 ⋮----
-$lama->transaksiPaymentGateways()
-->where('status', StatusTransaksiGateway::Pending)
-->update(['status' => StatusTransaksiGateway::Expired]);
-⋮----
-$this->applyPromoUsage($invoice, $promo, $diskon, $layanan->pelanggan_id);
-⋮----
-public function rencanaSiklusBerikutnya(LayananPelanggan $layanan, PengaturanSiklusTagihan $siklus): ?array
-⋮----
-$periodeTerbaruTerbuka = $layanan->invoices()
-->whereNotNull('periode_tagihan')
-⋮----
-->max('periode_tagihan');
-⋮----
-$periode = Carbon::createFromFormat('!Y-m', $periodeTerbaruTerbuka)->addMonthNoOverflow()->format('Y-m');
-$jatuhTempo = $siklus->jatuhTempoPeriode($periode);
-⋮----
-$periode = $layanan->getNextPeriodeTagihan();
-$jatuhTempo = Carbon::parse($layanan->tanggal_expired)->startOfDay();
-⋮----
-'terbit' => $siklus->tanggalTerbit($jatuhTempo),
-⋮----
-public function generateManualInvoice(
-⋮----
-return DB::transaction(function () use ($layanan, $jumlah, $keterangan, $dibuatOleh, $promo, $tanggalJatuhTempo) {
-⋮----
-$diskon = $promo->hitungDiskon($jumlah);
-⋮----
-public function hitungRincianTagihanPertama(
-⋮----
-public function generateFirstInvoice(
-⋮----
-$tanggalMulai = Carbon::parse($layanan->tanggal_mulai);
-⋮----
-$rincian = $this->hitungRincianTagihanPertama($paket, $tanggalMulai, $jenis, $promo);
-⋮----
-return $this->generateManualInvoice(
-⋮----
-protected function applyPromoUsage(Invoice $invoice, ?Promo $promo, float $diskon, int $pelangganId): void
-⋮----
-PromoPenggunaan::create([
-⋮----
-'digunakan_pada' => Carbon::now(),
-⋮----
-$promo->increment('terpakai_global');
-⋮----
-public function prosesPembayaranManual(Invoice $invoice, array $payload, ?User $actor = null): Pembayaran
-⋮----
-$pembayaran = DB::transaction(function () use ($invoice, $payload, $actor, &$eventToDispatch) {
-⋮----
-$lockedInvoice = Invoice::where('id', $invoice->id)->lockForUpdate()->firstOrFail();
-⋮----
-if ($lockedInvoice->isDigabung()) {
-⋮----
-? Carbon::parse($payload['dibayar_pada'])
-: Carbon::now();
-⋮----
-: MetodePembayaran::from($payload['metode']);
-⋮----
-$pembayaran = Pembayaran::create([
-⋮----
-$lockedInvoice->update([
-⋮----
-'tanggal_lunas' => $dibayarPada->toDateString(),
-⋮----
-$layanan = $lockedInvoice->layananPelanggan()->lockForUpdate()->first();
-⋮----
-app(PerpanjangMasaAktifAction::class)->execute($layanan, $lockedInvoice, $dibayarPada);
+public function getLongitudeEfektifAttribute(): ?float
 ````
 
 ## File: app/Services/Mikrotik/MikrotikService.php
@@ -68749,6 +70472,8 @@ $client->query((new Query('/ppp/profile/remove'))->equal('.id', $existing[$i]['.
 ⋮----
 public function createOrUpdatePppoeSecret(Router $router, LayananPelanggan $layanan, ?Client $client = null): array
 ⋮----
+$this->allocateDynamicIp($router, $layanan);
+⋮----
 $this->syncIpPool($router, $layanan->ipPool, $client);
 ⋮----
 $profileName = $this->ensurePppProfile($router, $profil, $client);
@@ -68795,6 +70520,22 @@ $layanan->update([
 'last_provisioning_error' => $e->getMessage(),
 ⋮----
 "Gagal provisi PPPoE {$layanan->ppp_username} pada router {$router->nama_router}: {$e->getMessage()}",
+⋮----
+public function allocateDynamicIp(Router $router, LayananPelanggan $layanan): void
+⋮----
+if (! $pool || ! $pool->hasFreeAddress($layanan->id)) {
+$fallback = IpPool::where('router_id', $router->id)
+->when($pool, fn ($q) => $q->whereKeyNot($pool->id))
+->get()
+->first(fn (IpPool $candidate) => $candidate->hasFreeAddress($layanan->id));
+⋮----
+Log::warning('IP Pool penuh, layanan otomatis dialihkan ke IP Pool lain pada router yang sama.', [
+⋮----
+$layanan->setRelation('ipPool', $pool);
+⋮----
+$freeIp = $pool->nextFreeAddress($layanan->id);
+⋮----
+$layanan->save();
 ⋮----
 public function updatePppoeProfile(Router $router, LayananPelanggan $layanan, bool $kickActive = true, ?Client $client = null): array
 ⋮----
@@ -69036,45 +70777,6 @@ $activeQuery = (new Query('/ppp/active/print'))->where('name', $username);
 $activeData = $client->query($activeQuery)->read();
 ````
 
-## File: config/menu.php
-````php
-
-````
-
-## File: database/seeders/RolesAndPermissionsSeeder.php
-````php
-namespace Database\Seeders;
-⋮----
-use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
-⋮----
-class RolesAndPermissionsSeeder extends Seeder
-⋮----
-public function run(): void
-⋮----
-app()[PermissionRegistrar::class]->forgetCachedPermissions();
-⋮----
-$p[$permName] = Permission::firstOrCreate(['name' => $permName]);
-⋮----
-$superAdmin = Role::firstOrCreate(['name' => 'super_admin']);
-$adminRole = Role::firstOrCreate(['name' => 'admin']);
-$salesRole = Role::firstOrCreate(['name' => 'sales']);
-$nocRole = Role::firstOrCreate(['name' => 'noc']);
-$teknisiRole = Role::firstOrCreate(['name' => 'teknisi']);
-⋮----
-$superAdmin->syncPermissions(Permission::all());
-⋮----
-$adminRole->syncPermissions([
-⋮----
-$salesRole->syncPermissions([
-⋮----
-$nocRole->syncPermissions([
-⋮----
-$teknisiRole->syncPermissions([
-````
-
 ## File: docker/supervisor.d/horizon.conf
 ````ini
 [program:horizon]
@@ -69163,9 +70865,949 @@ priority=20
 }
 ````
 
-## File: resources/views/livewire/layanan-pelanggan/create.blade.php
+## File: resources/views/livewire/ip-pool/create.blade.php
 ````php
 
+````
+
+## File: resources/views/livewire/layanan-pelanggan/edit.blade.php
+````php
+
+````
+
+## File: resources/views/livewire/layanan-pelanggan/index.blade.php
+````php
+
+````
+
+## File: resources/views/livewire/ticket/create.blade.php
+````php
+
+````
+
+## File: tests/Feature/IpPoolTest.php
+````php
+use App\Livewire\IpPool\Create;
+use App\Livewire\IpPool\Edit;
+use App\Livewire\IpPool\Index;
+use App\Models\IpPool;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
+use App\Models\Router;
+use App\Models\User;
+use App\Utils\IpNetworkHelper;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+⋮----
+$this->seed(RolesAndPermissionsSeeder::class);
+⋮----
+$this->superAdmin = User::factory()->create();
+$this->superAdmin->assignRole('super_admin');
+⋮----
+$range = IpNetworkHelper::calculateSuggestedRange('192.168.88.0', 24);
+⋮----
+expect($range)->toBe([
+⋮----
+$invalidRange = IpNetworkHelper::calculateSuggestedRange('192.168.88.0', 32);
+expect($invalidRange)->toBe([
+⋮----
+$router = Router::factory()->create();
+⋮----
+Livewire::actingAs($this->superAdmin)
+->test(Create::class)
+->set('nama_pool', 'POOL_1')
+->set('router_id', $router->id)
+->set('ip_network', '10.0.0.0')
+->set('cidr', 24)
+->call('generateRange')
+->assertHasNoErrors()
+->assertSet('rentang_ip_awal', '10.0.0.1')
+->assertSet('rentang_ip_akhir', '10.0.0.254')
+->set('priority_tx', 8)
+->set('priority_rx', 8)
+->call('save')
+⋮----
+->assertRedirect(route('ip-pool.index'));
+⋮----
+$pool = IpPool::where('nama_pool', 'POOL_1')->first();
+expect($pool)->not->toBeNull()
+->and($pool->ip_network)->toBe('10.0.0.0')
+->and($pool->cidr)->toBe(24)
+->and($pool->rentang_ip_awal)->toBe('10.0.0.1')
+->and($pool->rentang_ip_akhir)->toBe('10.0.0.254')
+->and($pool->priority_tx)->toBe(8);
+⋮----
+$pool = IpPool::factory()->create([
+⋮----
+->test(Index::class)
+->call('confirmDelete', $pool->id)
+->assertSet('deletingId', $pool->id)
+->call('deleteIpPool')
+->assertSet('deletingId', null)
+->assertHasNoErrors();
+⋮----
+expect(IpPool::find($pool->id))->toBeNull();
+⋮----
+$pelanggan = Pelanggan::factory()->create();
+$paket = PaketLayanan::factory()->create();
+⋮----
+LayananPelanggan::factory()->create([
+⋮----
+expect(IpPool::find($pool->id))->not->toBeNull();
+⋮----
+$otherRouter = Router::factory()->create();
+⋮----
+->test(Edit::class, ['pool' => $pool])
+->set('router_id', $otherRouter->id)
+⋮----
+expect($pool->fresh()->router_id)->toBe($router->id);
+⋮----
+expect($pool->fresh()->router_id)->toBe($otherRouter->id);
+⋮----
+$unauthorizedUser = User::factory()->create();
+$unauthorizedUser->assignRole('teknisi');
+⋮----
+Livewire::actingAs($unauthorizedUser)
+⋮----
+->assertForbidden();
+⋮----
+function isiFormIpPool(mixed $component, Router $router, array $overrides = []): mixed
+⋮----
+$component->set($field, $value);
+⋮----
+isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router, [
+⋮----
+])->call('save')->assertHasErrors(['rentang_ip_akhir']);
+⋮----
+expect(IpPool::count())->toBe(0);
+⋮----
+IpPool::factory()->create([
+⋮----
+$lain = Router::factory()->create();
+IpPool::factory()->create(['router_id' => $lain->id, 'rentang_ip_awal' => '10.0.0.2', 'rentang_ip_akhir' => '10.0.0.254']);
+⋮----
+isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router)
+->call('save')->assertHasNoErrors();
+⋮----
+$pool = IpPool::factory()->create();
+⋮----
+$routerA = Router::factory()->create();
+$routerB = Router::factory()->create();
+IpPool::factory()->create(['router_id' => $routerA->id, 'nama_pool' => 'Pool-Rumah']);
+⋮----
+isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $routerA, ['nama_pool' => 'Pool-Rumah'])
+->call('save')->assertHasErrors(['nama_pool']);
+⋮----
+isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $routerB, ['nama_pool' => 'Pool-Rumah'])
+⋮----
+isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router, ['nama_pool' => 'Pool Rumah 01'])
+⋮----
+isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router, ['nama_pool' => 'Pool-Rumah_01'])
+⋮----
+expect($pool->nextFreeAddress())->toBe('10.0.0.2')
+->and($pool->hasFreeAddress())->toBeTrue();
+⋮----
+LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.2', 'status' => 'aktif']);
+LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.3', 'status' => 'proses']);
+⋮----
+expect($pool->nextFreeAddress())->toBe('10.0.0.4')
+⋮----
+LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.4', 'status' => 'suspend']);
+⋮----
+expect($pool->nextFreeAddress())->toBeNull()
+->and($pool->hasFreeAddress())->toBeFalse();
+⋮----
+LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.2', 'status' => 'berhenti']);
+⋮----
+expect($pool->hasFreeAddress())->toBeTrue()
+->and($pool->nextFreeAddress())->toBe('10.0.0.2');
+````
+
+## File: .ai/rules/docker.md
+````markdown
+---
+paths:
+  - docker/entrypoint.sh
+  - .ai/rules/docker.md
+---
+
+# Docker
+
+## Dockerfile is back (single container: Caddy + php-fpm + horizon + scheduler under supervisord)
+Restored 2026-09-21 from the `Dockerfile` + `docker/` on `feat/dashboard-siklus-tagihan` (`4b61142`, "tested"), replacing the earlier nginx variant from `6a0c8aa`. Main-side additions kept on top: `entrypoint.sh` re-chowns `storage/` + `bootstrap/cache` *after* the cache warm-up (artisan runs as root) and runs `storage:link`; `supervisord.conf` sets `user=root`. Smoke-tested with `compose.smoke.yaml` (gitignored): `/up` 200, `/` 302 -> `/login`, PHP 8.4.
+
+Dokploy must use **Build Type = Dockerfile**, container port **80** (a Railpack build gives 502: no Caddy/Horizon/migrations from this image). `entrypoint.sh` handles `app:wait-for-services`, `app:migrate-once`, `app:ensure-public-media-bucket` and cache warming on every boot, so no Dokploy post-init command is needed. It also runs `php artisan down` (redis maintenance store) during boot — a crash mid-boot leaves the whole fleet in maintenance until `php artisan up`.
+
+## storage/logs must stay writable even though LOG_CHANNEL=stderr
+ADR-0036 sets `LOG_CHANNEL=stderr` in production so normal app logs go to `docker logs`/Dokploy instead of `storage/logs/laravel.log`, calling that file "ephemeral." That's true for normal logging, but Laravel's `LogManager` has a hardcoded emergency-logger fallback that ALWAYS writes to `storage_path('logs/laravel.log')` whenever the configured channel itself fails to write -- regardless of `LOG_CHANNEL`. If `storage/logs` isn't writable when that fires, the visible error becomes `UnexpectedValueException: ... could not be opened in append mode`, which can mask the real original error.
+
+`docker/entrypoint.sh` re-applies `chown`/`chmod` on `storage/` and `bootstrap/cache` on every container boot, so a runtime volume mount overriding the image's build-time ownership is covered.
+````
+
+## File: app/Livewire/Pelanggan/Show.php
+````php
+namespace App\Livewire\Pelanggan;
+⋮----
+use App\Enums\StatusInvoice;
+use App\Livewire\Concerns\HasSearchableOptions;
+use App\Models\AkunPelanggan;
+use App\Models\Invoice;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
+use App\Models\Pembayaran;
+use App\Models\Promo;
+use App\Models\User;
+use App\Services\Billing\BillingService;
+use App\Services\CustomerDocumentService;
+use App\Services\Mikrotik\MikrotikService;
+use Exception;
+use Flux\Flux;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
+use Livewire\Component;
+use Livewire\WithFileUploads;
+use Spatie\Activitylog\Models\Activity;
+⋮----
+class Show extends Component
+⋮----
+public int $pelangganId;
+⋮----
+public string $activeTab = 'overview';
+⋮----
+public bool $showNik = false;
+⋮----
+public bool $showKtpModal = false;
+⋮----
+public bool $showUploadKtpModal = false;
+⋮----
+public bool $showUploadDocModal = false;
+⋮----
+public bool $showBayarModal = false;
+⋮----
+public bool $showUbahPaketModal = false;
+⋮----
+public bool $showTambahInvoiceModal = false;
+⋮----
+public ?int $selectedLayananId = null;
+⋮----
+public ?int $newPaketId = null;
+⋮----
+public ?int $tambahInvoiceLayananId = null;
+⋮----
+public ?int $tambahInvoicePromoId = null;
+⋮----
+public ?int $revealedPppPasswordLayananId = null;
+⋮----
+public ?string $revealedPppPasswordValue = null;
+⋮----
+public string $tambahInvoiceKodePromo = '';
+⋮----
+public string $tambahInvoiceKeterangan = '';
+⋮----
+public ?int $tambahInvoiceJumlah = null;
+⋮----
+public string $tambahInvoiceTanggalJatuhTempo = '';
+⋮----
+public ?int $selectedInvoiceId = null;
+⋮----
+public string $bayarMetode = 'manual_admin';
+⋮----
+public ?float $bayarJumlah = 0.0;
+⋮----
+public string $bayarReferensi = '';
+⋮----
+public string $bayarTanggal = '';
+⋮----
+public string $bayarCatatan = '';
+⋮----
+/** @var mixed */
+public $newKtpFile = null;
+⋮----
+public $docFile = null;
+⋮----
+public string $docJenis = 'MOU / Kontrak';
+⋮----
+public string $docNomor = '';
+⋮----
+public string $docKeterangan = '';
+⋮----
+/**
+     * Cache status realtime PPP per ID layanan pelanggan.
+     *
+     * @var array<int, array<string, mixed>>
+     */
+public array $pppStatuses = [];
+⋮----
+public function mount(Pelanggan $pelanggan): void
+⋮----
+$this->authorize('view', $pelanggan);
+⋮----
+public function setTab(string $tab): void
+⋮----
+public function toggleShowNik(): void
+⋮----
+public function resetPasswordPortal(): void
+⋮----
+$pelanggan = Pelanggan::with('akunPelanggan')->findOrFail($this->pelangganId);
+$this->authorize('update', $pelanggan);
+⋮----
+$pelanggan->akunPelanggan->update([
+⋮----
+Flux::toast(variant: 'danger', text: 'Pelanggan belum memiliki alamat email untuk akun portal.');
+⋮----
+AkunPelanggan::create([
+⋮----
+->performedOn($pelanggan)
+->causedBy(Auth::user())
+->log("Mereset password akun portal pelanggan {$pelanggan->identitasLengkap()} ke default");
+⋮----
+Flux::toast(variant: 'success', text: 'Password portal pelanggan berhasil direset ke default (12345678).');
+⋮----
+public function openBayarModal(int $invoiceId): void
+⋮----
+$invoice = Invoice::where('pelanggan_id', $this->pelangganId)->findOrFail($invoiceId);
+⋮----
+$this->bayarTanggal = Carbon::now()->format('Y-m-d\TH:i');
+⋮----
+public function closeBayarModal(): void
+⋮----
+public function prosesBayarInvoice(BillingService $billingService, MikrotikService $mikrotikService): void
+⋮----
+$this->authorize('create', Pembayaran::class);
+⋮----
+$invoice = Invoice::where('pelanggan_id', $this->pelangganId)->findOrFail($this->selectedInvoiceId);
+⋮----
+$this->validate([
+⋮----
+'bayarJumlah' => ['required', 'numeric', Rule::in([(float) $invoice->jumlah_setelah_promo])],
+⋮----
+$actor = Auth::user();
+⋮----
+$billingService->prosesPembayaranManual(
+⋮----
+$this->closeBayarModal();
+⋮----
+$this->loadPppStatuses($mikrotikService);
+⋮----
+Flux::toast(variant: 'success', text: "Pembayaran invoice {$invoice->no_invoice} berhasil dicatat & layanan diperpanjang!");
+⋮----
+Flux::toast(variant: 'danger', text: $e->getMessage());
+⋮----
+public function openKtpModal(): void
+⋮----
+$pelanggan = Pelanggan::findOrFail($this->pelangganId);
+$this->authorize('viewKtp', $pelanggan);
+⋮----
+public function closeKtpModal(): void
+⋮----
+public function openUploadKtpModal(): void
+⋮----
+public function closeUploadKtpModal(): void
+⋮----
+public function saveKtp(CustomerDocumentService $documentService): void
+⋮----
+$documentService->storeEncryptedMedia($pelanggan, $this->newKtpFile, 'ktp');
+⋮----
+$this->closeUploadKtpModal();
+⋮----
+Flux::toast(variant: 'success', text: 'Foto KTP berhasil dienkripsi dan disimpan.');
+⋮----
+public function openUploadDocModal(): void
+⋮----
+$this->authorize('uploadDokumen', $pelanggan);
+⋮----
+public function closeUploadDocModal(): void
+⋮----
+public function saveDokumen(CustomerDocumentService $documentService): void
+⋮----
+$documentService->storeEncryptedMedia(
+⋮----
+'uploaded_by' => Auth::user()?->name,
+⋮----
+$this->closeUploadDocModal();
+⋮----
+Flux::toast(variant: 'success', text: "Dokumen {$this->docJenis} berhasil dienkripsi dan diunggah.");
+⋮----
+public function deleteDokumen(int $mediaId): void
+⋮----
+$this->authorize('deleteDokumen', $pelanggan);
+⋮----
+$media = $pelanggan->media()->where('id', $mediaId)->where('collection_name', 'dokumen')->firstOrFail();
+⋮----
+$media->delete();
+⋮----
+->withProperties(['file_name' => $fileName, 'media_id' => $mediaId])
+->log("Menghapus dokumen {$fileName} milik pelanggan {$pelanggan->identitasLengkap()}");
+⋮----
+Flux::toast(variant: 'success', text: "Dokumen {$fileName} berhasil dihapus.");
+⋮----
+public function refreshPppStatus(MikrotikService $mikrotikService): void
+⋮----
+$pelanggan = Pelanggan::with(['layanans.router'])->findOrFail($this->pelangganId);
+⋮----
+$this->pppStatuses[$layanan->id] = $mikrotikService->refreshPppStatus(
+⋮----
+Flux::toast(
+⋮----
+public function loadPppStatuses(MikrotikService $mikrotikService): void
+⋮----
+$pelanggan = Pelanggan::with(['layanans.router', 'layanans.paketLayanan.profilBandwidth'])
+->findOrFail($this->pelangganId);
+⋮----
+$this->pppStatuses[$layanan->id] = $mikrotikService->getPppStatus(
+⋮----
+public function revealPppPassword(int $layananId): void
+⋮----
+$layanan = $pelanggan->layanans()->findOrFail($layananId);
+$this->authorize('viewPppPassword', $layanan);
+⋮----
+->performedOn($layanan)
+->causedBy(auth()->user())
+->withProperties([
+⋮----
+'ip' => request()->ip(),
+⋮----
+->log("Mengungkap PPP Password layanan {$layanan->ppp_username} milik pelanggan {$pelanggan->identitasLengkap()}");
+⋮----
+public function openUbahPaketModal(int $layananId): void
+⋮----
+$this->authorize('update', $layanan);
+⋮----
+public function closeUbahPaketModal(): void
+⋮----
+public function prosesUbahPaket(MikrotikService $mikrotikService): void
+⋮----
+$layanan = $pelanggan->layanans()->with(['paketLayanan', 'router'])->findOrFail($this->selectedLayananId);
+⋮----
+$this->closeUbahPaketModal();
+Flux::toast(variant: 'warning', text: 'Paket yang dipilih sama dengan paket yang sedang aktif.');
+⋮----
+$newPaket = PaketLayanan::with('profilBandwidth')->findOrFail($this->newPaketId);
+⋮----
+$layanan->update([
+⋮----
+'old_paket_id' => $layanan->getOriginal('paket_layanan_id'),
+⋮----
+->log("Mengubah paket {$layanan->site_id} ({$layanan->ppp_username}) dari {$oldPaketNama} ke {$newPaket->nama_paket}");
+⋮----
+public function openTambahInvoiceModal(): void
+⋮----
+$this->authorize('create', Invoice::class);
+⋮----
+$this->tambahInvoiceTanggalJatuhTempo = Carbon::today()->addDays(7)->toDateString();
+$this->resetErrorBag();
+⋮----
+public function closeTambahInvoiceModal(): void
+⋮----
+public function updatedTambahInvoicePromoId(): void
+⋮----
+// Pilihan dropdown selalu menang atas kode yang diketik manual.
+⋮----
+/**
+     * Cocokkan kode promo yang diketik manual dengan promo aktif -- lihat Promo::findAktifByKode()
+     * (juga dipakai Invoice\Create untuk alur tambah invoice manual full-page).
+     */
+public function updatedTambahInvoiceKodePromo(): void
+⋮----
+$this->resetErrorBag('tambahInvoiceKodePromo');
+⋮----
+$promo = Promo::findAktifByKode($kode);
+⋮----
+$this->addError('tambahInvoiceKodePromo', 'Kode promo tidak ditemukan atau sudah tidak aktif.');
+⋮----
+public function simpanTambahInvoice(BillingService $billingService): void
+⋮----
+$layanan = $pelanggan->layanans()->findOrFail($this->tambahInvoiceLayananId);
+$promo = $this->tambahInvoicePromoId ? Promo::find($this->tambahInvoicePromoId) : null;
+⋮----
+$invoice = $billingService->generateManualInvoice(
+⋮----
+dibuatOleh: auth()->id(),
+⋮----
+tanggalJatuhTempo: Carbon::parse($this->tambahInvoiceTanggalJatuhTempo),
+⋮----
+$this->closeTambahInvoiceModal();
+⋮----
+Flux::toast(variant: 'success', text: "Invoice {$invoice->no_invoice} berhasil diterbitkan.");
+⋮----
+protected function searchableFields(): array
+⋮----
+'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
+'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga()
+⋮----
+public function render(): View
+⋮----
+$pelanggan = Pelanggan::with([
+⋮----
+])->findOrFail($this->pelangganId);
+⋮----
+$activityLogs = Activity::forSubject($pelanggan)
+->with('causer')
+->latest()
+->get();
+⋮----
+$dokumens = $pelanggan->getMedia('dokumen');
+$ktpMedia = $pelanggan->getKtpMedia();
+⋮----
+$invoicesAktif = Invoice::where('pelanggan_id', $this->pelangganId)
+->whereIn('status', [StatusInvoice::MenungguPembayaran, StatusInvoice::Kadaluarsa])
+->with(['layananPelanggan.paketLayanan', 'layananPelanggan.router', 'promo', 'transaksiPaymentGateways' => fn ($q) => $q->latest('id')])
+->orderByDesc('tanggal_terbit')
+⋮----
+$invoicesLunas = Invoice::where('pelanggan_id', $this->pelangganId)
+->where('status', StatusInvoice::Lunas)
+->with(['layananPelanggan.paketLayanan', 'promo', 'pembayarans.dicatatOleh'])
+->orderByDesc('tanggal_lunas')
+->orderByDesc('id')
+⋮----
+$invoicesDihapus = Invoice::onlyTrashed()
+->where('pelanggan_id', $this->pelangganId)
+->with(['layananPelanggan.paketLayanan', 'dihapusOleh'])
+->orderByDesc('deleted_at')
+⋮----
+? Invoice::with(['layananPelanggan.paketLayanan', 'promo'])->find($this->selectedInvoiceId)
+⋮----
+? $pelanggan->layanans->firstWhere('id', $this->selectedLayananId)
+⋮----
+$promosAktif = Promo::query()->aktif()->get();
+````
+
+## File: app/Livewire/Ticket/Create.php
+````php
+namespace App\Livewire\Ticket;
+⋮----
+use App\Enums\StatusPelanggan;
+use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\JenisTicket;
+use App\Enums\Ticket\PrioritasTicket;
+use App\Enums\Ticket\StatusTicket;
+use App\Enums\Ticket\SumberTicket;
+use App\Livewire\Concerns\HasSearchableOptions;
+use App\Models\LayananPelanggan;
+use App\Models\Pelanggan;
+use App\Models\Ticket;
+use App\Models\TicketHistori;
+use App\Models\User;
+use App\Notifications\TicketDiassignNotification;
+use App\Services\Whatsapp\WhatsappService;
+use Flux\Flux;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
+use Livewire\WithFileUploads;
+⋮----
+class Create extends Component
+⋮----
+public string $jenis = 'pemasangan';
+⋮----
+public ?int $pelanggan_id = null;
+⋮----
+public ?int $layanan_pelanggan_id = null;
+⋮----
+public string $prioritas = 'sedang';
+⋮----
+public array $divisis = [];
+⋮----
+public ?int $pic_id = null;
+⋮----
+public string $dijadwalkan_pada = '';
+⋮----
+public string $deskripsi = '';
+⋮----
+/** @var mixed */
+public $fotoKendala = null;
+⋮----
+public function mount(): void
+⋮----
+$this->authorize('create', Ticket::class);
+⋮----
+if (request()->has('jenis') && JenisTicket::tryFrom(request()->query('jenis'))) {
+$this->jenis = request()->query('jenis');
+$this->autoSetDivisi();
+⋮----
+if (request()->has('pelanggan_id')) {
+$this->pelanggan_id = (int) request()->query('pelanggan_id');
+⋮----
+if (request()->has('layanan_id')) {
+$this->layanan_pelanggan_id = (int) request()->query('layanan_id');
+⋮----
+public function updatedJenis(): void
+⋮----
+public function updatedPelangganId(): void
+⋮----
+public function updatedLayananPelangganId(): void
+⋮----
+protected function searchableFields(): array
+⋮----
+'query' => fn () => Pelanggan::query()->with('perumahan'),
+'label' => fn (Pelanggan $p) => $p->labelSelector(),
+⋮----
+protected function autoSetDivisi(): void
+⋮----
+public function save(): void
+⋮----
+$this->validate([
+'jenis' => ['required', Rule::enum(JenisTicket::class)],
+⋮----
+'prioritas' => ['required', Rule::enum(PrioritasTicket::class)],
+⋮----
+'divisis.*' => ['required', Rule::enum(DivisiTicket::class)],
+⋮----
+$authUserId = Auth::id();
+⋮----
+$authUser = Auth::user();
+⋮----
+$ticket = DB::transaction(function () use ($authUserId) {
+$ticket = Ticket::create([
+⋮----
+'dijadwalkan_pada' => $this->dijadwalkan_pada ? Carbon::parse($this->dijadwalkan_pada) : null,
+⋮----
+DB::table('ticket_divisi')->insert($divisiRows);
+⋮----
+TicketHistori::create([
+⋮----
+$ticket->addMediaFromDisk(
+FileUploadConfiguration::path($this->fotoKendala->getFilename(), false),
+FileUploadConfiguration::disk()
+⋮----
+->usingFileName($this->fotoKendala->getClientOriginalName())
+->toMediaCollection('foto_kendala');
+⋮----
+Log::error('Gagal menyimpan foto kendala tiket: '.$e->getMessage());
+⋮----
+$ticket->pic->notify(new TicketDiassignNotification(
+⋮----
+$params = $whatsappService->buildTicketParams($ticket);
+$whatsappService->antrikanPesan(
+⋮----
+Log::error('Gagal kirim WA penugasan teknisi: '.$e->getMessage());
+⋮----
+Log::error('Gagal kirim WA tiket dibuat ke pelanggan: '.$e->getMessage());
+⋮----
+Flux::toast(variant: 'success', text: "Tiket {$ticket->nomor_ticket} berhasil dibuat.");
+⋮----
+$this->redirectRoute('ticket.show', $ticket, navigate: true);
+⋮----
+public function render(): View
+⋮----
+? LayananPelanggan::query()
+->with(['paketLayanan', 'router'])
+->where('pelanggan_id', $this->pelanggan_id)
+->get()
+⋮----
+$staffList = User::query()
+->active()
+->orderBy('name')
+->get();
+⋮----
+? Pelanggan::with(['perumahan.kelurahan.kecamatan.kota', 'dibuatOleh'])->find($this->pelanggan_id)
+⋮----
+$prioritasEnum = PrioritasTicket::tryFrom($this->prioritas);
+⋮----
+'jenisList' => JenisTicket::cases(),
+'prioritasList' => PrioritasTicket::cases(),
+'divisiList' => DivisiTicket::cases(),
+````
+
+## File: app/Services/Billing/BillingService.php
+````php
+namespace App\Services\Billing;
+⋮----
+use App\Actions\LayananPelanggan\PerpanjangMasaAktifAction;
+use App\Enums\JenisTagihanPertama;
+use App\Enums\MetodePembayaran;
+use App\Enums\StatusInvoice;
+use App\Enums\StatusTransaksiGateway;
+use App\Events\InvoicePaidEvent;
+use App\Models\Invoice;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Pembayaran;
+use App\Models\PengaturanSiklusTagihan;
+use App\Models\Promo;
+use App\Models\PromoPenggunaan;
+use App\Models\User;
+use Carbon\CarbonInterface;
+use Exception;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+⋮----
+class BillingService
+⋮----
+public function generateInvoice(
+⋮----
+return DB::transaction(function () use ($layanan, $dibuatOleh, $promo, $tanggalJatuhTempo, $periodeTagihan) {
+$periode = $periodeTagihan ?? $layanan->getNextPeriodeTagihan();
+⋮----
+$existingInvoice = Invoice::where('layanan_pelanggan_id', $layanan->id)
+->where('periode_tagihan', $periode)
+->where('status', '!=', StatusInvoice::Dibatalkan)
+->lockForUpdate()
+->first();
+⋮----
+$harga = $layanan->hargaDasar();
+⋮----
+$diskon = $promo->hitungDiskon($harga);
+⋮----
+$terbuka = Invoice::query()
+->where('layanan_pelanggan_id', $layanan->id)
+->where('periode_tagihan', '<', $periode)
+->whereIn('status', StatusInvoice::terbuka())
+⋮----
+->get();
+$tunggakan = (float) $terbuka->sum('jumlah_setelah_promo');
+⋮----
+$terbit = Carbon::today();
+$jatuhTempo = $tanggalJatuhTempo ?? $terbit->copy()->addDays(7);
+⋮----
+$invoice = Invoice::create([
+⋮----
+$lama->update([
+⋮----
+$lama->transaksiPaymentGateways()
+->where('status', StatusTransaksiGateway::Pending)
+->update(['status' => StatusTransaksiGateway::Expired]);
+⋮----
+$this->applyPromoUsage($invoice, $promo, $diskon, $layanan->pelanggan_id);
+⋮----
+public function rencanaSiklusBerikutnya(LayananPelanggan $layanan, PengaturanSiklusTagihan $siklus): ?array
+⋮----
+$periodeTerbaruTerbuka = $layanan->invoices()
+->whereNotNull('periode_tagihan')
+⋮----
+->max('periode_tagihan');
+⋮----
+$periode = Carbon::createFromFormat('!Y-m', $periodeTerbaruTerbuka)->addMonthNoOverflow()->format('Y-m');
+$jatuhTempo = $siklus->jatuhTempoPeriode($periode);
+⋮----
+$periode = $layanan->getNextPeriodeTagihan();
+$jatuhTempo = Carbon::parse($layanan->tanggal_expired)->startOfDay();
+⋮----
+'terbit' => $siklus->tanggalTerbit($jatuhTempo),
+⋮----
+public function generateManualInvoice(
+⋮----
+return DB::transaction(function () use ($layanan, $jumlah, $keterangan, $dibuatOleh, $promo, $tanggalJatuhTempo) {
+⋮----
+$diskon = $promo->hitungDiskon($jumlah);
+⋮----
+public function hitungRincianTagihanPertama(
+⋮----
+public function generateFirstInvoice(
+⋮----
+$tanggalMulai = Carbon::parse($layanan->tanggal_mulai);
+⋮----
+$rincian = $this->hitungRincianTagihanPertama($paket, $tanggalMulai, $jenis, $promo, $layanan->hargaDasar());
+⋮----
+return $this->generateManualInvoice(
+⋮----
+tanggalJatuhTempo: $tanggalJatuhTempo ?? $tanggalMulai->copy()->addDay(),
+⋮----
+protected function applyPromoUsage(Invoice $invoice, ?Promo $promo, float $diskon, int $pelangganId): void
+⋮----
+PromoPenggunaan::create([
+⋮----
+'digunakan_pada' => Carbon::now(),
+⋮----
+$promo->increment('terpakai_global');
+⋮----
+public function prosesPembayaranManual(Invoice $invoice, array $payload, ?User $actor = null): Pembayaran
+⋮----
+$pembayaran = DB::transaction(function () use ($invoice, $payload, $actor, &$eventToDispatch) {
+⋮----
+$lockedInvoice = Invoice::where('id', $invoice->id)->lockForUpdate()->firstOrFail();
+⋮----
+if ($lockedInvoice->isDigabung()) {
+⋮----
+? Carbon::parse($payload['dibayar_pada'])
+: Carbon::now();
+⋮----
+: MetodePembayaran::from($payload['metode']);
+⋮----
+$pembayaran = Pembayaran::create([
+⋮----
+$lockedInvoice->update([
+⋮----
+'tanggal_lunas' => $dibayarPada->toDateString(),
+⋮----
+$layanan = $lockedInvoice->layananPelanggan()->lockForUpdate()->first();
+⋮----
+app(PerpanjangMasaAktifAction::class)->execute($layanan, $lockedInvoice, $dibayarPada);
+````
+
+## File: config/menu.php
+````php
+
+````
+
+## File: docker/www.conf
+````ini
+[www]
+user = www-data
+group = www-data
+
+listen = 127.0.0.1:9000
+listen.owner = www-data
+listen.group = www-data
+
+; PENTING: env var container (DB_HOST, REDIS_HOST, AWS_*, dst dari Dokploy)
+; WAJIB sampai ke worker PHP -- FPM membersihkan environment secara default
+; kecuali ini di-set. Tanpa baris ini, aplikasi akan silently baca env kosong.
+clear_env = no
+
+pm = dynamic
+; Sesuaikan dengan alokasi RAM container di Dokploy. Nilai ini asumsi
+; ~1-2GB RAM tersisa untuk PHP-FPM setelah Horizon+Caddy+PHP-FPM master.
+pm.max_children = 20
+pm.start_servers = 4
+pm.min_spare_servers = 2
+pm.max_spare_servers = 8
+pm.max_requests = 500
+
+; Kirim stdout/stderr worker langsung ke `docker logs` / log viewer Dokploy.
+catch_workers_output = yes
+decorate_workers_output = no
+````
+
+## File: resources/views/livewire/ticket/show.blade.php
+````php
+
+````
+
+## File: tests/Feature/Ticket/TicketWorkflowAutomationTest.php
+````php
+use App\Actions\Ticket\UbahStatusTicketAction;
+use App\Enums\StatusLayanan;
+use App\Enums\StatusPelanggan;
+use App\Enums\Ticket\StatusTicket;
+use App\Enums\UserStatus;
+use App\Livewire\LayananPelanggan\Create as LayananCreate;
+use App\Livewire\Ticket\Create as TicketCreate;
+use App\Models\Invoice;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
+use App\Models\ProfilBandwidth;
+use App\Models\Ticket;
+use App\Models\TicketHistori;
+use App\Models\User;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
+use Livewire\Livewire;
+⋮----
+$this->seed(RolesAndPermissionsSeeder::class);
+⋮----
+$this->admin = User::factory()->create(['status' => UserStatus::Active]);
+$this->admin->assignRole('admin');
+⋮----
+$this->noc = User::factory()->create(['status' => UserStatus::Active]);
+$this->noc->assignRole('noc');
+⋮----
+$pelanggan = Pelanggan::factory()->belumTerpasang()->create();
+$a = LayananPelanggan::factory()->proses()->create(['pelanggan_id' => $pelanggan->id]);
+$b = LayananPelanggan::factory()->proses()->create(['pelanggan_id' => $pelanggan->id]);
+⋮----
+expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::BelumTerpasang);
+⋮----
+$a->update(['status' => StatusLayanan::Aktif]);
+expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::Aktif);
+⋮----
+$b->update(['status' => StatusLayanan::Suspend]);
+⋮----
+$a->update(['status' => StatusLayanan::Suspend]);
+expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::Expired);
+⋮----
+$a->update(['status' => StatusLayanan::Berhenti]);
+$b->update(['status' => StatusLayanan::Berhenti]);
+expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::Off);
+⋮----
+Livewire::actingAs($this->admin)->test(TicketCreate::class)
+->set('jenis', 'pemasangan')
+->set('pelanggan_id', $pelanggan->id)
+->set('deskripsi', 'Pasang baru rumah')
+->call('save')
+->assertHasNoErrors();
+expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::ReqPemasangan);
+⋮----
+$ticket = Ticket::where('pelanggan_id', $pelanggan->id)->firstOrFail();
+$ticket->update(['status' => StatusTicket::MenungguKonfirmasi]);
+app(UbahStatusTicketAction::class)->execute($ticket, StatusTicket::Selesai, $this->admin);
+⋮----
+expect($pelanggan->fresh()->status)->toBe(StatusPelanggan::PemasanganSelesai)
+->and($ticket->fresh()->perlu_aktivasi_manual)->toBeTrue();
+⋮----
+$baru = Pelanggan::factory()->create(['status' => StatusPelanggan::ReqPemasangan]);
+$aktif = Pelanggan::factory()->create(['status' => StatusPelanggan::Aktif]);
+⋮----
+$ticket = Ticket::factory()->pemasangan()->create(['pelanggan_id' => $pelanggan->id]);
+app(UbahStatusTicketAction::class)->execute($ticket, StatusTicket::Batal, $this->admin, 'Tidak ada jangkauan');
+⋮----
+expect($baru->fresh()->status)->toBe(StatusPelanggan::BelumTerpasang)
+->and($aktif->fresh()->status)->toBe(StatusPelanggan::Aktif);
+⋮----
+Queue::fake();
+⋮----
+$pelanggan = Pelanggan::factory()->create();
+$dicabut = LayananPelanggan::factory()->create(['pelanggan_id' => $pelanggan->id]);
+$tetap = LayananPelanggan::factory()->create(['pelanggan_id' => $pelanggan->id]);
+$ticket = Ticket::factory()->create([
+⋮----
+app(UbahStatusTicketAction::class)->execute($ticket, StatusTicket::Selesai, $this->noc);
+⋮----
+expect($dicabut->fresh()->status)->toBe(StatusLayanan::Berhenti)
+->and($tetap->fresh()->status)->toBe(StatusLayanan::Aktif)
+->and($pelanggan->fresh()->status)->toBe(StatusPelanggan::Aktif);
+⋮----
+->set('jenis', $jenis)
+⋮----
+->set('deskripsi', 'Permohonan pelanggan')
+⋮----
+->assertHasErrors(['layanan_pelanggan_id']);
+⋮----
+$pelanggan = Pelanggan::factory()->create(['status' => StatusPelanggan::PemasanganSelesai]);
+$ticket = Ticket::factory()->pemasangan()->create([
+⋮----
+$paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
+⋮----
+Livewire::actingAs($this->admin)
+->withQueryParams(['ticket_id' => $ticket->id])
+->test(LayananCreate::class, ['pelanggan' => $pelanggan])
+->assertSet('pelanggan_id', $pelanggan->id)
+->assertSet('ticket_id', $ticket->id)
+->set('paket_layanan_id', $paket->id)
+->call('nextStep')
+->set('jenis_tagihan_pertama', 'full_bulan')
+⋮----
+$layanan = LayananPelanggan::where('pelanggan_id', $pelanggan->id)->firstOrFail();
+expect($ticket->fresh()->layanan_pelanggan_id)->toBe($layanan->id)
+->and($ticket->fresh()->perlu_aktivasi_manual)->toBeFalse();
+⋮----
+$layanan = LayananPelanggan::factory()->create();
+⋮----
+TicketHistori::create([
+⋮----
+expect($ticket->perluInvoicePindahAlamat())->toBeTrue();
+⋮----
+Invoice::factory()->create([
+⋮----
+expect($ticket->perluInvoicePindahAlamat())->toBeFalse();
 ````
 
 ## File: tests/Feature/InvoiceTest.php
@@ -69261,14 +71903,11 @@ $response = $this->actingAs($this->adminUser)->get(route('invoice.cetak', $invoi
 $response->assertOk()
 ->assertHeader('content-type', 'application/pdf');
 ⋮----
+$this->travelTo(now()->setDate(2026, 9, 24));
 $this->layanan->update([
-⋮----
-'tanggal_expired' => now()->addDays(3)->toDateString(),
 ⋮----
 $this->artisan('invoice:generate')->assertSuccessful();
 expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->count())->toBe(1);
-⋮----
-'tanggal_expired' => now()->addDays(2)->toDateString(),
 ⋮----
 $targetPeriod = $this->layanan->getNextPeriodeTagihan();
 ⋮----
@@ -69383,362 +72022,30 @@ $lunas = Invoice::factory()->lunas()->create();
 ->assertDontSee($lunas->no_invoice);
 ````
 
-## File: .ai/rules/docker.md
-````markdown
----
-paths:
-  - docker/entrypoint.sh
-  - .ai/rules/docker.md
----
-
-# Docker
-
-## Dockerfile is back (single container: Caddy + php-fpm + horizon + scheduler under supervisord)
-Restored 2026-09-21 from the `Dockerfile` + `docker/` on `feat/dashboard-siklus-tagihan` (`4b61142`, "tested"), replacing the earlier nginx variant from `6a0c8aa`. Main-side additions kept on top: `entrypoint.sh` re-chowns `storage/` + `bootstrap/cache` *after* the cache warm-up (artisan runs as root) and runs `storage:link`; `supervisord.conf` sets `user=root`. Smoke-tested with `compose.smoke.yaml` (gitignored): `/up` 200, `/` 302 -> `/login`, PHP 8.4.
-
-Dokploy must use **Build Type = Dockerfile**, container port **80** (a Railpack build gives 502: no Caddy/Horizon/migrations from this image). `entrypoint.sh` handles `app:wait-for-services`, `app:migrate-once`, `app:ensure-public-media-bucket` and cache warming on every boot, so no Dokploy post-init command is needed. It also runs `php artisan down` (redis maintenance store) during boot — a crash mid-boot leaves the whole fleet in maintenance until `php artisan up`.
-
-## storage/logs must stay writable even though LOG_CHANNEL=stderr
-ADR-0036 sets `LOG_CHANNEL=stderr` in production so normal app logs go to `docker logs`/Dokploy instead of `storage/logs/laravel.log`, calling that file "ephemeral." That's true for normal logging, but Laravel's `LogManager` has a hardcoded emergency-logger fallback that ALWAYS writes to `storage_path('logs/laravel.log')` whenever the configured channel itself fails to write -- regardless of `LOG_CHANNEL`. If `storage/logs` isn't writable when that fires, the visible error becomes `UnexpectedValueException: ... could not be opened in append mode`, which can mask the real original error.
-
-`docker/entrypoint.sh` re-applies `chown`/`chmod` on `storage/` and `bootstrap/cache` on every container boot, so a runtime volume mount overriding the image's build-time ownership is covered.
-````
-
-## File: .ai/rules/index.md
-````markdown
-# Project Rules Index
-
-Before planning or editing, find the row whose globs match the file's path and read that rule file.
-
-| Applies to | Rule file |
-| --- | --- |
-| app/Services/Billing/BillingService.php | .ai/rules/billing.md |
-| docker/entrypoint.sh | .ai/rules/docker.md |
-| app/Livewire/Portal/Invoice/** | .ai/rules/invoice.md |
-| app/Livewire/**/*.php, config/livewire.php, .env.docker.example | .ai/rules/livewire-uploads.md |
-| app/Services/Mikrotik/MikrotikService.php | .ai/rules/mikrotik.md |
-| app/Models/Sysblas.php | .ai/rules/models.md |
-| resources/views/livewire/**/*.blade.php, resources/views/components/searchable-select.blade.php, app/Livewire/Concerns/HasSearchableOptions.php | .ai/rules/flux-select-search.md |
-````
-
-## File: app/Livewire/LayananPelanggan/Create.php
+## File: tests/Feature/MultiLayananBillingTest.php
 ````php
-namespace App\Livewire\LayananPelanggan;
-⋮----
-use App\Enums\JenisKoneksi;
-use App\Enums\JenisTagihanPertama;
-use App\Enums\MikrotikJobStatus;
-use App\Enums\MikrotikJobType;
-use App\Enums\ProvisioningStatus;
+use App\Enums\MetodePembayaran;
+use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
-use App\Livewire\Concerns\HasSearchableOptions;
-use App\Models\IpPool;
-use App\Models\LayananPelanggan;
-use App\Models\MikrotikJobLog;
-use App\Models\PaketLayanan;
-use App\Models\Pelanggan;
-use App\Models\Promo;
-use App\Models\Router;
-use App\Models\Ticket;
-use App\Services\Billing\BillingService;
-use App\Services\Mikrotik\MikrotikService;
-use Flux\Flux;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
-use Illuminate\View\View;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Locked;
-use Livewire\Attributes\Title;
-use Livewire\Component;
-⋮----
-class Create extends Component
-⋮----
-public int $step = 1;
-⋮----
-public ?int $ticket_id = null;
-⋮----
-public ?int $pelanggan_id = null;
-⋮----
-public ?int $paket_layanan_id = null;
-⋮----
-public ?int $router_id = null;
-⋮----
-public ?int $ip_pool_id = null;
-⋮----
-public ?string $ip_static = null;
-⋮----
-public string $nama_site = '';
-⋮----
-public string $alamat_pemasangan = '';
-⋮----
-public ?float $latitude = null;
-⋮----
-public ?float $longitude = null;
-⋮----
-public string $ppp_username = '';
-⋮----
-public string $jenis_koneksi = 'pppoe';
-⋮----
-public string $tanggal_mulai = '';
-⋮----
-public bool $auto_provision = true;
-⋮----
-// Tagihan pertama
-public string $jenis_tagihan_pertama = '';
-⋮----
-public ?int $promo_id = null;
-⋮----
-public string $kode_promo = '';
-⋮----
-public float $hargaPaket = 0.0;
-⋮----
-public float $diskonTagihanPertama = 0.0;
-⋮----
-public float $totalTagihanPertama = 0.0;
-⋮----
-public ?int $hariDitagih = null;
-⋮----
-public ?int $hariTotalPeriode = null;
-⋮----
-public string $tanggalJatuhTempoPertama = '';
-⋮----
-public function mount(): void
-⋮----
-$this->authorize('create', LayananPelanggan::class);
-$this->tanggal_mulai = now()->toDateString();
-⋮----
-if (request()->filled('pelanggan_id')) {
-$this->pelanggan_id = (int) request()->query('pelanggan_id');
-$this->updatedPelangganId();
-$this->ticket_id = request()->filled('ticket_id') ? (int) request()->query('ticket_id') : null;
-⋮----
-$this->initSingleRouterSelection();
-⋮----
-protected function initSingleRouterSelection(): void
-⋮----
-$routers = Router::get(['id']);
-if ($routers->count() === 1) {
-$this->router_id = $routers->first()->id;
-$this->updatedRouterId();
-⋮----
-protected function rulesStep1(): array
-⋮----
-protected function rulesStep2(): array
-⋮----
-$pelanggan = $this->pelanggan_id ? Pelanggan::find($this->pelanggan_id) : null;
-⋮----
-? ['required', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)]
-: ['nullable', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)],
-⋮----
-'jenis_tagihan_pertama' => ['required', Rule::enum(JenisTagihanPertama::class)],
-⋮----
-Rule::requiredIf(fn () => $this->jenis_tagihan_pertama === JenisTagihanPertama::Promo->value),
-⋮----
-public function nextStep(): void
-⋮----
-$this->validate($this->rulesStep1(), [
-⋮----
-$this->recalculateTagihanPertama();
-⋮----
-public function updatedPelangganId(): void
-⋮----
-$pelanggan = Pelanggan::find($this->pelanggan_id);
-⋮----
-$this->ppp_username = LayananPelanggan::generatePppUsername($pelanggan);
-⋮----
-/**
-     * Auto-assign ip_pool_id jika router hanya memiliki 1 pool,
-     * atau reset ke null jika memiliki banyak/tanpa pool.
-     *
-     * Dipanggil otomatis oleh Livewire saat properti router_id berubah.
-     */
-public function updatedRouterId(): void
-⋮----
-$pools = IpPool::where('router_id', $this->router_id)->get(['id']);
-if ($pools->count() === 1) {
-$this->ip_pool_id = $pools->first()->id;
-⋮----
-public function updatedJenisKoneksi(): void
-⋮----
-public function updatedTanggalMulai(): void
-⋮----
-public function updatedJenisTagihanPertama(): void
-⋮----
-$this->resetErrorBag(['promo_id', 'kode_promo']);
-⋮----
-public function updatedPromoId(): void
-⋮----
-/**
-     * Cocokkan kode promo yang diketik manual dengan promo aktif -- hanya dipakai jika
-     * dropdown promo belum dipilih (lihat updatedPromoId()).
-     */
-public function updatedKodePromo(): void
-⋮----
-$this->resetErrorBag('kode_promo');
-⋮----
-$promo = Promo::findAktifByKode($kode);
-⋮----
-$this->addError('kode_promo', 'Kode promo tidak ditemukan atau sudah tidak aktif.');
-⋮----
-public function recalculateTagihanPertama(): void
-⋮----
-$paket = $this->paket_layanan_id ? PaketLayanan::find($this->paket_layanan_id) : null;
-$jenis = JenisTagihanPertama::tryFrom($this->jenis_tagihan_pertama);
-⋮----
-$promo = $this->promo_id ? Promo::find($this->promo_id) : null;
-$rincian = app(BillingService::class)->hitungRincianTagihanPertama(
-⋮----
-Carbon::parse($this->tanggal_mulai),
-⋮----
-public function prevStep(): void
-⋮----
-public function save(): void
-⋮----
-$this->validate($this->rulesStep2(), [
-⋮----
-$existingDuplicate = LayananPelanggan::where('pelanggan_id', $this->pelanggan_id)
-->where('router_id', $this->router_id)
-->where('paket_layanan_id', $this->paket_layanan_id)
-->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Proses, StatusLayanan::Suspend])
-->exists();
-⋮----
-$this->addError('router_id', 'Pelanggan ini sudah memiliki Data Registrasi Billing aktif dengan paket yang sama pada router ini. Untuk pemasangan site baru, gunakan paket atau router yang sesuai.');
-⋮----
-$paket = PaketLayanan::findOrFail($this->paket_layanan_id);
-⋮----
-$mulai = Carbon::parse($this->tanggal_mulai);
-⋮----
-? $mulai->copy()->addMonths($paket->masa_aktif_nilai)
-: $mulai->copy()->addDays($paket->masa_aktif_nilai);
-⋮----
-$pppPassword = Str::password(8, symbols: false);
-⋮----
-$layanan = DB::transaction(function () use ($expired, $pppPassword) {
-$layanan = LayananPelanggan::create([
-⋮----
-'tanggal_expired' => $expired->toDateString(),
-⋮----
-$jenisTagihan = JenisTagihanPertama::from($this->jenis_tagihan_pertama);
-⋮----
-? Promo::find($this->promo_id)
-⋮----
-app(BillingService::class)->generateFirstInvoice(
-⋮----
-dibuatOleh: auth()->id(),
-⋮----
-$this->addError('jenis_tagihan_pertama', "Gagal membuat tagihan pertama: {$e->getMessage()}");
-⋮----
-Ticket::whereKey($this->ticket_id)
-->where('pelanggan_id', $this->pelanggan_id)
-->where('perlu_aktivasi_manual', true)
-->update(['layanan_pelanggan_id' => $layanan->id, 'perlu_aktivasi_manual' => false]);
-⋮----
-$router = Router::findOrFail($this->router_id);
-$mikrotikService->createOrUpdatePppoeSecret($router, $layanan);
-⋮----
-$layanan->update([
-⋮----
-MikrotikJobLog::create([
-⋮----
-Flux::toast(
-⋮----
-'error_message' => $e->getMessage(),
-⋮----
-text: "Provisi ke router gagal: {$e->getMessage()} Perbaiki data lalu gunakan tombol Provisi di daftar layanan. PPP Password: {$pppPassword} — salin sekarang, tidak akan ditampilkan lagi kecuali oleh Super Admin.",
-⋮----
-$this->redirectRoute('layanan-pelanggan.index', navigate: true);
-⋮----
-protected function searchableFields(): array
-⋮----
-'query' => fn () => Pelanggan::query(),
-'label' => fn (Pelanggan $p) => $p->labelSelector(),
-⋮----
-'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
-'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga()
-⋮----
-public function render(): View
-⋮----
-$routers = Router::orderBy('nama_router')->get();
-⋮----
-? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
-⋮----
-$jenisKoneksi = JenisKoneksi::cases();
-$jenisTagihanPertama = JenisTagihanPertama::cases();
-$promos = Promo::query()->aktif()->get();
-````
-
-## File: docker/www.conf
-````ini
-[www]
-user = www-data
-group = www-data
-
-listen = 127.0.0.1:9000
-listen.owner = www-data
-listen.group = www-data
-
-; PENTING: env var container (DB_HOST, REDIS_HOST, AWS_*, dst dari Dokploy)
-; WAJIB sampai ke worker PHP -- FPM membersihkan environment secara default
-; kecuali ini di-set. Tanpa baris ini, aplikasi akan silently baca env kosong.
-clear_env = no
-
-pm = dynamic
-; Sesuaikan dengan alokasi RAM container di Dokploy. Nilai ini asumsi
-; ~1-2GB RAM tersisa untuk PHP-FPM setelah Horizon+Caddy+PHP-FPM master.
-pm.max_children = 20
-pm.start_servers = 4
-pm.min_spare_servers = 2
-pm.max_spare_servers = 8
-pm.max_requests = 500
-
-; Kirim stdout/stderr worker langsung ke `docker logs` / log viewer Dokploy.
-catch_workers_output = yes
-decorate_workers_output = no
-````
-
-## File: public/favicon.svg
-````xml
-<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" rx="16" fill="url(#gobilling_grad)"/>
-  <path d="M36 12L20 34H32L28 52L44 30H32L36 12Z" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <defs>
-    <linearGradient id="gobilling_grad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#6366F1"/>
-      <stop offset="1" stop-color="#9333EA"/>
-    </linearGradient>
-  </defs>
-</svg>
-````
-
-## File: tests/Feature/LayananPelangganTest.php
-````php
-use App\Enums\JenisKoneksi;
-use App\Enums\JenisTagihanPertama;
-use App\Enums\ProvisioningStatus;
-use App\Enums\StatusLayanan;
-use App\Enums\StatusRouter;
 use App\Enums\UserStatus;
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
-use App\Livewire\LayananPelanggan\Create;
-use App\Livewire\LayananPelanggan\Edit;
-use App\Livewire\LayananPelanggan\Index;
+use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
+use App\Livewire\Invoice\Create as InvoiceCreate;
+use App\Livewire\LayananPelanggan\Create as LayananCreate;
+use App\Livewire\Pelanggan\Show;
 use App\Models\Invoice;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
-use App\Models\Promo;
-use App\Models\PromoPenggunaan;
 use App\Models\Router;
 use App\Models\User;
 use App\Services\Billing\BillingService;
+use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 ⋮----
@@ -69750,266 +72057,160 @@ $this->superAdmin->assignRole('super_admin');
 $this->admin = User::factory()->create(['status' => UserStatus::Active]);
 $this->admin->assignRole('admin');
 ⋮----
-$this->pelanggan = Pelanggan::factory()->create();
-$this->profil = ProfilBandwidth::factory()->create();
-$this->paket = PaketLayanan::factory()->create([
-⋮----
 $this->router = Router::factory()->online()->create();
 $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id]);
 ⋮----
-Queue::fake([ProvisionPppoeAccountJob::class]);
+$this->profilHome = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Home-20M']);
+$this->paketHome = PaketLayanan::factory()->create([
+⋮----
+$this->profilOffice = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Office-50M']);
+$this->paketOffice = PaketLayanan::factory()->create([
+⋮----
+$this->pelanggan = Pelanggan::factory()->create([
 ⋮----
 Livewire::actingAs($this->admin)
-->test(Create::class)
-⋮----
-->set('pelanggan_id', $this->pelanggan->id)
-->set('paket_layanan_id', $this->paket->id)
+->test(LayananCreate::class, ['pelanggan' => $this->pelanggan])
+->set('paket_layanan_id', $this->paketHome->id)
 ->call('nextStep')
-->assertHasNoErrors()
-->assertSet('step', 2)
-⋮----
-->set('router_id', $this->router->id)
-->set('ip_pool_id', $this->ipPool->id)
-->set('ppp_username', $validUsername)
-->set('ppp_password', 'secret_ppp_pass')
-->set('jenis_koneksi', 'pppoe')
 ->set('tanggal_mulai', now()->toDateString())
 ->set('jenis_tagihan_pertama', 'full_bulan')
 ->call('save')
-⋮----
+->assertHasNoErrors()
 ->assertRedirect(route('layanan-pelanggan.index'));
 ⋮----
-Queue::assertNotPushed(ProvisionPppoeAccountJob::class);
+$layanan1 = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)
+->where('paket_layanan_id', $this->paketHome->id)->first();
+expect($layanan1)->not->toBeNull()
+->and($layanan1->ppp_username)->toBeNull();
 ⋮----
-$layanan = LayananPelanggan::where('ppp_username', $validUsername)->first();
+->set('paket_layanan_id', $this->paketOffice->id)
+⋮----
+$layanan2 = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)
+->where('paket_layanan_id', $this->paketOffice->id)->first();
+expect($layanan2)->not->toBeNull()
+->and($layanan2->site_id)->not->toBe($layanan1->site_id);
+⋮----
+expect($this->pelanggan->fresh()->layanans)->toHaveCount(2);
+⋮----
+$layananHome = LayananPelanggan::factory()->create([
+⋮----
+$layananOffice = LayananPelanggan::factory()->create([
+⋮----
+$invoiceHome = $billingService->generateInvoice($layananHome, $this->admin->id, null, null, $periode);
+$invoiceOffice = $billingService->generateInvoice($layananOffice, $this->admin->id, null, null, $periode);
+⋮----
+expect($invoiceHome->id)->not->toBe($invoiceOffice->id)
+->and($invoiceHome->layanan_pelanggan_id)->toBe($layananHome->id)
+->and($invoiceHome->jumlah)->toEqual(150000.0)
+->and($invoiceOffice->layanan_pelanggan_id)->toBe($layananOffice->id)
+->and($invoiceOffice->jumlah)->toEqual(450000.0)
+->and($invoiceHome->pelanggan_id)->toBe($this->pelanggan->id)
+->and($invoiceOffice->pelanggan_id)->toBe($this->pelanggan->id);
+⋮----
+expect($this->pelanggan->fresh()->invoices)->toHaveCount(2);
+⋮----
+$expiredAwal = now()->addDays(20)->startOfDay();
+⋮----
+'tanggal_mulai' => now()->subMonth()->toDateString(),
+'tanggal_expired' => $expiredAwal->toDateString(),
+⋮----
+Queue::fake();
+⋮----
+$invoiceHome = $billingService->generateInvoice($layananHome, $this->admin->id, null, null, '2026-09');
+$invoiceOffice = $billingService->generateInvoice($layananOffice, $this->admin->id, null, null, '2026-09');
+⋮----
+$billingService->prosesPembayaranManual($invoiceHome, [
+⋮----
+$invoiceHome->refresh();
+$invoiceOffice->refresh();
+⋮----
+expect($invoiceHome->status)->toBe(StatusInvoice::Lunas)
+->and($invoiceHome->tanggal_lunas)->not->toBeNull();
+⋮----
+$layananHome->refresh();
+expect(Carbon::parse($layananHome->tanggal_expired)->toDateString())->toBe($expiredAwal->copy()->addMonthNoOverflow()->day(10)->toDateString());
+⋮----
+expect($invoiceOffice->status)->toBe(StatusInvoice::MenungguPembayaran)
+->and($invoiceOffice->tanggal_lunas)->toBeNull();
+⋮----
+$layananOffice->refresh();
+expect(Carbon::parse($layananOffice->tanggal_expired)->toDateString())->toBe($expiredAwal->toDateString());
+⋮----
+$mikrotikMock = Mockery::mock(MikrotikService::class);
+⋮----
+$mikrotikMock->shouldReceive('disablePppoeSecret')
+->once()
+->with(
+Mockery::on(fn ($r) => $r->id === $this->router->id),
+Mockery::on(fn ($l) => $l->ppp_username === 'BF2408202601_00001'),
+⋮----
+->andReturn(true);
+⋮----
+$this->app->instance(MikrotikService::class, $mikrotikMock);
+⋮----
+$layananHome->update(['status' => StatusLayanan::Suspend]);
+$mikrotikMock->disablePppoeSecret($this->router, $layananHome, true);
+⋮----
+expect($layananHome->fresh()->status)->toBe(StatusLayanan::Suspend)
+->and($layananOffice->fresh()->status)->toBe(StatusLayanan::Aktif);
+⋮----
+$pelangganLain = Pelanggan::factory()->create(['no_reg' => 'BF2408202699']);
+$layananLain = LayananPelanggan::factory()->create([
+⋮----
+->test(InvoiceCreate::class)
+->set('pelanggan_id', $this->pelanggan->id)
+->assertSee($layananHome->site_id)
+->assertSee($layananOffice->site_id)
+->assertDontSee($layananLain->site_id);
+⋮----
+Queue::fake([ProvisionPppoeAccountJob::class]);
+⋮----
+$comp = Livewire::actingAs($this->admin)
+⋮----
+->set('nama_site', 'Kantor Cabang Sudirman')
+->set('alamat_pemasangan', 'Gedung Wisma Sudirman Lt. 5')
+->set('latitude', -6.2146)
+->set('longitude', 106.8212)
+⋮----
+$layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)
+->where('nama_site', 'Kantor Cabang Sudirman')
+->first();
+⋮----
 expect($layanan)->not->toBeNull()
-->and($layanan->provisioning_status)->toBe(ProvisioningStatus::Failed)
-->and($layanan->last_provisioning_error)->not->toBeNull()
-->and($layanan->pelanggan_id)->toBe($this->pelanggan->id)
-->and($layanan->paket_layanan_id)->toBe($this->paket->id)
-->and($layanan->router_id)->toBe($this->router->id)
-->and($layanan->ip_pool_id)->toBe($this->ipPool->id)
-->and($layanan->ip_static)->toBeNull()
-->and($layanan->status)->toBe(StatusLayanan::Proses)
-->and($layanan->site_id)->toStartWith('SITE-');
+->and($layanan->alamat_pemasangan)->toBe('Gedung Wisma Sudirman Lt. 5')
+->and($layanan->latitude)->toBe(-6.2146)
+->and($layanan->longitude)->toBe(106.8212)
+->and($layanan->alamat_efektif)->toBe('Gedung Wisma Sudirman Lt. 5')
+->and($layanan->latitude_efektif)->toBe(-6.2146)
+->and($layanan->nama_site_label)->toBe('Kantor Cabang Sudirman');
 ⋮----
-$rawPass = DB::table('layanan_pelanggan')->where('id', $layanan->id)->value('ppp_password_terenkripsi');
-expect($rawPass)->not->toBe('secret_ppp_pass')
-->and(Crypt::decryptString($rawPass))->toBe('secret_ppp_pass');
-⋮----
-->set('pelanggan_id', null)
-⋮----
-->assertHasErrors(['pelanggan_id' => 'required'])
-->assertSet('step', 1);
-⋮----
-->set('paket_layanan_id', null)
-⋮----
-->assertHasErrors(['paket_layanan_id' => 'required'])
-⋮----
-->set('router_id', null)
-->set('ppp_username', "{$this->pelanggan->no_reg}_00001")
-->set('ppp_password', 'secret123')
-⋮----
-->assertHasErrors(['router_id' => 'required']);
-⋮----
-$routerWithoutPool = Router::factory()->online()->create();
-⋮----
-->set('router_id', $routerWithoutPool->id)
-⋮----
-->assertHasErrors(['ip_pool_id' => 'required']);
-⋮----
-$routerLain = Router::factory()->online()->create();
-$poolRouterLain = IpPool::factory()->create(['router_id' => $routerLain->id]);
-⋮----
-->set('ip_pool_id', $poolRouterLain->id)
-⋮----
-->assertHasErrors(['ip_pool_id']);
-⋮----
-->assertSet('router_id', $this->router->id)
-->assertSet('ip_pool_id', $this->ipPool->id);
-⋮----
-Router::factory()->online()->create();
-⋮----
-->assertSet('router_id', null)
-->assertSet('ip_pool_id', null);
-⋮----
-$offlineRouter = Router::factory()->create([
-⋮----
-$offlinePool = IpPool::factory()->create(['router_id' => $offlineRouter->id]);
-⋮----
-->assertSee('Router-Offline-Test')
-->set('router_id', $offlineRouter->id)
-->set('ip_pool_id', $offlinePool->id)
-⋮----
-->and($layanan->router_id)->toBe($offlineRouter->id);
+$this->pelanggan->update([
 ⋮----
 $layanan = LayananPelanggan::factory()->create([
 ⋮----
-->test(Edit::class, ['layananPelanggan' => $layanan])
-->assertSee('Router-Offline-Edit')
-->set('nama_site', 'Titik Pasang Baru')
+expect($layanan->alamat_efektif)->toBe('Jl. Kebon Sirih No. 10')
+->and($layanan->latitude_efektif)->toBe(-6.1818)
+->and($layanan->longitude_efektif)->toBe(106.8271)
+->and($layanan->nama_site_label)->toBe($layanan->site_id);
 ⋮----
-$layanan->refresh();
-expect($layanan->router_id)->toBe($offlineRouter->id)
-->and($layanan->nama_site)->toBe('Titik Pasang Baru');
+Queue::fake([UpdatePppoeProfileJob::class]);
 ⋮----
-$pool2 = IpPool::factory()->create(['router_id' => $this->router->id]);
+$mockMikrotik = Mockery::mock(MikrotikService::class);
+$mockMikrotik->shouldReceive('getPppStatus')->andReturn([
 ⋮----
-->set('jenis_koneksi', 'ip_static')
-->set('ip_static', '192.168.100.25')
+$this->app->instance(MikrotikService::class, $mockMikrotik);
 ⋮----
-->and($layanan->jenis_koneksi)->toBe(JenisKoneksi::IpStatic)
-->and($layanan->ip_static)->toBe('192.168.100.25')
-->and($layanan->ip_pool_id)->toBeNull();
+->test(Show::class, ['pelanggan' => $this->pelanggan])
+->call('openUbahPaketModal', $layanan->id)
+->assertSet('showUbahPaketModal', true)
+->assertSet('selectedLayananId', $layanan->id)
+->set('newPaketId', $this->paketOffice->id)
+->call('prosesUbahPaket')
+->assertSet('showUbahPaketModal', false);
 ⋮----
-->set('ip_static', 'bukan-ip-valid')
+expect($layanan->fresh()->paket_layanan_id)->toBe($this->paketOffice->id);
 ⋮----
-->assertHasErrors(['ip_static' => 'ipv4']);
-⋮----
-$component = Livewire::actingAs($this->admin)
-⋮----
-->set('pelanggan_id', $this->pelanggan->id);
-⋮----
-$pppUsername = $component->get('ppp_username');
-expect($pppUsername)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/');
-expect(LayananPelanggan::extractCounter($pppUsername))->toBeBetween(10000, 99999);
-⋮----
-->set('ppp_username', 'user_budi_01')
-⋮----
-->assertHasErrors(['ppp_username' => 'regex']);
-⋮----
-->set('ppp_username', 'WRONGREG_00001')
-⋮----
-->set('ip_static', '10.20.30.40')
-⋮----
-expect($layanan->jenis_koneksi)->toBe(JenisKoneksi::IpStatic)
-->and($layanan->ip_static)->toBe('10.20.30.40')
-⋮----
-LayananPelanggan::factory()->create([
-⋮----
-->test(Index::class)
-->assertOk()
-->assertSee($this->pelanggan->nama_depan);
-⋮----
-->set('ppp_username', $newUsername)
-->set('ppp_password', 'secret1234')
-⋮----
-->assertHasErrors(['router_id'])
-->assertSee('Pelanggan ini sudah memiliki Data Registrasi Billing aktif dengan paket yang sama pada router ini');
-⋮----
-$secondRouter = Router::factory()->online()->create(['nama_router' => 'Router-Site-2']);
-$secondPool = IpPool::factory()->create(['router_id' => $secondRouter->id]);
-⋮----
-->set('router_id', $secondRouter->id)
-->set('ip_pool_id', $secondPool->id)
-⋮----
-expect(LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->count())->toBe(2);
-⋮----
-$paket = PaketLayanan::factory()->create([
-⋮----
-->set('paket_layanan_id', $paket->id)
-⋮----
-$invoice = Invoice::where('layanan_pelanggan_id', $layanan->id)->first();
-⋮----
-expect($invoice)->not->toBeNull()
-->and($invoice->periode_tagihan)->toBeNull()
-->and((float) $invoice->jumlah)->toBe(200000.0)
-->and((float) $invoice->jumlah_setelah_promo)->toBe(200000.0)
-->and($invoice->promo_id)->toBeNull();
-⋮----
-$tanggalMulai = now()->startOfMonth()->addDays(10);
-⋮----
-->set('tanggal_mulai', $tanggalMulai->toDateString())
-->set('jenis_tagihan_pertama', 'prorata')
-⋮----
-$expected = app(BillingService::class)->hitungRincianTagihanPertama(
-⋮----
-->and((float) $invoice->jumlah_setelah_promo)->toBe($expected['jumlah_setelah_promo'])
-->and((float) $invoice->jumlah_setelah_promo)->toBeLessThan(300000.0);
-⋮----
-$promo = Promo::factory()->create([
-⋮----
-->set('jenis_tagihan_pertama', 'promo')
-->set('promo_id', $promo->id)
-⋮----
-->and((float) $invoice->jumlah)->toBe(250000.0)
-->and((float) $invoice->jumlah_setelah_promo)->toBe(225000.0)
-->and($invoice->promo_id)->toBe($promo->id);
-⋮----
-expect(PromoPenggunaan::where('promo_id', $promo->id)->where('invoice_id', $invoice->id)->exists())->toBeTrue()
-->and($promo->fresh()->terpakai_global)->toBe(1);
-⋮----
-->assertHasErrors(['promo_id']);
-⋮----
-->assertHasErrors(['jenis_tagihan_pertama' => 'required']);
-⋮----
-$mockBilling = Mockery::mock(BillingService::class);
-$mockBilling->shouldReceive('generateFirstInvoice')
-->once()
-->andThrow(new Exception('Simulasi kegagalan penerbitan tagihan pertama.'));
-$this->instance(BillingService::class, $mockBilling);
-⋮----
-->assertHasErrors(['jenis_tagihan_pertama']);
-⋮----
-expect(LayananPelanggan::where('ppp_username', $validUsername)->exists())->toBeFalse();
-⋮----
-$expiredLayanan = LayananPelanggan::factory()->create([
-⋮----
-'tanggal_expired' => now()->subDay()->toDateString(),
-⋮----
-expect($expiredLayanan->isExpired())->toBeTrue()
-->and($expiredLayanan->statusBadgeLabel())->toBe('EXPIRED')
-->and($expiredLayanan->statusBadgeColor())->toBe('red')
-->and($expiredLayanan->isAktif())->toBeFalse();
-⋮----
-->assertSee('EXPIRED');
-⋮----
-$activeLayanan = LayananPelanggan::factory()->create([
-⋮----
-'tanggal_expired' => now()->addMonth()->toDateString(),
-⋮----
-expect($activeLayanan->isExpired())->toBeFalse()
-->and($activeLayanan->statusBadgeLabel())->toBe('Aktif')
-->and($activeLayanan->statusBadgeColor())->toBe('green')
-->and($activeLayanan->isAktif())->toBeTrue();
-⋮----
-'tanggal_expired' => now()->subDays(3)->toDateString(),
-⋮----
-$pelangganAktif = Pelanggan::factory()->create(['nama_depan' => 'PelangganAktif']);
-⋮----
-'tanggal_expired' => now()->addDays(20)->toDateString(),
-⋮----
-->set('filterStatus', 'expired')
-->assertSee($this->pelanggan->nama_depan)
-->assertDontSee($pelangganAktif->nama_depan);
-⋮----
-DB::table('layanan_pelanggan')->where('id', $layanan->id)->update([
-⋮----
-expect($layanan->ppp_password_terenkripsi)->toBeNull();
-expect($layanan->toArray()['ppp_password_terenkripsi'])->toBeNull();
-⋮----
-$layanan = fn (StatusLayanan $status, int $hariKeExpired) => LayananPelanggan::factory()->create([
-⋮----
-'tanggal_expired' => today()->addDays($hariKeExpired)->toDateString(),
-⋮----
-$lewat = $layanan(StatusLayanan::Suspend, -3);
-$segera = $layanan(StatusLayanan::Aktif, 2);
-$lawas = $layanan(StatusLayanan::Suspend, -45);
-$berhenti = $layanan(StatusLayanan::Berhenti, -3);
-⋮----
-Livewire::actingAs($this->superAdmin)
-⋮----
-->set('expiry', 'overdue')
-->assertSee($lewat->site_id)
-->assertDontSee($segera->site_id)
-->assertDontSee($lawas->site_id)
-->assertDontSee($berhenti->site_id)
-->set('expiry', 'soon')
-->assertSee($segera->site_id)
-->assertDontSee($lewat->site_id)
-->set('expiry', 'all')
-⋮----
-->assertDontSee($lawas->site_id);
+Queue::assertPushed(UpdatePppoeProfileJob::class, function ($job) use ($layanan) {
 ````
 
 ## File: composer.json
@@ -70162,6 +72363,53 @@ Livewire::actingAs($this->superAdmin)
 }
 ````
 
+## File: resources/views/livewire/pelanggan/show.blade.php
+````php
+
+````
+
+## File: database/seeders/RolesAndPermissionsSeeder.php
+````php
+namespace Database\Seeders;
+⋮----
+use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+⋮----
+class RolesAndPermissionsSeeder extends Seeder
+⋮----
+public function run(): void
+⋮----
+app()[PermissionRegistrar::class]->forgetCachedPermissions();
+⋮----
+$p[$permName] = Permission::firstOrCreate(['name' => $permName]);
+⋮----
+$superAdmin = Role::firstOrCreate(['name' => 'super_admin']);
+$adminRole = Role::firstOrCreate(['name' => 'admin']);
+$salesRole = Role::firstOrCreate(['name' => 'sales']);
+$nocRole = Role::firstOrCreate(['name' => 'noc']);
+$teknisiRole = Role::firstOrCreate(['name' => 'teknisi']);
+$customerServiceRole = Role::firstOrCreate(['name' => 'customer_service']);
+⋮----
+$superAdmin->syncPermissions(Permission::all());
+⋮----
+$adminRole->syncPermissions([
+⋮----
+$salesRole->syncPermissions([
+⋮----
+$nocRole->syncPermissions([
+⋮----
+$teknisiRole->syncPermissions([
+⋮----
+$customerServiceRole->syncPermissions([
+````
+
+## File: resources/views/livewire/layanan-pelanggan/create.blade.php
+````php
+
+````
+
 ## File: .dockerignore
 ````
 .git
@@ -70216,6 +72464,870 @@ skills-lock.json
 .flyenv
 .npmrc
 .repomixignore
+````
+
+## File: app/Livewire/LayananPelanggan/Create.php
+````php
+namespace App\Livewire\LayananPelanggan;
+⋮----
+use App\Actions\LayananPelanggan\DaftarkanLayananAction;
+use App\Enums\JenisTagihanPertama;
+use App\Enums\PriceMode;
+use App\Livewire\Concerns\HasSearchableOptions;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
+use App\Models\Perumahan;
+use App\Models\Promo;
+use App\Services\Billing\BillingService;
+use Flux\Flux;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+⋮----
+class Create extends Component
+⋮----
+public int $step = 1;
+⋮----
+public ?int $ticket_id = null;
+⋮----
+public ?int $pelanggan_id = null;
+⋮----
+public ?int $paket_layanan_id = null;
+⋮----
+public string $nama_site = '';
+⋮----
+// Alamat pemasangan
+public string $alamat_sumber = 'utama';
+⋮----
+public ?int $perumahan_id = null;
+⋮----
+public string $alamat_pemasangan = '';
+⋮----
+public ?float $latitude = null;
+⋮----
+public ?float $longitude = null;
+⋮----
+public string $tanggal_mulai = '';
+⋮----
+// Pengaturan Harga Layanan
+public string $price_mode = 'paket';
+⋮----
+public ?float $price_custom = null;
+⋮----
+public string $jenis_tagihan_pertama = '';
+⋮----
+public ?int $promo_id = null;
+⋮----
+public string $kode_promo = '';
+⋮----
+public float $hargaPaket = 0.0;
+⋮----
+public float $diskonTagihanPertama = 0.0;
+⋮----
+public float $totalTagihanPertama = 0.0;
+⋮----
+public ?int $hariDitagih = null;
+⋮----
+public ?int $hariTotalPeriode = null;
+⋮----
+public string $tanggalJatuhTempoPertama = '';
+⋮----
+public function mount(Pelanggan $pelanggan): void
+⋮----
+$this->authorize('create', LayananPelanggan::class);
+$this->tanggal_mulai = now()->toDateString();
+⋮----
+$this->syncAlamatDariPelanggan();
+$this->ticket_id = request()->filled('ticket_id') ? (int) request()->query('ticket_id') : null;
+⋮----
+public function getPelangganProperty(): ?Pelanggan
+⋮----
+return Pelanggan::with('perumahan')->find($this->pelanggan_id);
+⋮----
+public function getPaketHargaDefaultProperty(): float
+⋮----
+return (float) (PaketLayanan::find($this->paket_layanan_id)?->harga ?? 0);
+⋮----
+protected function rulesStep1(): array
+⋮----
+protected function rulesStep2(): array
+⋮----
+'price_mode' => ['required', Rule::enum(PriceMode::class)],
+⋮----
+Rule::requiredIf(fn () => $this->price_mode === PriceMode::Custom->value),
+⋮----
+'jenis_tagihan_pertama' => ['required', Rule::enum(JenisTagihanPertama::class)],
+⋮----
+Rule::requiredIf(fn () => $this->jenis_tagihan_pertama === JenisTagihanPertama::Promo->value),
+⋮----
+public function nextStep(): void
+⋮----
+$this->validate($this->rulesStep1(), [
+⋮----
+$this->recalculateTagihanPertama();
+⋮----
+protected function syncAlamatDariPelanggan(): void
+⋮----
+/**
+     * Toggle sumber alamat pemasangan: "utama" mengunci & mengisi otomatis dari data
+     * pelanggan, "custom" mengosongkan field agar staf mengisi alamat site lain.
+     *
+     * Dipanggil otomatis oleh Livewire saat properti alamat_sumber berubah.
+     */
+public function updatedAlamatSumber(): void
+⋮----
+/**
+     * Tambahkan nama perumahan + kelurahan/kecamatan/kota ke alamat pemasangan, serta
+     * koordinat perumahan jika tersedia. Hanya mengisi field yang masih kosong agar tidak
+     * menimpa detail yang sudah diketik manual oleh staf.
+     *
+     * Dipanggil otomatis oleh Livewire saat properti perumahan_id berubah.
+     */
+public function updatedPerumahanId(): void
+⋮----
+$perumahan = Perumahan::with('kelurahan.kecamatan.kota')->find($this->perumahan_id);
+⋮----
+])->filter()->implode(', ');
+⋮----
+/**
+     * Dipanggil otomatis oleh Livewire saat properti tanggal_mulai berubah -- proporsi hari
+     * tagihan pertama bergantung pada tanggal ini.
+     */
+public function updatedTanggalMulai(): void
+⋮----
+/**
+     * Reset harga custom saat staf beralih kembali ke mode harga paket (auto).
+     *
+     * Dipanggil otomatis oleh Livewire saat properti price_mode berubah.
+     */
+public function updatedPriceMode(): void
+⋮----
+$this->resetErrorBag('price_custom');
+⋮----
+public function updatedPriceCustom(): void
+⋮----
+public function updatedJenisTagihanPertama(): void
+⋮----
+$this->resetErrorBag(['promo_id', 'kode_promo']);
+⋮----
+public function updatedPromoId(): void
+⋮----
+/**
+     * Cocokkan kode promo yang diketik manual dengan promo aktif -- hanya dipakai jika
+     * dropdown promo belum dipilih (lihat updatedPromoId()).
+     */
+public function updatedKodePromo(): void
+⋮----
+$this->resetErrorBag('kode_promo');
+⋮----
+$promo = Promo::findAktifByKode($kode);
+⋮----
+$this->addError('kode_promo', 'Kode promo tidak ditemukan atau sudah tidak aktif.');
+⋮----
+public function recalculateTagihanPertama(): void
+⋮----
+$paket = $this->paket_layanan_id ? PaketLayanan::find($this->paket_layanan_id) : null;
+$jenis = JenisTagihanPertama::tryFrom($this->jenis_tagihan_pertama);
+⋮----
+$promo = $this->promo_id ? Promo::find($this->promo_id) : null;
+⋮----
+$rincian = app(BillingService::class)->hitungRincianTagihanPertama(
+⋮----
+Carbon::parse($this->tanggal_mulai),
+⋮----
+$this->tanggalJatuhTempoPertama = Carbon::parse($this->tanggal_mulai)->addDay()->toDateString();
+⋮----
+public function prevStep(): void
+⋮----
+public function save(): void
+⋮----
+$this->validate($this->rulesStep2(), [
+⋮----
+$jenisTagihan = JenisTagihanPertama::from($this->jenis_tagihan_pertama);
+⋮----
+? Promo::find($this->promo_id)
+⋮----
+app(DaftarkanLayananAction::class)->execute([
+⋮----
+'dibuat_oleh' => auth()->id(),
+⋮----
+$this->addError('jenis_tagihan_pertama', "Gagal membuat tagihan pertama: {$e->getMessage()}");
+⋮----
+Flux::toast(
+⋮----
+$this->redirectRoute('layanan-pelanggan.index', navigate: true);
+⋮----
+protected function searchableFields(): array
+⋮----
+'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
+'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga()
+⋮----
+public function render(): View
+⋮----
+$jenisTagihanPertama = JenisTagihanPertama::cases();
+$promos = Promo::query()->aktif()->get();
+$perumahans = Perumahan::orderBy('nama_perumahan')->get();
+$priceModes = PriceMode::cases();
+````
+
+## File: docker/supervisord.conf
+````ini
+[supervisord]
+nodaemon=true
+user=root
+logfile=/dev/null
+logfile_maxbytes=0
+pidfile=/var/run/supervisord.pid
+
+[unix_http_server]
+file=/var/run/supervisor.sock
+chmod=0700
+
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+[supervisorctl]
+serverurl=unix:///var/run/supervisor.sock
+
+[include]
+files = /etc/supervisor/conf.d/*.conf
+````
+
+## File: tests/Feature/LayananPelangganTest.php
+````php
+use App\Enums\JenisKoneksi;
+use App\Enums\JenisTagihanPertama;
+use App\Enums\PriceMode;
+use App\Enums\StatusLayanan;
+use App\Enums\StatusRouter;
+use App\Enums\Ticket\StatusTicket;
+use App\Enums\UserStatus;
+use App\Livewire\LayananPelanggan\Create;
+use App\Livewire\LayananPelanggan\Edit;
+use App\Livewire\LayananPelanggan\Index;
+use App\Models\Invoice;
+use App\Models\IpPool;
+use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
+use App\Models\Pelanggan;
+use App\Models\Perumahan;
+use App\Models\ProfilBandwidth;
+use App\Models\Promo;
+use App\Models\PromoPenggunaan;
+use App\Models\Router;
+use App\Models\Ticket;
+use App\Models\User;
+use App\Services\Billing\BillingService;
+use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
+use Livewire\Livewire;
+⋮----
+$this->seed(RolesAndPermissionsSeeder::class);
+⋮----
+$this->superAdmin = User::factory()->create(['status' => UserStatus::Active]);
+$this->superAdmin->assignRole('super_admin');
+⋮----
+$this->admin = User::factory()->create(['status' => UserStatus::Active]);
+$this->admin->assignRole('admin');
+⋮----
+$this->pelanggan = Pelanggan::factory()->create();
+$this->profil = ProfilBandwidth::factory()->create();
+$this->paket = PaketLayanan::factory()->create([
+⋮----
+$this->router = Router::factory()->online()->create();
+$this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id]);
+⋮----
+Livewire::actingAs($this->admin)
+->test(Create::class, ['pelanggan' => $this->pelanggan])
+->set('paket_layanan_id', $this->paket->id)
+->call('nextStep')
+->assertHasNoErrors()
+->assertSet('step', 2)
+->set('tanggal_mulai', now()->toDateString())
+->set('jenis_tagihan_pertama', 'full_bulan')
+->call('save')
+⋮----
+->assertRedirect(route('layanan-pelanggan.index'));
+⋮----
+$layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)
+->where('paket_layanan_id', $this->paket->id)
+->first();
+⋮----
+expect($layanan)->not->toBeNull()
+->and($layanan->router_id)->toBeNull()
+->and($layanan->ip_pool_id)->toBeNull()
+->and($layanan->ppp_username)->toBeNull()
+->and($layanan->ppp_password_terenkripsi)->toBeNull()
+->and($layanan->status)->toBe(StatusLayanan::Proses)
+->and($layanan->site_id)->toStartWith('SITE-');
+⋮----
+$teknisi = User::factory()->create(['status' => UserStatus::Active]);
+$teknisi->assignRole('teknisi');
+⋮----
+Livewire::actingAs($teknisi)
+⋮----
+->assertForbidden();
+⋮----
+$this->actingAs($this->admin)
+->get(route('layanan-pelanggan.create', 999999))
+->assertNotFound();
+⋮----
+$pelangganLain = Pelanggan::factory()->create();
+⋮----
+$component = Livewire::actingAs($this->admin)
+⋮----
+->assertSet('pelanggan_id', $this->pelanggan->id);
+⋮----
+expect(fn () => $component->set('pelanggan_id', $pelangganLain->id))
+->toThrow(CannotUpdateLockedPropertyException::class);
+⋮----
+->set('paket_layanan_id', null)
+⋮----
+->assertHasErrors(['paket_layanan_id' => 'required'])
+->assertSet('step', 1);
+⋮----
+$offlineRouter = Router::factory()->create([
+⋮----
+$offlinePool = IpPool::factory()->create(['router_id' => $offlineRouter->id]);
+⋮----
+$layanan = LayananPelanggan::factory()->create([
+⋮----
+->test(Edit::class, ['layananPelanggan' => $layanan])
+->assertSee('Router-Offline-Edit')
+->set('nama_site', 'Titik Pasang Baru')
+⋮----
+$layanan->refresh();
+expect($layanan->router_id)->toBe($offlineRouter->id)
+->and($layanan->nama_site)->toBe('Titik Pasang Baru');
+⋮----
+->set('jenis_koneksi', 'ip_static')
+->set('ip_static', '10.20.30.40')
+⋮----
+expect($layanan->jenis_koneksi)->toBe(JenisKoneksi::IpStatic)
+->and($layanan->ip_static)->toBe('10.20.30.40')
+->and($layanan->ip_pool_id)->toBeNull();
+⋮----
+$routerLain = Router::factory()->online()->create();
+$poolRouterLain = IpPool::factory()->create(['router_id' => $routerLain->id]);
+⋮----
+->set('ip_pool_id', $poolRouterLain->id)
+⋮----
+->assertHasErrors(['ip_pool_id']);
+⋮----
+->call('regeneratePppPassword')
+->assertSet('generatedPppPassword', fn ($value) => strlen($value) === 8 && ctype_alnum($value));
+⋮----
+$newPassword = $component->get('generatedPppPassword');
+$component->assertSee($newPassword);
+⋮----
+expect($layanan->ppp_password_terenkripsi)->toBe($newPassword)
+->and($layanan->ppp_password_terenkripsi)->not->toBe('password_lama');
+⋮----
+expect($layanan->fresh()->ppp_password_terenkripsi)->toBe('password_lama');
+⋮----
+LayananPelanggan::factory()->create([
+⋮----
+->test(Index::class)
+->assertOk()
+->assertSee($this->pelanggan->nama_depan);
+⋮----
+->assertHasNoErrors();
+⋮----
+expect(LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->count())->toBe(2);
+⋮----
+$paket = PaketLayanan::factory()->create([
+⋮----
+->set('paket_layanan_id', $paket->id)
+⋮----
+$layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->where('paket_layanan_id', $paket->id)->first();
+$invoice = Invoice::where('layanan_pelanggan_id', $layanan->id)->first();
+⋮----
+expect($invoice)->not->toBeNull()
+->and($invoice->periode_tagihan)->toBeNull()
+->and((float) $invoice->jumlah)->toBe(200000.0)
+->and((float) $invoice->jumlah_setelah_promo)->toBe(200000.0)
+->and($invoice->promo_id)->toBeNull();
+⋮----
+$tanggalMulai = now()->startOfMonth()->addDays(10);
+⋮----
+->set('tanggal_mulai', $tanggalMulai->toDateString())
+->set('jenis_tagihan_pertama', 'prorata')
+⋮----
+$expected = app(BillingService::class)->hitungRincianTagihanPertama(
+⋮----
+->and((float) $invoice->jumlah_setelah_promo)->toBe($expected['jumlah_setelah_promo'])
+->and((float) $invoice->jumlah_setelah_promo)->toBeLessThan(300000.0);
+⋮----
+$promo = Promo::factory()->create([
+⋮----
+->set('jenis_tagihan_pertama', 'promo')
+->set('promo_id', $promo->id)
+⋮----
+->and((float) $invoice->jumlah)->toBe(250000.0)
+->and((float) $invoice->jumlah_setelah_promo)->toBe(225000.0)
+->and($invoice->promo_id)->toBe($promo->id);
+⋮----
+expect(PromoPenggunaan::where('promo_id', $promo->id)->where('invoice_id', $invoice->id)->exists())->toBeTrue()
+->and($promo->fresh()->terpakai_global)->toBe(1);
+⋮----
+->assertHasErrors(['promo_id']);
+⋮----
+->assertHasErrors(['jenis_tagihan_pertama' => 'required']);
+⋮----
+$mockBilling = Mockery::mock(BillingService::class)->makePartial();
+$mockBilling->shouldReceive('generateFirstInvoice')
+->once()
+->andThrow(new Exception('Simulasi kegagalan penerbitan tagihan pertama.'));
+$this->instance(BillingService::class, $mockBilling);
+⋮----
+->assertHasErrors(['jenis_tagihan_pertama']);
+⋮----
+expect(LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->exists())->toBeFalse();
+⋮----
+$expiredLayanan = LayananPelanggan::factory()->create([
+⋮----
+'tanggal_expired' => now()->subDay()->toDateString(),
+⋮----
+expect($expiredLayanan->isExpired())->toBeTrue()
+->and($expiredLayanan->statusBadgeLabel())->toBe('EXPIRED')
+->and($expiredLayanan->statusBadgeColor())->toBe('red')
+->and($expiredLayanan->isAktif())->toBeFalse();
+⋮----
+->assertSee('EXPIRED');
+⋮----
+$activeLayanan = LayananPelanggan::factory()->create([
+⋮----
+'tanggal_expired' => now()->addMonth()->toDateString(),
+⋮----
+expect($activeLayanan->isExpired())->toBeFalse()
+->and($activeLayanan->statusBadgeLabel())->toBe('Aktif')
+->and($activeLayanan->statusBadgeColor())->toBe('green')
+->and($activeLayanan->isAktif())->toBeTrue();
+⋮----
+'tanggal_expired' => now()->subDays(3)->toDateString(),
+⋮----
+$pelangganAktif = Pelanggan::factory()->create(['nama_depan' => 'PelangganAktif']);
+⋮----
+'tanggal_expired' => now()->addDays(20)->toDateString(),
+⋮----
+->set('filterStatus', 'expired')
+->assertSee($this->pelanggan->nama_depan)
+->assertDontSee($pelangganAktif->nama_depan);
+⋮----
+DB::table('layanan_pelanggan')->where('id', $layanan->id)->update([
+⋮----
+expect($layanan->ppp_password_terenkripsi)->toBeNull();
+expect($layanan->toArray()['ppp_password_terenkripsi'])->toBeNull();
+⋮----
+$layanan = fn (StatusLayanan $status, int $hariKeExpired) => LayananPelanggan::factory()->create([
+⋮----
+'tanggal_expired' => today()->addDays($hariKeExpired)->toDateString(),
+⋮----
+$lewat = $layanan(StatusLayanan::Suspend, -3);
+$segera = $layanan(StatusLayanan::Aktif, 2);
+$lawas = $layanan(StatusLayanan::Suspend, -45);
+$berhenti = $layanan(StatusLayanan::Berhenti, -3);
+⋮----
+Livewire::actingAs($this->superAdmin)
+⋮----
+->set('expiry', 'overdue')
+->assertSee($lewat->site_id)
+->assertDontSee($segera->site_id)
+->assertDontSee($lawas->site_id)
+->assertDontSee($berhenti->site_id)
+->set('expiry', 'soon')
+->assertSee($segera->site_id)
+->assertDontSee($lewat->site_id)
+->set('expiry', 'all')
+⋮----
+->assertDontSee($lawas->site_id);
+⋮----
+->set('price_mode', 'custom')
+->set('price_custom', 175000)
+⋮----
+expect($layanan->price_mode)->toBe(PriceMode::Custom)
+->and((float) $layanan->price_custom)->toBe(175000.0)
+->and($layanan->hargaDasar())->toBe(175000.0)
+->and((float) $invoice->jumlah_setelah_promo)->toBe(175000.0);
+⋮----
+$paket->update(['harga' => 500000]);
+⋮----
+$invoice = app(BillingService::class)->generateInvoice($layanan, $this->admin->id, null, null, '2026-11');
+⋮----
+expect((float) $invoice->jumlah)->toBe(200000.0);
+⋮----
+->test(Create::class, ['pelanggan' => $this->pelanggan]);
+⋮----
+expect($component->get('alamat_sumber'))->toBe('utama')
+->and($component->get('alamat_pemasangan'))->toBe($this->pelanggan->alamat_lengkap)
+->and((float) $component->get('latitude'))->toBe((float) $this->pelanggan->latitude)
+->and((float) $component->get('longitude'))->toBe((float) $this->pelanggan->longitude);
+⋮----
+->set('alamat_sumber', 'custom')
+->assertSet('alamat_pemasangan', '')
+->assertSet('latitude', null)
+->assertSet('longitude', null);
+⋮----
+->set('alamat_pemasangan', 'Alamat sementara yang diketik staf')
+->set('alamat_sumber', 'utama')
+->assertSet('alamat_pemasangan', $this->pelanggan->alamat_lengkap);
+⋮----
+$perumahan = Perumahan::factory()->create(['nama_perumahan' => 'Griya Asri', 'latitude' => -6.5, 'longitude' => 107.1]);
+$perumahan->load('kelurahan.kecamatan.kota');
+⋮----
+->set('perumahan_id', $perumahan->id);
+⋮----
+$alamat = $component->get('alamat_pemasangan');
+expect($alamat)->toContain('Griya Asri')
+->and($alamat)->toContain($perumahan->kelurahan->nama_kelurahan)
+->and((float) $component->get('latitude'))->toBe(-6.5)
+->and((float) $component->get('longitude'))->toBe(107.1);
+⋮----
+$perumahan = Perumahan::factory()->create(['nama_perumahan' => 'Griya Asri']);
+⋮----
+->set('alamat_pemasangan', 'No. 5 - Curug Asri No.15B')
+->set('perumahan_id', $perumahan->id)
+->assertSet('alamat_pemasangan', 'No. 5 - Curug Asri No.15B');
+⋮----
+$ticket = Ticket::factory()->pemasangan()->create([
+⋮----
+Livewire::withQueryParams(['ticket_id' => $ticket->id])
+->actingAs($this->admin)
+⋮----
+->assertSet('ticket_id', $ticket->id)
+⋮----
+$layanan = LayananPelanggan::where('pelanggan_id', $this->pelanggan->id)->where('paket_layanan_id', $this->paket->id)->first();
+$ticket->refresh();
+⋮----
+expect($ticket->layanan_pelanggan_id)->toBe($layanan->id)
+->and($ticket->perlu_aktivasi_manual)->toBeFalse();
+````
+
+## File: docker/php.ini
+````ini
+; Override runtime untuk GOBILLING production
+; (dimuat di /usr/local/etc/php/conf.d/99-app.ini, setelah default PHP)
+
+date.timezone = Asia/Jakarta
+expose_php = Off
+
+display_errors = Off
+display_startup_errors = Off
+log_errors = On
+error_log = /dev/stderr
+
+memory_limit = 512M
+upload_max_filesize = 100M
+post_max_size = 100M
+max_execution_time = 300
+max_input_time = 300
+max_input_vars = 5000
+
+; -- OPcache -------------------------------------------------------------
+opcache.enable = 1
+opcache.enable_cli = 0
+opcache.memory_consumption = 192
+opcache.interned_strings_buffer = 16
+opcache.max_accelerated_files = 20000
+; Kode cuma berubah saat redeploy (image baru), jadi lewati cek mtime.
+opcache.validate_timestamps = 0
+````
+
+## File: routes/web.php
+````php
+use App\Http\Controllers\Api\MapMarkerController;
+use App\Http\Controllers\ImpersonateController;
+use App\Http\Controllers\InvoicePdfController;
+use App\Http\Controllers\PelangganMediaController;
+use App\Http\Controllers\Webhook\PaymentWebhookController;
+use App\Http\Controllers\Webhook\WhatsappWebhookController;
+use App\Http\Controllers\Webhook\XenditWebhookController;
+use App\Livewire\Invoice;
+use App\Livewire\IpPool;
+use App\Livewire\Laporan;
+use App\Livewire\LayananPelanggan;
+use App\Livewire\Maps\EstimasiKabel;
+use App\Livewire\Maps\Lokasi;
+use App\Livewire\MediaLibrary;
+use App\Livewire\Odp\Create;
+use App\Livewire\Odp\Edit;
+use App\Livewire\PaketLayanan;
+use App\Livewire\Pelanggan;
+use App\Livewire\Pembayaran;
+use App\Livewire\Portal\Auth\GantiPassword;
+use App\Livewire\Portal\Auth\KlaimAkun;
+use App\Livewire\Portal\Auth\Login;
+use App\Livewire\Portal\Dashboard;
+use App\Livewire\Portal\Invoice\Index;
+use App\Livewire\Portal\Invoice\Show;
+use App\Livewire\ProfilBandwidth;
+use App\Livewire\Promo;
+use App\Livewire\Roles;
+use App\Livewire\Router;
+use App\Livewire\Settings\PengaturanGateway;
+use App\Livewire\Settings\PengaturanPrefixRegistrasi;
+use App\Livewire\Settings\WhatsappSettings;
+use App\Livewire\Ticket;
+use App\Livewire\Users;
+use App\Livewire\Wilayah;
+use App\Models\Perusahaan;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
+⋮----
+Route::get('/favicon.ico', function () {
+$perusahaan = Perusahaan::default();
+$media = $perusahaan->getFirstMedia('logo');
+$content = $perusahaan->getLogoContent();
+⋮----
+return response(Perusahaan::defaultGobillingSvg(), 200, [
+⋮----
+Route::get('/favicon.svg', function () {
+⋮----
+Route::get('/apple-touch-icon.png', function () {
+⋮----
+Route::redirect('/', 'login')->name('home');
+⋮----
+Route::middleware(['auth'])->group(function () {
+Route::redirect('settings', 'settings/profile');
+⋮----
+Route::get('dashboard', App\Livewire\Dashboard::class)->name('dashboard');
+⋮----
+Route::prefix('ticket')->name('ticket.')->group(function () {
+Route::middleware('permission:ticket.buat')->group(function () {
+Route::get('/create', Ticket\Create::class)->name('create');
+⋮----
+Route::middleware('permission:ticket.lihat')->group(function () {
+Route::get('/', Ticket\Index::class)->name('index');
+Route::get('/{ticket}', Ticket\Show::class)->name('show');
+⋮----
+Route::prefix('pelanggan')->name('pelanggan.')->group(function () {
+Route::middleware('permission:pelanggan.buat')->group(function () {
+Route::get('/create', Pelanggan\Create::class)->name('create');
+⋮----
+Route::middleware('permission:pelanggan.ubah')->group(function () {
+Route::get('/{pelanggan}/edit', Pelanggan\Edit::class)->name('edit');
+⋮----
+Route::get('/{pelanggan}/ktp/preview', [PelangganMediaController::class, 'previewKtp'])->name('ktp.preview');
+Route::get('/{pelanggan}/dokumen/{media}/stream', [PelangganMediaController::class, 'streamDokumen'])->name('dokumen.stream');
+Route::middleware('permission:pelanggan.lihat')->group(function () {
+Route::get('/', Pelanggan\Index::class)->name('index');
+Route::get('/{pelanggan}', Pelanggan\Show::class)->name('show');
+⋮----
+Route::prefix('layanan-pelanggan')->name('layanan-pelanggan.')->group(function () {
+Route::middleware('permission:layanan_pelanggan.buat')->group(function () {
+Route::get('/create/{pelanggan}', LayananPelanggan\Create::class)->name('create');
+⋮----
+Route::middleware('permission:layanan_pelanggan.ubah')->group(function () {
+Route::get('/{layananPelanggan}/edit', LayananPelanggan\Edit::class)->name('edit');
+⋮----
+Route::middleware('permission:layanan_pelanggan.lihat')->group(function () {
+Route::get('/', LayananPelanggan\Index::class)->name('index');
+⋮----
+Route::prefix('paket-layanan')->name('paket-layanan.')->group(function () {
+Route::middleware('permission:paket_layanan.buat')->group(function () {
+Route::get('/create', PaketLayanan\Create::class)->name('create');
+⋮----
+Route::middleware('permission:paket_layanan.ubah')->group(function () {
+Route::get('/{paketLayanan}/edit', PaketLayanan\Edit::class)->name('edit');
+⋮----
+Route::middleware('permission:paket_layanan.lihat')->group(function () {
+Route::get('/', PaketLayanan\Index::class)->name('index');
+⋮----
+Route::prefix('profil-bandwidth')->name('profil-bandwidth.')->group(function () {
+Route::middleware('permission:profil_bandwidth.buat')->group(function () {
+Route::get('/create', ProfilBandwidth\Create::class)->name('create');
+⋮----
+Route::middleware('permission:profil_bandwidth.ubah')->group(function () {
+Route::get('/{profilBandwidth}/edit', ProfilBandwidth\Edit::class)->name('edit');
+⋮----
+Route::middleware('permission:profil_bandwidth.lihat')->group(function () {
+Route::get('/', ProfilBandwidth\Index::class)->name('index');
+⋮----
+Route::prefix('invoice')->name('invoice.')->group(function () {
+Route::middleware('permission:invoice.buat')->group(function () {
+Route::get('/create/{pelanggan?}', Invoice\Create::class)->name('create');
+⋮----
+Route::get('/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('cetak');
+Route::middleware('permission:invoice.lihat')->group(function () {
+Route::get('/', Invoice\Index::class)->name('index');
+Route::get('/{invoice}', Invoice\Show::class)->name('show');
+⋮----
+Route::prefix('pembayaran')->name('pembayaran.')->group(function () {
+Route::middleware('permission:pembayaran.lihat')->group(function () {
+Route::get('/', Pembayaran\Index::class)->name('index');
+Route::get('/transaksi-gateway', Pembayaran\TransaksiGateway\Index::class)->name('transaksi-gateway.index');
+Route::get('/transaksi-gateway/{transaksi}', Pembayaran\TransaksiGateway\Show::class)->name('transaksi-gateway.show');
+⋮----
+Route::middleware('permission:payment_gateway.lihat')->group(function () {
+Route::get('/settings/gateway', PengaturanGateway::class)->name('settings.gateway');
+⋮----
+Route::middleware('permission:prefix_registrasi.lihat')->group(function () {
+Route::get('/settings/prefix-registrasi', PengaturanPrefixRegistrasi::class)->name('settings.prefix-registrasi');
+⋮----
+Route::prefix('media-library')->name('media-library.')->group(function () {
+Route::middleware('permission:media_library.lihat')->group(function () {
+Route::get('/', MediaLibrary\Index::class)->name('index');
+⋮----
+Route::prefix('sysblas')->name('sysblas.')->group(function () {
+Route::middleware('permission:wa_gateway.lihat')->group(function () {
+Route::get('/koneksi', App\Livewire\Sysblas\Koneksi\Index::class)->name('koneksi.index');
+Route::get('/antrian', App\Livewire\Sysblas\Antrian\Index::class)->name('antrian.index');
+⋮----
+Route::get('/settings/whatsapp', WhatsappSettings::class)->name('settings.whatsapp');
+⋮----
+Route::prefix('billing/aturan-pengingat')->name('billing.aturan-pengingat.')->group(function () {
+⋮----
+Route::get('/', App\Livewire\Billing\AturanPengingat\Index::class)->name('index');
+⋮----
+Route::middleware('permission:siklus_tagihan.ubah')->group(function () {
+Route::get('billing/siklus-tagihan', App\Livewire\Billing\SiklusTagihan\Index::class)->name('billing.siklus-tagihan.index');
+⋮----
+Route::prefix('promo')->name('promo.')->group(function () {
+Route::middleware('permission:promo.buat')->group(function () {
+Route::get('/create', Promo\Create::class)->name('create');
+⋮----
+Route::middleware('permission:promo.ubah')->group(function () {
+Route::get('/{promo}/edit', Promo\Edit::class)->name('edit');
+⋮----
+Route::middleware('permission:promo.lihat')->group(function () {
+Route::get('/', Promo\Index::class)->name('index');
+⋮----
+Route::prefix('laporan')->name('laporan.')->group(function () {
+Route::middleware('permission:laporan.lihat')->group(function () {
+Route::get('/billing', Laporan\Billing::class)->name('billing');
+⋮----
+Route::prefix('router')->name('router.')->group(function () {
+Route::middleware('permission:router.buat')->group(function () {
+Route::get('/create', Router\Create::class)->name('create');
+⋮----
+Route::middleware('permission:router.ubah')->group(function () {
+Route::get('/{router}/edit', Router\Edit::class)->name('edit');
+⋮----
+Route::middleware('permission:router.lihat')->group(function () {
+Route::get('/', Router\Index::class)->name('index');
+⋮----
+Route::prefix('ip-pool')->name('ip-pool.')->group(function () {
+Route::middleware('permission:ip_pool.buat')->group(function () {
+Route::get('/create', IpPool\Create::class)->name('create');
+⋮----
+Route::middleware('permission:ip_pool.ubah')->group(function () {
+Route::get('/{pool}/edit', IpPool\Edit::class)->name('edit');
+⋮----
+Route::middleware('permission:ip_pool.lihat')->group(function () {
+Route::get('/', IpPool\Index::class)->name('index');
+⋮----
+Route::prefix('odp')->name('odp.')->group(function () {
+Route::middleware('permission:odp.buat')->group(function () {
+Route::get('/create', Create::class)->name('create');
+⋮----
+Route::middleware('permission:odp.ubah')->group(function () {
+Route::get('/{odp}/edit', Edit::class)->name('edit');
+⋮----
+Route::middleware('permission:odp.lihat')->group(function () {
+Route::get('/', App\Livewire\Odp\Index::class)->name('index');
+Route::get('/{odp}', App\Livewire\Odp\Show::class)->name('show');
+⋮----
+Route::prefix('maps')->name('maps.')->group(function () {
+⋮----
+Route::get('/lokasi', Lokasi::class)->name('lokasi');
+Route::get('/', fn () => redirect()->route('maps.lokasi'))->name('index');
+Route::get('/estimasi-kabel', EstimasiKabel::class)->name('estimasi-kabel');
+⋮----
+Route::get('/api/maps/markers', MapMarkerController::class)->name('api.maps.markers');
+⋮----
+Route::prefix('wilayah')->name('wilayah.')->group(function () {
+Route::middleware('permission:wilayah.buat')->group(function () {
+Route::get('/kota/create', Wilayah\Kota\Create::class)->name('kota.create');
+Route::get('/kecamatan/create', Wilayah\Kecamatan\Create::class)->name('kecamatan.create');
+Route::get('/kelurahan/create', Wilayah\Kelurahan\Create::class)->name('kelurahan.create');
+Route::get('/perumahan/create', Wilayah\Perumahan\Create::class)->name('perumahan.create');
+⋮----
+Route::middleware('permission:wilayah.ubah')->group(function () {
+Route::get('/kota/{kota}/edit', Wilayah\Kota\Edit::class)->name('kota.edit');
+Route::get('/kecamatan/{kecamatan}/edit', Wilayah\Kecamatan\Edit::class)->name('kecamatan.edit');
+Route::get('/kelurahan/{kelurahan}/edit', Wilayah\Kelurahan\Edit::class)->name('kelurahan.edit');
+Route::get('/perumahan/{perumahan}/edit', Wilayah\Perumahan\Edit::class)->name('perumahan.edit');
+⋮----
+Route::middleware('permission:wilayah.lihat')->group(function () {
+Route::get('/kota', Wilayah\Kota\Index::class)->name('kota.index');
+Route::get('/kecamatan', Wilayah\Kecamatan\Index::class)->name('kecamatan.index');
+Route::get('/kelurahan', Wilayah\Kelurahan\Index::class)->name('kelurahan.index');
+Route::get('/perumahan', Wilayah\Perumahan\Index::class)->name('perumahan.index');
+⋮----
+Route::prefix('users')->name('users.')->group(function () {
+Route::middleware('permission:pengguna.buat')->group(function () {
+Route::get('/create', Users\Create::class)->name('create');
+⋮----
+Route::middleware('permission:pengguna.ubah')->group(function () {
+Route::get('/{user}/edit', Users\Edit::class)->name('edit');
+⋮----
+Route::middleware('permission:pengguna.lihat')->group(function () {
+Route::get('/', Users\Index::class)->name('index');
+⋮----
+Route::prefix('roles')->name('roles.')->group(function () {
+Route::middleware('permission:peran.buat')->group(function () {
+Route::get('/create', Roles\Create::class)->name('create');
+⋮----
+Route::middleware('permission:peran.ubah')->group(function () {
+Route::get('/{role}/edit', Roles\Edit::class)->name('edit');
+⋮----
+Route::middleware('permission:peran.lihat')->group(function () {
+Route::get('/', Roles\Index::class)->name('index');
+⋮----
+Route::middleware('throttle:webhook')->post('/webhook/payment/{gateway}', [PaymentWebhookController::class, 'handle'])->name('webhook.payment');
+⋮----
+Route::middleware(['throttle:webhook', 'xendit.token'])->group(function () {
+Route::post('/webhook/xendit', [XenditWebhookController::class, 'handle'])->name('webhook.xendit');
+Route::post('/webhook/xendit/virtual-account', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.va');
+Route::post('/webhook/xendit/qris', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.qris');
+⋮----
+Route::middleware('throttle:webhook')->post('/webhook/whatsapp', [WhatsappWebhookController::class, 'handle'])->name('webhook.whatsapp');
+⋮----
+Route::get('/login', Login::class)->name('login');
+Route::get('/klaim-akun', KlaimAkun::class)->name('klaim-akun');
+⋮----
+Route::get('/tagihan/{invoice}', Show::class)->name('invoice.show');
+⋮----
+Route::get('/tagihan/{invoice}/bayar', fn (App\Models\Invoice $invoice) => redirect()->route('portal.invoice.show', $invoice))->name('invoice.bayar');
+⋮----
+Route::middleware('auth:pelanggan')->group(function () {
+Route::get('/', function () {
+return redirect()->route('portal.dashboard');
+})->name('index');
+⋮----
+Route::post('/logout', function () {
+Auth::guard('pelanggan')->logout();
+request()->session()->invalidate();
+request()->session()->regenerateToken();
+⋮----
+return redirect()->route('portal.login');
+})->name('logout');
+⋮----
+Route::get('/dashboard', Dashboard::class)->name('dashboard');
+Route::get('/tagihan', Index::class)->name('invoice.index');
+Route::get('/tagihan/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('invoice.cetak');
+Route::get('/profil', App\Livewire\Portal\Profil\Index::class)->name('profil');
+Route::get('/ganti-password', GantiPassword::class)->middleware('impersonate.protect')->name('ganti-password');
+⋮----
+Route::prefix('portal')->name('portal.')->group($registerRutePortalPelanggan);
+⋮----
+Route::domain($portalDomain)->name('portal.')->group($registerRutePortalPelanggan);
+⋮----
+Route::domain($portalDomain)
+->middleware('throttle:10,1')
+->get('/impersonate/consume', [ImpersonateController::class, 'consumePortalHandoff'])
+->name('portal.impersonate.consume');
+⋮----
+Route::get('/impersonate/take/{id}/{guardName?}', [ImpersonateController::class, 'take'])->name('impersonate');
+⋮----
+Route::get('/impersonate/leave', [ImpersonateController::class, 'leave'])->name('impersonate.leave');
 ````
 
 ## File: CONTEXT.md
@@ -70335,12 +73447,12 @@ Format standar representasi identitas pelanggan untuk antarmuka staf backoffice 
 _Avoid_: Nama Saja Tanpa No Reg, No Reg Tanpa Nama, Format Strip Tak Beraturan (Gunakan Format Baku `No. Reg_Nama`)
 
 **Data Registrasi Billing**:
-Entitas registrasi langganan billing aktif (sebelumnya disebut Layanan Pelanggan, merujuk pada `docs/data_unms.md` bagian `# Layanan & Network -> ## Billing`) yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu, router gateway, alokasi IP Pool / IP Statis, kredensial PPP, Site ID, dan masa aktif. Setiap penambahan divalidasi anti-duplikasi pada router & paket yang sama saat status masih aktif/proses/suspend, dengan tetap mendukung multi-site per pelanggan.
-_Avoid_: Subscription, Akun Internet, Koneksi, Layanan Saja
+Entitas registrasi langganan billing (sebelumnya disebut Layanan Pelanggan, merujuk pada `docs/data_unms.md` bagian `# Layanan & Network -> ## Billing`) yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu dan masa aktif. Dibuat murni komersial (paket, harga, alamat, tagihan pertama) berstatus `PROSES` — router gateway, alokasi IP Pool, dan kredensial PPP **belum diisi saat dibuat**, baru terisi lewat Aktivasi Pemasangan di dalam Ticket Pemasangan (lihat ADR terkait & `docs/plan/ticket-pemasangan-workflow.md`). Setiap Aktivasi divalidasi anti-duplikasi pada router & paket yang sama saat status masih aktif/proses/suspend, dengan tetap mendukung multi-site per pelanggan. Tidak memiliki halaman detail tersendiri — selalu ditampilkan di dalam halaman Detail Pelanggan (tab Subscriptions); dibuat lewat rute bertingkat `/layanan-pelanggan/create/{pelanggan}` yang mengunci pelanggan, bukan dipilih bebas.
+_Avoid_: Subscription, Akun Internet, Koneksi, Layanan Saja, Router/PPP Terisi Saat Registrasi Dibuat
 
 **PPP Username Credential**:
-Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_84920`) — prefix adalah No.Reg pelanggan, suffix adalah 5-digit angka acak (*CSPRNG token* `10000`–`99999`) yang dijamin unik global di tabel `layanan_pelanggan`. Di-generate otomatis oleh sistem saat layanan dibuat; staff dapat override asal format dipatuhi. Disimpan di kolom `ppp_username` tabel `layanan_pelanggan`.
-_Avoid_: Username Bebas, PPP User Manual, Format Lama (`user_budi_01`)
+Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_84920`) — prefix adalah No.Reg pelanggan, suffix adalah 5-digit angka acak (*CSPRNG token* `10000`–`99999`) yang dijamin unik global di tabel `layanan_pelanggan`. Di-generate otomatis oleh sistem saat **Aktivasi Pemasangan** (bukan saat Data Registrasi Billing dibuat); staff dapat override lewat halaman Edit layanan asal format dipatuhi. Disimpan di kolom `ppp_username` tabel `layanan_pelanggan`.
+_Avoid_: Username Bebas, PPP User Manual, Format Lama (`user_budi_01`), Digenerate Saat Registrasi Dibuat
 
 **PPP Password Credential**:
 Kredensial autentikasi PPPoE pelanggan yang selalu di-generate sistem secara acak (8 karakter alfanumerik) saat Data Registrasi Billing dibuat atau di-reset, tidak pernah diinput manual oleh staf. Ditampilkan hanya sekali (*reveal-once-at-generation*) kepada staf yang men-trigger pembuatan/reset tersebut lewat toast/modal sekali-lihat; setelahnya tersembunyi di semua tempat dan hanya bisa diungkap ulang oleh `super_admin` (izin `layanan_pelanggan.lihat_ppp_password`) lewat aksi *reveal* beraudit trail Spatie Activitylog, mengikuti pola yang sama dengan Watermark Dokumen Identitas.
@@ -70408,6 +73520,10 @@ _Avoid_: Tagihan Bebas, Kuitansi (sebelum dibayar), Bill, Invoice Tanpa No Reg
 Identitas siklus bulan penagihan layanan (format `YYYY-MM`) yang memetakan kewajiban bayar langganan untuk satu siklus masa aktif dan menjamin batas 1 tagihan per layanan per siklus.
 _Avoid_: Bulan Tagih Bebas, Periode Manual, Cycle ID
 
+**Tenggat Pembayaran Invoice Pertama**:
+Batas waktu H+1 (satu hari) dari tanggal mulai layanan untuk melunasi invoice pertama (ad-hoc, `periode_tagihan` NULL) yang terbit saat Data Registrasi Billing dibuat. Dicek setiap jam oleh command terpisah (`layanan:cek-tunggakan-pertama`, lihat ADR-0045) dari isolir bulanan biasa (`layanan:cek-isolir`, berbasis `tanggal_expired`) — hanya menyasar layanan yang belum pernah punya invoice periodik (masih di siklus pertama). Melewati tenggat ini men-suspend layanan lewat `UbahStatusLayananAction` yang sama seperti isolir tunggakan bulanan, sehingga PPP Secret ikut ter-disable realtime.
+_Avoid_: Grace Period Bebas, Menyamakan dengan Hari Jatuh Tempo Siklus Tagihan, Isolir Manual Invoice Pertama
+
 **Pembatalan Invoice**:
 Tindakan perubahan status invoice menjadi `dibatalkan` oleh sistem atau staf berwenang yang menggugurkan kewajiban bayar tanpa menghapus riwayat audit trail (misal akibat koreksi tagihan ganda atau perubahan paket).
 _Avoid_: Hapus Tagihan Manual, Void Bebas, Delete Invoice
@@ -70429,8 +73545,8 @@ Program diskon (nominal / persentase) atau bonus durasi yang dapat diaplikasikan
 _Avoid_: Voucher Bebas, Potongan Informal
 
 **Portal Pelanggan**:
-Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time.
-_Avoid_: Client Area Bebas, Customer App Terpisah, Halaman Member
+Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time. Tetap satu monolit dengan aplikasi staf (ADR-0007), tapi dapat diakses lewat domain khususnya sendiri (`app.portal_domain`, mis. `portal.gobilling.id`) sekaligus tetap hidup di path lama `/portal/*` pada domain staf (dipertahankan permanen untuk tautan tagihan bertanda tangan yang sudah terkirim) -- lihat ADR-0049.
+_Avoid_: Client Area Bebas, Customer App Terpisah, Halaman Member, Portal Sebagai Aplikasi Terpisah
 
 **Akun Pelanggan**:
 Entitas kredensial autentikasi pengguna portal (guard `pelanggan`) yang terikat 1-to-1 dengan master data Pelanggan.
@@ -70478,8 +73594,8 @@ Entitas berkas kerja permohonan layanan atau penanganan masalah teknis (Pemasang
 _Avoid_: Issue, Aduan Bebas, Task, Case
 
 **Alur Tiket ke Billing**:
-Hasil tiket menggerakkan status secara otomatis, tetapi keputusan komersial tetap manual oleh Admin. Pemasangan dibuat → Pelanggan `ReqPemasangan`; Selesai → `PemasanganSelesai` dan Admin diminta membuat Data Registrasi Billing (PPP Secret, layanan Aktif, tagihan pertama terbit dari sana); Batal → `BelumTerpasang`. Pencabutan Selesai → layanan terkait `Berhenti` (tagihan belum lunas tetap terbuka, hanya tagihan baru yang berhenti). Pindah Alamat Selesai → Admin diminta menerbitkan invoice manual biaya pindah. Pemasangan tidak mengubah Pelanggan yang sudah Aktif/Expired.
-_Avoid_: Aktivasi Otomatis dari Tiket, Invoice Otomatis Saat Tiket Selesai
+Admin membuat Data Registrasi Billing (komersial, status `PROSES`, tagihan pertama langsung terbit) lebih dulu, baru kemudian membuat Ticket Pemasangan yang mengacu ke layanan itu. Ticket Pemasangan berjalan lewat sign-off 4 divisi (Teknisi, NOC, CS, Admin — lihat Status Per-Divisi Tiket); NOC men-Aktivasi Pemasangan di tengah alur itu (mengisi router/IP Pool/PPP, memicu layanan jadi `Aktif`). Status tiket keseluruhan otomatis `Selesai` begitu keempat divisi selesai, memicu Pelanggan jadi `PemasanganSelesai`. Batal → `BelumTerpasang`. Pencabutan Selesai → layanan terkait `Berhenti` (tagihan belum lunas tetap terbuka, hanya tagihan baru yang berhenti). Pindah Alamat Selesai → Admin diminta menerbitkan invoice manual biaya pindah. Pemasangan tidak mengubah Pelanggan yang sudah Aktif/Expired.
+_Avoid_: Ticket Pemasangan Dibuat Sebelum Data Registrasi Billing, Aktivasi Otomatis Tanpa NOC, Invoice Otomatis Saat Tiket Selesai
 
 **Status Pelanggan**:
 Diturunkan dari seluruh Data Registrasi Billing pelanggan: `Aktif` jika ada layanan Aktif; `Expired` jika tidak ada yang Aktif tetapi ada yang Suspend; `Off` jika semua Berhenti. Selama belum ada layanan Aktif, tahap pemasangan (`BelumTerpasang`, `ReqPemasangan`, `PemasanganSelesai`) dikendalikan tiket Pemasangan.
@@ -70499,8 +73615,16 @@ Staf pengguna internal (User) yang ditugaskan secara formal untuk bertanggung ja
 _Avoid_: Assignee, Petugas Lapangan Bebas, Pelaksana
 
 **Divisi Tiket**:
-Satu atau lebih divisi internal (Admin, Customer Service, Sales, NOC, Teknisi) yang bertanggung jawab menangani sebuah tiket, disimpan dalam relasi many-to-many via pivot table `ticket_divisi`. Tiket lama bersumber portal untuk Gangguan otomatis ditugaskan ke [NOC, Teknisi] untuk mendukung koordinasi penjadwalan; Pencabutan dan Pindah Alamat ke [Teknisi].
+Satu atau lebih divisi internal (Admin, Customer Service, Sales, NOC, Teknisi) yang bertanggung jawab menangani sebuah tiket, disimpan dalam relasi many-to-many via pivot table `ticket_divisi`. Tiket lama bersumber portal untuk Gangguan otomatis ditugaskan ke [NOC, Teknisi] untuk mendukung koordinasi penjadwalan; Pencabutan dan Pindah Alamat ke [Teknisi]. Sejak alur Ticket Pemasangan (lihat Status Per-Divisi Tiket), pivot ini juga menyimpan status sign-off per divisi, tidak lagi sekadar penandaan keterlibatan.
 _Avoid_: Divisi Tunggal per Tiket, Single Enum Divisi
+
+**Status Per-Divisi Tiket**:
+Kolom `status` (`belum` / `progress` / `selesai`) pada pivot `ticket_divisi`, satu per baris divisi — dipakai penuh hanya oleh Ticket Pemasangan. Teknisi memakai ketiga nilai (progress = sudah pilih ODP+port & upload ≥1 foto pemasangan); NOC, Customer Service, dan Admin praktiknya cuma lompat `belum`→`selesai`. Tidak ada rantai urutan wajib antar-divisi selain dua gate eksplisit: Aktivasi Pemasangan butuh Teknisi minimal `progress`, dan Admin `selesai` butuh invoice pertama layanan sudah Lunas. Begitu keempat divisi `selesai`, status tiket keseluruhan (`StatusTicket`) otomatis berpindah ke `Selesai` lewat `UbahStatusTicketAction` yang sudah ada — staf tidak lagi menyelesaikan tiket Pemasangan secara manual terpisah.
+_Avoid_: Status Tiket Tunggal untuk Pemasangan, Urutan NOC→CS→Admin Dipaksa Tanpa Alasan, Admin Selesai Sebelum Pelanggan Bayar
+
+**Aktivasi Pemasangan**:
+Aksi NOC di dalam Ticket Pemasangan yang mengisi router gateway dan IP Pool pada Data Registrasi Billing yang masih `PROSES`, lalu memicu provisioning PPP Secret ke MikroTik dan mengubah layanan jadi `Aktif`. Router dan IP Pool **dipilih manual oleh NOC** (IP Pool difilter mengikuti router yang baru dipilih, auto-select kalau router itu cuma punya 1 pool) — keduanya butuh keputusan manusia karena topologi jaringan/lokasi customer dan segmentasi pool (Residensial vs Bisnis, lihat "Segmentasi Jalur IP Pool") tidak bisa diturunkan otomatis dari Paket Layanan semata (satu paket ritel dijual lintas-router). PPP Username Credential tetap auto-generate. Berbeda dari tombol "Provisi" di daftar layanan (`Index.php::provisionLayanan()`) yang cuma retry provisioning untuk layanan yang router/PPP-nya sudah terisi — Aktivasi Pemasangan adalah pengisian pertama kali. Profil Bandwidth ditampilkan read-only (sudah tetap mengikuti paket sejak pendaftaran, tidak bisa diganti di sini).
+_Avoid_: Router/IP Pool Diturunkan Otomatis dari Paket, IP Pool Tetap per Paket Lintas-Router, Mengganti Profil Bandwidth Saat Aktivasi
 
 **Catatan Internal Tiket**:
 Entri Histori Tiket yang ditandai `is_internal = true` — hanya terlihat oleh staf. Sejak Portal Pelanggan tidak lagi menampilkan tiket (ADR-0040), semua catatan praktis bersifat internal; flag dipertahankan tanpa perubahan skema.
@@ -70522,6 +73646,16 @@ _Avoid_: Hardcoded Single Company, Multi Database Terpisah Tanpa Pola
 Pengelolaan berkas digital (logo instansi, foto identitas/KTP, foto dokumentasi teknis tiket, dan bukti transfer pembayaran) yang terpusat melalui relasi polimorfik Spatie MediaLibrary dengan penanganan otomatis konversi gambar, mime checking, dan siklus hidup berkas.
 _Technical Reference_: Spatie MediaLibrary (`spatie/laravel-medialibrary`), Laravel Boost: `search-docs(packages=['spatie/laravel-medialibrary'])`, Context7: `/spatie/laravel-medialibrary`.
 _Avoid_: File Path Manual Bebas, Upload Lepas Tanpa Relasi
+
+**Media Library (Admin)**:
+Halaman admin tunggal (menu Administrasi, permission `media_library.lihat`/`.hapus`/`.unggah`, khusus `super_admin`) yang menggabungkan tiga hal: (1) browse & hapus manual **semua** berkas Berkas Media lintas model, **kecuali** collection `ktp` dan `dokumen` milik Pelanggan (lihat ADR-0024 dan ADR-0046) — keduanya cuma muncul sebagai angka statistik, tidak bisa dilihat/diunduh dari sini; (2) kesehatan koneksi disk S3/RustFS aktif dan statistik pemakaian per collection (dulu halaman terpisah "Storage & S3 Monitoring", digabung — lihat ADR-0047); (3) unggah bebas berkas gambar/dokumen (jpg/png/webp/pdf/xlsx/xls/csv/docx, maks 20MB) yang tidak terkait record bisnis manapun, dianchor ke model kosong `BerkasUmum` (lihat ADR-0047). Pengecekan kesehatan storage bukan cuma tanya SDK (bucket exists) — juga benar-benar fetch satu URL publik lewat HTTP client, satu-satunya cara mendeteksi kebijakan public-read bucket yang salah/dicabut (lihat ADR-0038, gejalanya invisible dari sisi Laravel, baru ketahuan 403 saat browser fetch).
+_Technical Reference_: `App\Services\Storage\S3HealthCheckService`, `App\Models\BerkasUmum`.
+_Avoid_: Menampilkan KTP/Dokumen di Browser Generik, Menghapus Media Privat Tanpa Audit Trail, Cek SDK Saja Tanpa Fetch URL Publik Nyata, Sembunyikan Menu Total Saat Disk Bukan S3 (tampilkan status "tidak berlaku" saja), Halaman Storage & S3 Monitoring Terpisah
+
+**Media Library Picker**:
+Pola UI (modal grid gambar) untuk memilih satu berkas gambar yang sudah ada di Media Library sebagai nilai suatu field, tanpa mengunggah berkas baru — dipakai pertama kali untuk field Logo Perusahaan. Memilih selalu men-**salin** (`Media::copy()`) berkas ke collection tujuan, tidak pernah memindahkan/reassign media asli — supaya berkas yang sudah dipakai di tempat lain (foto tiket, foto profil user) tidak diam-diam berubah makna atau hilang dari pemiliknya semula (lihat ADR-0048). Aturan visibilitas (gambar apa saja yang boleh dipilih, mengecualikan dokumen pribadi Pelanggan) satu sumber lewat `App\Support\MediaLibraryVisibility`, sama dengan yang dipakai halaman Media Library sendiri.
+_Technical Reference_: `App\Support\MediaLibraryVisibility`.
+_Avoid_: Reassign Media Asli ke Owner Baru, Duplikasi Aturan Pengecualian KTP/Dokumen di Setiap Picker
 
 **Kartu Metrik (Stat Card)**:
 Komponen visual modular (`<x-stat-card>`) untuk menampilkan ringkasan indikator performa utama (KPI) yang dilengkapi dengan tren perbandingan persentase periode, badge status, ikon bernuansa tematik, dan tautan navigasi kontekstual.
@@ -70580,13 +73714,22 @@ _Avoid_: Sync Parsial Tanpa Urutan, Push Manual Bebas, Provisi Terfragmentasi
 Proses komparasi periodik terjadwal dan auto-recovery antara basis data UNMS dengan konfigurasi aktual di RouterOS untuk mendeteksi *configuration drift*, memulihkan PPP secret/profil yang hilang atau terhapus di router, dan menyelaraskan status disabled.
 _Avoid_: Cek Status Lepas, Sync Buta, Ping Tanpa Rekonsiliasi
 
+**Gate Proaktif Router Offline**:
+Pemeriksaan `Router.status_koneksi` (hasil `mikrotik:ping` tiap 5 menit) di awal `EnablePppoeAccountJob`/`DisablePppoeAccountJob` sebelum mencoba konek ke RouterOS. Jika diketahui `offline`, job dihentikan dengan `MikrotikJobLog` berstatus `Dilewati` (bukan `Gagal`) tanpa notifikasi kegagalan, dan penyelarasan sebenarnya diserahkan ke siklus Rekonsiliasi Router 15-menit berikutnya. Kredensial yang salah (bukan router mati) tetap tertangkap jalur reaktif `getClient()` seperti biasa — gate ini murni mengurangi percobaan & notifikasi sia-sia untuk kasus yang sudah diketahui, bukan pengganti validasi koneksi.
+_Avoid_: Menganggap Dilewati sebagai Gagal, Notifikasi Kegagalan untuk Router yang Memang Mati, Skip Permanen Tanpa Percobaan Ulang
+
 **Orphaned Secret (PPP Secret Tak Terkelola)**:
 Akun PPP Secret yang terdeteksi ada di RouterOS namun tidak memiliki rekaman aktif di database UNMS (misal akun manual sisa instalasi lama atau layanan yang telah dihapus). Ditangani secara audit-safe (hanya dicatat) dan dapat dibersihkan dengan opsi flags eksplisit.
 _Avoid_: Hapus Buta Akun Router, Rogue User Tanpa Log
 
 **IP Pool & Router Gateway Layanan**:
-Binding eksplisit antara satu Layanan Pelanggan (Data Registrasi Billing), Router Gateway (`router_id`), dan IP Pool (`ip_pool_id`) yang secara ketat menjamin alokasi IP Pool berasal dari router yang sama. Menentukan nilai `local-address` (IP gateway pool) dan `remote-address` (nama pool IP untuk PPPoE dinamis atau IP statis literal) pada akun PPP Secret di RouterOS. Jika sistem hanya memiliki 1 Router Online aktif, Livewire secara otomatis memilih router tersebut (*single-router auto-selection*), dan jika router tersebut hanya memiliki 1 IP Pool aktif, sistem secara otomatis memilih pool tersebut (*single-pool auto-selection*).
-_Avoid_: Remote Address Kosong, IP Pool Implisit dari Profile Saja, Cross-Router IP Pool Selection, Visual Desync Dropdown Tanpa State Livewire
+Binding eksplisit antara satu Layanan Pelanggan (Data Registrasi Billing), Router Gateway (`router_id`), dan IP Pool (`ip_pool_id`) yang secara ketat menjamin alokasi IP Pool berasal dari router yang sama. Menentukan nilai `local-address` (IP gateway pool) dan `remote-address` (IP literal hasil Alokasi IP Dinamis PPPoE untuk koneksi dinamis, atau IP statis literal) pada akun PPP Secret di RouterOS. Jika sistem hanya memiliki 1 Router Online aktif, Livewire secara otomatis memilih router tersebut (*single-router auto-selection*), dan jika router tersebut hanya memiliki 1 IP Pool aktif, sistem secara otomatis memilih pool tersebut (*single-pool auto-selection*).
+_Avoid_: Remote Address Kosong, IP Pool Implisit dari Profile Saja, Cross-Router IP Pool Selection, Visual Desync Dropdown Tanpa State Livewire, Nama Pool sebagai Remote Address
+
+**Alokasi IP Dinamis PPPoE**:
+Mekanisme sistem yang secara otomatis memilih satu alamat IP literal yang masih bebas dari rentang IP Pool layanan (kolom `ip_dynamic` di `layanan_pelanggan`) untuk dijadikan `remote-address` pada PPP Secret RouterOS. Bersifat idempoten (mempertahankan IP yang sudah dialokasikan selama masih valid untuk pool layanan saat ini). Jika IP Pool yang dipilih sudah penuh (tidak ada alamat bebas), sistem otomatis beralih ke IP Pool lain pada Router yang sama yang masih punya kapasitas; jika seluruh IP Pool router itu penuh, provisi ditolak dengan galat eksplisit alih-alih diam-diam gagal.
+_Technical Reference_: `App\Services\Mikrotik\MikrotikService::allocateDynamicIp()`, `App\Models\IpPool::nextFreeAddress()`/`hasFreeAddress()`.
+_Avoid_: Nama Pool sebagai Remote Address (RouterOS menolaknya di `/ppp/secret` dengan "invalid value for argument remote-address" -- berbeda dari `/ppp/profile` yang menerimanya), IP Assignment Manual, Provisi Diam-Diam Gagal Saat Pool Penuh
 
 **Alokasi IP Statis Layanan**:
 Pengalokasian alamat IPv4 statis dedicated (kolom `ip_static` di `layanan_pelanggan`) untuk pelanggan dengan jenis koneksi IP Static yang langsung diset sebagai `remote-address` pada konfigurasi PPP Secret MikroTik.
@@ -70608,7 +73751,7 @@ Pemisahan jalur alokasi IP, gateway, dan hierarki prioritas antrean jaringan Mik
 _Avoid_: Pencampuran Subnet Up To dan Dedicated, Single Pool untuk Semua Kelas Layanan, Gateway Ambigu, Pengabaian Segmen Residensial 1:1
 
 **Manajemen Local & Remote Address PPP Secret**:
-Penetapan eksplisit parameter `local-address` (IP gateway host pertama dari IP Pool terkait pada Router pelanggan) dan `remote-address` (nama IP Pool untuk PPPoE dinamis atau IP statis literal) pada setiap akun PPP Secret di RouterOS oleh UNMS. Dilengkapi mekanisme *auto-ensure* IP Pool sebelum pembuatan secret, validasi relasi router ketat (*scoped validation*), dan rekonsiliasi periodik dengan kemampuan *auto-healing*.
+Penetapan eksplisit parameter `local-address` (IP gateway host pertama dari IP Pool terkait pada Router pelanggan) dan `remote-address` (IP literal hasil Alokasi IP Dinamis PPPoE, atau IP statis literal -- tidak pernah nama IP Pool) pada setiap akun PPP Secret di RouterOS oleh UNMS. Dilengkapi mekanisme *auto-ensure* IP Pool sebelum pembuatan secret, validasi relasi router ketat (*scoped validation*), dan rekonsiliasi periodik dengan kemampuan *auto-healing*.
 _Avoid_: Local Address Kosong di Secret, Remote Address Kosong untuk Dynamic Client, Ketergantungan Profile Default RouterOS, Provisi PPPoE Tanpa IP Pool
 
 **ODP (Optical Distribution Point)**:
@@ -70715,337 +73858,6 @@ _Avoid_: Pengiriman Manual Satu Per Satu, Blast Tanpa Antrean Terisolasi, Pengin
 Email transaksional yang dikirim ke `Pelanggan.email` (bukan email akun Portal Pelanggan) untuk dua peristiwa: pengingat jatuh tempo tagihan dan konfirmasi pembayaran lunas, berisi link ke halaman invoice Portal Pelanggan tanpa lampiran PDF. Dikirim via SMTP Mailpit di lingkungan lokal; dilewati (skip + log) jika pelanggan tidak memiliki email.
 _Technical Reference_: `App\Notifications\InvoiceReminderNotification`, `App\Notifications\InvoicePaymentConfirmedNotification`
 _Avoid_: SMS Gateway (dihapus, tidak pernah diimplementasikan), Email ke Akun Portal Pelanggan
-````
-
-## File: docker/supervisord.conf
-````ini
-[supervisord]
-nodaemon=true
-user=root
-logfile=/dev/null
-logfile_maxbytes=0
-pidfile=/var/run/supervisord.pid
-
-[unix_http_server]
-file=/var/run/supervisor.sock
-chmod=0700
-
-[rpcinterface:supervisor]
-supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
-
-[supervisorctl]
-serverurl=unix:///var/run/supervisor.sock
-
-[include]
-files = /etc/supervisor/conf.d/*.conf
-````
-
-## File: routes/web.php
-````php
-use App\Http\Controllers\Api\MapMarkerController;
-use App\Http\Controllers\ImpersonateController;
-use App\Http\Controllers\InvoicePdfController;
-use App\Http\Controllers\PelangganMediaController;
-use App\Http\Controllers\Webhook\PaymentWebhookController;
-use App\Http\Controllers\Webhook\WhatsappWebhookController;
-use App\Http\Controllers\Webhook\XenditWebhookController;
-use App\Livewire\Invoice;
-use App\Livewire\IpPool;
-use App\Livewire\Laporan;
-use App\Livewire\LayananPelanggan;
-use App\Livewire\Maps\EstimasiKabel;
-use App\Livewire\Maps\Lokasi;
-use App\Livewire\Odp\Create;
-use App\Livewire\Odp\Edit;
-use App\Livewire\PaketLayanan;
-use App\Livewire\Pelanggan;
-use App\Livewire\Pembayaran;
-use App\Livewire\Portal\Auth\GantiPassword;
-use App\Livewire\Portal\Auth\KlaimAkun;
-use App\Livewire\Portal\Auth\Login;
-use App\Livewire\Portal\Dashboard;
-use App\Livewire\Portal\Invoice\Index;
-use App\Livewire\Portal\Invoice\Show;
-use App\Livewire\ProfilBandwidth;
-use App\Livewire\Promo;
-use App\Livewire\Roles;
-use App\Livewire\Router;
-use App\Livewire\Settings\PengaturanGateway;
-use App\Livewire\Settings\PengaturanPrefixRegistrasi;
-use App\Livewire\Settings\WhatsappSettings;
-use App\Livewire\Ticket;
-use App\Livewire\Users;
-use App\Livewire\Wilayah;
-use App\Models\Perusahaan;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
-⋮----
-Route::get('/favicon.ico', function () {
-$perusahaan = Perusahaan::default();
-$media = $perusahaan->getFirstMedia('logo');
-$content = $perusahaan->getLogoContent();
-⋮----
-return response(Perusahaan::defaultGobillingSvg(), 200, [
-⋮----
-Route::get('/favicon.svg', function () {
-⋮----
-Route::get('/apple-touch-icon.png', function () {
-⋮----
-Route::redirect('/', 'login')->name('home');
-⋮----
-Route::middleware(['auth'])->group(function () {
-Route::redirect('settings', 'settings/profile');
-⋮----
-Route::get('dashboard', App\Livewire\Dashboard::class)->name('dashboard');
-⋮----
-Route::prefix('ticket')->name('ticket.')->group(function () {
-Route::middleware('permission:ticket.buat')->group(function () {
-Route::get('/create', Ticket\Create::class)->name('create');
-⋮----
-Route::middleware('permission:ticket.lihat')->group(function () {
-Route::get('/', Ticket\Index::class)->name('index');
-Route::get('/{ticket}', Ticket\Show::class)->name('show');
-⋮----
-Route::prefix('pelanggan')->name('pelanggan.')->group(function () {
-Route::middleware('permission:pelanggan.buat')->group(function () {
-Route::get('/create', Pelanggan\Create::class)->name('create');
-⋮----
-Route::middleware('permission:pelanggan.ubah')->group(function () {
-Route::get('/{pelanggan}/edit', Pelanggan\Edit::class)->name('edit');
-⋮----
-Route::get('/{pelanggan}/ktp/preview', [PelangganMediaController::class, 'previewKtp'])->name('ktp.preview');
-Route::get('/{pelanggan}/dokumen/{media}/stream', [PelangganMediaController::class, 'streamDokumen'])->name('dokumen.stream');
-Route::middleware('permission:pelanggan.lihat')->group(function () {
-Route::get('/', Pelanggan\Index::class)->name('index');
-Route::get('/{pelanggan}', Pelanggan\Show::class)->name('show');
-⋮----
-Route::prefix('layanan-pelanggan')->name('layanan-pelanggan.')->group(function () {
-Route::middleware('permission:layanan_pelanggan.buat')->group(function () {
-Route::get('/create', LayananPelanggan\Create::class)->name('create');
-⋮----
-Route::middleware('permission:layanan_pelanggan.ubah')->group(function () {
-Route::get('/{layananPelanggan}/edit', LayananPelanggan\Edit::class)->name('edit');
-⋮----
-Route::middleware('permission:layanan_pelanggan.lihat')->group(function () {
-Route::get('/', LayananPelanggan\Index::class)->name('index');
-⋮----
-Route::prefix('paket-layanan')->name('paket-layanan.')->group(function () {
-Route::middleware('permission:paket_layanan.buat')->group(function () {
-Route::get('/create', PaketLayanan\Create::class)->name('create');
-⋮----
-Route::middleware('permission:paket_layanan.ubah')->group(function () {
-Route::get('/{paketLayanan}/edit', PaketLayanan\Edit::class)->name('edit');
-⋮----
-Route::middleware('permission:paket_layanan.lihat')->group(function () {
-Route::get('/', PaketLayanan\Index::class)->name('index');
-⋮----
-Route::prefix('profil-bandwidth')->name('profil-bandwidth.')->group(function () {
-Route::middleware('permission:profil_bandwidth.buat')->group(function () {
-Route::get('/create', ProfilBandwidth\Create::class)->name('create');
-⋮----
-Route::middleware('permission:profil_bandwidth.ubah')->group(function () {
-Route::get('/{profilBandwidth}/edit', ProfilBandwidth\Edit::class)->name('edit');
-⋮----
-Route::middleware('permission:profil_bandwidth.lihat')->group(function () {
-Route::get('/', ProfilBandwidth\Index::class)->name('index');
-⋮----
-Route::prefix('invoice')->name('invoice.')->group(function () {
-Route::middleware('permission:invoice.buat')->group(function () {
-Route::get('/create/{pelanggan?}', Invoice\Create::class)->name('create');
-⋮----
-Route::get('/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('cetak');
-Route::middleware('permission:invoice.lihat')->group(function () {
-Route::get('/', Invoice\Index::class)->name('index');
-Route::get('/{invoice}', Invoice\Show::class)->name('show');
-⋮----
-Route::prefix('pembayaran')->name('pembayaran.')->group(function () {
-Route::middleware('permission:pembayaran.lihat')->group(function () {
-Route::get('/', Pembayaran\Index::class)->name('index');
-Route::get('/transaksi-gateway', Pembayaran\TransaksiGateway\Index::class)->name('transaksi-gateway.index');
-Route::get('/transaksi-gateway/{transaksi}', Pembayaran\TransaksiGateway\Show::class)->name('transaksi-gateway.show');
-⋮----
-Route::middleware('permission:payment_gateway.lihat')->group(function () {
-Route::get('/settings/gateway', PengaturanGateway::class)->name('settings.gateway');
-⋮----
-Route::middleware('permission:prefix_registrasi.lihat')->group(function () {
-Route::get('/settings/prefix-registrasi', PengaturanPrefixRegistrasi::class)->name('settings.prefix-registrasi');
-⋮----
-Route::prefix('sysblas')->name('sysblas.')->group(function () {
-Route::middleware('permission:wa_gateway.lihat')->group(function () {
-Route::get('/koneksi', App\Livewire\Sysblas\Koneksi\Index::class)->name('koneksi.index');
-Route::get('/antrian', App\Livewire\Sysblas\Antrian\Index::class)->name('antrian.index');
-⋮----
-Route::get('/settings/whatsapp', WhatsappSettings::class)->name('settings.whatsapp');
-⋮----
-Route::prefix('billing/aturan-pengingat')->name('billing.aturan-pengingat.')->group(function () {
-⋮----
-Route::get('/', App\Livewire\Billing\AturanPengingat\Index::class)->name('index');
-⋮----
-Route::middleware('permission:siklus_tagihan.ubah')->group(function () {
-Route::get('billing/siklus-tagihan', App\Livewire\Billing\SiklusTagihan\Index::class)->name('billing.siklus-tagihan.index');
-⋮----
-Route::prefix('promo')->name('promo.')->group(function () {
-Route::middleware('permission:promo.buat')->group(function () {
-Route::get('/create', Promo\Create::class)->name('create');
-⋮----
-Route::middleware('permission:promo.ubah')->group(function () {
-Route::get('/{promo}/edit', Promo\Edit::class)->name('edit');
-⋮----
-Route::middleware('permission:promo.lihat')->group(function () {
-Route::get('/', Promo\Index::class)->name('index');
-⋮----
-Route::prefix('laporan')->name('laporan.')->group(function () {
-Route::middleware('permission:laporan.lihat')->group(function () {
-Route::get('/billing', Laporan\Billing::class)->name('billing');
-⋮----
-Route::prefix('router')->name('router.')->group(function () {
-Route::middleware('permission:router.buat')->group(function () {
-Route::get('/create', Router\Create::class)->name('create');
-⋮----
-Route::middleware('permission:router.ubah')->group(function () {
-Route::get('/{router}/edit', Router\Edit::class)->name('edit');
-⋮----
-Route::middleware('permission:router.lihat')->group(function () {
-Route::get('/', Router\Index::class)->name('index');
-⋮----
-Route::prefix('ip-pool')->name('ip-pool.')->group(function () {
-Route::middleware('permission:ip_pool.buat')->group(function () {
-Route::get('/create', IpPool\Create::class)->name('create');
-⋮----
-Route::middleware('permission:ip_pool.ubah')->group(function () {
-Route::get('/{pool}/edit', IpPool\Edit::class)->name('edit');
-⋮----
-Route::middleware('permission:ip_pool.lihat')->group(function () {
-Route::get('/', IpPool\Index::class)->name('index');
-⋮----
-Route::prefix('odp')->name('odp.')->group(function () {
-Route::middleware('permission:odp.buat')->group(function () {
-Route::get('/create', Create::class)->name('create');
-⋮----
-Route::middleware('permission:odp.ubah')->group(function () {
-Route::get('/{odp}/edit', Edit::class)->name('edit');
-⋮----
-Route::middleware('permission:odp.lihat')->group(function () {
-Route::get('/', App\Livewire\Odp\Index::class)->name('index');
-Route::get('/{odp}', App\Livewire\Odp\Show::class)->name('show');
-⋮----
-Route::prefix('maps')->name('maps.')->group(function () {
-⋮----
-Route::get('/lokasi', Lokasi::class)->name('lokasi');
-Route::get('/', fn () => redirect()->route('maps.lokasi'))->name('index');
-Route::get('/estimasi-kabel', EstimasiKabel::class)->name('estimasi-kabel');
-⋮----
-Route::get('/api/maps/markers', MapMarkerController::class)->name('api.maps.markers');
-⋮----
-Route::prefix('wilayah')->name('wilayah.')->group(function () {
-Route::middleware('permission:wilayah.buat')->group(function () {
-Route::get('/kota/create', Wilayah\Kota\Create::class)->name('kota.create');
-Route::get('/kecamatan/create', Wilayah\Kecamatan\Create::class)->name('kecamatan.create');
-Route::get('/kelurahan/create', Wilayah\Kelurahan\Create::class)->name('kelurahan.create');
-Route::get('/perumahan/create', Wilayah\Perumahan\Create::class)->name('perumahan.create');
-⋮----
-Route::middleware('permission:wilayah.ubah')->group(function () {
-Route::get('/kota/{kota}/edit', Wilayah\Kota\Edit::class)->name('kota.edit');
-Route::get('/kecamatan/{kecamatan}/edit', Wilayah\Kecamatan\Edit::class)->name('kecamatan.edit');
-Route::get('/kelurahan/{kelurahan}/edit', Wilayah\Kelurahan\Edit::class)->name('kelurahan.edit');
-Route::get('/perumahan/{perumahan}/edit', Wilayah\Perumahan\Edit::class)->name('perumahan.edit');
-⋮----
-Route::middleware('permission:wilayah.lihat')->group(function () {
-Route::get('/kota', Wilayah\Kota\Index::class)->name('kota.index');
-Route::get('/kecamatan', Wilayah\Kecamatan\Index::class)->name('kecamatan.index');
-Route::get('/kelurahan', Wilayah\Kelurahan\Index::class)->name('kelurahan.index');
-Route::get('/perumahan', Wilayah\Perumahan\Index::class)->name('perumahan.index');
-⋮----
-Route::prefix('users')->name('users.')->group(function () {
-Route::middleware('permission:pengguna.buat')->group(function () {
-Route::get('/create', Users\Create::class)->name('create');
-⋮----
-Route::middleware('permission:pengguna.ubah')->group(function () {
-Route::get('/{user}/edit', Users\Edit::class)->name('edit');
-⋮----
-Route::middleware('permission:pengguna.lihat')->group(function () {
-Route::get('/', Users\Index::class)->name('index');
-⋮----
-Route::prefix('roles')->name('roles.')->group(function () {
-Route::middleware('permission:peran.buat')->group(function () {
-Route::get('/create', Roles\Create::class)->name('create');
-⋮----
-Route::middleware('permission:peran.ubah')->group(function () {
-Route::get('/{role}/edit', Roles\Edit::class)->name('edit');
-⋮----
-Route::middleware('permission:peran.lihat')->group(function () {
-Route::get('/', Roles\Index::class)->name('index');
-⋮----
-Route::middleware('throttle:webhook')->post('/webhook/payment/{gateway}', [PaymentWebhookController::class, 'handle'])->name('webhook.payment');
-⋮----
-Route::middleware(['throttle:webhook', 'xendit.token'])->group(function () {
-Route::post('/webhook/xendit', [XenditWebhookController::class, 'handle'])->name('webhook.xendit');
-Route::post('/webhook/xendit/virtual-account', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.va');
-Route::post('/webhook/xendit/qris', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.qris');
-⋮----
-Route::middleware('throttle:webhook')->post('/webhook/whatsapp', [WhatsappWebhookController::class, 'handle'])->name('webhook.whatsapp');
-⋮----
-Route::prefix('portal')->name('portal.')->group(function () {
-⋮----
-Route::get('/login', Login::class)->name('login');
-Route::get('/klaim-akun', KlaimAkun::class)->name('klaim-akun');
-⋮----
-Route::get('/tagihan/{invoice}', Show::class)->name('invoice.show');
-⋮----
-Route::get('/tagihan/{invoice}/bayar', fn (App\Models\Invoice $invoice) => redirect()->route('portal.invoice.show', $invoice))->name('invoice.bayar');
-⋮----
-Route::middleware('auth:pelanggan')->group(function () {
-Route::get('/', function () {
-return redirect()->route('portal.dashboard');
-})->name('index');
-⋮----
-Route::post('/logout', function () {
-Auth::guard('pelanggan')->logout();
-request()->session()->invalidate();
-request()->session()->regenerateToken();
-⋮----
-return redirect()->route('portal.login');
-})->name('logout');
-⋮----
-Route::get('/dashboard', Dashboard::class)->name('dashboard');
-Route::get('/tagihan', Index::class)->name('invoice.index');
-Route::get('/tagihan/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('invoice.cetak');
-Route::get('/profil', App\Livewire\Portal\Profil\Index::class)->name('profil');
-Route::get('/ganti-password', GantiPassword::class)->middleware('impersonate.protect')->name('ganti-password');
-⋮----
-Route::get('/impersonate/take/{id}/{guardName?}', [ImpersonateController::class, 'take'])->name('impersonate');
-⋮----
-Route::get('/impersonate/leave', [ImpersonateController::class, 'leave'])->name('impersonate.leave');
-````
-
-## File: docker/php.ini
-````ini
-; Override runtime untuk GOBILLING production
-; (dimuat di /usr/local/etc/php/conf.d/99-app.ini, setelah default PHP)
-
-date.timezone = Asia/Jakarta
-expose_php = Off
-
-display_errors = Off
-display_startup_errors = Off
-log_errors = On
-error_log = /dev/stderr
-
-memory_limit = 512M
-upload_max_filesize = 100M
-post_max_size = 100M
-max_execution_time = 300
-max_input_time = 300
-max_input_vars = 5000
-
-; -- OPcache -------------------------------------------------------------
-opcache.enable = 1
-opcache.enable_cli = 0
-opcache.memory_consumption = 192
-opcache.interned_strings_buffer = 16
-opcache.max_accelerated_files = 20000
-; Kode cuma berubah saat redeploy (image baru), jadi lewati cek mtime.
-opcache.validate_timestamps = 0
 ````
 
 ## File: docker/entrypoint.sh
