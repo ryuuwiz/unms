@@ -7,6 +7,7 @@ use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Models\Ticket;
+use App\Models\TicketHistori;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -16,13 +17,14 @@ class UbahStatusDivisiTicketAction
     public function __construct(private UbahStatusTicketAction $ubahStatusTicketAction) {}
 
     /**
-     * Ubah status sign-off satu divisi pada Ticket Pemasangan, lalu otomatis derive status
-     * keseluruhan tiket ke Selesai begitu seluruh divisi wajib (Ticket::DIVISI_WAJIB_PEMASANGAN)
-     * sudah Selesai -- lihat CONTEXT.md "Status Per-Divisi Tiket".
+     * Ubah status sign-off satu divisi pada Ticket Pemasangan, mencatat Catatan Proses ke
+     * TicketHistori (lihat "Proses Divisi (NOC/Admin/Customer Service)" di CONTEXT.md), lalu
+     * otomatis derive status keseluruhan tiket ke Selesai begitu seluruh divisi wajib
+     * (Ticket::DIVISI_WAJIB_PEMASANGAN) sudah Selesai.
      *
      * @throws InvalidArgumentException jika divisi Admin ditandai Selesai sebelum invoice pertama lunas
      */
-    public function execute(Ticket $ticket, DivisiTicket $divisi, StatusDivisiTicket $statusBaru, User $actor): Ticket
+    public function execute(Ticket $ticket, DivisiTicket $divisi, StatusDivisiTicket $statusBaru, User $actor, ?string $catatan = null): Ticket
     {
         if ($divisi === DivisiTicket::Admin && $statusBaru === StatusDivisiTicket::Selesai) {
             $this->assertInvoicePertamaLunas($ticket);
@@ -34,6 +36,14 @@ class UbahStatusDivisiTicketAction
             ->update(['status' => $statusBaru->value]);
 
         $ticket->unsetRelation('divisis')->load('divisis');
+
+        TicketHistori::create([
+            'ticket_id' => $ticket->id,
+            'status_lama' => $ticket->status,
+            'status_baru' => $ticket->status,
+            'catatan' => sprintf('[%s] %s', $divisi->label(), trim($catatan ?: "Ditandai {$statusBaru->label()}.")),
+            'oleh_pengguna_id' => $actor->id,
+        ]);
 
         if ($ticket->semuaDivisiWajibSelesai() && $ticket->status !== StatusTicket::Selesai) {
             $this->ubahStatusTicketAction->execute(

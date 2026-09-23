@@ -3,6 +3,7 @@
 namespace App\Livewire\Ticket;
 
 use App\Actions\LayananPelanggan\DaftarkanLayananAction;
+use App\Actions\LayananPelanggan\UbahPaketLayananAction;
 use App\Actions\Ticket\AssignPicAction;
 use App\Actions\Ticket\UbahStatusDivisiTicketAction;
 use App\Actions\Ticket\UbahStatusTicketAction;
@@ -20,6 +21,7 @@ use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\Odp;
 use App\Models\OdpPort;
+use App\Models\PaketLayanan;
 use App\Models\Router;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
@@ -97,6 +99,32 @@ class Show extends Component
     public ?int $aktivasiRouterId = null;
 
     public ?int $aktivasiIpPoolId = null;
+
+    // State Modal Proses Divisi (NOC / Admin / Customer Service) -- lihat CONTEXT.md
+    // "Proses Divisi (NOC/Admin/Customer Service)".
+    public bool $showProsesModal = false;
+
+    public string $prosesDivisi = '';
+
+    public string $prosesStatusDivisi = 'progress';
+
+    public string $prosesCatatan = '';
+
+    // Proses NOC saja
+    public string $prosesModeMikrotik = 'proses';
+
+    public string $prosesPilihanPaket = 'bawaan';
+
+    public ?int $prosesRouterId = null;
+
+    public ?int $prosesPaketLayananId = null;
+
+    public string $prosesPppMode = 'auto';
+
+    public string $prosesPppUsername = '';
+
+    // Proses Admin saja
+    public bool $prosesUbahPaket = false;
 
     public function mount(Ticket $ticket): void
     {
@@ -509,6 +537,12 @@ class Show extends Component
      * Tandai satu divisi (Teknisi/NOC/Customer Service/Admin) selesai. Begitu keempat divisi
      * wajib selesai, status tiket keseluruhan otomatis berpindah ke Selesai -- lihat
      * UbahStatusDivisiTicketAction dan CONTEXT.md "Status Per-Divisi Tiket".
+     *
+     * Dipakai HANYA oleh divisi Teknisi (tombol "Tandai Selesai" tetap ada di sana karena
+     * digate oleh siapTeknisiSelesai(), bukti foto tahap akhir). NOC/Admin/Customer Service
+     * memakai modal "Proses {Divisi}" (lihat openProsesModal()/prosesDivisiSubmit()) yang
+     * juga mewajibkan Catatan Proses -- lihat CONTEXT.md "Proses Divisi (NOC/Admin/Customer
+     * Service)".
      */
     public function tandaiDivisiSelesai(string $divisiValue): void
     {
@@ -537,10 +571,169 @@ class Show extends Component
         $this->loadTicket();
     }
 
+    /**
+     * Buka modal "Proses {Divisi}" untuk NOC/Admin/Customer Service -- lihat CONTEXT.md
+     * "Proses Divisi (NOC/Admin/Customer Service)". Teknisi tetap memakai tandaiDivisiSelesai()
+     * + form Progress Lapangan/Foto Tahap 2 karena digate bukti foto, bukan catatan bebas.
+     */
+    public function openProsesModal(string $divisiValue): void
+    {
+        $divisi = DivisiTicket::from($divisiValue);
+        $this->authorize('ubahStatusDivisi', [$this->ticket, $divisi]);
+
+        $layanan = $this->ticket->layananPelanggan;
+
+        $this->prosesDivisi = $divisi->value;
+        $current = $this->ticket->statusDivisi($divisi);
+        $this->prosesStatusDivisi = $current === StatusDivisiTicket::Selesai ? 'selesai' : 'progress';
+        $this->prosesCatatan = '';
+        $this->prosesModeMikrotik = 'proses';
+        $this->prosesPilihanPaket = 'bawaan';
+        $this->prosesRouterId = $layanan?->router_id;
+        $this->prosesPaketLayananId = $layanan?->paket_layanan_id;
+        $this->prosesPppMode = 'auto';
+        $this->prosesPppUsername = $layanan?->ppp_username ?? '';
+        $this->prosesUbahPaket = false;
+        $this->showProsesModal = true;
+    }
+
+    /**
+     * Simpan hasil modal "Proses {Divisi}": aksi teknis khusus per divisi (NOC: router/paket/
+     * Mikrotik/PPP; Admin: opsional ubah paket), lalu satu baris TicketHistori berisi Catatan
+     * Proses wajib -- lihat UbahStatusDivisiTicketAction::execute(). Opsi status "Cancel"
+     * membatalkan tiket keseluruhan lewat UbahStatusTicketAction, bukan status per-divisi.
+     */
+    public function prosesDivisiSubmit(): void
+    {
+        $divisi = DivisiTicket::from($this->prosesDivisi);
+        $this->authorize('ubahStatusDivisi', [$this->ticket, $divisi]);
+
+        $this->validate([
+            'prosesStatusDivisi' => ['required', 'in:progress,selesai,cancel'],
+            'prosesCatatan' => ['required', 'string', 'min:5', 'max:1000'],
+        ], [
+            'prosesCatatan.required' => 'Catatan Proses wajib diisi.',
+            'prosesCatatan.min' => 'Catatan Proses minimal 5 karakter.',
+        ]);
+
+        if ($this->prosesStatusDivisi === 'cancel') {
+            try {
+                app(UbahStatusTicketAction::class)->execute(
+                    ticket: $this->ticket,
+                    statusBaru: StatusTicket::Batal,
+                    actor: Auth::user(),
+                    catatan: $this->prosesCatatan,
+                );
+
+                Flux::toast(variant: 'success', text: "Tiket {$this->ticket->nomor_ticket} berhasil dibatalkan.");
+                $this->showProsesModal = false;
+                $this->loadTicket();
+            } catch (\Throwable $e) {
+                Flux::toast(variant: 'danger', text: $e->getMessage());
+            }
+
+            return;
+        }
+
+        $layanan = $this->ticket->layananPelanggan;
+
+        if ($divisi === DivisiTicket::Noc) {
+            if (! $layanan) {
+                Flux::toast(variant: 'danger', text: 'Tiket ini belum terhubung ke Data Registrasi Billing.');
+
+                return;
+            }
+
+            $this->validate([
+                'prosesModeMikrotik' => ['required', 'in:proses,sudah'],
+                'prosesPilihanPaket' => ['required', 'in:bawaan,berbeda'],
+                'prosesRouterId' => ['required', 'integer', 'exists:router,id'],
+                'prosesPaketLayananId' => ['required', 'integer', 'exists:paket_layanan,id'],
+                'prosesPppMode' => ['required', 'in:auto,manual'],
+                'prosesPppUsername' => [
+                    Rule::requiredIf($this->prosesPppMode === 'manual'),
+                    'nullable', 'string', 'max:64',
+                    Rule::unique('layanan_pelanggan', 'ppp_username')->ignore($layanan->id),
+                ],
+            ], [
+                'prosesPppUsername.required' => 'PPP Username manual wajib diisi.',
+                'prosesPppUsername.unique' => 'PPP Username sudah dipakai layanan lain.',
+            ]);
+
+            $paketLayananId = $this->prosesPilihanPaket === 'bawaan' ? $layanan->paket_layanan_id : $this->prosesPaketLayananId;
+            app(UbahPaketLayananAction::class)->execute($layanan, $paketLayananId, $this->prosesRouterId);
+
+            if ($this->prosesPppMode === 'manual') {
+                $layanan->update(['ppp_username' => $this->prosesPppUsername]);
+            } elseif (empty($layanan->ppp_username)) {
+                $layanan->update(['ppp_username' => LayananPelanggan::generatePppUsername($layanan->pelanggan)]);
+            }
+
+            if ($this->prosesModeMikrotik === 'proses') {
+                $router = Router::findOrFail($this->prosesRouterId);
+
+                try {
+                    app(MikrotikService::class)->createOrUpdatePppoeSecret($router, $layanan->fresh());
+
+                    MikrotikJobLog::create([
+                        'router_id' => $this->prosesRouterId,
+                        'layanan_pelanggan_id' => $layanan->id,
+                        'job_type' => MikrotikJobType::ProvisionPppoe,
+                        'status' => MikrotikJobStatus::Success,
+                        'attempt_count' => 1,
+                        'finished_at' => now(),
+                    ]);
+                } catch (\Throwable $e) {
+                    MikrotikJobLog::create([
+                        'router_id' => $this->prosesRouterId,
+                        'layanan_pelanggan_id' => $layanan->id,
+                        'job_type' => MikrotikJobType::ProvisionPppoe,
+                        'status' => MikrotikJobStatus::Failed,
+                        'attempt_count' => 1,
+                        'error_message' => $e->getMessage(),
+                        'finished_at' => now(),
+                    ]);
+
+                    Flux::toast(variant: 'warning', heading: 'Registrasi Mikrotik Gagal', text: $e->getMessage(), duration: 20000);
+                }
+            }
+        }
+
+        if ($divisi === DivisiTicket::Admin && $this->prosesUbahPaket) {
+            if (! $layanan) {
+                Flux::toast(variant: 'danger', text: 'Tiket ini belum terhubung ke Data Registrasi Billing.');
+
+                return;
+            }
+
+            $this->validate(['prosesPaketLayananId' => ['required', 'integer', 'exists:paket_layanan,id']]);
+            app(UbahPaketLayananAction::class)->execute($layanan, $this->prosesPaketLayananId);
+        }
+
+        $statusBaruEnum = $this->prosesStatusDivisi === 'selesai' ? StatusDivisiTicket::Selesai : StatusDivisiTicket::Progress;
+
+        try {
+            app(UbahStatusDivisiTicketAction::class)->execute(
+                ticket: $this->ticket,
+                divisi: $divisi,
+                statusBaru: $statusBaruEnum,
+                actor: Auth::user(),
+                catatan: $this->prosesCatatan,
+            );
+
+            Flux::toast(variant: 'success', text: "Proses {$divisi->label()} berhasil disimpan.");
+            $this->showProsesModal = false;
+        } catch (\InvalidArgumentException $e) {
+            Flux::toast(variant: 'danger', text: $e->getMessage());
+        }
+
+        $this->loadTicket();
+    }
+
     public function render(): View
     {
         /** @var Collection<int, User> $staffList */
-        $staffList = User::query()->active()->orderBy('name')->get();
+        $staffList = User::query()->active()->role('teknisi')->orderBy('name')->get();
 
         $transisiValid = $this->ticket->status->transisiValid();
 
@@ -559,6 +752,10 @@ class Show extends Component
             ? IpPool::where('router_id', $this->aktivasiRouterId)->orderBy('nama_pool')->get()
             : collect();
 
+        // Paket Layanan aktif untuk dropdown "Paket Berbeda" (Proses NOC) / "Ubah Paket Layanan"
+        // (Proses Admin) -- tidak difilter per-router, lihat CONTEXT.md "Proses Divisi".
+        $paketLayananList = PaketLayanan::aktif()->orderBy('nama_paket')->get();
+
         return view('livewire.ticket.show', [
             'staffList' => $staffList,
             'transisiValid' => $transisiValid,
@@ -566,6 +763,7 @@ class Show extends Component
             'odpPorts' => $odpPorts,
             'onlineRouters' => $onlineRouters,
             'aktivasiIpPools' => $aktivasiIpPools,
+            'paketLayananList' => $paketLayananList,
         ]);
     }
 }

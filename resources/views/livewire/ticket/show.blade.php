@@ -194,9 +194,15 @@
                             <div class="font-semibold text-zinc-800 dark:text-zinc-200">{{ $divisi->label() }}</div>
                             <flux:badge size="xs" :color="$statusDivisi->color()">{{ $statusDivisi->label() }}</flux:badge>
                             @can('ubahStatusDivisi', [$ticket, $divisi])
-                                @if ($statusDivisi !== \App\Enums\Ticket\StatusDivisiTicket::Selesai)
-                                    <flux:button size="xs" variant="primary" class="w-full" wire:click="tandaiDivisiSelesai('{{ $divisi->value }}')" wire:confirm="Tandai {{ $divisi->label() }} selesai?">
-                                        Tandai Selesai
+                                @if ($divisi === \App\Enums\Ticket\DivisiTicket::Teknisi)
+                                    @if ($statusDivisi !== \App\Enums\Ticket\StatusDivisiTicket::Selesai)
+                                        <flux:button size="xs" variant="primary" class="w-full" wire:click="tandaiDivisiSelesai('{{ $divisi->value }}')" wire:confirm="Tandai {{ $divisi->label() }} selesai?">
+                                            Tandai Selesai
+                                        </flux:button>
+                                    @endif
+                                @else
+                                    <flux:button size="xs" variant="primary" class="w-full" wire:click="openProsesModal('{{ $divisi->value }}')">
+                                        Proses {{ $divisi->label() }}
                                     </flux:button>
                                 @endif
                             @endcan
@@ -693,27 +699,31 @@
         </form>
     </flux:modal>
 
-    <!-- Modal Assign PIC -->
-    <flux:modal :open="$showAssignPicModal" wire:model.self="showAssignPicModal" class="max-w-md">
+    <!-- Modal Assign PIC (Atur Teknisi Ticket) -->
+    <flux:modal :open="$showAssignPicModal" wire:model.self="showAssignPicModal" class="max-w-lg">
         <form wire:submit="prosesAssignPic" class="p-6 space-y-4">
             <div class="flex items-center gap-3 text-amber-600">
                 <flux:icon name="user-plus" class="size-6" />
-                <h3 class="text-lg font-bold text-zinc-900 dark:text-white">Tugaskan PIC Tiket</h3>
+                <h3 class="text-lg font-bold text-zinc-900 dark:text-white">Atur Teknisi Ticket {{ $ticket->nomor_ticket }}</h3>
             </div>
 
             <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                Tugaskan staf teknisi atau NOC yang bertanggung jawab untuk menyelesaikan tiket ini.
+                Klik kartu teknisi untuk memilih / menghapus pilihan. Biarkan semua tidak terpilih untuk menghapus penugasan (unassign). Hanya user dengan divisi teknisi yang muncul di daftar ini.
             </p>
 
-            <div>
-                <flux:select wire:model="selectedPicId" label="Pilih Staf PIC">
-                    <flux:select.option value="">-- Kosongkan PIC --</flux:select.option>
-                    @foreach($staffList as $stf)
-                        <flux:select.option value="{{ $stf->id }}">
-                            {{ $stf->name }}
-                        </flux:select.option>
-                    @endforeach
-                </flux:select>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-72 overflow-y-auto">
+                @forelse ($staffList as $stf)
+                    <button
+                        type="button"
+                        wire:click="$set('selectedPicId', {{ $selectedPicId === $stf->id ? 'null' : $stf->id }})"
+                        class="flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors {{ $selectedPicId === $stf->id ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40' : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300' }}"
+                    >
+                        <flux:avatar size="lg" :src="$stf->fotoProfilUrl()" :initials="$stf->initials()" />
+                        <span class="text-xs font-semibold text-zinc-900 dark:text-white text-center">{{ $stf->name }}</span>
+                    </button>
+                @empty
+                    <p class="col-span-full text-xs text-zinc-400 italic">Tidak ada staf dengan divisi teknisi.</p>
+                @endforelse
             </div>
 
             <div>
@@ -769,6 +779,120 @@
             <div class="flex justify-end gap-2 pt-2">
                 <flux:button wire:click="$set('showAktivasiModal', false)" variant="subtle">Batal</flux:button>
                 <flux:button type="submit" variant="primary">Aktivasi</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    <!-- Modal Proses Divisi (NOC / Admin / Customer Service) -->
+    <flux:modal :open="$showProsesModal" wire:model.self="showProsesModal" class="max-w-lg">
+        <form wire:submit="prosesDivisiSubmit" class="p-6 space-y-4">
+            <div class="flex items-center gap-3 text-blue-600">
+                <flux:icon name="clipboard-document-check" class="size-6" />
+                <h3 class="text-lg font-bold text-zinc-900 dark:text-white">
+                    Proses Ticket {{ $ticket->nomor_ticket }} — {{ \App\Enums\Ticket\DivisiTicket::tryFrom($prosesDivisi)?->label() }}
+                </h3>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                    <span class="text-zinc-500 block mb-1">Jenis Ticket</span>
+                    <span class="font-semibold text-zinc-900 dark:text-white">{{ $ticket->jenis->label() }}</span>
+                </div>
+                <flux:field>
+                    <flux:label>Status Ticket</flux:label>
+                    <flux:select wire:model="prosesStatusDivisi">
+                        <flux:select.option value="progress">On Progress</flux:select.option>
+                        <flux:select.option value="selesai">Selesai</flux:select.option>
+                        <flux:select.option value="cancel">Cancel</flux:select.option>
+                    </flux:select>
+                </flux:field>
+            </div>
+
+            @if ($prosesDivisi === \App\Enums\Ticket\DivisiTicket::Noc->value && $prosesStatusDivisi !== 'cancel')
+                <div class="pt-3 border-t border-zinc-100 dark:border-zinc-700/60 space-y-3">
+                    <flux:field>
+                        <flux:label>Mode Registrasi Mikrotik</flux:label>
+                        <flux:radio.group wire:model="prosesModeMikrotik">
+                            <flux:radio value="proses" label="Proses Registrasi Mikrotik" description="Sistem mengirim perintah ke router (PPPoE) dan menyimpan histori jika berhasil." />
+                            <flux:radio value="sudah" label="Sudah Registrasi Mikrotik" description="PPP sudah dibuat manual/sebelumnya. Sistem hanya update histori ticket." />
+                        </flux:radio.group>
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Pilihan Paket</flux:label>
+                        <flux:radio.group wire:model.live="prosesPilihanPaket">
+                            <flux:radio value="bawaan" label="Paket Bawaan" description="Gunakan paket layanan saat ini." />
+                            <flux:radio value="berbeda" label="Paket Berbeda" description="Pilih paket lain yang tersedia." />
+                        </flux:radio.group>
+                    </flux:field>
+
+                    <flux:field>
+                        <flux:label>Router (NOC)</flux:label>
+                        <flux:select wire:model="prosesRouterId" placeholder="Pilih router...">
+                            @foreach ($onlineRouters as $r)
+                                <flux:select.option value="{{ $r->id }}">{{ $r->nama_router }} ({{ $r->ip_address }})</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                        <flux:error name="prosesRouterId" />
+                    </flux:field>
+
+                    @if ($prosesPilihanPaket === 'berbeda')
+                        <flux:field>
+                            <flux:label>Paket di Router</flux:label>
+                            <flux:select wire:model="prosesPaketLayananId" placeholder="Pilih paket...">
+                                @foreach ($paketLayananList as $pkt)
+                                    <flux:select.option value="{{ $pkt->id }}">{{ $pkt->nama_paket }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:error name="prosesPaketLayananId" />
+                        </flux:field>
+                    @endif
+
+                    <flux:field>
+                        <flux:label>PPP Username & Password</flux:label>
+                        <flux:radio.group wire:model.live="prosesPppMode">
+                            <flux:radio value="auto" label="Generate otomatis dari No. Reg" description="PPP saat ini tidak diubah jika mode auto." />
+                            <flux:radio value="manual" label="Isi manual" description="Username wajib unik. Password akan di-generate." />
+                        </flux:radio.group>
+                        @if ($prosesPppMode === 'manual')
+                            <flux:input wire:model="prosesPppUsername" placeholder="Username PPP..." class="mt-2" />
+                        @endif
+                        <flux:error name="prosesPppUsername" />
+                    </flux:field>
+                </div>
+            @endif
+
+            @if ($prosesDivisi === \App\Enums\Ticket\DivisiTicket::Admin->value && $prosesStatusDivisi !== 'cancel')
+                <div class="pt-3 border-t border-zinc-100 dark:border-zinc-700/60 space-y-3">
+                    <flux:checkbox wire:model.live="prosesUbahPaket" label="Aksi Admin: Ubah Paket Layanan" description="Paket hanya tersedia di router aktif, silahkan hub NOC jika ingin mengubah Paket tertentu." />
+                    @if ($prosesUbahPaket)
+                        <flux:field>
+                            <flux:label>Paket Layanan</flux:label>
+                            <flux:select wire:model="prosesPaketLayananId" placeholder="Pilih paket...">
+                                @foreach ($paketLayananList as $pkt)
+                                    <flux:select.option value="{{ $pkt->id }}">{{ $pkt->nama_paket }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:error name="prosesPaketLayananId" />
+                        </flux:field>
+                    @endif
+                </div>
+            @endif
+
+            <flux:field>
+                <flux:label>Catatan Proses *</flux:label>
+                <flux:textarea
+                    wire:model="prosesCatatan"
+                    placeholder="Contoh: PPP sudah dibuat di router R1, ODP 02-03, pelanggan sudah konfirmasi aktif."
+                    rows="3"
+                    required
+                />
+                <flux:error name="prosesCatatan" />
+            </flux:field>
+
+            <div class="flex justify-end gap-2 pt-2">
+                <flux:button wire:click="$set('showProsesModal', false)" variant="subtle">Batal</flux:button>
+                <flux:button type="submit" variant="primary">Simpan Proses</flux:button>
             </div>
         </form>
     </flux:modal>
