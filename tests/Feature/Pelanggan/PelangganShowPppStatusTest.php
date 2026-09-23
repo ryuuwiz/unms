@@ -82,7 +82,7 @@ test('detail pelanggan displays Router & Paket Aktif section with connected PPP 
         ->call('loadPppStatuses')
         ->assertOk()
         ->assertSee('Router')
-        ->assertSee('Paket Aktif')
+        ->assertSee('Paket')
         ->assertSee('Router-Core-01')
         ->assertSee('Paket Rumah Hemat 20M')
         ->assertSee('BF2408202601_00099')
@@ -91,7 +91,7 @@ test('detail pelanggan displays Router & Paket Aktif section with connected PPP 
         ->assertSee('10.0.0.88')
         ->assertSee('3d 12:45:10')
         ->assertSee('AA:BB:CC:DD:EE:FF')
-        ->assertSee('false (Aktif)');
+        ->assertSee('Enabled');
 });
 
 test('detail pelanggan displays disconnected status when PPP session is offline', function () {

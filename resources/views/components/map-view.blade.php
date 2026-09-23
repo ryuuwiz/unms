@@ -24,6 +24,7 @@
             lng: {{ $longitude }},
             zoom: {{ $zoom }},
             interactive: {{ $interactive ? 'true' : 'false' }},
+            showMarker: {{ $marker ? 'true' : 'false' }},
             popupTitle: {{ Js::from($popupTitle) }},
             popupSubtitle: {{ Js::from($popupSubtitle) }},
 
@@ -59,7 +60,7 @@
                     attribution: '&copy; <a href=\'https://www.openstreetmap.org/copyright\' target=\'_blank\' rel=\'noopener noreferrer\'>OpenStreetMap</a>'
                 }).addTo(this.map);
 
-                @if ($marker)
+                if (this.showMarker) {
                     this.markerInstance = L.marker([this.lat, this.lng]).addTo(this.map);
 
                     if (this.popupTitle || this.popupSubtitle) {
@@ -74,13 +75,9 @@
                         popupHtml += '</div>';
                         this.markerInstance.bindPopup(popupHtml);
                     }
-                @endif
+                }
 
-                setTimeout(() => {
-                    if (this.map) {
-                        this.map.invalidateSize();
-                    }
-                }, 250);
+                new ResizeObserver(() => this.map?.invalidateSize()).observe(this.$refs.mapContainer);
             },
 
             recenter() {
@@ -105,7 +102,7 @@
             type="button"
             x-on:click="recenter()"
             title="Pusatkan ke Titik Lokasi"
-            class="absolute bottom-2 right-2 z-[400] flex size-7 items-center justify-center rounded-md border border-zinc-200 bg-white/90 text-zinc-700 shadow-sm backdrop-blur transition hover:bg-white dark:border-zinc-700 dark:bg-zinc-800/90 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            class="absolute right-2 top-2 z-[400] flex size-7 items-center justify-center rounded-md border border-zinc-200 bg-white/90 text-zinc-700 shadow-sm backdrop-blur transition hover:bg-white dark:border-zinc-700 dark:bg-zinc-800/90 dark:text-zinc-200 dark:hover:bg-zinc-800"
         >
             <flux:icon name="viewfinder-circle" class="size-4" />
         </button>

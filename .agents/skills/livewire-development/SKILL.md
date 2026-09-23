@@ -162,3 +162,4 @@ Livewire::test(Counter::class)
 - Unclosed component tags → syntax errors in v4
 - Using deprecated config keys or JS hooks
 - Including Alpine.js separately (already bundled in Livewire 4)
+- Never put a Blade `@if`/`@unless`/`@foreach` directive inside an `x-data="{ ... }"` (or any other quoted JS-string attribute) — Blade compiles `@if` to an `<!--[if BLOCK]><![endif]-->` HTML comment marker, and browsers treat a bare `<!--` inside a JS string as a legacy single-line comment, silently truncating the rest of that statement. Symptom: code after the `@if` (e.g. `this.markerInstance = L.marker(...)`) never runs, with no console error — verify by reading the rendered attribute's HTML source (`element.getAttribute('x-data')`), not just the compiled Blade. Fix: move the conditional out of the JS string (pass the boolean in as a plain Alpine data value like `marker: {{ $marker ? 'true' : 'false' }}` and branch with a JS `if` at runtime instead of Blade).

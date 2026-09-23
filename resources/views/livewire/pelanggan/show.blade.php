@@ -5,1450 +5,744 @@
         wire:init dipasang di dalam blok @if yang tidak aktif saat render awal, ia
         tidak akan pernah terpicu untuk pengguna yang mendarat di tab lain.
     --}}
+    @php
+        $card = 'rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900';
+        $hasCoord = is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude);
+        $totalBelumDibayar = $invoicesAktif->sum('jumlah_setelah_promo');
+        $layananAktif = $pelanggan->layanans->filter(fn ($l) => $l->status->value === 'aktif')->count();
+        $tabs = [
+            'overview' => ['icon' => 'user', 'label' => 'Informasi & Lokasi', 'count' => null],
+            'subscriptions' => ['icon' => 'rss', 'label' => 'Layanan Internet', 'count' => $pelanggan->layanans->count() ?: null],
+            'billing' => ['icon' => 'banknotes', 'label' => 'Tagihan & Pembayaran', 'count' => $invoicesAktif->count() ?: null, 'alert' => true],
+            'dokumen' => ['icon' => 'document-duplicate', 'label' => 'Dokumen & Legalitas', 'count' => ($dokumens->count() + ($ktpMedia ? 1 : 0)) ?: null],
+            'audit' => ['icon' => 'clock', 'label' => 'Riwayat Aktivitas', 'count' => $activityLogs->count() ?: null],
+        ];
+    @endphp
+
     {{-- Header --}}
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div class="flex items-center gap-3">
-            <flux:button :href="route('pelanggan.index')" wire:navigate variant="ghost" size="sm" icon="arrow-left" />
-            <div>
-                <div class="flex items-center gap-2.5">
-                    <flux:heading size="xl">{{ $pelanggan->namaLengkap() }}</flux:heading>
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div class="flex min-w-0 items-start gap-3">
+            <flux:button :href="route('pelanggan.index')" wire:navigate variant="ghost" icon="arrow-left" aria-label="Kembali ke daftar pelanggan" />
+            <div class="min-w-0">
+                <flux:heading size="xl" class="break-words">{{ $pelanggan->namaLengkap() }}</flux:heading>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
                     <flux:badge size="sm" color="zinc" class="font-mono">{{ $pelanggan->no_reg }}</flux:badge>
-                    <flux:badge size="sm" :color="$pelanggan->status->color()">
-                        {{ $pelanggan->status->label() }}
-                    </flux:badge>
+                    <flux:badge size="sm" :color="$pelanggan->status->color()">{{ $pelanggan->status->label() }}</flux:badge>
+                    <flux:badge size="sm" :color="$pelanggan->tipe_pelanggan->value === 'bisnis' ? 'purple' : 'zinc'">{{ $pelanggan->tipe_pelanggan->label() }}</flux:badge>
                 </div>
-                <flux:subheading>Didaftarkan pada {{ $pelanggan->created_at?->translatedFormat('d F Y, H:i') ?? '—' }}
-                    oleh {{ $pelanggan->pembuat?->name ?? 'Sistem' }}</flux:subheading>
+                <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                    Didaftarkan {{ $pelanggan->created_at?->translatedFormat('d F Y, H:i') ?? '—' }} oleh {{ $pelanggan->pembuat?->name ?? 'Sistem' }}
+                </p>
             </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap gap-2">
             @canImpersonate
                 @if ($pelanggan->akunPelanggan && $pelanggan->akunPelanggan->canBeImpersonated())
-                    <flux:button
-                        :href="route('impersonate', ['id' => $pelanggan->akunPelanggan->id, 'guardName' => 'pelanggan'])"
-                        variant="subtle"
-                        icon="arrow-right-end-on-rectangle"
-                    >
+                    <flux:button :href="route('impersonate', ['id' => $pelanggan->akunPelanggan->id, 'guardName' => 'pelanggan'])" variant="subtle" icon="arrow-right-end-on-rectangle" class="flex-1 sm:flex-none">
                         Buka Portal (Login as)
                     </flux:button>
                 @endif
             @endCanImpersonate
-
             @can('update', $pelanggan)
-                <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate variant="primary"
-                    icon="pencil-square">
+                <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate variant="primary" icon="pencil-square" class="flex-1 sm:flex-none">
                     Edit Pelanggan
                 </flux:button>
             @endcan
         </div>
     </div>
 
-    {{-- Tabs Navigation --}}
-    <div class="border-b border-zinc-200 dark:border-zinc-700">
-        <nav class="-mb-px flex flex-wrap gap-6" aria-label="Tabs">
-            <button type="button" wire:click="setTab('overview')"
-                class="flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors {{ $activeTab === 'overview' ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400' : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}">
-                <flux:icon name="user" class="size-4" />
-                Informasi & Lokasi
-            </button>
-
-            <button type="button" wire:click="setTab('subscriptions')"
-                class="flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors {{ $activeTab === 'subscriptions' ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400' : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}">
-                <flux:icon name="rss" class="size-4" />
-                Layanan Internet
-                @if ($pelanggan->layanans->isNotEmpty())
-                    <span class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $pelanggan->layanans->count() }}</span>
-                @endif
-            </button>
-
-            <button type="button" wire:click="setTab('billing')"
-                class="flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors {{ $activeTab === 'billing' ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400' : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}">
-                <flux:icon name="banknotes" class="size-4" />
-                Tagihan & Pembayaran
-                @if ($invoicesAktif->isNotEmpty())
-                    <span class="rounded-full bg-rose-100 px-1.5 py-0.2 text-xs font-semibold text-rose-700 dark:bg-rose-950 dark:text-rose-300">{{ $invoicesAktif->count() }}</span>
-                @elseif ($invoicesLunas->isNotEmpty())
-                    <span class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $invoicesLunas->count() }}</span>
-                @endif
-            </button>
-
-            <button type="button" wire:click="setTab('dokumen')"
-                class="flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors {{ $activeTab === 'dokumen' ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400' : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}">
-                <flux:icon name="document-duplicate" class="size-4" />
-                Dokumen & Legalitas
-                @if ($dokumens->isNotEmpty() || $ktpMedia)
-                    <span class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $dokumens->count() + ($ktpMedia ? 1 : 0) }}</span>
-                @endif
-            </button>
-
-            <button type="button" wire:click="setTab('audit')"
-                class="flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors {{ $activeTab === 'audit' ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400' : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}">
-                <flux:icon name="clock" class="size-4" />
-                Riwayat Aktivitas
-                @if ($activityLogs->isNotEmpty())
-                    <span class="rounded-full bg-zinc-200 px-1.5 py-0.2 text-xs font-semibold text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">{{ $activityLogs->count() }}</span>
-                @endif
-            </button>
+    {{-- Tabs: scroll horizontal di layar sempit --}}
+    <div class="relative border-b border-zinc-200 dark:border-zinc-700">
+        <div class="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-white sm:hidden dark:from-zinc-800"></div>
+        <nav wire:key="tabs-{{ $activeTab }}" x-init="$el.querySelector('[aria-current]')?.scrollIntoView({ inline: 'center', block: 'nearest' })"
+            class="-mb-px flex gap-2 overflow-x-auto whitespace-nowrap pr-8 [scrollbar-width:none] sm:gap-6 sm:pr-0" aria-label="Tabs">
+            @foreach ($tabs as $key => $tab)
+                <button type="button" wire:click="setTab('{{ $key }}')" @if ($activeTab === $key) aria-current="page" @endif
+                    class="flex min-h-12 items-center gap-2 border-b-2 px-2 text-sm font-medium transition-colors sm:px-0 sm:text-base {{ $activeTab === $key ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400' : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200' }}">
+                    <flux:icon :name="$tab['icon']" class="size-5" />
+                    {{ $tab['label'] }}
+                    @if ($tab['count'])
+                        <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ ($tab['alert'] ?? false) ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300' }}">{{ $tab['count'] }}</span>
+                    @endif
+                </button>
+            @endforeach
         </nav>
     </div>
 
-    {{-- Tab 1: Informasi & Lokasi --}}
+    {{-- ═══════════ Tab 1: Informasi & Lokasi ═══════════ --}}
     @if ($activeTab === 'overview')
+        @php
+            $navUrl = $hasCoord ? "https://www.google.com/maps/dir/?api=1&destination={$pelanggan->latitude},{$pelanggan->longitude}" : null;
+            $wilayah = $pelanggan->perumahan
+                ? collect([
+                    $pelanggan->perumahan->nama_perumahan,
+                    'Kel. ' . ($pelanggan->perumahan->kelurahan?->nama_kelurahan ?? '—'),
+                    'Kec. ' . ($pelanggan->perumahan->kelurahan?->kecamatan?->nama_kecamatan ?? '—'),
+                    $pelanggan->perumahan->kelurahan?->kecamatan?->kota?->nama_kota,
+                ])->filter()->implode(' · ')
+                : null;
+            $quick = 'flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border p-3 text-sm font-medium transition';
+            $row = 'flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6';
+            $dt = 'text-sm text-zinc-500 dark:text-zinc-400';
+            $dd = 'text-base text-zinc-900 break-words sm:text-right dark:text-zinc-100';
+        @endphp
+
         <div class="space-y-6">
-            {{-- Bagian Atas: Kontak & Identitas, Alamat, dan Akun Portal / Internal --}}
-            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {{-- Kolom 1 & 2: Detail Kontak & Identitas + Alamat --}}
-                <div class="space-y-6 lg:col-span-2">
-                    {{-- Card Data Pelanggan (Kontak & Identitas) --}}
-                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                        <div class="flex items-center justify-between mb-4 border-b border-zinc-100 pb-3 dark:border-zinc-800">
-                            <flux:heading size="base">Data Pelanggan & Identitas</flux:heading>
-                            <flux:badge size="sm" :color="$pelanggan->tipe_pelanggan->value === 'bisnis' ? 'purple' : 'zinc'">
-                                {{ $pelanggan->tipe_pelanggan->label() }}
-                            </flux:badge>
-                        </div>
-
-                        <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                                <dt class="text-xs font-medium text-zinc-400">Nomor Registrasi (No. Reg)</dt>
-                                <dd class="mt-1 font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                                    {{ $pelanggan->no_reg }}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-medium text-zinc-400">Nama Lengkap Pelanggan</dt>
-                                <dd class="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                                    {{ $pelanggan->namaLengkap() }}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-medium text-zinc-400">Nomor HP / WhatsApp</dt>
-                                <dd class="mt-1 flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                    {{ $pelanggan->no_hp }}
-                                    <a href="https://wa.me/{{ $pelanggan->no_hp }}" target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950 dark:text-emerald-300"
-                                        title="Hubungi via WhatsApp">
-                                        <flux:icon name="chat-bubble-left-right" class="size-3" />
-                                        Chat WA
-                                    </a>
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-medium text-zinc-400">Alamat Email</dt>
-                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                    {{ $pelanggan->email ?: '—' }}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-medium text-zinc-400">Telepon Rumah</dt>
-                                <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                    {{ $pelanggan->telepon_rumah ?: '—' }}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-medium text-zinc-400">Nomor Induk Kependudukan (NIK)</dt>
-                                <dd class="mt-1 flex items-center gap-2 text-sm font-mono font-medium text-zinc-900 dark:text-zinc-100">
-                                    @if ($pelanggan->nik)
-                                        @if ($showNik)
-                                            <span>{{ $pelanggan->nik }}</span>
-                                        @else
-                                            <span>{{ substr($pelanggan->nik, 0, 4) . '••••••••' . substr($pelanggan->nik, -4) }}</span>
-                                        @endif
-                                        <button
-                                            type="button"
-                                            wire:click="toggleShowNik"
-                                            class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition"
-                                            title="{{ $showNik ? 'Sembunyikan NIK' : 'Tampilkan NIK' }}"
-                                        >
-                                            <flux:icon :name="$showNik ? 'eye-slash' : 'eye'" class="size-4" />
-                                        </button>
-                                    @else
-                                        <span class="text-zinc-400">—</span>
-                                    @endif
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-medium text-zinc-400">Kode Pembayaran (Virtual Account)</dt>
-                                <dd class="mt-1 font-mono text-sm font-bold text-primary-700 dark:text-primary-400">
-                                    {{ $pelanggan->kode_pembayaran }}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-xs font-medium text-zinc-400">Status Akun</dt>
-                                <dd class="mt-1">
-                                    <flux:badge size="sm" :color="$pelanggan->status->color()">
-                                        {{ $pelanggan->status->label() }}
-                                    </flux:badge>
-                                </dd>
-                            </div>
-                        </dl>
-                    </div>
-
-                    {{-- Card Alamat & Wilayah --}}
-                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                        <flux:heading size="base" class="mb-4 border-b border-zinc-100 pb-3 dark:border-zinc-800">Alamat & Lokasi Pemasangan</flux:heading>
-
-                        <dl class="space-y-4">
-                            <div>
-                                <dt class="text-xs font-medium text-zinc-400">Alamat Lengkap</dt>
-                                <dd class="mt-1 text-sm text-zinc-800 dark:text-zinc-200 font-medium">
-                                    {{ $pelanggan->alamat_lengkap }}
-                                </dd>
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                                <div>
-                                    <dt class="text-xs font-medium text-zinc-400">RT / RW</dt>
-                                    <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                        {{ $pelanggan->rt ?? '-' }} / {{ $pelanggan->rw ?? '-' }}
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt class="text-xs font-medium text-zinc-400">No. Rumah</dt>
-                                    <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                        {{ $pelanggan->no_rumah ?? '—' }}
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt class="text-xs font-medium text-zinc-400">Kode Pos</dt>
-                                    <dd class="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                                        {{ $pelanggan->kode_pos ?? '—' }}
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt class="text-xs font-medium text-zinc-400">Perumahan / Cluster</dt>
-                                    <dd class="mt-1 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                                        {{ $pelanggan->perumahan?->nama_perumahan ?? '—' }}
-                                    </dd>
-                                </div>
-                            </div>
-
-                            @if ($pelanggan->perumahan)
-                                <div class="rounded-lg bg-zinc-50 p-3 text-xs dark:bg-zinc-800/50">
-                                    <span class="text-zinc-400">Struktur Wilayah Administratif:</span>
-                                    <div class="mt-1 font-medium text-zinc-700 dark:text-zinc-300">
-                                        Kel. {{ $pelanggan->perumahan->kelurahan?->nama_kelurahan ?? '—' }} •
-                                        Kec. {{ $pelanggan->perumahan->kelurahan?->kecamatan?->nama_kecamatan ?? '—' }} •
-                                        Kota {{ $pelanggan->perumahan->kelurahan?->kecamatan?->kota?->nama_kota ?? '—' }}
-                                    </div>
-                                </div>
-                            @endif
-                        </dl>
-                    </div>
-                </div>
-
-                {{-- Kolom 3: Akun Portal Pelanggan & Informasi Internal --}}
-                <div class="space-y-6">
-                    {{-- Card Akun Portal Pelanggan --}}
-                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                        <div class="flex items-center gap-2 mb-4 border-b border-zinc-100 pb-3 dark:border-zinc-800">
-                            <flux:icon name="user-circle" class="size-5 text-primary-600 dark:text-primary-400" />
-                            <div>
-                                <flux:heading size="base">Akun Portal Pelanggan</flux:heading>
-                                <flux:subheading class="text-xs">Akses pelanggan ke Self-Care Client Area</flux:subheading>
-                            </div>
-                        </div>
-
-                        <dl class="space-y-3.5 text-xs">
-                            <div>
-                                <dt class="text-zinc-400">Username Portal (Email)</dt>
-                                <dd class="mt-0.5 font-medium text-sm text-zinc-800 dark:text-zinc-200">
-                                    {{ $pelanggan->akunPelanggan?->email ?? $pelanggan->email ?? '— (Belum didaftarkan)' }}
-                                </dd>
-                            </div>
-
-                            <div>
-                                <dt class="text-zinc-400">Password Akun Portal</dt>
-                                <dd class="mt-0.5 flex items-center justify-between">
-                                    <span class="font-mono text-zinc-700 dark:text-zinc-300">Default: <strong>12345678</strong></span>
-                                    @can('update', $pelanggan)
-                                        <button
-                                            type="button"
-                                            wire:click="resetPasswordPortal"
-                                            wire:confirm="Apakah Anda yakin ingin mereset password akun portal pelanggan ini ke default (12345678)?"
-                                            class="text-[11px] text-primary-600 hover:underline dark:text-primary-400 font-semibold"
-                                        >
-                                            Reset Password
-                                        </button>
-                                    @endcan
-                                </dd>
-                            </div>
-
-                            <div>
-                                <dt class="text-zinc-400">Status Akun Portal</dt>
-                                <dd class="mt-0.5">
-                                    @if ($pelanggan->akunPelanggan)
-                                        <flux:badge size="sm" color="emerald">Aktif & Terdaftar</flux:badge>
-                                    @else
-                                        <flux:badge size="sm" color="amber">Belum Ada Akun</flux:badge>
-                                    @endif
-                                </dd>
-                            </div>
-                        </dl>
-
-                        <div class="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-                            @canImpersonate
-                                @if ($pelanggan->akunPelanggan && $pelanggan->akunPelanggan->canBeImpersonated())
-                                    <flux:button
-                                        :href="route('impersonate', ['id' => $pelanggan->akunPelanggan->id, 'guardName' => 'pelanggan'])"
-                                        variant="subtle"
-                                        class="w-full"
-                                        icon="arrow-right-end-on-rectangle"
-                                    >
-                                        Buka Portal (Login as)
-                                    </flux:button>
-                                @endif
-                            @endCanImpersonate
-                        </div>
-                    </div>
-
-                    {{-- Card Informasi Internal --}}
-                    <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                        <flux:heading size="base" class="mb-4 border-b border-zinc-100 pb-3 dark:border-zinc-800">Informasi Registrasi</flux:heading>
-
-                        <dl class="space-y-3.5 text-xs">
-                            <div>
-                                <dt class="text-zinc-400">Didaftarkan Oleh</dt>
-                                <dd class="mt-0.5 font-medium text-zinc-800 dark:text-zinc-200">
-                                    {{ $pelanggan->pembuat?->name ?? 'Sistem' }}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-zinc-400">Waktu Dibuat</dt>
-                                <dd class="mt-0.5 text-zinc-700 dark:text-zinc-300">
-                                    {{ $pelanggan->created_at?->translatedFormat('d F Y, H:i') ?? '—' }}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-zinc-400">Terakhir Diperbarui</dt>
-                                <dd class="mt-0.5 text-zinc-700 dark:text-zinc-300">
-                                    {{ $pelanggan->updated_at?->translatedFormat('d F Y, H:i') ?? '—' }}
-                                </dd>
-                            </div>
-                        </dl>
-                    </div>
-                </div>
+            {{-- Aksi cepat --}}
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <a href="tel:{{ $pelanggan->no_hp }}" class="{{ $quick }} border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800">
+                    <flux:icon name="phone" class="size-6" /> Telepon
+                </a>
+                <a href="https://wa.me/{{ $pelanggan->no_hp }}" target="_blank" rel="noopener noreferrer" class="{{ $quick }} border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    <flux:icon name="chat-bubble-left-right" class="size-6" /> WhatsApp
+                </a>
+                @if ($navUrl)
+                    <a href="{{ $navUrl }}" target="_blank" rel="noopener noreferrer" class="{{ $quick }} border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">
+                        <flux:icon name="map" class="size-6" /> Navigasi
+                    </a>
+                @endif
+                @can('update', $pelanggan)
+                    <a href="{{ route('pelanggan.edit', $pelanggan) }}" wire:navigate class="{{ $quick }} border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800">
+                        <flux:icon name="pencil-square" class="size-6" /> Edit
+                    </a>
+                @endcan
             </div>
 
-            {{-- Card Titik Koordinat Lokasi & Peta Leaflet (Full Width) --}}
-            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div class="flex items-center gap-3">
-                        <flux:heading size="base">Titik Lokasi Pelanggan (Peta)</flux:heading>
-                        @if (is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude))
-                            <flux:badge size="sm" color="emerald" class="font-mono text-xs">
-                                <flux:icon name="map-pin" class="mr-1 size-3" />
-                                Terpetakan
-                            </flux:badge>
-                        @endif
-                    </div>
-
-                    @if (is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude))
-                        <div class="flex flex-wrap items-center gap-2">
-                            <a href="{{ route('maps.estimasi-kabel', ['lat' => $pelanggan->latitude, 'lng' => $pelanggan->longitude]) }}"
-                                wire:navigate
-                                class="inline-flex items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition hover:bg-primary-100 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-300 dark:hover:bg-primary-900">
-                                <flux:icon name="calculator" class="size-3.5" />
-                                Hitung Estimasi Kabel
-                            </a>
-                            <a href="https://www.google.com/maps?q={{ $pelanggan->latitude }},{{ $pelanggan->longitude }}"
-                                target="_blank" rel="noopener noreferrer"
-                                class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
-                                <flux:icon name="arrow-top-right-on-square" class="size-3.5" />
-                                Buka di Google Maps
-                            </a>
-                            <a href="https://www.openstreetmap.org/?mlat={{ $pelanggan->latitude }}&mlon={{ $pelanggan->longitude }}#map=16/{{ $pelanggan->latitude }}/{{ $pelanggan->longitude }}"
-                                target="_blank" rel="noopener noreferrer"
-                                class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
-                                <flux:icon name="map" class="size-3.5" />
-                                Buka di OpenStreetMap
-                            </a>
-                            @can('update', $pelanggan)
-                                <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate size="xs"
-                                    variant="subtle" icon="pencil-square">
-                                    Atur Titik Koordinat
-                                </flux:button>
-                            @endcan
-                        </div>
-                    @endif
-                </div>
-
-                @if (is_numeric($pelanggan->latitude) && is_numeric($pelanggan->longitude))
-                    <div class="space-y-4">
-                        <div class="rounded-lg border border-zinc-200/80 bg-zinc-50/50 p-2.5 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-400 flex items-center justify-between">
-                            <span class="flex items-center gap-1.5">
-                                <flux:icon name="information-circle" class="size-4 text-zinc-400" />
-                                Peta hanya untuk visualisasi lokasi pelanggan. Perubahan koordinat dilakukan dari menu edit pelanggan.
-                            </span>
-                            @can('update', $pelanggan)
-                                <a href="{{ route('pelanggan.edit', $pelanggan) }}" wire:navigate class="text-primary-600 hover:underline dark:text-primary-400 font-medium">Edit Titik Lokasi →</a>
-                            @endcan
-                        </div>
-
-                        {{-- Peta Leaflet --}}
-                        <x-map-view :lat="$pelanggan->latitude" :lng="$pelanggan->longitude" :popup-title="$pelanggan->namaLengkap()" :popup-subtitle="$pelanggan->alamat_lengkap"
-                            height="380px" />
-
-                        {{-- Coordinate Details Bar --}}
-                        <div
-                            class="grid grid-cols-1 gap-3 rounded-lg bg-zinc-50 p-3.5 text-xs dark:bg-zinc-800/50 sm:grid-cols-3">
-                            <div>
-                                <span class="text-[11px] text-zinc-400">Latitude</span>
-                                <div class="font-mono font-semibold text-zinc-800 dark:text-zinc-200">
-                                    {{ number_format((float) $pelanggan->latitude, 7, '.', '') }}</div>
-                            </div>
-                            <div>
-                                <span class="text-[11px] text-zinc-400">Longitude</span>
-                                <div class="font-mono font-semibold text-zinc-800 dark:text-zinc-200">
-                                    {{ number_format((float) $pelanggan->longitude, 7, '.', '') }}</div>
-                            </div>
-                            <div>
-                                <span class="text-[11px] text-zinc-400">Koordinat Format (Lat, Lng)</span>
-                                <div class="font-mono text-zinc-700 dark:text-zinc-300">{{ $pelanggan->latitude }},
-                                    {{ $pelanggan->longitude }}</div>
-                            </div>
-                        </div>
-                    </div>
+            {{-- Lokasi: peta sebagai hero, kartu alamat mengambang di desktop --}}
+            <section aria-labelledby="judul-lokasi" class="relative">
+                @if ($hasCoord)
+                    <x-map-view :lat="$pelanggan->latitude" :lng="$pelanggan->longitude" :popup-title="$pelanggan->namaLengkap()" :popup-subtitle="$pelanggan->alamat_lengkap" height="clamp(300px, 55vh, 560px)" />
                 @else
-                    <div class="flex flex-col items-center justify-center py-12 text-center">
-                        <div
-                            class="flex size-14 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
-                            <flux:icon name="map-pin" class="size-7 text-zinc-400 dark:text-zinc-500" />
-                        </div>
-                        <span class="mt-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">Koordinat belum ditentukan</span>
-                        <span class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">Tentukan titik koordinat untuk memudahkan teknisi instalasi di lapangan dan pemetaan jaringan.</span>
+                    <div class="flex min-h-64 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 p-6 text-center dark:border-zinc-700">
+                        <flux:icon name="map-pin" class="size-8 text-zinc-400" />
+                        <span class="text-base font-medium text-zinc-700 dark:text-zinc-300">Koordinat belum ditentukan</span>
+                        <span class="max-w-md text-sm text-zinc-500">Tentukan titik koordinat agar teknisi mudah menemukan lokasi pemasangan.</span>
                         @can('update', $pelanggan)
-                            <div class="mt-4">
-                                <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate size="sm"
-                                    variant="primary" icon="pencil-square">
-                                    Atur Titik Koordinat
-                                </flux:button>
-                            </div>
+                            <flux:button :href="route('pelanggan.edit', $pelanggan)" wire:navigate variant="primary" icon="pencil-square" class="mt-2">Atur Titik Koordinat</flux:button>
                         @endcan
                     </div>
                 @endif
+
+                <div class="{{ $card }} relative z-10 mt-3 p-4 shadow-lg sm:p-5 {{ $hasCoord ? 'xl:absolute xl:bottom-4 xl:left-4 xl:mt-0 xl:w-80' : '' }}">
+                    <h2 id="judul-lokasi" class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Lokasi pemasangan</h2>
+                    <p class="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">{{ $pelanggan->alamat_lengkap }}</p>
+                    @if ($wilayah)
+                        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{{ $wilayah }}</p>
+                    @endif
+                    @if ($hasCoord)
+                        <p class="mt-1 font-mono text-sm text-zinc-500 dark:text-zinc-400">
+                            {{ number_format((float) $pelanggan->latitude, 7, '.', '') }}, {{ number_format((float) $pelanggan->longitude, 7, '.', '') }}
+                        </p>
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <flux:button :href="$navUrl" target="_blank" variant="primary" icon="map" class="flex-1">Navigasi</flux:button>
+                            <flux:button :href="route('maps.estimasi-kabel', ['lat' => $pelanggan->latitude, 'lng' => $pelanggan->longitude])" wire:navigate icon="calculator" class="flex-1">Estimasi kabel</flux:button>
+                        </div>
+                        @can('update', $pelanggan)
+                            <a href="{{ route('pelanggan.edit', $pelanggan) }}" wire:navigate class="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-primary-600 hover:underline dark:text-primary-400">Ubah titik lokasi →</a>
+                        @endcan
+                    @endif
+                </div>
+            </section>
+
+            {{-- Ringkasan --}}
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <button type="button" wire:click="setTab('subscriptions')" class="{{ $card }} p-4 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                    <div class="text-sm text-zinc-500 dark:text-zinc-400">Layanan aktif</div>
+                    <div class="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ $layananAktif }} <span class="text-base font-normal text-zinc-500">/ {{ $pelanggan->layanans->count() }}</span></div>
+                </button>
+                <button type="button" wire:click="setTab('billing')" class="rounded-xl border p-4 text-left {{ $totalBelumDibayar > 0 ? 'border-rose-200 bg-rose-50 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/40' : 'border-zinc-200 bg-white hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800' }}">
+                    <div class="text-sm text-zinc-500 dark:text-zinc-400">Belum dibayar</div>
+                    <div class="mt-1 text-2xl font-semibold {{ $totalBelumDibayar > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-zinc-900 dark:text-zinc-50' }}">Rp {{ number_format($totalBelumDibayar, 0, ',', '.') }}</div>
+                </button>
+                <div class="{{ $card }} p-4">
+                    <div class="text-sm text-zinc-500 dark:text-zinc-400">Kode pembayaran</div>
+                    <div class="mt-1 break-all font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ $pelanggan->kode_pembayaran }}</div>
+                </div>
             </div>
+
+            {{-- Detail: progressive disclosure --}}
+            <details class="{{ $card }} group" open>
+                <summary class="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 text-base font-semibold text-zinc-900 sm:px-6 dark:text-zinc-50">
+                    Kontak & identitas
+                    <flux:icon name="chevron-down" class="size-5 text-zinc-400 transition group-open:rotate-180" />
+                </summary>
+                <dl class="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+                    <div class="{{ $row }}">
+                        <dt class="{{ $dt }}">No. HP / WhatsApp</dt>
+                        <dd class="{{ $dd }}">{{ $pelanggan->no_hp }}</dd>
+                    </div>
+                    @foreach (['Email' => $pelanggan->email ?: '—', 'Telepon rumah' => $pelanggan->telepon_rumah ?: '—', 'No. registrasi' => $pelanggan->no_reg] as $label => $value)
+                        <div class="{{ $row }}">
+                            <dt class="{{ $dt }}">{{ $label }}</dt>
+                            <dd class="{{ $dd }}">{{ $value }}</dd>
+                        </div>
+                    @endforeach
+                    <div class="{{ $row }}">
+                        <dt class="{{ $dt }}">NIK</dt>
+                        <dd class="{{ $dd }} flex items-center gap-2 font-mono sm:justify-end">
+                            @if ($pelanggan->nik)
+                                <span>{{ $showNik ? $pelanggan->nik : substr($pelanggan->nik, 0, 4) . '••••••••' . substr($pelanggan->nik, -4) }}</span>
+                                <flux:button type="button" wire:click="toggleShowNik" variant="ghost" size="sm" :icon="$showNik ? 'eye-slash' : 'eye'" :aria-label="$showNik ? 'Sembunyikan NIK' : 'Tampilkan NIK'" />
+                            @else
+                                <span class="text-zinc-400">—</span>
+                            @endif
+                        </dd>
+                    </div>
+                </dl>
+            </details>
+
+            <details class="{{ $card }} group">
+                <summary class="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 text-base font-semibold text-zinc-900 sm:px-6 dark:text-zinc-50">
+                    Detail alamat
+                    <flux:icon name="chevron-down" class="size-5 text-zinc-400 transition group-open:rotate-180" />
+                </summary>
+                <dl class="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+                    @foreach ([
+                        'RT / RW' => ($pelanggan->rt ?? '-') . ' / ' . ($pelanggan->rw ?? '-'),
+                        'No. rumah' => $pelanggan->no_rumah ?? '—',
+                        'Kode pos' => $pelanggan->kode_pos ?? '—',
+                        'Perumahan / cluster' => $pelanggan->perumahan?->nama_perumahan ?? '—',
+                        'Wilayah' => $wilayah ?? '—',
+                    ] as $label => $value)
+                        <div class="{{ $row }}">
+                            <dt class="{{ $dt }}">{{ $label }}</dt>
+                            <dd class="{{ $dd }}">{{ $value }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+            </details>
+
+            <details class="{{ $card }} group">
+                <summary class="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 text-base font-semibold text-zinc-900 sm:px-6 dark:text-zinc-50">
+                    Akun Portal Pelanggan
+                    <flux:icon name="chevron-down" class="size-5 text-zinc-400 transition group-open:rotate-180" />
+                </summary>
+                <dl class="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+                    <div class="{{ $row }}">
+                        <dt class="{{ $dt }}">Username (email)</dt>
+                        <dd class="{{ $dd }}">{{ $pelanggan->akunPelanggan?->email ?? $pelanggan->email ?? '— (belum didaftarkan)' }}</dd>
+                    </div>
+                    <div class="{{ $row }}">
+                        <dt class="{{ $dt }}">Status</dt>
+                        <dd class="{{ $dd }}">
+                            <flux:badge size="sm" :color="$pelanggan->akunPelanggan ? 'emerald' : 'amber'">{{ $pelanggan->akunPelanggan ? 'Aktif & terdaftar' : 'Belum ada akun' }}</flux:badge>
+                        </dd>
+                    </div>
+                    <div class="{{ $row }}">
+                        <dt class="{{ $dt }}">Password</dt>
+                        <dd class="{{ $dd }} flex flex-wrap items-center gap-3 sm:justify-end">
+                            <span class="font-mono">Default: 12345678</span>
+                            @can('update', $pelanggan)
+                                <flux:button type="button" size="sm" wire:click="resetPasswordPortal"
+                                    wire:confirm="Apakah Anda yakin ingin mereset password akun portal pelanggan ini ke default (12345678)?">
+                                    Reset Password
+                                </flux:button>
+                            @endcan
+                        </dd>
+                    </div>
+                </dl>
+            </details>
+
+            <details class="{{ $card }} group">
+                <summary class="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 text-base font-semibold text-zinc-900 sm:px-6 dark:text-zinc-50">
+                    Informasi registrasi
+                    <flux:icon name="chevron-down" class="size-5 text-zinc-400 transition group-open:rotate-180" />
+                </summary>
+                <dl class="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+                    @foreach ([
+                        'Didaftarkan oleh' => $pelanggan->pembuat?->name ?? 'Sistem',
+                        'Waktu dibuat' => $pelanggan->created_at?->translatedFormat('d F Y, H:i') ?? '—',
+                        'Terakhir diperbarui' => $pelanggan->updated_at?->translatedFormat('d F Y, H:i') ?? '—',
+                    ] as $label => $value)
+                        <div class="{{ $row }}">
+                            <dt class="{{ $dt }}">{{ $label }}</dt>
+                            <dd class="{{ $dd }}">{{ $value }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+            </details>
         </div>
     @endif
 
-    {{-- Tab 2: Layanan Internet (Router & Paket Aktif) --}}
+    {{-- ═══════════ Tab 2: Layanan Internet ═══════════ --}}
     @if ($activeTab === 'subscriptions')
         <div class="space-y-6">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <flux:heading size="base">Router & Paket Aktif Pelanggan (Layanan / Pemasangan)</flux:heading>
-                    <flux:subheading class="text-xs">Kelola router gateway BRAS, profil bandwidth paket langganan, dan pantau status realtime sesi PPP MikroTik.</flux:subheading>
+                    <flux:heading size="lg">Layanan internet</flux:heading>
+                    <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Router, paket, dan status sesi PPP realtime dari MikroTik.</p>
                 </div>
-                <div class="flex items-center gap-2">
-                    <flux:button
-                        type="button"
-                        wire:click="refreshPppStatus"
-                        size="sm"
-                        variant="subtle"
-                        icon="arrow-path"
-                        wire:loading.attr="disabled"
-                    >
+                <div class="flex flex-wrap gap-2">
+                    <flux:button type="button" wire:click="refreshPppStatus" variant="subtle" icon="arrow-path" wire:loading.attr="disabled" class="flex-1 sm:flex-none">
                         <span wire:loading.remove wire:target="refreshPppStatus">Segarkan Status PPP</span>
                         <span wire:loading wire:target="refreshPppStatus">Menghubungi Router...</span>
                     </flux:button>
                     @can('create', App\Models\LayananPelanggan::class)
-                        <flux:button :href="route('layanan-pelanggan.create', $pelanggan)" wire:navigate variant="primary" size="sm"
-                            icon="plus">
+                        <flux:button :href="route('layanan-pelanggan.create', $pelanggan)" wire:navigate variant="primary" icon="plus" class="flex-1 sm:flex-none">
                             Tambah Registrasi Billing
                         </flux:button>
                     @endcan
                 </div>
             </div>
 
-            @if ($pelanggan->layanans->isEmpty())
-                <div
-                    class="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-12 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
-                    <flux:icon name="rss" class="mx-auto size-8 text-zinc-400" />
-                    <flux:heading size="base" class="mt-2">Belum ada layanan aktif</flux:heading>
-                    <flux:subheading class="mt-1">Pelanggan ini belum memiliki langganan paket internet atau akun PPP terdaftar.
-                    </flux:subheading>
-                </div>
-            @else
-                <div class="space-y-6">
-                    @foreach ($pelanggan->layanans as $layanan)
-                        @php
-                            $statusPpp = $pppStatuses[$layanan->id] ?? null;
-                            $isConnected = $statusPpp['is_connected'] ?? false;
-                            $isDisabled = $statusPpp['is_disabled'] ?? ($layanan->status->value === 'isolir' || $layanan->status->value === 'nonaktif');
-                            $routerOnline = $statusPpp['router_online'] ?? true;
-                        @endphp
-                        <div id="layanan-{{ $layanan->id }}" class="scroll-mt-24 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                            {{-- Header Card Layanan --}}
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-100 pb-4 dark:border-zinc-800">
-                                <div class="flex items-center gap-3">
-                                    <div class="flex size-10 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-950 dark:text-primary-400">
-                                        <flux:icon name="server-stack" class="size-5" />
-                                    </div>
-                                    <div>
-                                        <div class="flex items-center flex-wrap gap-2">
-                                            <flux:heading size="base">{{ $layanan->label_layanan ?: $layanan->paketLayanan->nama_paket }}</flux:heading>
-                                            <flux:badge size="sm" color="zinc" class="font-mono text-xs">{{ $layanan->site_id }}</flux:badge>
-                                            @if ($layanan->nama_site)
-                                                <flux:badge size="sm" color="indigo" class="text-xs">
-                                                    <flux:icon name="map-pin" class="size-3 mr-1" />
-                                                    {{ $layanan->nama_site }}
-                                                </flux:badge>
-                                            @endif
-                                            <span wire:loading wire:target="loadPppStatuses" class="contents">
-                                                <flux:badge size="sm" color="zinc">
-                                                    <span class="inline-block size-1.5 rounded-full bg-zinc-400 mr-1.5 animate-pulse"></span>
-                                                    Memuat Status...
-                                                </flux:badge>
-                                            </span>
-                                            <span wire:loading.remove wire:target="loadPppStatuses" class="contents">
-                                                @if ($isConnected)
-                                                    <flux:badge size="sm" color="emerald" class="animate-pulse">
-                                                        <span class="inline-block size-1.5 rounded-full bg-emerald-500 mr-1.5"></span>
-                                                        Connected (Online)
-                                                    </flux:badge>
-                                                @else
-                                                    <flux:badge size="sm" color="zinc">
-                                                        <span class="inline-block size-1.5 rounded-full bg-zinc-400 mr-1.5"></span>
-                                                        Disconnected (Offline)
-                                                    </flux:badge>
-                                                @endif
-                                            </span>
-                                            @if ($isDisabled)
-                                                <flux:badge size="sm" color="rose">
-                                                    Terisolir / Disabled
-                                                </flux:badge>
-                                            @endif
-                                        </div>
-                                        <flux:subheading class="text-xs">
-                                            @if ($layanan->alamat_pemasangan)
-                                                <span class="text-zinc-600 dark:text-zinc-300 font-medium">Titik Pasang: {{ $layanan->alamat_pemasangan }}</span> &bull;
-                                            @endif
-                                            Sinkronisasi status realtime dengan MikroTik BRAS Gateway
-                                        </flux:subheading>
-                                    </div>
-                                </div>
+            @forelse ($pelanggan->layanans as $layanan)
+                @php
+                    $statusPpp = $pppStatuses[$layanan->id] ?? null;
+                    $isConnected = $statusPpp['is_connected'] ?? false;
+                    $isDisabled = $statusPpp['is_disabled'] ?? ($layanan->status->value === 'isolir' || $layanan->status->value === 'nonaktif');
+                    $routerOnline = $statusPpp['router_online'] ?? true;
+                @endphp
+                <article id="layanan-{{ $layanan->id }}" class="{{ $card }} scroll-mt-24">
+                    <header class="flex flex-col gap-4 p-4 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{{ $layanan->label_layanan ?: $layanan->paketLayanan->nama_paket }}</h3>
+                                <flux:badge size="sm" :color="$layanan->statusBadgeColor()">{{ $layanan->statusBadgeLabel() }}</flux:badge>
+                            </div>
+                            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400">
+                                <span class="font-mono">{{ $layanan->site_id }}</span>
+                                @if ($layanan->nama_site)
+                                    <span class="inline-flex items-center gap-1"><flux:icon name="map-pin" class="size-4" />{{ $layanan->nama_site }}</span>
+                                @endif
+                                @if ($layanan->alamat_pemasangan)
+                                    <span>Titik pasang: {{ $layanan->alamat_pemasangan }}</span>
+                                @endif
+                            </div>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <span wire:loading wire:target="loadPppStatuses" class="contents">
+                                    <flux:badge color="zinc"><span class="mr-1.5 inline-block size-2 animate-pulse rounded-full bg-zinc-400"></span>Memuat Status...</flux:badge>
+                                </span>
+                                <span wire:loading.remove wire:target="loadPppStatuses" class="contents">
+                                    @if ($isConnected)
+                                        <flux:badge color="emerald"><span class="mr-1.5 inline-block size-2 rounded-full bg-emerald-500"></span>Connected (Online)</flux:badge>
+                                    @else
+                                        <flux:badge color="zinc"><span class="mr-1.5 inline-block size-2 rounded-full bg-zinc-400"></span>Disconnected (Offline)</flux:badge>
+                                    @endif
+                                </span>
+                                @if ($isDisabled)
+                                    <flux:badge color="rose">Terisolir / Disabled</flux:badge>
+                                @endif
+                            </div>
+                        </div>
 
-                                <div class="flex items-center gap-2">
-                                    <flux:badge size="sm" :color="$layanan->statusBadgeColor()">
-                                        {{ $layanan->statusBadgeLabel() }}
-                                    </flux:badge>
-                                    @if ($layanan->status->value === 'proses' && ! $layanan->router_id)
-                                        @can('create', App\Models\Ticket::class)
-                                            <flux:button
-                                                :href="route('ticket.create', ['jenis' => 'pemasangan', 'pelanggan_id' => $pelanggan->id, 'layanan_id' => $layanan->id])"
-                                                wire:navigate size="xs" variant="primary" icon="wrench-screwdriver">
-                                                Buat Ticket Pemasangan
-                                            </flux:button>
+                        <div class="flex flex-wrap gap-2">
+                            @if ($layanan->status->value === 'proses' && ! $layanan->router_id)
+                                @can('create', App\Models\Ticket::class)
+                                    <flux:button :href="route('ticket.create', ['jenis' => 'pemasangan', 'pelanggan_id' => $pelanggan->id, 'layanan_id' => $layanan->id])" wire:navigate size="sm" variant="primary" icon="wrench-screwdriver">
+                                        Buat Ticket Pemasangan
+                                    </flux:button>
+                                @endcan
+                            @endif
+                            @can('update', $layanan)
+                                <flux:button wire:click="openUbahPaketModal({{ $layanan->id }})" size="sm" variant="outline" icon="arrows-up-down">Ubah Paket</flux:button>
+                                <flux:button :href="route('layanan-pelanggan.edit', $layanan)" wire:navigate size="sm" variant="ghost" icon="pencil-square">Edit</flux:button>
+                            @endcan
+                        </div>
+                    </header>
+
+                    @if (! $routerOnline)
+                        <div class="mx-4 mb-4 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 sm:mx-6 dark:bg-amber-950/40 dark:text-amber-300">
+                            <flux:icon name="exclamation-triangle" class="size-5 shrink-0" />
+                            Router tidak dapat dihubungi
+                        </div>
+                    @endif
+
+                    <dl class="grid grid-cols-1 gap-x-6 gap-y-5 border-t border-zinc-100 px-4 py-5 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 dark:border-zinc-800">
+                        <div>
+                            <dt class="text-sm text-zinc-500 dark:text-zinc-400">Router</dt>
+                            <dd class="mt-1 text-base font-medium text-zinc-900 dark:text-zinc-100">
+                                @if ($layanan->router)
+                                    @can('view', $layanan->router)
+                                        <a href="{{ route('router.edit', $layanan->router) }}" wire:navigate class="text-primary-600 hover:underline dark:text-primary-400">{{ $layanan->router->nama_router }}</a>
+                                    @else
+                                        {{ $layanan->router->nama_router }}
+                                    @endcan
+                                    <span class="block font-mono text-sm font-normal text-zinc-500">{{ $layanan->router->ip_address }}:{{ $layanan->router->port }}</span>
+                                @else
+                                    <span class="font-normal text-zinc-400">Belum diaktivasi</span>
+                                @endif
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm text-zinc-500 dark:text-zinc-400">Paket</dt>
+                            <dd class="mt-1 text-base font-medium text-zinc-900 dark:text-zinc-100">
+                                {{ $layanan->paketLayanan->nama_paket }}
+                                <span class="block text-sm font-normal text-zinc-500">
+                                    {{ $layanan->paketLayanan->profilBandwidth?->labelKecepatan() ?? '-' }} · Rp {{ number_format($layanan->total_tarif, 0, ',', '.') }}/bln
+                                </span>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm text-zinc-500 dark:text-zinc-400">Username PPP</dt>
+                            <dd class="mt-1 break-all font-mono text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                                {{ $layanan->ppp_username ?? 'Belum diaktivasi' }}
+                                <span class="flex items-center gap-1 text-sm font-normal text-zinc-500">
+                                    @if ($revealedPppPasswordLayananId === $layanan->id)
+                                        Pass: {{ $revealedPppPasswordValue }}
+                                    @else
+                                        Pass: ••••••••
+                                        @can('viewPppPassword', $layanan)
+                                            <flux:button type="button" size="xs" variant="ghost" icon="eye" wire:click="revealPppPassword({{ $layanan->id }})" wire:loading.attr="disabled" wire:target="revealPppPassword({{ $layanan->id }})" aria-label="Tampilkan password PPP" />
                                         @endcan
                                     @endif
-                                    @can('update', $layanan)
-                                        <flux:button wire:click="openUbahPaketModal({{ $layanan->id }})" size="xs" variant="outline" icon="arrows-up-down">
-                                            Ubah Paket
-                                        </flux:button>
-                                        <flux:button :href="route('layanan-pelanggan.edit', $layanan)" wire:navigate size="xs" variant="ghost" icon="pencil-square">
-                                            Edit
-                                        </flux:button>
-                                    @endcan
-                                </div>
-                            </div>
+                                </span>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm text-zinc-500 dark:text-zinc-400">Jatuh tempo</dt>
+                            <dd class="mt-1 text-base font-medium text-zinc-900 dark:text-zinc-100">{{ $layanan->tanggal_expired?->translatedFormat('d M Y') ?? '—' }}</dd>
+                        </div>
+                    </dl>
 
-                            {{-- Grid Informasi Utama Layanan & Billing --}}
-                            <div class="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                                {{-- 1. Router --}}
-                                <div class="space-y-1">
-                                    <span class="text-xs font-medium text-zinc-400">Router BRAS Gateway</span>
-                                    <div class="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                                        <flux:icon name="cpu-chip" class="size-4 text-zinc-400" />
-                                        @if ($layanan->router)
-                                            @can('view', $layanan->router)
-                                                <a href="{{ route('router.edit', $layanan->router) }}" wire:navigate class="hover:underline text-primary-600 dark:text-primary-400">
-                                                    {{ $layanan->router->nama_router }}
-                                                </a>
-                                            @else
-                                                <span>{{ $layanan->router->nama_router }}</span>
-                                            @endcan
-                                        @else
-                                            <span class="text-zinc-400 font-normal">Belum diaktivasi</span>
+                    <details class="group border-t border-zinc-100 dark:border-zinc-800">
+                        <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-medium text-zinc-700 sm:px-6 dark:text-zinc-300">
+                            Detail sesi PPP & jaringan
+                            <flux:icon name="chevron-down" class="size-5 text-zinc-400 transition group-open:rotate-180" />
+                        </summary>
+                        <dl class="grid grid-cols-2 gap-x-6 gap-y-4 px-4 pb-5 sm:grid-cols-3 sm:px-6 lg:grid-cols-4">
+                            @foreach ([
+                                'Profile' => $statusPpp['profile'] ?? $layanan->paketLayanan->profilBandwidth?->nama_bandwidth ?? '—',
+                                'Service' => strtoupper($statusPpp['service'] ?? $layanan->jenis_koneksi?->value ?? 'pppoe'),
+                                'Uptime' => $statusPpp['uptime'] ?? '—',
+                                'Terakhir logout' => $statusPpp['last_logged_out'] ?? '—',
+                                'Gateway (local IP)' => $statusPpp['local_address'] ?? $layanan->resolveLocalAddress() ?? '—',
+                                'Caller ID (MAC ONT)' => $statusPpp['caller_id'] ?? '—',
+                                'Port ODP' => ($layanan->odpPort?->odp?->nama_odp ?? '—') . ' (Port ' . ($layanan->odpPort?->nomor_port ?? '—') . ')',
+                                'Tanggal mulai' => $layanan->tanggal_mulai->translatedFormat('d M Y'),
+                                'Auto isolir' => $layanan->auto_isolir ? 'Aktif' : 'Nonaktif',
+                            ] as $label => $value)
+                                <div>
+                                    <dt class="text-sm text-zinc-500 dark:text-zinc-400">{{ $label }}</dt>
+                                    <dd class="mt-1 break-all font-mono text-sm text-zinc-900 dark:text-zinc-100">{{ $value }}</dd>
+                                </div>
+                            @endforeach
+                            <div>
+                                <dt class="text-sm text-zinc-500 dark:text-zinc-400">IP remote (ONT)</dt>
+                                <dd class="mt-1 font-mono text-sm">
+                                    @if ($isConnected && ! empty($statusPpp['ip_address']))
+                                        <a href="http://{{ $statusPpp['ip_address'] }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-semibold text-primary-600 hover:underline dark:text-primary-400">
+                                            {{ $statusPpp['ip_address'] }} <flux:icon name="arrow-top-right-on-square" class="size-4" />
+                                        </a>
+                                    @elseif (! $isConnected)
+                                        <span class="text-rose-700 dark:text-rose-300">Belum tersambung (Offline)</span>
+                                        @if (! empty($layanan->ip_static))
+                                            <span class="block text-zinc-500">Target statis: {{ $layanan->ip_static }}</span>
                                         @endif
-                                    </div>
-                                    <div class="font-mono text-[11px] text-zinc-500">
-                                        {{ $layanan->router ? "{$layanan->router->ip_address}:{$layanan->router->port}" : '—' }}
-                                    </div>
-                                </div>
-
-                                {{-- 2. Paket Aktif --}}
-                                <div class="space-y-1">
-                                    <span class="text-xs font-medium text-zinc-400">Paket Langganan Aktif</span>
-                                    <div class="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                                        {{ $layanan->paketLayanan->nama_paket }}
-                                    </div>
-                                    <div class="flex items-center gap-1.5 text-xs text-zinc-500">
-                                        <flux:badge size="sm" color="zinc" class="text-[11px]">
-                                            {{ $layanan->paketLayanan->profilBandwidth?->labelKecepatan() ?? '-' }}
-                                        </flux:badge>
-                                        <span>• Rp {{ number_format($layanan->total_tarif, 0, ',', '.') }}/bln</span>
-                                    </div>
-                                </div>
-
-                                {{-- 3. Username PPP --}}
-                                <div class="space-y-1">
-                                    <span class="text-xs font-medium text-zinc-400">Username PPP (Secret)</span>
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                                            {{ $layanan->ppp_username ?? 'Belum diaktivasi' }}
-                                        </span>
-                                    </div>
-                                    <div class="flex items-center gap-1.5 text-[11px] text-zinc-500 font-mono">
-                                        @if ($revealedPppPasswordLayananId === $layanan->id)
-                                            <span>Pass: {{ $revealedPppPasswordValue }}</span>
-                                        @else
-                                            <span>Pass: ••••••••</span>
-                                            @can('viewPppPassword', $layanan)
-                                                <button
-                                                    type="button"
-                                                    wire:click="revealPppPassword({{ $layanan->id }})"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="revealPppPassword({{ $layanan->id }})"
-                                                    class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-                                                    title="Tampilkan Password (Super Admin)"
-                                                >
-                                                    <flux:icon name="eye" class="size-3" />
-                                                </button>
-                                            @endcan
-                                        @endif
-                                    </div>
-                                </div>
-
-                                {{-- 4. Status Layanan Billing --}}
-                                <div class="space-y-1">
-                                    <span class="text-xs font-medium text-zinc-400">Status Billing & Jatuh Tempo</span>
-                                    <div>
-                                        <flux:badge size="sm" :color="$layanan->statusBadgeColor()">
-                                            {{ $layanan->statusBadgeLabel() }}
-                                        </flux:badge>
-                                    </div>
-                                    <div class="text-[11px] text-zinc-500">
-                                        Jatuh Tempo: {{ $layanan->tanggal_expired?->format('d/m/Y') ?? '—' }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {{-- Sub-Section: Status PPP Realtime (MikroTik) --}}
-                            <div class="mt-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/60">
-                                <div class="mb-3 flex items-center justify-between">
-                                    <span class="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                        Status Realtime PPP (MikroTik RouterOS)
-                                    </span>
-                                    @if (! $routerOnline)
-                                        <span class="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                                            <flux:icon name="exclamation-triangle" class="size-3.5" />
-                                            Router tidak dapat dihubungi
-                                        </span>
+                                    @else
+                                        <span class="text-zinc-400">—</span>
                                     @endif
-                                </div>
-
-                                <dl class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 text-xs">
-                                    {{-- Status --}}
-                                    <div>
-                                        <dt class="text-zinc-400">Status</dt>
-                                        <dd class="mt-1 font-semibold">
-                                            @if ($isConnected)
-                                                <span class="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                                                    <span class="size-2 rounded-full bg-emerald-500 inline-block"></span>
-                                                    Connected
-                                                </span>
-                                            @else
-                                                <span class="text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                                                    <span class="size-2 rounded-full bg-zinc-400 inline-block"></span>
-                                                    Disconnected
-                                                </span>
-                                            @endif
-                                        </dd>
-                                    </div>
-
-                                    {{-- Profile --}}
-                                    <div>
-                                        <dt class="text-zinc-400">Profile</dt>
-                                        <dd class="mt-1 font-medium font-mono text-zinc-800 dark:text-zinc-200">
-                                            {{ $statusPpp['profile'] ?? $layanan->paketLayanan->profilBandwidth?->nama_bandwidth ?? '—' }}
-                                        </dd>
-                                    </div>
-
-                                    {{-- Service --}}
-                                    <div>
-                                        <dt class="text-zinc-400">Service</dt>
-                                        <dd class="mt-1 font-medium font-mono uppercase text-zinc-800 dark:text-zinc-200">
-                                            {{ $statusPpp['service'] ?? $layanan->jenis_koneksi?->value ?? 'pppoe' }}
-                                        </dd>
-                                    </div>
-
-                                    {{-- IP Address / Remote IP --}}
-                                    <div>
-                                        <dt class="text-zinc-400">IP Remote (ONT)</dt>
-                                        <dd class="mt-1 font-mono text-xs">
-                                            @if ($isConnected && ! empty($statusPpp['ip_address']))
-                                                <a href="http://{{ $statusPpp['ip_address'] }}" target="_blank" rel="noopener noreferrer" class="font-bold text-primary-600 dark:text-primary-400 hover:underline inline-flex items-center gap-1" title="Remote ONT Web GUI">
-                                                    {{ $statusPpp['ip_address'] }}
-                                                    <flux:icon name="arrow-top-right-on-square" class="size-3" />
-                                                </a>
-                                            @elseif (! $isConnected)
-                                                <div class="flex flex-col gap-0.5">
-                                                    <span class="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 text-[11px] font-semibold text-rose-700 dark:bg-rose-950 dark:text-rose-300 w-fit">
-                                                        <span class="size-1.5 rounded-full bg-rose-500"></span>
-                                                        Belum tersambung (Offline)
-                                                    </span>
-                                                    @if (! empty($layanan->ip_static))
-                                                        <span class="text-[10px] text-zinc-400 font-normal">Target Statis: {{ $layanan->ip_static }}</span>
-                                                    @endif
-                                                </div>
-                                            @else
-                                                <span class="text-zinc-400">—</span>
-                                            @endif
-                                        </dd>
-                                    </div>
-
-                                    {{-- Uptime --}}
-                                    <div>
-                                        <dt class="text-zinc-400">Uptime</dt>
-                                        <dd class="mt-1 font-medium font-mono text-zinc-800 dark:text-zinc-200">
-                                            {{ $statusPpp['uptime'] ?? '—' }}
-                                        </dd>
-                                    </div>
-
-                                    {{-- Last Disconnect / Logged Out --}}
-                                    <div>
-                                        <dt class="text-zinc-400">Last DN / Logout</dt>
-                                        <dd class="mt-1 text-zinc-700 dark:text-zinc-300">
-                                            {{ $statusPpp['last_logged_out'] ?? '—' }}
-                                        </dd>
-                                    </div>
-                                </dl>
-
-                                {{-- Additional Row: Gateway, Caller ID MAC, Disabled --}}
-                                <dl class="mt-3 pt-3 border-t border-zinc-200/60 dark:border-zinc-700/60 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 text-xs">
-                                    <div>
-                                        <dt class="text-zinc-400">Gateway (Local IP)</dt>
-                                        <dd class="mt-0.5 font-mono text-zinc-700 dark:text-zinc-300">
-                                            {{ $statusPpp['local_address'] ?? $layanan->resolveLocalAddress() ?? '—' }}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt class="text-zinc-400">Caller ID (MAC ONT)</dt>
-                                        <dd class="mt-0.5 font-mono text-zinc-700 dark:text-zinc-300">
-                                            {{ $statusPpp['caller_id'] ?? '—' }}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt class="text-zinc-400">Status Secret (Disabled)</dt>
-                                        <dd class="mt-0.5">
-                                            @if ($isDisabled)
-                                                <span class="inline-flex items-center rounded bg-rose-50 px-1.5 py-0.5 text-[11px] font-medium text-rose-700 dark:bg-rose-950 dark:text-rose-300">
-                                                    true (Isolir)
-                                                </span>
-                                            @else
-                                                <span class="inline-flex items-center rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                                                    false (Aktif)
-                                                </span>
-                                            @endif
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt class="text-zinc-400">Port ODP</dt>
-                                        <dd class="mt-0.5 text-zinc-700 dark:text-zinc-300">
-                                            {{ $layanan->odpPort?->odp?->nama_odp ?? '—' }} (Port {{ $layanan->odpPort?->nomor_port ?? '—' }})
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt class="text-zinc-400">Tanggal Mulai</dt>
-                                        <dd class="mt-0.5 text-zinc-700 dark:text-zinc-300">
-                                            {{ $layanan->tanggal_mulai->format('d/m/Y') }}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt class="text-zinc-400">Auto Isolir</dt>
-                                        <dd class="mt-0.5 text-zinc-700 dark:text-zinc-300">
-                                            {{ $layanan->auto_isolir ? 'Aktif' : 'Nonaktif' }}
-                                        </dd>
-                                    </div>
-                                </dl>
+                                </dd>
                             </div>
-                        </div>
-                    @endforeach
+                            <div>
+                                <dt class="text-sm text-zinc-500 dark:text-zinc-400">Secret PPP</dt>
+                                <dd class="mt-1">
+                                    <flux:badge size="sm" :color="$isDisabled ? 'rose' : 'emerald'">{{ $isDisabled ? 'Disabled (isolir)' : 'Enabled' }}</flux:badge>
+                                </dd>
+                            </div>
+                        </dl>
+                    </details>
+                </article>
+            @empty
+                <div class="rounded-xl border-2 border-dashed border-zinc-300 p-8 text-center sm:p-12 dark:border-zinc-700">
+                    <flux:icon name="rss" class="mx-auto size-8 text-zinc-400" />
+                    <p class="mt-2 text-base font-medium text-zinc-700 dark:text-zinc-300">Belum ada layanan</p>
+                    <p class="mt-1 text-sm text-zinc-500">Pelanggan ini belum memiliki paket internet atau akun PPP.</p>
                 </div>
-            @endif
+            @endforelse
         </div>
     @endif
 
-    {{-- Tab 3: Tagihan & Pembayaran (Billing Keuangan) --}}
+    {{-- ═══════════ Tab 3: Tagihan & Pembayaran ═══════════ --}}
     @if ($activeTab === 'billing')
-        <div class="space-y-8">
-            {{-- 1. Tagihan Aktif (Belum Lunas / Pending) --}}
-            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-100 pb-4 dark:border-zinc-800">
-                    <div class="flex items-center gap-3">
-                        <div class="flex size-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400">
-                            <flux:icon name="exclamation-circle" class="size-5" />
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <flux:heading size="base">Tagihan Aktif (Belum Lunas / Pending)</flux:heading>
-                                <flux:badge size="sm" :color="$invoicesAktif->isNotEmpty() ? 'rose' : 'zinc'">
-                                    {{ $invoicesAktif->count() }} Tagihan
-                                </flux:badge>
-                            </div>
-                            <flux:description class="text-xs">Daftar invoice berjalan yang menunggu pembayaran atau tertunda.</flux:description>
-                        </div>
-                    </div>
-
-                    @can('create', App\Models\Invoice::class)
-                        <flux:button type="button" wire:click="openTambahInvoiceModal" size="sm" variant="subtle" icon="plus">
-                            Tambah Invoice
-                        </flux:button>
-                    @endcan
+        <div class="space-y-6">
+            <div class="flex flex-col gap-4 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6 {{ $totalBelumDibayar > 0 ? 'border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/40' : 'border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900' }}">
+                <div>
+                    <div class="text-sm text-zinc-600 dark:text-zinc-400">Belum dibayar · {{ $invoicesAktif->count() }} tagihan</div>
+                    <div class="mt-1 text-3xl font-semibold {{ $totalBelumDibayar > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-zinc-900 dark:text-zinc-50' }}">Rp {{ number_format($totalBelumDibayar, 0, ',', '.') }}</div>
                 </div>
-
-                <div class="mt-4">
-                    @if ($invoicesAktif->isNotEmpty())
-                        <div class="overflow-x-auto">
-                            <flux:table>
-                                <flux:table.columns>
-                                    <flux:table.column>No. Invoice</flux:table.column>
-                                    <flux:table.column>Layanan</flux:table.column>
-                                    <flux:table.column>Detail</flux:table.column>
-                                    <flux:table.column>Tanggal</flux:table.column>
-                                    <flux:table.column>Metode</flux:table.column>
-                                    <flux:table.column>Teller / Ref</flux:table.column>
-                                    <flux:table.column>Jumlah</flux:table.column>
-                                    <flux:table.column>Promo</flux:table.column>
-                                    <flux:table.column>Status</flux:table.column>
-                                    <flux:table.column class="text-right">Proses</flux:table.column>
-                                </flux:table.columns>
-
-                                <flux:table.rows>
-                                    @foreach ($invoicesAktif as $inv)
-                                        @php
-                                            $pgTrx = $inv->transaksiPaymentGateways->first();
-                                        @endphp
-                                        <flux:table.row :key="$inv->id">
-                                            {{-- No Invoice --}}
-                                            <flux:table.cell>
-                                                <a href="{{ route('invoice.show', $inv) }}" wire:navigate class="font-mono text-xs font-bold text-primary-600 hover:underline dark:text-primary-400">
-                                                    {{ $inv->no_invoice }}
-                                                </a>
-                                            </flux:table.cell>
-
-                                            {{-- Layanan --}}
-                                            <flux:table.cell class="text-xs">
-                                                <div class="font-medium text-zinc-800 dark:text-zinc-200">
-                                                    {{ $inv->layananPelanggan?->paketLayanan?->nama_paket ?? 'Layanan' }}
-                                                </div>
-                                                <div class="font-mono text-[11px] text-zinc-400">
-                                                    {{ $inv->layananPelanggan?->site_id ?? '—' }}
-                                                </div>
-                                            </flux:table.cell>
-
-                                            {{-- Detail (Periode Tagihan) --}}
-                                            <flux:table.cell class="text-xs">
-                                                <span class="font-medium text-zinc-700 dark:text-zinc-300">
-                                                    {{ $inv->formattedPeriodeTagihan() }}
-                                                </span>
-                                            </flux:table.cell>
-
-                                            {{-- Tanggal (Jatuh Tempo) --}}
-                                            <flux:table.cell class="text-xs">
-                                                <div class="text-zinc-800 dark:text-zinc-200">
-                                                    {{ $inv->tanggal_jatuh_tempo->format('d/m/Y') }}
-                                                </div>
-                                                <span class="text-[11px] text-zinc-400">Terbit: {{ $inv->tanggal_terbit->format('d/m/Y') }}</span>
-                                            </flux:table.cell>
-
-                                            {{-- Metode --}}
-                                            <flux:table.cell class="text-xs">
-                                                @if ($pgTrx)
-                                                    <flux:badge size="sm" color="indigo">
-                                                        {{ strtoupper($pgTrx->gateway) }} ({{ strtoupper($pgTrx->channel?->value ?? 'VA') }})
-                                                    </flux:badge>
-                                                @elseif ($inv->metode_pembayaran)
-                                                    <span class="capitalize text-zinc-700 dark:text-zinc-300">{{ $inv->metode_pembayaran?->label() ?? $inv->metode_pembayaran }}</span>
-                                                @else
-                                                    <span class="text-zinc-400">—</span>
-                                                @endif
-                                            </flux:table.cell>
-
-                                            {{-- Teller / Ref --}}
-                                            <flux:table.cell class="text-xs">
-                                                @if ($pgTrx && $pgTrx->nomor_pembayaran)
-                                                    <div class="font-mono text-[11px] font-semibold text-zinc-800 dark:text-zinc-200">
-                                                        VA: {{ $pgTrx->nomor_pembayaran }}
-                                                    </div>
-                                                @elseif ($inv->xendit_invoice_id)
-                                                    <div class="font-mono text-[11px] text-zinc-500">
-                                                        Xendit: {{ substr($inv->xendit_invoice_id, -8) }}
-                                                    </div>
-                                                @else
-                                                    <span class="text-zinc-400">—</span>
-                                                @endif
-                                            </flux:table.cell>
-
-                                            {{-- Jumlah --}}
-                                            <flux:table.cell>
-                                                <div class="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                                                    {{ $inv->formattedJumlahSetelahPromo() }}
-                                                </div>
-                                                @if ($inv->jumlah != $inv->jumlah_setelah_promo)
-                                                    <span class="text-[11px] line-through text-zinc-400 font-mono">
-                                                        {{ $inv->formattedJumlah() }}
-                                                    </span>
-                                                @endif
-                                            </flux:table.cell>
-
-                                            {{-- Promo --}}
-                                            <flux:table.cell class="text-xs">
-                                                @if ($inv->promo)
-                                                    <flux:badge size="sm" color="emerald" class="text-[11px]">
-                                                        {{ $inv->promo->kode_promo }}
-                                                    </flux:badge>
-                                                @else
-                                                    <span class="text-zinc-400">—</span>
-                                                @endif
-                                            </flux:table.cell>
-
-                                            {{-- Status --}}
-                                            <flux:table.cell>
-                                                <flux:badge size="sm" :color="$inv->status->color()">
-                                                    {{ $inv->status->label() }}
-                                                </flux:badge>
-                                            </flux:table.cell>
-
-                                            {{-- Proses --}}
-                                            <flux:table.cell class="text-right">
-                                                <div class="flex items-center justify-end gap-1.5">
-                                                    @can('create', App\Models\Pembayaran::class)
-                                                        <flux:button
-                                                            type="button"
-                                                            wire:click="openBayarModal({{ $inv->id }})"
-                                                            size="xs"
-                                                            variant="primary"
-                                                            icon="banknotes"
-                                                        >
-                                                            Bayar
-                                                        </flux:button>
-                                                    @endcan
-
-                                                    @if ($inv->hasActiveXenditInvoice())
-                                                        <flux:button
-                                                            :href="$inv->xendit_invoice_url"
-                                                            target="_blank"
-                                                            size="xs"
-                                                            variant="subtle"
-                                                            icon="arrow-top-right-on-square"
-                                                            title="Buka Tautan Pembayaran Xendit"
-                                                        />
-                                                    @endif
-
-                                                    <flux:button
-                                                        :href="route('invoice.show', $inv)"
-                                                        wire:navigate
-                                                        size="xs"
-                                                        variant="ghost"
-                                                        icon="eye"
-                                                        title="Lihat Detail Invoice"
-                                                    />
-                                                </div>
-                                            </flux:table.cell>
-                                        </flux:table.row>
-                                    @endforeach
-                                </flux:table.rows>
-                            </flux:table>
-                        </div>
-                    @else
-                        <div class="rounded-lg border-2 border-dashed border-zinc-200 p-8 text-center dark:border-zinc-800">
-                            <flux:icon name="check-circle" class="mx-auto size-8 text-emerald-500 dark:text-emerald-400" />
-                            <p class="mt-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">Tidak ada tagihan aktif yang tertunda.</p>
-                            <span class="text-[11px] text-zinc-400">Seluruh tagihan pelanggan ini sudah lunas atau belum diterbitkan.</span>
-                        </div>
-                    @endif
-                </div>
+                @can('create', App\Models\Invoice::class)
+                    <flux:button type="button" wire:click="openTambahInvoiceModal" icon="plus">Tambah Invoice</flux:button>
+                @endcan
             </div>
 
-            {{-- 2. Riwayat Pembayaran Lunas --}}
-            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                <div class="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-zinc-800">
-                    <div class="flex items-center gap-3">
-                        <div class="flex size-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
-                            <flux:icon name="check-badge" class="size-5" />
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <flux:heading size="base">Riwayat Pembayaran Lunas</flux:heading>
-                                <span class="text-xs text-zinc-500 font-medium">({{ $invoicesLunas->count() }} Transaksi)</span>
-                            </div>
-                            <flux:description class="text-xs">Catatan pembayaran dan pelunasan tagihan yang berhasil diproses.</flux:description>
-                        </div>
+            {{-- Tagihan belum dibayar --}}
+            <section class="space-y-3">
+                <flux:heading size="lg">Tagihan belum dibayar</flux:heading>
+                @if ($invoicesAktif->isNotEmpty())
+                    <ul class="{{ $card }} divide-y divide-zinc-100 dark:divide-zinc-800">
+                        @foreach ($invoicesAktif as $inv)
+                            @php $pgTrx = $inv->transaksiPaymentGateways->first(); @endphp
+                            <li wire:key="inv-aktif-{{ $inv->id }}" class="flex flex-col gap-4 p-4 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+                                <div class="min-w-0 space-y-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <a href="{{ route('invoice.show', $inv) }}" wire:navigate class="font-mono text-base font-semibold text-primary-600 hover:underline dark:text-primary-400">{{ $inv->no_invoice }}</a>
+                                        <flux:badge size="sm" :color="$inv->status->color()">{{ $inv->status->label() }}</flux:badge>
+                                        @if ($inv->promo)
+                                            <flux:badge size="sm" color="emerald">{{ $inv->promo->kode_promo }}</flux:badge>
+                                        @endif
+                                    </div>
+                                    <p class="text-base text-zinc-900 dark:text-zinc-100">{{ $inv->formattedPeriodeTagihan() }} · {{ $inv->layananPelanggan?->paketLayanan?->nama_paket ?? 'Layanan' }}</p>
+                                    <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                                        Jatuh tempo {{ $inv->tanggal_jatuh_tempo->translatedFormat('d M Y') }} · terbit {{ $inv->tanggal_terbit->translatedFormat('d M Y') }}
+                                        @if ($pgTrx)
+                                            · {{ strtoupper($pgTrx->gateway) }} ({{ strtoupper($pgTrx->channel?->value ?? 'VA') }}){{ $pgTrx->nomor_pembayaran ? ' VA ' . $pgTrx->nomor_pembayaran : '' }}
+                                        @elseif ($inv->metode_pembayaran)
+                                            · {{ $inv->metode_pembayaran?->label() ?? $inv->metode_pembayaran }}
+                                        @endif
+                                    </p>
+                                </div>
+                                <div class="flex items-center justify-between gap-4 lg:justify-end">
+                                    <div class="text-left lg:text-right">
+                                        <div class="font-mono text-lg font-semibold text-zinc-900 dark:text-zinc-50">{{ $inv->formattedJumlahSetelahPromo() }}</div>
+                                        @if ($inv->jumlah != $inv->jumlah_setelah_promo)
+                                            <div class="font-mono text-sm text-zinc-400 line-through">{{ $inv->formattedJumlah() }}</div>
+                                        @endif
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        @can('create', App\Models\Pembayaran::class)
+                                            <flux:button type="button" wire:click="openBayarModal({{ $inv->id }})" variant="primary" icon="banknotes">Bayar</flux:button>
+                                        @endcan
+                                        @if ($inv->hasActiveXenditInvoice())
+                                            <flux:button :href="$inv->xendit_invoice_url" target="_blank" variant="subtle" icon="arrow-top-right-on-square" aria-label="Buka tautan pembayaran Xendit" />
+                                        @endif
+                                    </div>
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="rounded-xl border-2 border-dashed border-zinc-200 p-8 text-center dark:border-zinc-800">
+                        <flux:icon name="check-circle" class="mx-auto size-8 text-emerald-500" />
+                        <p class="mt-2 text-base font-medium text-zinc-700 dark:text-zinc-300">Tidak ada tagihan yang belum dibayar.</p>
                     </div>
-                </div>
+                @endif
+            </section>
 
-                <div class="mt-4">
-                    @if ($invoicesLunas->isNotEmpty())
-                        <div class="overflow-x-auto">
-                            <flux:table>
-                                <flux:table.columns>
-                                    <flux:table.column>No. Invoice</flux:table.column>
-                                    <flux:table.column>Layanan</flux:table.column>
-                                    <flux:table.column>Detail</flux:table.column>
-                                    <flux:table.column>Tanggal</flux:table.column>
-                                    <flux:table.column>Metode</flux:table.column>
-                                    <flux:table.column>Teller / Ref</flux:table.column>
-                                    <flux:table.column>Jumlah (Rp.)</flux:table.column>
-                                    <flux:table.column>Promo</flux:table.column>
-                                    <flux:table.column>Status</flux:table.column>
-                                    <flux:table.column class="text-right">Aksi</flux:table.column>
-                                </flux:table.columns>
+            {{-- Riwayat lunas --}}
+            <section class="space-y-3">
+                <flux:heading size="lg">Riwayat Pembayaran Lunas <span class="text-base font-normal text-zinc-500">({{ $invoicesLunas->count() }})</span></flux:heading>
+                @if ($invoicesLunas->isNotEmpty())
+                    <ul class="{{ $card }} divide-y divide-zinc-100 dark:divide-zinc-800">
+                        @foreach ($invoicesLunas as $inv)
+                            @php $lastPayment = $inv->pembayarans->first(); @endphp
+                            <li wire:key="inv-lunas-{{ $inv->id }}">
+                                <a href="{{ route('invoice.show', $inv) }}" wire:navigate class="flex flex-col gap-2 p-4 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between sm:p-6 dark:hover:bg-zinc-800/60">
+                                    <div class="min-w-0 space-y-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="font-mono text-base font-semibold text-primary-600 dark:text-primary-400">{{ $inv->no_invoice }}</span>
+                                            @if ($inv->promo)
+                                                <flux:badge size="sm" color="emerald">{{ $inv->promo->kode_promo }}</flux:badge>
+                                            @endif
+                                        </div>
+                                        <p class="text-base text-zinc-900 dark:text-zinc-100">{{ $inv->formattedPeriodeTagihan() }} · {{ $inv->layananPelanggan?->paketLayanan?->nama_paket ?? 'Layanan' }}</p>
+                                        <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                                            Lunas {{ $inv->tanggal_lunas?->translatedFormat('d M Y') ?? $lastPayment?->dibayar_pada?->translatedFormat('d M Y') ?? '—' }}
+                                            · {{ $lastPayment?->metode?->label() ?? $inv->metode_pembayaran?->label() ?? 'Lunas' }}
+                                            · {{ $lastPayment?->dicatatOleh?->name ?? 'Sistem Gateway' }}
+                                            @if ($lastPayment?->referensi_transaksi)
+                                                · Ref {{ $lastPayment->referensi_transaksi }}
+                                            @endif
+                                        </p>
+                                    </div>
+                                    <div class="font-mono text-lg font-semibold text-emerald-700 sm:text-right dark:text-emerald-400">{{ $inv->formattedJumlahSetelahPromo() }}</div>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="rounded-xl border-2 border-dashed border-zinc-200 p-8 text-center text-base text-zinc-500 dark:border-zinc-800">Belum ada invoice yang lunas.</div>
+                @endif
+            </section>
 
-                                <flux:table.rows>
-                                    @foreach ($invoicesLunas as $inv)
-                                        @php
-                                            $lastPayment = $inv->pembayarans->first();
-                                        @endphp
-                                        <flux:table.row :key="$inv->id">
-                                            {{-- No Invoice --}}
-                                            <flux:table.cell>
-                                                <a href="{{ route('invoice.show', $inv) }}" wire:navigate class="font-mono text-xs font-bold text-primary-600 hover:underline dark:text-primary-400">
-                                                    {{ $inv->no_invoice }}
-                                                </a>
-                                            </flux:table.cell>
-
-                                            {{-- Layanan --}}
-                                            <flux:table.cell class="text-xs">
-                                                <div class="font-medium text-zinc-800 dark:text-zinc-200">
-                                                    {{ $inv->layananPelanggan?->paketLayanan?->nama_paket ?? 'Layanan' }}
-                                                </div>
-                                                <div class="font-mono text-[11px] text-zinc-400">
-                                                    {{ $inv->layananPelanggan?->site_id ?? '—' }}
-                                                </div>
-                                            </flux:table.cell>
-
-                                            {{-- Detail (Periode Tagihan) --}}
-                                            <flux:table.cell class="text-xs">
-                                                <span class="font-medium text-zinc-700 dark:text-zinc-300">
-                                                    {{ $inv->formattedPeriodeTagihan() }}
-                                                </span>
-                                            </flux:table.cell>
-
-                                            {{-- Tanggal (Tanggal Lunas / Bayar) --}}
-                                            <flux:table.cell class="text-xs">
-                                                <div class="font-medium text-zinc-800 dark:text-zinc-200">
-                                                    {{ $inv->tanggal_lunas?->format('d/m/Y') ?? $lastPayment?->dibayar_pada?->format('d/m/Y') ?? '—' }}
-                                                </div>
-                                                @if ($lastPayment?->dibayar_pada)
-                                                    <span class="text-[11px] text-zinc-400">{{ $lastPayment->dibayar_pada->format('H:i') }} WIB</span>
-                                                @endif
-                                            </flux:table.cell>
-
-                                            {{-- Metode --}}
-                                            <flux:table.cell class="text-xs">
-                                                <flux:badge size="sm" color="zinc">
-                                                    {{ $lastPayment?->metode?->label() ?? $inv->metode_pembayaran?->label() ?? 'Lunas' }}
-                                                </flux:badge>
-                                            </flux:table.cell>
-
-                                            {{-- Teller / Ref --}}
-                                            <flux:table.cell class="text-xs">
-                                                <div class="text-zinc-700 dark:text-zinc-300">
-                                                    {{ $lastPayment?->dicatatOleh?->name ?? 'Sistem Gateway' }}
-                                                </div>
-                                                @if ($lastPayment?->referensi_transaksi)
-                                                    <div class="font-mono text-[11px] text-zinc-400">Ref: {{ $lastPayment->referensi_transaksi }}</div>
-                                                @endif
-                                            </flux:table.cell>
-
-                                            {{-- Jumlah --}}
-                                            <flux:table.cell class="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
-                                                {{ $inv->formattedJumlahSetelahPromo() }}
-                                            </flux:table.cell>
-
-                                            {{-- Promo --}}
-                                            <flux:table.cell class="text-xs">
-                                                @if ($inv->promo)
-                                                    <flux:badge size="sm" color="emerald" class="text-[11px]">
-                                                        {{ $inv->promo->kode_promo }}
-                                                    </flux:badge>
-                                                @else
-                                                    <span class="text-zinc-400">—</span>
-                                                @endif
-                                            </flux:table.cell>
-
-                                            {{-- Status --}}
-                                            <flux:table.cell>
-                                                <flux:badge size="sm" color="emerald">
-                                                    Lunas
-                                                </flux:badge>
-                                            </flux:table.cell>
-
-                                            {{-- Aksi --}}
-                                            <flux:table.cell class="text-right">
-                                                <flux:button
-                                                    :href="route('invoice.show', $inv)"
-                                                    wire:navigate
-                                                    size="xs"
-                                                    variant="ghost"
-                                                    icon="arrow-top-right-on-square"
-                                                    title="Lihat Kuitansi / Invoice"
-                                                />
-                                            </flux:table.cell>
-                                        </flux:table.row>
-                                    @endforeach
-                                </flux:table.rows>
-                            </flux:table>
-                        </div>
-                    @else
-                        <div class="rounded-lg border-2 border-dashed border-zinc-200 p-8 text-center dark:border-zinc-800">
-                            <flux:icon name="banknotes" class="mx-auto size-8 text-zinc-300 dark:text-zinc-600" />
-                            <p class="mt-2 text-xs text-zinc-500">Belum ada riwayat invoice yang telah lunas.</p>
-                        </div>
-                    @endif
-                </div>
-            </div>
-
-            {{-- 3. Riwayat Invoice Dihapus --}}
-            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                <div class="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-zinc-800">
-                    <div class="flex items-center gap-3">
-                        <div class="flex size-9 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                            <flux:icon name="trash" class="size-5" />
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <flux:heading size="base">Riwayat Invoice Dihapus / Dibatalkan</flux:heading>
-                                <span class="text-xs text-zinc-500 font-medium">({{ $invoicesDihapus->count() }} Data)</span>
-                            </div>
-                            <flux:description class="text-xs">Daftar invoice tagihan yang pernah dibatalkan atau dihapus dari sistem (audit trail).</flux:description>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                    @if ($invoicesDihapus->isNotEmpty())
-                        <div class="overflow-x-auto">
-                            <flux:table>
-                                <flux:table.columns>
-                                    <flux:table.column>No. Invoice</flux:table.column>
-                                    <flux:table.column>Layanan</flux:table.column>
-                                    <flux:table.column>Detail</flux:table.column>
-                                    <flux:table.column>Tanggal</flux:table.column>
-                                    <flux:table.column>Jumlah</flux:table.column>
-                                    <flux:table.column>Dihapus Oleh</flux:table.column>
-                                    <flux:table.column>Keterangan</flux:table.column>
-                                </flux:table.columns>
-
-                                <flux:table.rows>
-                                    @foreach ($invoicesDihapus as $delInv)
-                                        <flux:table.row :key="$delInv->id">
-                                            {{-- No Invoice --}}
-                                            <flux:table.cell class="font-mono text-xs font-medium text-zinc-500">
-                                                {{ $delInv->no_invoice }}
-                                            </flux:table.cell>
-
-                                            {{-- Layanan --}}
-                                            <flux:table.cell class="text-xs text-zinc-600 dark:text-zinc-400">
-                                                {{ $delInv->layananPelanggan?->paketLayanan?->nama_paket ?? '—' }}
-                                            </flux:table.cell>
-
-                                            {{-- Detail --}}
-                                            <flux:table.cell class="text-xs text-zinc-600 dark:text-zinc-400">
-                                                {{ $delInv->formattedPeriodeTagihan() }}
-                                            </flux:table.cell>
-
-                                            {{-- Tanggal --}}
-                                            <flux:table.cell class="text-xs text-zinc-500">
-                                                <div>{{ $delInv->deleted_at?->translatedFormat('d M Y, H:i') ?? '—' }}</div>
-                                            </flux:table.cell>
-
-                                            {{-- Jumlah --}}
-                                            <flux:table.cell class="font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                                                {{ $delInv->formattedJumlahSetelahPromo() }}
-                                            </flux:table.cell>
-
-                                            {{-- Dihapus Oleh --}}
-                                            <flux:table.cell class="text-xs text-zinc-700 dark:text-zinc-300 font-medium">
-                                                {{ $delInv->dihapusOleh?->name ?? 'Sistem' }}
-                                            </flux:table.cell>
-
-                                            {{-- Keterangan --}}
-                                            <flux:table.cell class="text-xs text-zinc-500 italic max-w-xs truncate" title="{{ $delInv->keterangan_hapus }}">
-                                                {{ $delInv->keterangan_hapus ?: '—' }}
-                                            </flux:table.cell>
-                                        </flux:table.row>
-                                    @endforeach
-                                </flux:table.rows>
-                            </flux:table>
-                        </div>
-                    @else
-                        <div class="rounded-lg border border-dashed border-zinc-200 p-6 text-center text-xs text-zinc-400 dark:border-zinc-800">
-                            Tidak ada data invoice yang dihapus untuk pelanggan ini.
-                        </div>
-                    @endif
-                </div>
-            </div>
+            {{-- Invoice dihapus: jarang dibuka, dilipat --}}
+            <details class="{{ $card }} group">
+                <summary class="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 text-base font-semibold text-zinc-900 sm:px-6 dark:text-zinc-50">
+                    <span>Riwayat Invoice Dihapus / Dibatalkan <span class="font-normal text-zinc-500">({{ $invoicesDihapus->count() }})</span></span>
+                    <flux:icon name="chevron-down" class="size-5 text-zinc-400 transition group-open:rotate-180" />
+                </summary>
+                @if ($invoicesDihapus->isNotEmpty())
+                    <ul class="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+                        @foreach ($invoicesDihapus as $delInv)
+                            <li wire:key="inv-hapus-{{ $delInv->id }}" class="flex flex-col gap-1 p-4 sm:px-6">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <span class="font-mono text-base text-zinc-600 dark:text-zinc-400">{{ $delInv->no_invoice }}</span>
+                                    <span class="font-mono text-base text-zinc-600 dark:text-zinc-400">{{ $delInv->formattedJumlahSetelahPromo() }}</span>
+                                </div>
+                                <p class="text-sm text-zinc-500">{{ $delInv->formattedPeriodeTagihan() }} · {{ $delInv->layananPelanggan?->paketLayanan?->nama_paket ?? '—' }}</p>
+                                <p class="text-sm text-zinc-500">Dihapus {{ $delInv->deleted_at?->translatedFormat('d M Y, H:i') ?? '—' }} oleh {{ $delInv->dihapusOleh?->name ?? 'Sistem' }}</p>
+                                @if ($delInv->keterangan_hapus)
+                                    <p class="text-sm italic text-zinc-600 dark:text-zinc-400">“{{ $delInv->keterangan_hapus }}”</p>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <p class="border-t border-zinc-100 p-4 text-sm text-zinc-500 sm:px-6 dark:border-zinc-800">Tidak ada invoice yang dihapus.</p>
+                @endif
+            </details>
         </div>
     @endif
 
-    {{-- Tab 4: Dokumen & Legalitas --}}
+    {{-- ═══════════ Tab 4: Dokumen & Legalitas ═══════════ --}}
     @if ($activeTab === 'dokumen')
         <div class="space-y-6">
-            {{-- Toolbar & Actions --}}
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <flux:heading size="base">Dokumen Identitas & Legalitas</flux:heading>
-                    <flux:subheading>Seluruh berkas disimpan terenkripsi di penyimpanan privat dan dilindungi tanda air dinamis (UU PDP).</flux:subheading>
+                    <flux:heading size="lg">Dokumen Identitas & Legalitas</flux:heading>
+                    <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Berkas disimpan terenkripsi dan dilindungi tanda air dinamis (UU PDP).</p>
                 </div>
-
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap gap-2">
                     @can('update', $pelanggan)
-                        <flux:button wire:click="openUploadKtpModal" variant="subtle" icon="identification">
-                            {{ $ktpMedia ? 'Ganti Foto KTP' : 'Unggah Foto KTP' }}
-                        </flux:button>
+                        <flux:button wire:click="openUploadKtpModal" variant="subtle" icon="identification" class="flex-1 sm:flex-none">{{ $ktpMedia ? 'Ganti Foto KTP' : 'Unggah Foto KTP' }}</flux:button>
                     @endcan
-
                     @can('uploadDokumen', $pelanggan)
-                        <flux:button wire:click="openUploadDocModal" variant="primary" icon="plus">
-                            Unggah Dokumen Baru
-                        </flux:button>
+                        <flux:button wire:click="openUploadDocModal" variant="primary" icon="plus" class="flex-1 sm:flex-none">Unggah Dokumen Baru</flux:button>
                     @endcan
                 </div>
             </div>
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                {{-- Card KTP Pelanggan --}}
-                <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                    <div class="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
-                        <div class="flex items-center gap-2">
-                            <div class="flex size-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
-                                <flux:icon name="identification" class="size-5" />
-                            </div>
-                            <div>
-                                <flux:heading size="sm">Kartu Identitas (KTP)</flux:heading>
-                                <flux:description class="text-xs">Foto identitas resmi</flux:description>
-                            </div>
+                {{-- KTP --}}
+                <section class="{{ $card }} p-4 sm:p-6">
+                    <div class="flex items-center justify-between gap-2">
+                        <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-50">Kartu Identitas (KTP)</h3>
+                        <flux:badge size="sm" :color="$ktpMedia ? 'green' : 'zinc'" :icon="$ktpMedia ? 'lock-closed' : null">{{ $ktpMedia ? 'Terenkripsi' : 'Belum Ada' }}</flux:badge>
+                    </div>
+                    @if ($ktpMedia)
+                        <div class="mt-4 flex flex-col items-center gap-2 rounded-lg bg-zinc-50 p-6 text-center dark:bg-zinc-800/60">
+                            <flux:icon name="shield-check" class="size-8 text-emerald-600 dark:text-emerald-400" />
+                            <span class="text-base font-medium text-zinc-700 dark:text-zinc-300">Berkas KTP tersimpan aman</span>
+                            <span class="break-all font-mono text-sm text-zinc-500">{{ $ktpMedia->file_name }} ({{ number_format($ktpMedia->size / 1024, 1) }} KB)</span>
                         </div>
-
-                        @if ($ktpMedia)
-                            <flux:badge color="green" size="sm" icon="lock-closed">Terenkripsi</flux:badge>
+                        @can('viewKtp', $pelanggan)
+                            <flux:button wire:click="openKtpModal" variant="primary" icon="eye" class="mt-4 w-full">Buka Foto KTP (Watermarked)</flux:button>
                         @else
-                            <flux:badge color="zinc" size="sm">Belum Ada</flux:badge>
-                        @endif
-                    </div>
-
-                    <div class="mt-4 space-y-4">
-                        @if ($ktpMedia)
-                            {{-- Masked Preview Box --}}
-                            <div class="relative overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 p-6 text-center dark:border-zinc-800 dark:bg-zinc-950/60">
-                                <div class="flex flex-col items-center justify-center gap-2">
-                                    <div class="flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-                                        <flux:icon name="shield-check" class="size-6" />
-                                    </div>
-                                    <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300">Berkas KTP Tersimpan Aman</span>
-                                    <span class="text-[11px] text-zinc-500 font-mono">{{ $ktpMedia->file_name }} ({{ number_format($ktpMedia->size / 1024, 1) }} KB)</span>
-                                </div>
-                            </div>
-
-                            <div class="space-y-2">
-                                @can('viewKtp', $pelanggan)
-                                    <flux:button wire:click="openKtpModal" variant="primary" class="w-full" icon="eye">
-                                        Buka Foto KTP (Watermarked)
-                                    </flux:button>
-                                @else
-                                    <div class="rounded-lg bg-amber-50 p-2.5 text-center text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
-                                        Anda tidak memiliki hak akses untuk melihat foto KTP.
-                                    </div>
-                                @endcan
-                            </div>
-                        @else
-                            <div class="rounded-lg border-2 border-dashed border-zinc-200 p-6 text-center dark:border-zinc-800">
-                                <flux:icon name="identification" class="mx-auto size-8 text-zinc-300 dark:text-zinc-600" />
-                                <p class="mt-2 text-xs text-zinc-500">Belum ada foto KTP yang diunggah untuk pelanggan ini.</p>
-                                @can('update', $pelanggan)
-                                    <flux:button wire:click="openUploadKtpModal" variant="ghost" size="sm" class="mt-3" icon="arrow-up-tray">
-                                        Unggah Sekarang
-                                    </flux:button>
-                                @endcan
-                            </div>
-                        @endif
-                    </div>
-                </div>
-
-                {{-- Kolom Tabel Dokumen Pendukung & MOU --}}
-                <div class="lg:col-span-2 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-                    <div class="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
-                        <div class="flex items-center gap-2">
-                            <div class="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
-                                <flux:icon name="document-text" class="size-5" />
-                            </div>
-                            <div>
-                                <flux:heading size="sm">Dokumen MOU & Legalitas Pendukung</flux:heading>
-                                <flux:description class="text-xs">Kontrak kerja sama, berita acara, dan berkas syarat administrasi</flux:description>
-                            </div>
+                            <p class="mt-4 rounded-lg bg-amber-50 p-3 text-center text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">Anda tidak memiliki hak akses untuk melihat foto KTP.</p>
+                        @endcan
+                    @else
+                        <div class="mt-4 rounded-lg border-2 border-dashed border-zinc-200 p-6 text-center dark:border-zinc-800">
+                            <flux:icon name="identification" class="mx-auto size-8 text-zinc-300 dark:text-zinc-600" />
+                            <p class="mt-2 text-sm text-zinc-500">Belum ada foto KTP.</p>
+                            @can('update', $pelanggan)
+                                <flux:button wire:click="openUploadKtpModal" variant="ghost" icon="arrow-up-tray" class="mt-2">Unggah Sekarang</flux:button>
+                            @endcan
                         </div>
+                    @endif
+                </section>
 
-                        <span class="text-xs text-zinc-500 font-medium">{{ $dokumens->count() }} Dokumen</span>
+                {{-- Dokumen pendukung --}}
+                <section class="{{ $card }} lg:col-span-2">
+                    <div class="flex items-center justify-between gap-2 p-4 sm:p-6">
+                        <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-50">Dokumen MOU & Legalitas Pendukung</h3>
+                        <span class="text-sm text-zinc-500">{{ $dokumens->count() }} dokumen</span>
                     </div>
-
-                    <div class="mt-4">
-                        @if ($dokumens->isNotEmpty())
-                            <div class="overflow-x-auto">
-                                <flux:table>
-                                    <flux:table.columns>
-                                        <flux:table.column>Dokumen</flux:table.column>
-                                        <flux:table.column>Jenis</flux:table.column>
-                                        <flux:table.column>Keterangan</flux:table.column>
-                                        <flux:table.column>Diunggah</flux:table.column>
-                                        <flux:table.column class="text-right">Aksi</flux:table.column>
-                                    </flux:table.columns>
-
-                                    <flux:table.rows>
-                                        @foreach ($dokumens as $doc)
-                                            @php
-                                                $jenis = $doc->getCustomProperty('jenis_dokumen', 'Dokumen');
-                                                $nomor = $doc->getCustomProperty('nomor_dokumen');
-                                                $ket = $doc->getCustomProperty('keterangan');
-                                                $uploader = $doc->getCustomProperty('uploaded_by', 'Staf');
-                                                $isPdf = str_contains((string) $doc->mime_type, 'pdf');
-                                            @endphp
-                                            <flux:table.row :key="$doc->id">
-                                                <flux:table.cell>
-                                                    <div class="flex items-center gap-2">
-                                                        <flux:icon :name="$isPdf ? 'document-text' : 'photo'" class="size-4 text-zinc-500 shrink-0" />
-                                                        <div class="flex flex-col">
-                                                            <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100 truncate max-w-[180px]">{{ $doc->file_name }}</span>
-                                                            <span class="text-[11px] text-zinc-400">{{ number_format($doc->size / 1024, 1) }} KB</span>
-                                                        </div>
-                                                    </div>
-                                                </flux:table.cell>
-
-                                                <flux:table.cell>
-                                                    <flux:badge size="sm" :color="match ($jenis) {
-                                                        'MOU / Kontrak' => 'indigo',
-                                                        'Formulir Berlangganan' => 'emerald',
-                                                        'Surat Kuasa' => 'amber',
-                                                        'Berita Acara Pemasangan' => 'cyan',
-                                                        default => 'zinc',
-                                                    }">
-                                                        {{ $jenis }}
-                                                    </flux:badge>
-                                                    @if ($nomor)
-                                                        <span class="block text-[11px] font-mono text-zinc-500 mt-0.5">{{ $nomor }}</span>
-                                                    @endif
-                                                </flux:table.cell>
-
-                                                <flux:table.cell class="text-xs text-zinc-600 dark:text-zinc-400">
-                                                    {{ $ket ?: '—' }}
-                                                </flux:table.cell>
-
-                                                <flux:table.cell class="text-xs text-zinc-500">
-                                                    <div>{{ $doc->created_at->translatedFormat('d M Y, H:i') }}</div>
-                                                    <div class="text-[11px] text-zinc-400">Oleh: {{ $uploader }}</div>
-                                                </flux:table.cell>
-
-                                                <flux:table.cell class="text-right">
-                                                    <div class="flex items-center justify-end gap-1.5">
-                                                        @can('viewDokumen', $pelanggan)
-                                                            <flux:button
-                                                                :href="route('pelanggan.dokumen.stream', [$pelanggan, $doc])"
-                                                                target="_blank"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                icon="arrow-down-tray"
-                                                                title="Lihat / Unduh Dokumen"
-                                                            />
-                                                        @endcan
-
-                                                        @can('deleteDokumen', $pelanggan)
-                                                            <flux:button
-                                                                wire:click="deleteDokumen({{ $doc->id }})"
-                                                                wire:confirm="Apakah Anda yakin ingin menghapus berkas dokumen {{ $doc->file_name }}?"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                icon="trash"
-                                                                class="text-red-500 hover:text-red-700"
-                                                                title="Hapus Dokumen"
-                                                            />
-                                                        @endcan
-                                                    </div>
-                                                </flux:table.cell>
-                                            </flux:table.row>
-                                        @endforeach
-                                    </flux:table.rows>
-                                </flux:table>
-                            </div>
-                        @else
-                            <div class="rounded-lg border-2 border-dashed border-zinc-200 p-8 text-center dark:border-zinc-800">
-                                <flux:icon name="document-text" class="mx-auto size-8 text-zinc-300 dark:text-zinc-600" />
-                                <p class="mt-2 text-xs text-zinc-500">Belum ada berkas MOU atau dokumen legalitas yang diunggah.</p>
-                                @can('uploadDokumen', $pelanggan)
-                                    <flux:button wire:click="openUploadDocModal" variant="ghost" size="sm" class="mt-3" icon="plus">
-                                        Unggah Dokumen MOU
-                                    </flux:button>
-                                @endcan
-                            </div>
-                        @endif
-                    </div>
-                </div>
+                    @if ($dokumens->isNotEmpty())
+                        <ul class="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+                            @foreach ($dokumens as $doc)
+                                @php
+                                    $jenis = $doc->getCustomProperty('jenis_dokumen', 'Dokumen');
+                                    $nomor = $doc->getCustomProperty('nomor_dokumen');
+                                    $ket = $doc->getCustomProperty('keterangan');
+                                    $isPdf = str_contains((string) $doc->mime_type, 'pdf');
+                                @endphp
+                                <li wire:key="doc-{{ $doc->id }}" class="flex items-start gap-3 p-4 sm:px-6">
+                                    <flux:icon :name="$isPdf ? 'document-text' : 'photo'" class="mt-0.5 size-6 shrink-0 text-zinc-400" />
+                                    <div class="min-w-0 flex-1 space-y-1">
+                                        <p class="break-all text-base font-medium text-zinc-900 dark:text-zinc-100">{{ $doc->file_name }}</p>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <flux:badge size="sm" :color="match ($jenis) {
+                                                'MOU / Kontrak' => 'indigo',
+                                                'Formulir Berlangganan' => 'emerald',
+                                                'Surat Kuasa' => 'amber',
+                                                'Berita Acara Pemasangan' => 'cyan',
+                                                default => 'zinc',
+                                            }">{{ $jenis }}</flux:badge>
+                                            @if ($nomor)
+                                                <span class="font-mono text-sm text-zinc-500">{{ $nomor }}</span>
+                                            @endif
+                                        </div>
+                                        @if ($ket)
+                                            <p class="text-sm text-zinc-600 dark:text-zinc-400">{{ $ket }}</p>
+                                        @endif
+                                        <p class="text-sm text-zinc-500">
+                                            {{ number_format($doc->size / 1024, 1) }} KB · {{ $doc->created_at->translatedFormat('d M Y, H:i') }} · {{ $doc->getCustomProperty('uploaded_by', 'Staf') }}
+                                        </p>
+                                    </div>
+                                    <div class="flex shrink-0 items-center gap-1">
+                                        @can('viewDokumen', $pelanggan)
+                                            <flux:button :href="route('pelanggan.dokumen.stream', [$pelanggan, $doc])" target="_blank" variant="ghost" icon="arrow-down-tray" aria-label="Lihat / unduh {{ $doc->file_name }}" />
+                                        @endcan
+                                        @can('deleteDokumen', $pelanggan)
+                                            <flux:button wire:click="deleteDokumen({{ $doc->id }})" wire:confirm="Apakah Anda yakin ingin menghapus berkas dokumen {{ $doc->file_name }}?" variant="ghost" icon="trash" class="text-red-500 hover:text-red-700" aria-label="Hapus {{ $doc->file_name }}" />
+                                        @endcan
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <div class="mx-4 mb-4 rounded-lg border-2 border-dashed border-zinc-200 p-8 text-center sm:mx-6 sm:mb-6 dark:border-zinc-800">
+                            <flux:icon name="document-text" class="mx-auto size-8 text-zinc-300 dark:text-zinc-600" />
+                            <p class="mt-2 text-sm text-zinc-500">Belum ada dokumen MOU atau legalitas.</p>
+                            @can('uploadDokumen', $pelanggan)
+                                <flux:button wire:click="openUploadDocModal" variant="ghost" icon="plus" class="mt-2">Unggah Dokumen MOU</flux:button>
+                            @endcan
+                        </div>
+                    @endif
+                </section>
             </div>
         </div>
     @endif
 
-    {{-- Tab 5: Riwayat Aktivitas (Activity Log) --}}
+    {{-- ═══════════ Tab 5: Riwayat Aktivitas (timeline) ═══════════ --}}
     @if ($activeTab === 'audit')
-        <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-            <div class="p-6 pb-2">
-                <flux:heading size="base">Log Aktivitas Data Pelanggan</flux:heading>
-                <flux:subheading>Catatan perubahan data dan riwayat administratif pelanggan.</flux:subheading>
+        @php
+            $fmtNilai = fn ($v) => $v === null || $v === '' ? '—' : (is_scalar($v) ? (string) $v : json_encode($v, JSON_UNESCAPED_UNICODE));
+        @endphp
+        <section class="{{ $card }}">
+            <div class="p-4 sm:p-6">
+                <flux:heading size="lg">Log Aktivitas Data Pelanggan</flux:heading>
+                <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Perubahan data dan riwayat administratif, terbaru di atas.</p>
             </div>
-
-            <div class="px-6 pb-6">
-                <flux:table>
-                    <flux:table.columns>
-                        <flux:table.column>Waktu</flux:table.column>
-                        <flux:table.column>Pengguna</flux:table.column>
-                        <flux:table.column>Deskripsi</flux:table.column>
-                        <flux:table.column>Detail</flux:table.column>
-                    </flux:table.columns>
-
-                    <flux:table.rows>
-                        @forelse ($activityLogs as $log)
-                            <flux:table.row :key="$log->id">
-                                <flux:table.cell class="text-xs text-zinc-500">
-                                    {{ $log->created_at->translatedFormat('d M Y, H:i') }}
-                                </flux:table.cell>
-                                <flux:table.cell class="font-medium text-xs">
-                                    {{ $log->causer?->name ?? 'Sistem' }}
-                                </flux:table.cell>
-                                <flux:table.cell>
-                                    <flux:badge size="sm" color="zinc">
-                                        {{ $log->description }}
-                                    </flux:badge>
-                                </flux:table.cell>
-                                <flux:table.cell class="text-xs text-zinc-600 dark:text-zinc-300">
-                                    @if ($log->properties->isNotEmpty())
-                                        <span class="font-mono text-[11px]">{{ $log->properties->toJson() }}</span>
-                                    @else
-                                        —
-                                    @endif
-                                </flux:table.cell>
-                            </flux:table.row>
-                        @empty
-                            <flux:table.row>
-                                <flux:table.cell colspan="4" class="py-8 text-center text-zinc-400">
-                                    Belum ada riwayat aktivitas tercatat untuk pelanggan ini.
-                                </flux:table.cell>
-                            </flux:table.row>
-                        @endforelse
-                    </flux:table.rows>
-                </flux:table>
-            </div>
-        </div>
+            <ol class="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+                @forelse ($activityLogs as $log)
+                    @php
+                        $baru = $log->attribute_changes?->get('attributes') ?? [];
+                        $lama = $log->attribute_changes?->get('old') ?? [];
+                    @endphp
+                    <li wire:key="log-{{ $log->id }}" class="space-y-2 p-4 sm:px-6">
+                        <div class="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+                            <p class="text-base font-medium text-zinc-900 dark:text-zinc-100">{{ $log->description }}</p>
+                            <time datetime="{{ $log->created_at->toIso8601String() }}" class="shrink-0 text-sm text-zinc-500">{{ $log->created_at->translatedFormat('d M Y, H:i') }}</time>
+                        </div>
+                        <p class="text-sm text-zinc-500">oleh {{ $log->causer?->name ?? 'Sistem' }}</p>
+                        @if (! empty($baru))
+                            <dl class="grid grid-cols-1 gap-2 rounded-lg bg-zinc-50 p-3 text-sm sm:grid-cols-2 dark:bg-zinc-800/60">
+                                @foreach ($baru as $field => $nilai)
+                                    <div>
+                                        <dt class="text-zinc-500">{{ str($field)->replace('_', ' ')->ucfirst() }}</dt>
+                                        <dd class="break-words text-zinc-900 dark:text-zinc-100">
+                                            @if (array_key_exists($field, $lama))
+                                                <span class="text-zinc-400 line-through">{{ $fmtNilai($lama[$field]) }}</span> →
+                                            @endif
+                                            {{ $fmtNilai($nilai) }}
+                                        </dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        @endif
+                        @if ($log->properties->isNotEmpty())
+                            <details>
+                                <summary class="inline-flex min-h-11 cursor-pointer items-center text-sm font-medium text-zinc-600 dark:text-zinc-400">Data tambahan</summary>
+                                <pre class="overflow-x-auto rounded-lg bg-zinc-50 p-3 font-mono text-xs text-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300">{{ json_encode($log->properties, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+                            </details>
+                        @endif
+                    </li>
+                @empty
+                    <li class="p-8 text-center text-base text-zinc-500">Belum ada riwayat aktivitas tercatat untuk pelanggan ini.</li>
+                @endforelse
+            </ol>
+        </section>
     @endif
 
     {{-- ─── Modal 1: Preview KTP Terenkripsi dengan Dynamic Watermark ─── --}}

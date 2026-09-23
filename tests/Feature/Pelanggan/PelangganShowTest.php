@@ -17,6 +17,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
@@ -88,12 +89,18 @@ test('renders leaflet map and coordinate details when coordinates exist', functi
     Livewire::actingAs($this->superAdmin)
         ->test(Show::class, ['pelanggan' => $pelangganWithCoords])
         ->assertOk()
-        ->assertSee('Titik Lokasi Pelanggan (Peta)')
-        ->assertSee('Terpetakan')
+        ->assertSee('Lokasi pemasangan')
         ->assertSee('-6.2088000')
         ->assertSee('106.8456000')
-        ->assertSee('Buka di Google Maps')
-        ->assertSee('Buka di OpenStreetMap');
+        ->assertSee('destination=-6.2088,106.8456', false)
+        ->assertSee('Estimasi kabel');
+});
+
+test('map-view marker script is not wrapped in a Blade block (Livewire comment markers would comment it out in JS)', function () {
+    $compiled = Blade::compileString(file_get_contents(resource_path('views/components/map-view.blade.php')));
+
+    expect($compiled)->toContain('L.marker(')
+        ->not->toMatch('/<!--\[if BLOCK\]><!\[endif\]-->(?:(?!x-data).)*L\.marker/s');
 });
 
 test('renders empty state when coordinates are not set', function () {
@@ -105,7 +112,7 @@ test('renders empty state when coordinates are not set', function () {
     Livewire::actingAs($this->superAdmin)
         ->test(Show::class, ['pelanggan' => $pelangganWithoutCoords])
         ->assertOk()
-        ->assertSee('Titik Lokasi Pelanggan (Peta)')
+        ->assertSee('Lokasi pemasangan')
         ->assertSee('Koordinat belum ditentukan')
         ->assertSee('Atur Titik Koordinat');
 });
@@ -177,7 +184,7 @@ test('can view billing tab with active, paid, and deleted invoices', function ()
         ->test(Show::class, ['pelanggan' => $this->pelanggan])
         ->call('setTab', 'billing')
         ->assertSet('activeTab', 'billing')
-        ->assertSee('Tagihan Aktif (Belum Lunas / Pending)')
+        ->assertSee('Tagihan belum dibayar')
         ->assertSee('INV-202608-000001')
         ->assertSee('Riwayat Pembayaran Lunas')
         ->assertSee('INV-202607-000001')
