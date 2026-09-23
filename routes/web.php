@@ -358,7 +358,13 @@ Route::middleware(['throttle:webhook', 'xendit.token'])->group(function () {
 Route::middleware('throttle:webhook')->post('/webhook/whatsapp', [WhatsappWebhookController::class, 'handle'])->name('webhook.whatsapp');
 
 // ─── Portal Pelanggan (Guard: pelanggan) ─────────────────────────
-Route::prefix('portal')->name('portal.')->group(function () {
+// Definisi rute dipakai bersama oleh mount lama (path "/portal" di domain utama) dan mount
+// baru (domain khusus Portal, lihat ADR-0049) supaya keduanya tidak pernah drift satu sama
+// lain. Mount lama WAJIB tetap ada selamanya -- WhatsappService mengirim tautan bertanda
+// tangan (signed URL, masa berlaku 30 hari) ke `portal.invoice.show` yang sudah terkirim ke
+// pelanggan nyata; signature Laravel mencakup host + path, jadi memindahkan/menghapus mount
+// ini akan langsung merusak tautan yang sudah beredar.
+$registerRutePortalPelanggan = function () {
     // Auth Routes
     Route::get('/login', Login::class)->name('login');
     Route::get('/klaim-akun', KlaimAkun::class)->name('klaim-akun');
@@ -392,7 +398,25 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/profil', App\Livewire\Portal\Profil\Index::class)->name('profil');
         Route::get('/ganti-password', GantiPassword::class)->middleware('impersonate.protect')->name('ganti-password');
     });
-});
+};
+
+// Mount lama, domain utama, path "/portal" -- permanen, lihat catatan di atas.
+Route::prefix('portal')->name('portal.')->group($registerRutePortalPelanggan);
+
+// Mount baru, domain khusus (mis. portal.gobilling.id), tanpa prefix path. Didaftarkan
+// SETELAH mount lama supaya nama rute "portal.*" (dipakai WhatsappService, redirect
+// impersonasi, dan seluruh navigasi internal Portal via route()) resolve ke domain ini --
+// tautan baru yang dibuat sejak sekarang selalu mengarah ke domain khusus ini.
+if ($portalDomain = config('app.portal_domain')) {
+    Route::domain($portalDomain)->name('portal.')->group($registerRutePortalPelanggan);
+
+    // Titik masuk handoff impersonasi staf->pelanggan lintas domain, lihat
+    // ImpersonateController::take()/consumePortalHandoff() dan ADR-0049.
+    Route::domain($portalDomain)
+        ->middleware('throttle:10,1')
+        ->get('/impersonate/consume', [ImpersonateController::class, 'consumePortalHandoff'])
+        ->name('portal.impersonate.consume');
+}
 
 // ─── Impersonasi (Super Admin Only) ──────────────────────────────
 Route::middleware(['auth'])->group(function () {

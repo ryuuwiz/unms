@@ -88,7 +88,7 @@ test('super_admin cannot impersonate oneself (returns 403)', function () {
     expect(app('impersonate')->isImpersonating())->toBeFalse();
 });
 
-test('super_admin can impersonate active customer portal account and redirect to portal dashboard', function () {
+test('super_admin impersonating a customer portal account gets a signed handoff to the portal domain', function () {
     Event::fake([TakeImpersonation::class]);
 
     $pelanggan = Pelanggan::factory()->create([
@@ -97,8 +97,35 @@ test('super_admin can impersonate active customer portal account and redirect to
     ]);
     $akun = $pelanggan->akunPelanggan;
 
+    // Login guard `pelanggan` TIDAK boleh langsung terjadi di request ke domain staf ini --
+    // lihat ImpersonateController::take() dan ADR-0049. Belum ada sesi pelanggan sampai
+    // tautan handoff dikonsumsi di domain Portal.
     $response = $this->actingAs($this->superAdmin)
         ->get(route('impersonate', ['id' => $akun->id, 'guardName' => 'pelanggan']));
+
+    $handoffUrl = $response->headers->get('Location');
+
+    expect($handoffUrl)->toContain(config('app.portal_domain').'/impersonate/consume')
+        ->and(Auth::guard('pelanggan')->check())->toBeFalse()
+        ->and(app('impersonate')->isImpersonating())->toBeFalse();
+
+    Event::assertNotDispatched(TakeImpersonation::class);
+});
+
+test('consuming the portal handoff link logs in guard pelanggan and marks impersonation active', function () {
+    Event::fake([TakeImpersonation::class]);
+
+    $pelanggan = Pelanggan::factory()->create([
+        'status' => StatusPelanggan::Aktif,
+        'email' => 'pelanggan-consume@test.com',
+    ]);
+    $akun = $pelanggan->akunPelanggan;
+
+    $handoffResponse = $this->actingAs($this->superAdmin)
+        ->get(route('impersonate', ['id' => $akun->id, 'guardName' => 'pelanggan']));
+    $handoffUrl = $handoffResponse->headers->get('Location');
+
+    $response = $this->get($handoffUrl);
 
     $response->assertRedirect(route('portal.dashboard'));
 
@@ -108,6 +135,23 @@ test('super_admin can impersonate active customer portal account and redirect to
         ->and(app('impersonate')->getImpersonatorId())->toBe($this->superAdmin->id);
 
     Event::assertDispatched(TakeImpersonation::class);
+});
+
+test('portal handoff link cannot be reused or tampered with', function () {
+    $pelanggan = Pelanggan::factory()->create([
+        'status' => StatusPelanggan::Aktif,
+        'email' => 'pelanggan-tamper@test.com',
+    ]);
+    $akun = $pelanggan->akunPelanggan;
+
+    $handoffResponse = $this->actingAs($this->superAdmin)
+        ->get(route('impersonate', ['id' => $akun->id, 'guardName' => 'pelanggan']));
+    $handoffUrl = $handoffResponse->headers->get('Location');
+
+    $tamperedUrl = str_replace('pelanggan='.$akun->id, 'pelanggan='.($akun->id + 999), $handoffUrl);
+
+    $this->get($tamperedUrl)->assertForbidden();
+    expect(Auth::guard('pelanggan')->check())->toBeFalse();
 });
 
 test('super_admin cannot impersonate inactive customer portal account (returns 403)', function () {
@@ -143,7 +187,7 @@ test('impersonator can leave staff impersonation and restore original super_admi
     Event::assertDispatched(LeaveImpersonation::class);
 });
 
-test('impersonator can leave customer portal impersonation and restore original super_admin session', function () {
+test('impersonator can leave customer portal impersonation and lands back on the staff domain', function () {
     Event::fake([LeaveImpersonation::class]);
 
     $pelanggan = Pelanggan::factory()->create([
@@ -152,14 +196,18 @@ test('impersonator can leave customer portal impersonation and restore original 
     ]);
     $akun = $pelanggan->akunPelanggan;
 
-    $this->actingAs($this->superAdmin)
+    $handoffResponse = $this->actingAs($this->superAdmin)
         ->get(route('impersonate', ['id' => $akun->id, 'guardName' => 'pelanggan']));
+    $this->get($handoffResponse->headers->get('Location'));
 
     expect(app('impersonate')->isImpersonating())->toBeTrue();
 
-    $response = $this->get(route('impersonate.leave'));
+    // Simulasikan klik "Keluar dari impersonasi" saat sedang browsing di domain Portal --
+    // lihat ImpersonateController::leave() dan ADR-0049: harus mendarat balik di domain staf,
+    // bukan ikut host request saat ini (domain Portal).
+    $response = $this->get('http://'.config('app.portal_domain').'/impersonate/leave');
 
-    $response->assertRedirect(route('pelanggan.index'));
+    $response->assertRedirect(rtrim(config('app.url'), '/').route('pelanggan.index', absolute: false));
 
     expect(Auth::guard('web')->check())->toBeTrue()
         ->and(Auth::guard('web')->id())->toBe($this->superAdmin->id)
@@ -182,8 +230,9 @@ test('routes protected by impersonate.protect cannot be accessed when impersonat
     ]);
     $akun = $pelanggan->akunPelanggan;
 
-    $this->actingAs($this->superAdmin)
+    $handoffResponse = $this->actingAs($this->superAdmin)
         ->get(route('impersonate', ['id' => $akun->id, 'guardName' => 'pelanggan']));
+    $this->get($handoffResponse->headers->get('Location'));
 
     // Try accessing portal ganti-password while impersonating - middleware redirects back
     $response = $this->from(route('portal.dashboard'))->get(route('portal.ganti-password'));

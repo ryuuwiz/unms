@@ -28,6 +28,7 @@
         <env name="FILESYSTEM_DISK" value="public"/>
         <env name="MEDIA_DISK" value="public"/>
         <env name="MAIL_MAILER" value="array"/>
+        <env name="PORTAL_DOMAIN" value="portal.gobilling.test"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>

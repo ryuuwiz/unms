@@ -56,6 +56,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Portal Pelanggan Domain
+    |--------------------------------------------------------------------------
+    |
+    | Jika diisi (mis. portal.gobilling.id), rute Portal Pelanggan (guard
+    | `pelanggan`) didaftarkan juga di bawah domain khusus ini tanpa prefix
+    | "/portal" -- lihat routes/web.php dan ADR-0049. Rute lama di bawah
+    | "/portal" pada domain utama TETAP ada (jangan dihapus) untuk menjaga
+    | tautan tagihan bertanda tangan (signed) yang sudah terkirim ke pelanggan
+    | tetap valid. Kosongkan untuk lingkungan lokal yang tidak memakai subdomain.
+    |
+    */
+
+    'portal_domain' => env('PORTAL_DOMAIN'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
