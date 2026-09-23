@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Models\Perusahaan as PerusahaanModel;
+use App\Support\MediaLibraryVisibility;
 use Flux\Flux;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -12,12 +13,15 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 
 #[Layout('layouts.app')]
 #[Title('Profil Perusahaan')]
 class Perusahaan extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, WithPagination;
+
+    public bool $showMediaPicker = false;
 
     public string $nama_perusahaan = '';
 
@@ -83,6 +87,36 @@ class Perusahaan extends Component
         $this->nama_penandatangan = $perusahaan->nama_penandatangan;
         $this->jabatan_penandatangan = $perusahaan->jabatan_penandatangan;
         $this->existing_logo_url = $perusahaan->logo_url;
+    }
+
+    public function pilihDariMediaLibrary(int $mediaId): void
+    {
+        $media = MediaLibraryVisibility::query()
+            ->where('mime_type', 'like', 'image/%')
+            ->whereKey($mediaId)
+            ->first();
+
+        if (! $media) {
+            Flux::toast(variant: 'danger', text: 'Berkas tidak ditemukan atau bukan gambar.');
+
+            return;
+        }
+
+        $perusahaan = PerusahaanModel::default();
+        if (! $perusahaan->exists) {
+            $perusahaan = PerusahaanModel::create(['nama_perusahaan' => $this->nama_perusahaan ?: 'GOBILLING', 'nama_brand' => $this->nama_brand, 'is_default' => true]);
+        }
+
+        $media->copy($perusahaan, 'logo');
+        $perusahaan->syncFaviconFiles();
+
+        Cache::forget(PerusahaanModel::CACHE_KEY);
+
+        $this->existing_logo_url = $perusahaan->getFirstMediaUrl('logo') ?: null;
+        $this->logo = null;
+        $this->showMediaPicker = false;
+
+        Flux::toast(variant: 'success', text: 'Logo dipilih dari Media Library.');
     }
 
     public function hapusLogo(): void
@@ -180,6 +214,15 @@ class Perusahaan extends Component
 
     public function render(): View
     {
-        return view('livewire.settings.perusahaan');
+        $pickerMedia = $this->showMediaPicker
+            ? MediaLibraryVisibility::query()
+                ->where('mime_type', 'like', 'image/%')
+                ->latest('id')
+                ->paginate(12, pageName: 'pickerPage')
+            : null;
+
+        return view('livewire.settings.perusahaan', [
+            'pickerMedia' => $pickerMedia,
+        ]);
     }
 }

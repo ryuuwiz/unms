@@ -13,6 +13,7 @@ use App\Livewire\Laporan;
 use App\Livewire\LayananPelanggan;
 use App\Livewire\Maps\EstimasiKabel;
 use App\Livewire\Maps\Lokasi;
+use App\Livewire\MediaLibrary;
 use App\Livewire\Odp\Create;
 use App\Livewire\Odp\Edit;
 use App\Livewire\PaketLayanan;
@@ -189,6 +190,14 @@ Route::middleware(['auth'])->group(function () {
     // ─── Pengaturan Prefix Registrasi ──────────────────────────────
     Route::middleware('permission:prefix_registrasi.lihat')->group(function () {
         Route::get('/settings/prefix-registrasi', PengaturanPrefixRegistrasi::class)->name('settings.prefix-registrasi');
+    });
+
+    // ─── Media Library (termasuk Storage & S3 Monitoring, lihat ADR-0047) ──────
+
+    Route::prefix('media-library')->name('media-library.')->group(function () {
+        Route::middleware('permission:media_library.lihat')->group(function () {
+            Route::get('/', MediaLibrary\Index::class)->name('index');
+        });
     });
 
     // ─── SysBlast Gateway, Antrian & Template Pesan ────────────────

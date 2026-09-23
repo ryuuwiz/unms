@@ -54,9 +54,35 @@
                                 Format: <strong>PNG, JPG, SVG, WEBP</strong> (Maks. 2MB). Rekomendasi: Logo transparan
                                 rasio horizontal (contoh: 400x120px).
                             </p>
+
+                            <flux:button size="sm" variant="ghost" icon="photo" wire:click="$set('showMediaPicker', true)" type="button">
+                                Pilih dari Media Library
+                            </flux:button>
                         </div>
                     </div>
                 </div>
+
+                <flux:modal wire:model="showMediaPicker" name="media-picker-logo" class="max-w-2xl">
+                    <div class="space-y-4">
+                        <flux:heading size="lg">Pilih Logo dari Media Library</flux:heading>
+                        <flux:subheading>Gambar yang dipilih akan disalin sebagai logo perusahaan; berkas aslinya tidak berubah.</flux:subheading>
+
+                        <div class="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                            @forelse ($pickerMedia ?? [] as $item)
+                                <button type="button" wire:click="pilihDariMediaLibrary({{ $item->id }})"
+                                    class="group aspect-square rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700 hover:ring-2 hover:ring-indigo-500">
+                                    <img src="{{ $item->getUrl() }}" class="h-full w-full object-cover" loading="lazy" title="{{ $item->file_name }}" />
+                                </button>
+                            @empty
+                                <div class="col-span-full text-center py-8 text-zinc-400 italic text-sm">
+                                    Tidak ada gambar di Media Library.
+                                </div>
+                            @endforelse
+                        </div>
+
+                        {{ $pickerMedia?->links() }}
+                    </div>
+                </flux:modal>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <flux:field>

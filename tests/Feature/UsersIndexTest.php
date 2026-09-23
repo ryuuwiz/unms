@@ -58,3 +58,17 @@ test('super_admin can filter users by status', function () {
         ->assertSee('Inactive User')
         ->assertDontSee('Active User');
 });
+
+test('users list shows the uploaded foto profil as the avatar', function () {
+    $admin = User::factory()->create(['status' => UserStatus::Active]);
+    $admin->assignRole('super_admin');
+
+    $userWithPhoto = User::factory()->create(['name' => 'Punya Foto', 'status' => UserStatus::Active]);
+    $path = storage_path('app/dummy-'.uniqid().'.png');
+    file_put_contents($path, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='));
+    $userWithPhoto->addMedia($path)->preservingOriginal()->toMediaCollection('foto_profil');
+
+    Livewire::actingAs($admin)
+        ->test(Index::class)
+        ->assertSee($userWithPhoto->fotoProfilUrl());
+});

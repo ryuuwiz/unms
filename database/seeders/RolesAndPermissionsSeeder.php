@@ -62,6 +62,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'prefix_registrasi.lihat', 'prefix_registrasi.buat', 'prefix_registrasi.ubah',
             // Payment Gateway
             'payment_gateway.lihat', 'payment_gateway.buat', 'payment_gateway.ubah', 'payment_gateway.hapus',
+            // Media Library (termasuk Storage & S3 Monitoring)
+            'media_library.lihat', 'media_library.hapus', 'media_library.unggah',
         ] as $permName) {
             $p[$permName] = Permission::firstOrCreate(['name' => $permName]);
         }

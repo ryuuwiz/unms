@@ -1,0 +1,7 @@
+# Media Library Admin Mengecualikan Dokumen Pribadi Pelanggan (KTP/Dokumen)
+
+Halaman Media Library baru (`media-library.index`) menampilkan semua berkas media lintas model untuk keperluan monitoring/manajemen staf — kecuali collection `ktp` dan `dokumen` milik `Pelanggan`. Dua collection itu (ADR-0024) wajib diakses lewat controller streaming khusus yang menegakkan watermark dinamis dan audit trail Activitylog; menampilkannya di browser media generik (thumbnail + link unduh langsung) akan jadi jalan pintas yang melewati kedua kontrol itu sepenuhnya.
+
+Keduanya tetap muncul di panel statistik pemakaian storage di bagian atas halaman Media Library itu sendiri (jumlah berkas, total ukuran) — cukup untuk tujuan monitoring kapasitas, tanpa membuka aksesnya. (Panel ini semula ada di halaman terpisah "Storage & S3 Monitoring", digabung ke halaman Media Library — lihat ADR-0047.)
+
+Konsekuensi: penambahan collection privat baru di masa depan (mengikuti pola `useDisk('local')` seperti `ktp`/`dokumen`) harus ditambahkan manual ke daftar pengecualian di `App\Support\MediaLibraryVisibility::COLLECTION_TERLARANG` — tidak ada mekanisme otomatis yang mendeteksi "collection ini privat" dari konfigurasi Media Library itu sendiri. Aturan ini diekstrak ke satu class bersama karena dipakai lebih dari satu tempat: halaman Media Library sendiri, dan picker "pilih dari Media Library" di halaman lain (mis. logo Perusahaan) — lihat CONTEXT.md "Media Library Picker".

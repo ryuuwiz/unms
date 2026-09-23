@@ -2,7 +2,9 @@
 
 use App\Enums\UserStatus;
 use App\Livewire\Settings\Perusahaan as PerusahaanComponent;
+use App\Models\Pelanggan;
 use App\Models\Perusahaan;
+use App\Models\Ticket;
 use App\Models\User;
 use Database\Seeders\PerusahaanSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -10,6 +12,15 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
+
+function buatGambarDummyDi($model, string $collection): Media
+{
+    $path = storage_path('app/dummy-'.uniqid().'.png');
+    file_put_contents($path, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='));
+
+    return $model->addMedia($path)->preservingOriginal()->toMediaCollection($collection);
+}
 
 uses(RefreshDatabase::class);
 
@@ -103,6 +114,37 @@ test('super_admin dapat mengunggah dan menghapus logo perusahaan via spatie medi
     expect($companyFresh->hasMedia('logo'))->toBeFalse()
         ->and($companyFresh->logo_url)->toBeNull()
         ->and($companyFresh->logo_base64)->toBeNull();
+});
+
+test('super_admin dapat memilih logo dari Media Library tanpa mengunggah berkas baru', function () {
+    $ticket = Ticket::factory()->create();
+    $gambar = buatGambarDummyDi($ticket, 'foto_kendala');
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(PerusahaanComponent::class)
+        ->set('showMediaPicker', true)
+        ->call('pilihDariMediaLibrary', $gambar->id)
+        ->assertHasNoErrors();
+
+    $company = Perusahaan::default();
+    expect($company->hasMedia('logo'))->toBeTrue()
+        ->and($company->logo_url)->not->toBeNull();
+
+    // Berkas asli di ticket tidak ikut berubah/hilang (copy, bukan reassign).
+    $ticket->refresh();
+    expect($ticket->hasMedia('foto_kendala'))->toBeTrue()
+        ->and($ticket->getFirstMedia('foto_kendala')->id)->toBe($gambar->id);
+});
+
+test('memilih logo dari media library mengecualikan dokumen pribadi pelanggan', function () {
+    $pelanggan = Pelanggan::factory()->create();
+    $ktp = buatGambarDummyDi($pelanggan, 'ktp');
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(PerusahaanComponent::class)
+        ->call('pilihDariMediaLibrary', $ktp->id);
+
+    expect(Perusahaan::default()->hasMedia('logo'))->toBeFalse();
 });
 
 test('perusahaan default menyediakan fallback aman saat data kosong', function () {

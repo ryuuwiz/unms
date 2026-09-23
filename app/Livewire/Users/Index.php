@@ -50,7 +50,7 @@ class Index extends Component
                 fn ($q) => $q->where('name', $this->filterRole)
             ))
             ->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
-            ->with('roles')
+            ->with(['roles', 'media'])
             ->latest()
             ->paginate(15);
 

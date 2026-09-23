@@ -313,6 +313,16 @@ Pengelolaan berkas digital (logo instansi, foto identitas/KTP, foto dokumentasi 
 _Technical Reference_: Spatie MediaLibrary (`spatie/laravel-medialibrary`), Laravel Boost: `search-docs(packages=['spatie/laravel-medialibrary'])`, Context7: `/spatie/laravel-medialibrary`.
 _Avoid_: File Path Manual Bebas, Upload Lepas Tanpa Relasi
 
+**Media Library (Admin)**:
+Halaman admin tunggal (menu Administrasi, permission `media_library.lihat`/`.hapus`/`.unggah`, khusus `super_admin`) yang menggabungkan tiga hal: (1) browse & hapus manual **semua** berkas Berkas Media lintas model, **kecuali** collection `ktp` dan `dokumen` milik Pelanggan (lihat ADR-0024 dan ADR-0046) — keduanya cuma muncul sebagai angka statistik, tidak bisa dilihat/diunduh dari sini; (2) kesehatan koneksi disk S3/RustFS aktif dan statistik pemakaian per collection (dulu halaman terpisah "Storage & S3 Monitoring", digabung — lihat ADR-0047); (3) unggah bebas berkas gambar/dokumen (jpg/png/webp/pdf/xlsx/xls/csv/docx, maks 20MB) yang tidak terkait record bisnis manapun, dianchor ke model kosong `BerkasUmum` (lihat ADR-0047). Pengecekan kesehatan storage bukan cuma tanya SDK (bucket exists) — juga benar-benar fetch satu URL publik lewat HTTP client, satu-satunya cara mendeteksi kebijakan public-read bucket yang salah/dicabut (lihat ADR-0038, gejalanya invisible dari sisi Laravel, baru ketahuan 403 saat browser fetch).
+_Technical Reference_: `App\Services\Storage\S3HealthCheckService`, `App\Models\BerkasUmum`.
+_Avoid_: Menampilkan KTP/Dokumen di Browser Generik, Menghapus Media Privat Tanpa Audit Trail, Cek SDK Saja Tanpa Fetch URL Publik Nyata, Sembunyikan Menu Total Saat Disk Bukan S3 (tampilkan status "tidak berlaku" saja), Halaman Storage & S3 Monitoring Terpisah
+
+**Media Library Picker**:
+Pola UI (modal grid gambar) untuk memilih satu berkas gambar yang sudah ada di Media Library sebagai nilai suatu field, tanpa mengunggah berkas baru — dipakai pertama kali untuk field Logo Perusahaan. Memilih selalu men-**salin** (`Media::copy()`) berkas ke collection tujuan, tidak pernah memindahkan/reassign media asli — supaya berkas yang sudah dipakai di tempat lain (foto tiket, foto profil user) tidak diam-diam berubah makna atau hilang dari pemiliknya semula (lihat ADR-0048). Aturan visibilitas (gambar apa saja yang boleh dipilih, mengecualikan dokumen pribadi Pelanggan) satu sumber lewat `App\Support\MediaLibraryVisibility`, sama dengan yang dipakai halaman Media Library sendiri.
+_Technical Reference_: `App\Support\MediaLibraryVisibility`.
+_Avoid_: Reassign Media Asli ke Owner Baru, Duplikasi Aturan Pengecualian KTP/Dokumen di Setiap Picker
+
 **Kartu Metrik (Stat Card)**:
 Komponen visual modular (`<x-stat-card>`) untuk menampilkan ringkasan indikator performa utama (KPI) yang dilengkapi dengan tren perbandingan persentase periode, badge status, ikon bernuansa tematik, dan tautan navigasi kontekstual.
 _Avoid_: Box Angka Bebas, Card Mentah, Stat Lepas

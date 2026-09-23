@@ -276,6 +276,13 @@ return [
                     'active' => 'settings.prefix-registrasi',
                     'permission' => 'prefix_registrasi.lihat',
                 ],
+                [
+                    'title' => 'Media Library',
+                    'icon' => 'photo',
+                    'route' => 'media-library.index',
+                    'active' => 'media-library.*',
+                    'permission' => 'media_library.lihat',
+                ],
             ],
         ],
     ],

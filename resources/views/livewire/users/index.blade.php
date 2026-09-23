@@ -48,7 +48,7 @@
                 <flux:table.row :key="$user->id">
                     <flux:table.cell class="font-medium">
                         <div class="flex items-center gap-2">
-                            <flux:avatar size="sm" name="{{ $user->name }}" />
+                            <flux:avatar size="sm" :src="$user->fotoProfilUrl()" name="{{ $user->name }}" />
                             {{ $user->name }}
                         </div>
                     </flux:table.cell>
