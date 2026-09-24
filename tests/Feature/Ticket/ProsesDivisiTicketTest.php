@@ -115,9 +115,12 @@ test('NOC memilih router baru ikut menyimpan IP Pool sehingga provisi menerima l
 
     $mockService = Mockery::mock(MikrotikService::class);
     $this->app->instance(MikrotikService::class, $mockService);
+    // Pindah router men-dispatch provisi ulang + putus sesi aktif (LayananPelangganObserver::updated), lalu
+    // modal NOC provisi sendiri: setiap provisi harus membawa router & IP Pool baru.
     $mockService->shouldReceive('createOrUpdatePppoeSecret')
-        ->once()
+        ->atLeast()->once()
         ->withArgs(fn (Router $router, LayananPelanggan $layanan) => $router->is($routerBaru) && $layanan->ipPool?->is($poolBaru));
+    $mockService->shouldReceive('removeActiveSession')->andReturn(true);
 
     Livewire::actingAs($this->noc)
         ->test(Show::class, ['ticket' => $this->ticket])

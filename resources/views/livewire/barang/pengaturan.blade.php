@@ -23,7 +23,16 @@
                                 <flux:table.cell><span class="font-mono font-semibold">{{ $item->kode }}</span></flux:table.cell>
                                 <flux:table.cell>{{ $item->nama }}</flux:table.cell>
                                 <flux:table.cell align="end">
-                                    <flux:button variant="ghost" size="sm" icon="pencil-square" wire:click="openModal('{{ $master }}', {{ $item->id }})" />
+                                    <div class="flex items-center justify-end gap-1">
+                                        <flux:button variant="ghost" size="sm" icon="pencil-square" wire:click="openModal('{{ $master }}', {{ $item->id }})" title="Ubah" />
+                                        @if ($item->dipakai > 0)
+                                            <flux:tooltip :content="'Dipakai '.$item->dipakai.' '.($master === 'kategori' ? 'barang' : 'unit').', tidak dapat dihapus'">
+                                                <flux:button variant="ghost" size="sm" icon="trash" disabled />
+                                            </flux:tooltip>
+                                        @else
+                                            <flux:button variant="ghost" size="sm" icon="trash" wire:click="hapus('{{ $master }}', {{ $item->id }})" wire:confirm="Hapus {{ $item->kode }}?" title="Hapus" />
+                                        @endif
+                                    </div>
                                 </flux:table.cell>
                             </flux:table.row>
                         @empty

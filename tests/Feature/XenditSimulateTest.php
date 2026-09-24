@@ -13,6 +13,7 @@ use App\Models\LayananPelanggan;
 use App\Models\Pelanggan;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\User;
+use App\Services\Xendit\XenditPaymentService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -152,4 +153,29 @@ test('command xendit:simulate otomatis menerbitkan transaksi gateway jika invoic
     expect($transaksi)->not->toBeNull()
         ->and($transaksi->status)->toBe(StatusTransaksiGateway::Paid)
         ->and($invoice->status)->toBe(StatusInvoice::Lunas);
+});
+
+test('simulasi webhook lokal gagal dengan pesan jelas bila invoice transaksi sudah di-soft-delete', function () {
+    $invoice = Invoice::factory()->create(['status' => StatusInvoice::MenungguPembayaran]);
+    $transaksi = TransaksiPaymentGateway::create([
+        'invoice_id' => $invoice->id,
+        'gateway' => 'xendit',
+        'external_id' => 'INV-'.$invoice->no_invoice.'-VA-BCA-99999',
+        'channel' => GatewayChannel::VirtualAccount,
+        'channel_detail' => 'bca',
+        'nomor_pembayaran' => '880812345678',
+        'total_tagihan' => 200000,
+        'fee_gateway' => 0,
+        'status' => StatusTransaksiGateway::Pending,
+        'expired_at' => now()->addDays(3),
+    ]);
+
+    $invoice->delete();
+
+    $hasil = app(XenditPaymentService::class)->simulasikanWebhookLokal($transaksi->fresh());
+
+    expect($hasil['success'])->toBeFalse()
+        ->and($hasil['status_code'])->toBe(404)
+        ->and($hasil['message'])->toContain('Invoice transaksi ini sudah dihapus')
+        ->and($transaksi->fresh()->status)->toBe(StatusTransaksiGateway::Pending);
 });

@@ -9,6 +9,7 @@ use App\Exports\DataBarangExport;
 use App\Livewire\Barang\Index;
 use App\Livewire\Barang\Keluar;
 use App\Livewire\Barang\Masuk;
+use App\Livewire\Barang\Pengaturan;
 use App\Models\JenisBarang;
 use App\Models\KategoriBarang;
 use App\Models\KondisiBarang;
@@ -168,4 +169,24 @@ test('semua halaman inventaris dapat dibuka oleh admin', function () {
     }
 
     $this->actingAs($this->teknisi)->get(route('barang.pengaturan'))->assertForbidden();
+});
+
+test('kategori dan kondisi hanya bisa dihapus bila tidak dipakai', function () {
+    $kosong = KategoriBarang::create(['kode' => 'ONT', 'nama' => 'ONT']);
+    $kondisiKosong = KondisiBarang::create(['kode' => 'RFB', 'nama' => 'Refurbished']);
+    $this->masuk->execute($this->modem, TipeMutasiBarang::Pembelian, Carbon::today(), 1, $this->admin, kondisi: $this->baru);
+
+    Livewire::actingAs($this->admin)
+        ->test(Pengaturan::class)
+        ->call('hapus', 'kategori', $this->mdm->id)
+        ->call('hapus', 'kondisi', $this->baru->id)
+        ->call('hapus', 'kategori', $kosong->id)
+        ->call('hapus', 'kondisi', $kondisiKosong->id);
+
+    expect(KategoriBarang::find($this->mdm->id))->not->toBeNull()
+        ->and(KondisiBarang::find($this->baru->id))->not->toBeNull()
+        ->and(KategoriBarang::find($kosong->id))->toBeNull()
+        ->and(KondisiBarang::find($kondisiKosong->id))->toBeNull();
+
+    Livewire::actingAs($this->teknisi)->test(Pengaturan::class)->assertForbidden();
 });

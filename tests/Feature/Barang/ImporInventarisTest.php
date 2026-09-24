@@ -16,8 +16,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 uses(RefreshDatabase::class);
 
@@ -33,26 +31,6 @@ beforeEach(function () {
     KategoriBarang::create(['kode' => 'KBL', 'nama' => 'Kabel']);
     $this->service = app(ImporInventarisService::class);
 });
-
-/**
- * @param  array<string, list<list<mixed>>>  $sheets  nama sheet => baris (baris pertama = header)
- */
-function berkasImpor(array $sheets): string
-{
-    $spreadsheet = new Spreadsheet;
-    $spreadsheet->removeSheetByIndex(0);
-
-    foreach ($sheets as $nama => $baris) {
-        $sheet = $spreadsheet->createSheet();
-        $sheet->setTitle($nama);
-        $sheet->fromArray($baris);
-    }
-
-    $path = tempnam(sys_get_temp_dir(), 'uji-impor-').'.xlsx';
-    (new Xlsx($spreadsheet))->save($path);
-
-    return $path;
-}
 
 function berkasValid(array $ubahKeluar = []): string
 {

@@ -8,6 +8,8 @@ use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use RouterOS\Client;
 use RouterOS\Query;
 use Tests\TestCase;
@@ -130,4 +132,24 @@ function layananPppoeDinamis(): array
     ]);
 
     return [$router, $layanan];
+}
+
+/**
+ * @param  array<string, list<list<mixed>>>  $sheets  nama sheet => baris (baris pertama = header)
+ */
+function berkasImpor(array $sheets): string
+{
+    $spreadsheet = new Spreadsheet;
+    $spreadsheet->removeSheetByIndex(0);
+
+    foreach ($sheets as $nama => $baris) {
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle($nama);
+        $sheet->fromArray($baris);
+    }
+
+    $path = tempnam(sys_get_temp_dir(), 'uji-impor-').'.xlsx';
+    (new Xlsx($spreadsheet))->save($path);
+
+    return $path;
 }

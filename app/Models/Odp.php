@@ -71,6 +71,23 @@ class Odp extends Model
     }
 
     /**
+     * ODP yang punya port dipakai layanan: berstatus Terpakai atau dirujuk `odp_port_id` layanan mana
+     * pun (termasuk yang soft-deleted, agar pemulihannya tidak kehilangan port). ODP seperti ini tidak
+     * boleh dihapus -- lihat CONTEXT.md "Penghapusan ODP".
+     *
+     * @param  Builder<Odp>  $query
+     * @return Builder<Odp>
+     */
+    public function scopePortDipakai(Builder $query): Builder
+    {
+        return $query->whereHas('ports', fn (Builder $port) => $port
+            ->where('status', StatusOdpPort::Terpakai)
+            ->orWhereExists(fn ($layanan) => $layanan->selectRaw('1')
+                ->from('layanan_pelanggan')
+                ->whereColumn('layanan_pelanggan.odp_port_id', 'odp_port.id')));
+    }
+
+    /**
      * Jumlah port yang masih kosong / tersedia.
      */
     public function portTersedia(): int

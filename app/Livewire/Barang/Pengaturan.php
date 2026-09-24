@@ -85,6 +85,28 @@ class Pengaturan extends Component
     }
 
     /**
+     * Hapus kategori/kondisi yang belum dipakai. Penghitung kode tidak ikut dihapus, jadi kode yang
+     * dibuat ulang melanjutkan nomor -- lihat CONTEXT.md "Kode Barang".
+     */
+    public function hapus(string $master, int $id): void
+    {
+        $this->authorize('barang.ubah');
+        abort_unless(in_array($master, ['kategori', 'kondisi'], true), 404);
+
+        $this->master = $master;
+        $baris = $this->model()::findOrFail($id);
+
+        if ($this->kodeDipakai($baris)) {
+            Flux::toast(variant: 'danger', text: "{$baris->kode} masih dipakai dan tidak dapat dihapus.");
+
+            return;
+        }
+
+        $baris->delete();
+        Flux::toast(variant: 'success', text: "{$baris->kode} dihapus.");
+    }
+
+    /**
      * @return class-string<KategoriBarang>|class-string<KondisiBarang>
      */
     private function model(): string
@@ -102,8 +124,8 @@ class Pengaturan extends Component
     public function render(): View
     {
         return view('livewire.barang.pengaturan', [
-            'kategoris' => KategoriBarang::query()->orderBy('kode')->get(),
-            'kondisis' => KondisiBarang::query()->orderBy('kode')->get(),
+            'kategoris' => KategoriBarang::query()->withCount('jenisBarang as dipakai')->orderBy('kode')->get(),
+            'kondisis' => KondisiBarang::query()->withCount('units as dipakai')->orderBy('kode')->get(),
         ]);
     }
 }

@@ -39,6 +39,22 @@
                 @endif
             </div>
 
+            @if (($hasil['teknisi_tak_dikenal'] ?? []) !== [])
+                <div class="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40">
+                    <div class="text-sm font-medium text-amber-800 dark:text-amber-300">Nama teknisi berikut tidak cocok dengan user teknisi. Petakan lalu klik Pratinjau lagi.</div>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        @foreach ($hasil['teknisi_tak_dikenal'] as $namaBerkas)
+                            <flux:select wire:model="petaTeknisi.{{ $namaBerkas }}" :label="'“'.strtoupper($namaBerkas).'” di berkas'" placeholder="Pilih teknisi...">
+                                <flux:select.option value="">Pilih teknisi...</flux:select.option>
+                                @foreach ($teknisis as $teknisi)
+                                    <flux:select.option value="{{ $teknisi->id }}">{{ $teknisi->name }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             @foreach ($hasil['galat_umum'] as $pesan)
                 <flux:callout variant="danger" icon="x-circle"><flux:callout.text>{{ $pesan }}</flux:callout.text></flux:callout>
             @endforeach

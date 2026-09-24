@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property string $nama
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read int $dipakai Hanya terisi lewat withCount(... as dipakai) di halaman pengaturan
  */
 #[Fillable(['kode', 'nama'])]
 class KondisiBarang extends Model

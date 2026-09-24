@@ -159,6 +159,16 @@ class XenditPaymentService
             $invoice = $transaksi->invoice;
         }
 
+        // Invoice bisa sudah di-soft-delete/dibatalkan sementara transaksi gateway-nya masih ada.
+        if ($invoice === null) {
+            return [
+                'success' => false,
+                'status_code' => 404,
+                'message' => 'Invoice transaksi ini sudah dihapus; simulasi webhook tidak dapat dijalankan.',
+                'response' => [],
+            ];
+        }
+
         $xenditId = $invoice->payment_gateway_id ?: ($invoice->xendit_invoice_id ?: ($transaksi?->xendit_reference_id ?: 'sim_inv_'.uniqid()));
         $externalId = $transaksi?->external_id ?: "{$invoice->no_invoice}-".now()->timestamp;
         $amount = $transaksi ? (float) $transaksi->total_tagihan : (float) $invoice->jumlah_setelah_promo;

@@ -2,8 +2,10 @@
 
 namespace App\Livewire\Odp;
 
+use App\Actions\Odp\HapusOdpAction;
 use App\Models\Odp;
 use App\Models\Perumahan;
+use App\Models\User;
 use App\Services\Geospatial\GeoJsonParser;
 use App\Services\Geospatial\KmlParser;
 use Flux\Flux;
@@ -37,9 +39,81 @@ class Index extends Component
     /** @var array<int, array{nama: string, coordinates: array<int, array{0: float, 1: float}>}> */
     public array $parsedPolygons = [];
 
+    // ─── State Pilih & Hapus Massal (CONTEXT.md "Penghapusan ODP") ──────
+    /** @var list<int> */
+    public array $dipilih = [];
+
+    /** Semua ODP yang cocok dengan pencarian saat ini, lintas halaman. */
+    public bool $pilihSemuaHasil = false;
+
+    public bool $showHapusModal = false;
+
+    public string $konfirmasiHapus = '';
+
+    private const BATAS_TANPA_KETIK = 10;
+
     public function updatingSearch(): void
     {
         $this->resetPage();
+        $this->batalPilih();
+    }
+
+    /**
+     * Centang/lepas seluruh baris di halaman ini.
+     *
+     * @param  list<int>  $idsHalaman
+     */
+    public function pilihHalaman(array $idsHalaman): void
+    {
+        $idsHalaman = array_map('intval', $idsHalaman);
+        $this->pilihSemuaHasil = false;
+
+        $this->dipilih = array_diff($idsHalaman, $this->dipilih) === []
+            ? array_values(array_diff($this->dipilih, $idsHalaman))
+            : array_values(array_unique([...$this->dipilih, ...$idsHalaman]));
+    }
+
+    public function pilihSemua(): void
+    {
+        $this->pilihSemuaHasil = true;
+    }
+
+    public function batalPilih(): void
+    {
+        $this->reset(['dipilih', 'pilihSemuaHasil', 'konfirmasiHapus']);
+    }
+
+    public function jumlahDipilih(): int
+    {
+        return $this->pilihSemuaHasil ? Odp::query()->search($this->search)->count() : count($this->dipilih);
+    }
+
+    public function bukaHapusMassal(): void
+    {
+        $this->authorize('odp.hapus');
+        $this->konfirmasiHapus = '';
+        $this->resetValidation();
+        $this->showHapusModal = $this->jumlahDipilih() > 0;
+    }
+
+    public function hapusMassal(HapusOdpAction $action): void
+    {
+        $this->authorize('odp.hapus');
+        $this->resetErrorBag();
+
+        $ids = array_values(array_map(intval(...), $this->pilihSemuaHasil
+            ? Odp::query()->search($this->search)->pluck('id')->all()
+            : $this->dipilih));
+
+        if (count($ids) > self::BATAS_TANPA_KETIK && trim($this->konfirmasiHapus) !== 'HAPUS') {
+            $this->addError('konfirmasiHapus', 'Ketik HAPUS untuk menghapus lebih dari '.self::BATAS_TANPA_KETIK.' ODP.');
+
+            return;
+        }
+
+        $this->laporHasilHapus($action->execute($ids, $this->pengguna()));
+        $this->showHapusModal = false;
+        $this->batalPilih();
     }
 
     public function openImportModal(): void
@@ -174,15 +248,42 @@ class Index extends Component
         $this->closeImportModal();
     }
 
-    public function deleteOdp(int $id): void
+    public function deleteOdp(int $id, HapusOdpAction $action): void
     {
         $odp = Odp::findOrFail($id);
         $this->authorize('delete', $odp);
 
-        $nama = $odp->nama_odp;
-        $odp->delete();
+        $this->laporHasilHapus($action->execute([$odp->id], $this->pengguna()));
+        $this->dipilih = array_values(array_diff($this->dipilih, [$odp->id]));
+    }
 
-        Flux::toast(variant: 'success', text: "ODP {$nama} berhasil dihapus.");
+    /**
+     * @param  array{dihapus: list<string>, dilewati: list<string>}  $hasil
+     */
+    private function laporHasilHapus(array $hasil): void
+    {
+        $dihapus = count($hasil['dihapus']);
+
+        if ($hasil['dilewati'] === []) {
+            Flux::toast(variant: 'success', text: $dihapus === 1 ? "ODP {$hasil['dihapus'][0]} berhasil dihapus." : "{$dihapus} ODP berhasil dihapus.");
+
+            return;
+        }
+
+        $daftar = collect($hasil['dilewati'])->take(5)->implode(', ').(count($hasil['dilewati']) > 5 ? ', …' : '');
+        Flux::toast(
+            variant: $dihapus > 0 ? 'warning' : 'danger',
+            text: "{$dihapus} ODP dihapus, ".count($hasil['dilewati'])." dilewati karena port masih dipakai layanan: {$daftar}",
+            duration: 15000,
+        );
+    }
+
+    private function pengguna(): User
+    {
+        $user = auth('web')->user();
+        abort_unless($user !== null, 403);
+
+        return $user;
     }
 
     public function render(): View
@@ -206,6 +307,9 @@ class Index extends Component
             'totalOdp' => $totalOdp,
             'totalTerpetakan' => $totalTerpetakan,
             'totalCoveragePerumahan' => $totalCoveragePerumahan,
+            'jumlahDipilih' => $this->jumlahDipilih(),
+            'idsHalaman' => $odps->getCollection()->modelKeys(),
+            'batasTanpaKetik' => self::BATAS_TANPA_KETIK,
         ]);
     }
 }

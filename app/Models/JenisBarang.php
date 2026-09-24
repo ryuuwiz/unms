@@ -53,6 +53,20 @@ class JenisBarang extends Model
     }
 
     /**
+     * Kode jenis barang: huruf kapital, angka, spasi tunggal, dan `- : / .` (kode gudang asli
+     * seperti `BF-ODP-TRC-1:16-C`, `BF-ODP16-SC/UPC`). Dipakai form Data Barang & Impor Inventaris.
+     */
+    public static function normalkanKode(string $kode): string
+    {
+        return strtoupper((string) preg_replace('/\s+/', ' ', trim($kode)));
+    }
+
+    public static function kodeValid(string $kode): bool
+    {
+        return (bool) preg_match('/^[A-Z0-9](?:[A-Z0-9 .:\/-]*[A-Z0-9])?$/', $kode) && mb_strlen($kode) <= 40;
+    }
+
+    /**
      * @return BelongsTo<KategoriBarang, $this>
      */
     public function kategori(): BelongsTo

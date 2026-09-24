@@ -33,9 +33,38 @@
         </div>
     </div>
 
+    {{-- Bilah pilihan & hapus massal --}}
+    @can('odp.hapus')
+        @if ($jumlahDipilih > 0)
+            <div class="flex flex-col gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between dark:border-rose-900 dark:bg-rose-950/40">
+                <div class="text-zinc-700 dark:text-zinc-300">
+                    <strong>{{ number_format($jumlahDipilih, 0, ',', '.') }}</strong> ODP dipilih{{ $pilihSemuaHasil ? ' (semua hasil pencarian)' : '' }}.
+                    @if (! $pilihSemuaHasil && $idsHalaman !== [] && array_diff($idsHalaman, $dipilih) === [] && $odps->total() > count($idsHalaman))
+                        <button type="button" wire:click="pilihSemua" class="ms-1 font-medium text-primary-600 hover:underline dark:text-primary-400">
+                            Pilih semua {{ number_format($odps->total(), 0, ',', '.') }} hasil pencarian
+                        </button>
+                    @endif
+                </div>
+                <div class="flex items-center gap-2">
+                    <flux:button size="sm" variant="ghost" wire:click="batalPilih">Batal</flux:button>
+                    <flux:button size="sm" variant="danger" icon="trash" wire:click="bukaHapusMassal">Hapus terpilih ({{ number_format($jumlahDipilih, 0, ',', '.') }})</flux:button>
+                </div>
+            </div>
+        @endif
+    @endcan
+
     {{-- Tabel ODP --}}
     <flux:table>
         <flux:table.columns>
+            @can('odp.hapus')
+                <flux:table.column class="w-8">
+                    <flux:checkbox
+                        :checked="$idsHalaman !== [] && ($pilihSemuaHasil || array_diff($idsHalaman, $dipilih) === [])"
+                        wire:click="pilihHalaman(@js($idsHalaman))"
+                        aria-label="Pilih semua di halaman ini"
+                    />
+                </flux:table.column>
+            @endcan
             <flux:table.column>Nama ODP</flux:table.column>
             <flux:table.column>Kapasitas</flux:table.column>
             <flux:table.column>Titik Koordinat</flux:table.column>
@@ -46,6 +75,15 @@
         <flux:table.rows>
             @forelse ($odps as $odp)
                 <flux:table.row :key="$odp->id">
+                    @can('odp.hapus')
+                        <flux:table.cell>
+                            @if ($pilihSemuaHasil)
+                                <flux:checkbox checked disabled aria-label="Terpilih" />
+                            @else
+                                <flux:checkbox wire:model.live="dipilih" value="{{ $odp->id }}" aria-label="Pilih {{ $odp->nama_odp }}" />
+                            @endif
+                        </flux:table.cell>
+                    @endcan
                     <flux:table.cell class="font-medium text-zinc-900 dark:text-zinc-100">
                         <div class="flex flex-col">
                             <a href="{{ route('odp.show', $odp) }}" wire:navigate class="hover:text-primary-600 font-semibold flex items-center gap-1.5">
@@ -108,7 +146,7 @@
                 </flux:table.row>
             @empty
                 <flux:table.row>
-                    <flux:table.cell colspan="5" class="py-12 text-center text-zinc-400">
+                    <flux:table.cell colspan="6" class="py-12 text-center text-zinc-400">
                         <flux:icon name="circle-stack" class="mx-auto size-8 text-zinc-300 dark:text-zinc-600" />
                         <div class="mt-2 text-sm">Tidak ada data ODP ditemukan.</div>
                     </flux:table.cell>
@@ -122,6 +160,26 @@
             {{ $odps->links() }}
         </div>
     @endif
+
+    {{-- Modal Konfirmasi Hapus Massal --}}
+    <flux:modal wire:model="showHapusModal" class="max-w-md">
+        <form wire:submit="hapusMassal" class="space-y-5">
+            <div>
+                <flux:heading size="lg">Hapus {{ number_format($jumlahDipilih, 0, ',', '.') }} ODP?</flux:heading>
+                <flux:subheading>Penghapusan permanen beserta port-nya. ODP yang port-nya masih dipakai layanan pelanggan akan dilewati otomatis.</flux:subheading>
+            </div>
+
+            @if ($jumlahDipilih > $batasTanpaKetik)
+                <flux:input wire:model="konfirmasiHapus" label="Ketik HAPUS untuk melanjutkan" autocomplete="off" />
+                <flux:error name="konfirmasiHapus" />
+            @endif
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="filled">Batal</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="danger" icon="trash">Hapus</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 
     {{-- Modal Import KML / KMZ / GeoJSON --}}
     <flux:modal wire:model="showImportModal" class="max-w-3xl">

@@ -2,7 +2,7 @@
 
 namespace App\Exports\Barang;
 
-use App\Imports\Barang\InventarisImport;
+use App\Services\Barang\ImporInventarisService;
 use Maatwebsite\Excel\Concerns\Export;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -21,20 +21,20 @@ class TemplateImporInventarisExport implements Export, WithMultipleSheets
     public function sheets(): array
     {
         return [
-            $this->sheet(InventarisImport::SHEET_BARANG,
+            $this->sheet(ImporInventarisService::SHEET_BARANG,
                 ['KODE BARANG', 'NAMA BARANG', 'STOK AWAL', 'MASUK', 'KELUAR', 'STOK AKHIR', 'KATEGORI', 'SATUAN', 'DILACAK'],
                 [
                     ['KBL-DROP', 'Kabel Drop Core 1', 1000, 500, 300, 1200, 'KBL', 'meter', 'N'],
                     ['MDM-F609', 'Modem ZTE F609', 0, 2, 1, 1, 'MDM', 'unit', 'Y'],
                 ]),
-            $this->sheet(InventarisImport::SHEET_MASUK,
+            $this->sheet(ImporInventarisService::SHEET_MASUK,
                 ['NO', 'TANGGAL', 'KODE BARANG', 'NAMA BARANG', 'JUMLAH MASUK', 'TIPE', 'KETERANGAN'],
                 [
                     [1, '01/09/2026', 'KBL-DROP', 'Kabel Drop Core 1', 500, 'PEMBELIAN', ''],
                     [2, '01/09/2026', 'MDM-NEW-BF-240', 'Modem ZTE F609', 1, 'SALDO AWAL', 'Stok lama gudang'],
                     [3, '05/09/2026', 'MDM-NEW-BF-241', 'Modem ZTE F609', 1, 'PEMBELIAN', ''],
                 ]),
-            $this->sheet(InventarisImport::SHEET_KELUAR,
+            $this->sheet(ImporInventarisService::SHEET_KELUAR,
                 ['NO', 'TANGGAL/BULAN', 'KODE BARANG', 'NAMA BARANG', 'JUMLAH KELUAR', 'KETERANGAN', 'TEKNIS'],
                 [
                     [1, '09/2026', 'KBL-DROP', 'Kabel Drop Core 1', 300, 'Pemasangan pelanggan', 'Nama Teknisi'],

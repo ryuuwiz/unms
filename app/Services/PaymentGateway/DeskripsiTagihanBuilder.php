@@ -67,9 +67,9 @@ class DeskripsiTagihanBuilder
         $pelanggan = $invoice->pelanggan;
         $layanan = $invoice->layananPelanggan;
 
-        $bulan = $invoice->periode_tagihan
-            ? Carbon::createFromFormat('!Y-m', $invoice->periode_tagihan)
-            : Carbon::parse($invoice->tanggal_terbit);
+        // Periode tak terbaca (format bukan Y-m) jatuh ke bulan tanggal terbit, bukan gagal.
+        $bulan = ($invoice->periode_tagihan ? Carbon::createFromFormat('!Y-m', $invoice->periode_tagihan) : null)
+            ?? Carbon::parse($invoice->tanggal_terbit);
 
         return [
             'brand' => $this->brand($pelanggan?->no_reg),

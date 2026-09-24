@@ -97,16 +97,18 @@ class Index extends Component
     public function simpan(): void
     {
         $this->authorize($this->editingId ? 'barang.ubah' : 'barang.buat');
-        $this->kode = strtoupper(trim($this->kode));
+        $this->kode = JenisBarang::normalkanKode($this->kode);
 
         $this->validate([
-            'kode' => ['required', 'string', 'max:40', 'regex:/^[A-Z0-9-]+$/', Rule::unique('jenis_barang', 'kode')->ignore($this->editingId)],
+            'kode' => ['required', 'string', 'max:40', function (string $attribute, mixed $value, \Closure $gagal): void {
+                if (! JenisBarang::kodeValid((string) $value)) {
+                    $gagal('Kode hanya huruf kapital, angka, spasi, dan tanda - : / .');
+                }
+            }, Rule::unique('jenis_barang', 'kode')->ignore($this->editingId)],
             'nama' => ['required', 'string', 'max:150'],
             'formKategoriId' => ['required', 'integer', 'exists:kategori_barang,id'],
             'satuan' => ['required', 'string', 'max:20'],
             'dilacakPerUnit' => ['boolean'],
-        ], [
-            'kode.regex' => 'Kode hanya huruf kapital, angka, dan tanda hubung.',
         ]);
 
         $data = [
