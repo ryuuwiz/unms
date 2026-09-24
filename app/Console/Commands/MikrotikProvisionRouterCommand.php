@@ -19,7 +19,8 @@ class MikrotikProvisionRouterCommand extends Command
     protected $signature = 'mikrotik:provisi-router
                             {--router= : ID Router tertentu}
                             {--force : Paksa provisi ulang seluruh layanan meskipun sudah terprovisi}
-                            {--clean-orphans : Hapus akun PPP Secret di MikroTik yang tidak terdaftar di UNMS}
+                            {--clean-orphans : Hapus akun PPP Secret berkomentar UNMS: di MikroTik yang tidak terdaftar di UNMS (aksi eksplisit, dibatasi per eksekusi)}
+                            {--audit-orphans : Hanya laporkan orphaned secret ke log, tidak pernah menghapus (dipakai scheduler)}
                             {--async : Jalankan via antrean mikrotik-low di background secara asynchronous}
                             {--dry-run : Simulasi audit drift tanpa mengubah apapun di router (hanya berlaku bersama --async, karena mode sync selalu memakai provisionRouterFull(); tidak bisa digabung dengan --force)}';
 
@@ -41,6 +42,7 @@ class MikrotikProvisionRouterCommand extends Command
 
         $routerId = $this->option('router');
         $force = (bool) $this->option('force');
+        $auditOrphans = (bool) $this->option('audit-orphans');
         $cleanOrphans = (bool) $this->option('clean-orphans');
         $async = (bool) $this->option('async');
         $dryRun = (bool) $this->option('dry-run');
@@ -81,7 +83,7 @@ class MikrotikProvisionRouterCommand extends Command
             }
             try {
                 foreach ($routers as $router) {
-                    RecoverPppRouterJob::dispatch($router, $force, $cleanOrphans, $dryRun);
+                    RecoverPppRouterJob::dispatch($router, $force, $cleanOrphans, $dryRun, $auditOrphans);
                 }
                 $this->info('Seluruh job recovery & provisi router berhasil dimasukkan ke antrean.');
 

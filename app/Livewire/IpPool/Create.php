@@ -60,7 +60,7 @@ class Create extends Component
         return [
             'nama_pool' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_-]+$/', Rule::unique('ip_pool', 'nama_pool')->where('router_id', $this->router_id)],
             'router_id' => ['required', 'integer', 'exists:router,id'],
-            'ip_network' => ['required', 'string', 'ipv4'],
+            'ip_network' => ['bail', 'required', 'string', 'ipv4', $this->ipNetworkRule()],
             'cidr' => ['required', 'integer', 'min:1', 'max:32'],
             'rentang_ip_awal' => ['required', 'string', 'ipv4'],
             'rentang_ip_akhir' => ['bail', 'required', 'string', 'ipv4', $this->rentangIpAkhirRule()],
@@ -76,7 +76,7 @@ class Create extends Component
     {
         return [
             'nama_pool.required' => 'Nama pool wajib diisi.',
-            'nama_pool.regex' => 'Nama pool hanya boleh berisi huruf, angka, strip, dan underscore (tanpa spasi) agar valid sebagai remote-address di MikroTik.',
+            'nama_pool.regex' => 'Nama pool hanya boleh berisi huruf, angka, strip, dan underscore (tanpa spasi) agar valid sebagai nama pool di MikroTik.',
             'nama_pool.unique' => 'Nama pool sudah digunakan pada router ini.',
             'router_id.required' => 'Router wajib dipilih.',
             'ip_network.required' => 'IP Network wajib diisi.',

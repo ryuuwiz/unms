@@ -40,6 +40,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'router.lihat', 'router.buat', 'router.ubah', 'router.hapus',
             'router.provision', 'router.sync',
             'ip_pool.lihat', 'ip_pool.buat', 'ip_pool.ubah', 'ip_pool.hapus',
+            'ip_publik.lihat', 'ip_publik.buat', 'ip_publik.ubah', 'ip_publik.hapus',
             // ODP
             'odp.lihat', 'odp.buat', 'odp.ubah', 'odp.hapus',
             // Paket Layanan & Profil Bandwidth
@@ -93,6 +94,7 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['pembayaran.catat'], $p['pembayaran.lihat'],
             $p['router.lihat'], $p['router.buat'], $p['router.ubah'], $p['router.hapus'],
             $p['ip_pool.lihat'], $p['ip_pool.buat'], $p['ip_pool.ubah'], $p['ip_pool.hapus'],
+            $p['ip_publik.lihat'], $p['ip_publik.buat'], $p['ip_publik.ubah'], $p['ip_publik.hapus'],
             $p['odp.lihat'], $p['odp.buat'], $p['odp.ubah'], $p['odp.hapus'],
             $p['paket_layanan.lihat'], $p['paket_layanan.buat'], $p['paket_layanan.ubah'], $p['paket_layanan.hapus'],
             $p['profil_bandwidth.lihat'], $p['profil_bandwidth.buat'], $p['profil_bandwidth.ubah'], $p['profil_bandwidth.hapus'],
@@ -121,6 +123,7 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['router.lihat'], $p['router.buat'], $p['router.ubah'], $p['router.hapus'],
             $p['router.provision'], $p['router.sync'],
             $p['ip_pool.lihat'], $p['ip_pool.buat'], $p['ip_pool.ubah'], $p['ip_pool.hapus'],
+            $p['ip_publik.lihat'], $p['ip_publik.buat'], $p['ip_publik.ubah'], $p['ip_publik.hapus'],
             $p['odp.lihat'], $p['odp.buat'], $p['odp.ubah'], $p['odp.hapus'],
             $p['profil_bandwidth.lihat'], $p['profil_bandwidth.buat'], $p['profil_bandwidth.ubah'], $p['profil_bandwidth.hapus'],
             $p['paket_layanan.lihat'],

@@ -7,6 +7,7 @@ use App\Enums\MikrotikJobType;
 use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
+use App\Support\PppDeletionContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -36,6 +37,8 @@ class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
         public readonly int $oldRouterId,
         public readonly string $pppUsername,
         public readonly ?int $layananPelangganId = null,
+        public readonly int|string|null $actor = null,
+        public readonly string $reason = 'Pembersihan secret lama (pindah router / ganti username / layanan dihapus)',
     ) {
         $this->onQueue('mikrotik-high');
     }
@@ -59,7 +62,7 @@ class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
         return [
             (new WithoutOverlapping("mikrotik-router-{$this->oldRouterId}"))
                 ->releaseAfter(5)
-                ->expireAfter(30)
+                ->expireAfter(120)
                 ->shared(),
         ];
     }
@@ -80,16 +83,22 @@ class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
             'attempt_count' => 1,
             'payload' => [
                 'username' => $this->pppUsername,
-                'reason' => 'router_migration_cleanup',
+                'actor' => $this->actor ?? 'system:tanpa-user',
+                'reason' => $this->reason,
             ],
         ]);
 
         try {
-            $mikrotikService->deletePppoeSecret($router, $this->pppUsername);
+            $dihapus = $mikrotikService->deletePppoeSecret(
+                $router,
+                $this->pppUsername,
+                new PppDeletionContext($this->actor ?? 'system:tanpa-user', $this->reason),
+            );
 
             $log->update([
                 'status' => MikrotikJobStatus::Success,
                 'finished_at' => Carbon::now(),
+                'payload' => array_merge($log->payload ?? [], ['deleted' => $dihapus]),
             ]);
         } catch (Throwable $e) {
             // Jika router lama offline atau gagal: catat sebagai Failed.

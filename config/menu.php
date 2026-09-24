@@ -140,6 +140,13 @@ return [
                     'permission' => 'ip_pool.lihat',
                 ],
                 [
+                    'title' => 'IP Publik',
+                    'icon' => 'globe-alt',
+                    'route' => 'ip-publik.index',
+                    'active' => 'ip-publik.*',
+                    'permission' => 'ip_publik.lihat',
+                ],
+                [
                     'title' => 'ODP',
                     'icon' => 'circle-stack',
                     'route' => 'odp.index',

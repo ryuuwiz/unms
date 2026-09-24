@@ -2,7 +2,10 @@
 
 namespace App\Livewire\Router;
 
+use App\Enums\JenisKoneksi;
 use App\Enums\StatusRouter;
+use App\Models\IpPool;
+use App\Models\IpPublik;
 use App\Models\LayananPelanggan;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
@@ -30,6 +33,8 @@ class Index extends Component
 
     public ?int $targetRouterId = null;
 
+    public ?int $targetPoolId = null;
+
     public bool $confirmForceDelete = false;
 
     public function updatingSearch(): void
@@ -47,6 +52,7 @@ class Index extends Component
         $this->deletingId = $id;
         $firstOther = Router::where('id', '!=', $id)->first();
         $this->targetRouterId = $firstOther?->id;
+        $this->targetPoolId = null;
         $this->confirmForceDelete = false;
 
         $this->modal('confirm-delete-router')->show();
@@ -56,6 +62,7 @@ class Index extends Component
     {
         $this->deletingId = null;
         $this->targetRouterId = null;
+        $this->targetPoolId = null;
         $this->confirmForceDelete = false;
     }
 
@@ -74,6 +81,14 @@ class Index extends Component
         }
 
         $this->authorize('delete', $router);
+
+        // IP Publik yang terpasang adalah add-on berbayar milik layanan: lepas dulu dari layanan, jangan hilang diam-diam.
+        $ipPublikTerpasang = IpPublik::where('router_id', $router->id)->whereNotNull('layanan_pelanggan_id')->count();
+        if ($ipPublikTerpasang > 0) {
+            Flux::toast(variant: 'danger', text: "Router {$router->nama_router} masih memiliki {$ipPublikTerpasang} IP Publik yang terpasang ke layanan. Lepas dari layanan terlebih dahulu (Edit Data Registrasi Billing).");
+
+            return;
+        }
 
         $hasLayanans = $router->layanans()->withTrashed()->exists()
             || $router->ipPools()->whereHas('layanans', fn ($q) => $q->withTrashed())->exists();
@@ -116,13 +131,28 @@ class Index extends Component
                 return;
             }
 
+            // Layanan PPPoE dinamis wajib punya IP Pool di router tujuan (tanpa pool provisi selalu ditolak).
+            $targetPools = IpPool::where('router_id', $targetRouter->id)->pluck('id');
+            $butuhPool = $router->layanans()->where('jenis_koneksi', JenisKoneksi::Pppoe->value)->exists();
+
+            if ($butuhPool && ! $targetPools->contains($this->targetPoolId)) {
+                Flux::toast(variant: 'danger', text: $targetPools->isEmpty()
+                    ? "Router tujuan {$targetRouter->nama_router} belum memiliki IP Pool. Buat IP Pool terlebih dahulu."
+                    : 'Pilih IP Pool di router tujuan untuk layanan PPPoE yang dipindahkan.');
+
+                return;
+            }
+
             DB::transaction(function () use ($router, $targetRouter) {
+                // Per-model (bukan update massal) agar observer berjalan: secret lama dibersihkan dan
+                // layanan aktif langsung diprovisi ulang di router tujuan.
                 LayananPelanggan::withTrashed()
                     ->where('router_id', $router->id)
-                    ->update([
+                    ->get()
+                    ->each(fn (LayananPelanggan $layanan) => $layanan->update([
                         'router_id' => $targetRouter->id,
-                        'ip_pool_id' => null,
-                    ]);
+                        'ip_pool_id' => $layanan->jenis_koneksi === JenisKoneksi::Pppoe ? $this->targetPoolId : null,
+                    ]));
 
                 LayananPelanggan::withTrashed()
                     ->whereIn('ip_pool_id', $router->ipPools()->pluck('id'))
@@ -197,14 +227,15 @@ class Index extends Component
         $this->authorize('update', $router);
 
         try {
-            $result = $mikrotikService->provisionRouterFull($router, cleanOrphans: true);
+            $result = $mikrotikService->provisionRouterFull($router);
             $details = $result['details'] ?? [];
             $poolSynced = $details['ip_pools']['synced'] ?? 0;
             $profileSynced = $details['profiles']['synced'] ?? 0;
             $secretRecovered = $details['secrets']['recovered'] ?? 0;
-            $orphansDeleted = $details['orphans']['deleted'] ?? 0;
+            $orphansFound = $details['orphans']['orphans_count'] ?? 0;
 
-            $orphanText = $orphansDeleted > 0 ? ", Orphan: {$orphansDeleted} dibersihkan" : '';
+            // Penghapusan orphaned secret tidak pernah dilakukan dari UI: hanya dilaporkan (hapus lewat CLI --clean-orphans).
+            $orphanText = $orphansFound > 0 ? ", Orphan terdeteksi: {$orphansFound} (tidak dihapus)" : '';
 
             Flux::toast(
                 variant: 'success',
@@ -244,6 +275,7 @@ class Index extends Component
             'statuses' => StatusRouter::cases(),
             'routerToDelete' => $routerToDelete,
             'otherRouters' => $otherRouters,
+            'targetPools' => $this->targetRouterId ? IpPool::where('router_id', $this->targetRouterId)->orderBy('nama_pool')->get() : collect(),
         ]);
     }
 }

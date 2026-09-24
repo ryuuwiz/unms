@@ -1,6 +1,6 @@
 # ADR 0022: Manajemen Local & Remote Address PPP Secret dan Isolasi Jalur Up To vs Dedicated
 
-**Status**: Accepted  
+**Status**: Superseded oleh ADR-0051 (perilaku `local/remote-address` PPP Secret; isolasi jalur/segmentasi tetap berlaku)  
 **Date**: 2026-08-25  
 
 ## Konteks

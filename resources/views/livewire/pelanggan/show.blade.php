@@ -402,11 +402,12 @@
                         </summary>
                         <dl class="grid grid-cols-2 gap-x-6 gap-y-4 px-4 pb-5 sm:grid-cols-3 sm:px-6 lg:grid-cols-4">
                             @foreach ([
-                                'Profile' => $statusPpp['profile'] ?? $layanan->paketLayanan->profilBandwidth?->nama_bandwidth ?? '—',
+                                'Profile' => $statusPpp['profile'] ?? $layanan->paketLayanan->profilBandwidth?->pppProfileName($layanan->profilePool()) ?? '—',
                                 'Service' => strtoupper($statusPpp['service'] ?? $layanan->jenis_koneksi?->value ?? 'pppoe'),
                                 'Uptime' => $statusPpp['uptime'] ?? '—',
                                 'Terakhir logout' => $statusPpp['last_logged_out'] ?? '—',
-                                'Gateway (local IP)' => $statusPpp['local_address'] ?? $layanan->resolveLocalAddress() ?? '—',
+                                'Gateway (local IP)' => $statusPpp['local_address'] ?? $layanan->resolveLocalAddress() ?? $layanan->ipPool?->getGatewayAddress() ?? '—',
+                                'IP Publik Dedicated' => $layanan->ipPublikAktif()?->alamat_ip ?? '—',
                                 'Caller ID (MAC ONT)' => $statusPpp['caller_id'] ?? '—',
                                 'Port ODP' => ($layanan->odpPort?->odp?->nama_odp ?? '—') . ' (Port ' . ($layanan->odpPort?->nomor_port ?? '—') . ')',
                                 'Tanggal mulai' => $layanan->tanggal_mulai->translatedFormat('d M Y'),
@@ -426,8 +427,8 @@
                                         </a>
                                     @elseif (! $isConnected)
                                         <span class="text-rose-700 dark:text-rose-300">Belum tersambung (Offline)</span>
-                                        @if (! empty($layanan->ip_static))
-                                            <span class="block text-zinc-500">Target statis: {{ $layanan->ip_static }}</span>
+                                        @if ($layanan->resolveRemoteAddress())
+                                            <span class="block text-zinc-500">Target statis: {{ $layanan->resolveRemoteAddress() }}</span>
                                         @endif
                                     @else
                                         <span class="text-zinc-400">—</span>

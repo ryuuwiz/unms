@@ -2,9 +2,11 @@
 
 namespace App\Livewire\IpPool;
 
+use App\Enums\StatusRouter;
 use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
 use App\Models\IpPool;
 use App\Models\Router;
+use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -91,6 +93,14 @@ class Index extends Component
 
         $routers = Router::orderBy('nama_router')->get();
 
+        // Pemakaian pool dibaca live dari RouterOS (satu query per router online di halaman ini, di-cache).
+        // Router yang mengalokasikan IP, jadi ini satu-satunya indikator pool hampir penuh.
+        $mikrotik = app(MikrotikService::class);
+        $usage = [];
+        foreach ($pools->getCollection()->pluck('router')->unique('id') as $router) {
+            $usage[$router->id] = $router->status_koneksi === StatusRouter::Online ? $mikrotik->getPoolUsage($router) : null;
+        }
+
         $poolToDelete = $this->deletingId
             ? IpPool::withCount('layanans')->find($this->deletingId)
             : null;
@@ -99,6 +109,7 @@ class Index extends Component
             'pools' => $pools,
             'routers' => $routers,
             'poolToDelete' => $poolToDelete,
+            'usage' => $usage,
         ]);
     }
 }

@@ -62,7 +62,7 @@ class Edit extends Component
         return [
             'nama_pool' => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_-]+$/', Rule::unique('ip_pool', 'nama_pool')->where('router_id', $this->router_id)->ignore($this->poolId)],
             'router_id' => ['required', 'integer', 'exists:router,id'],
-            'ip_network' => ['required', 'string', 'ipv4'],
+            'ip_network' => ['bail', 'required', 'string', 'ipv4', $this->ipNetworkRule()],
             'cidr' => ['required', 'integer', 'min:1', 'max:32'],
             'rentang_ip_awal' => ['required', 'string', 'ipv4'],
             'rentang_ip_akhir' => ['bail', 'required', 'string', 'ipv4', $this->rentangIpAkhirRule($this->poolId)],
@@ -96,6 +96,18 @@ class Edit extends Component
         if ($this->router_id !== $pool->router_id && ! $pool->canBeDeleted()) {
             $count = $pool->layanans()->withTrashed()->count();
             Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} masih digunakan oleh {$count} layanan pelanggan dan tidak dapat dipindahkan ke router lain.");
+
+            return;
+        }
+
+        // Nama dan network/CIDR menjadi nama Profile PPP per Pool, remote-address, dan gateway di router;
+        // mengubahnya saat dipakai layanan meninggalkan pool/profile ganda dan risiko IP ganda.
+        if (! $pool->canBeDeleted() && (
+            $this->nama_pool !== $pool->nama_pool
+            || $this->ip_network !== $pool->ip_network
+            || (int) $this->cidr !== (int) $pool->cidr
+        )) {
+            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} sedang dipakai layanan pelanggan: nama dan network/CIDR tidak dapat diubah. Buat pool baru lalu pindahkan layanannya.");
 
             return;
         }

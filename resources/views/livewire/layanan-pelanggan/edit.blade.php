@@ -57,8 +57,22 @@
                         </flux:select.option>
                     @endforeach
                 </flux:select>
-                <flux:description>Pool ini menentukan alokasi IP pelanggan di MikroTik (remote-address PPP Secret).</flux:description>
+                <flux:description>Pool ini menentukan alokasi IP pelanggan di MikroTik. RouterOS yang membagikan IP lewat Profile PPP per Pool; alamat sesi tampil di halaman pelanggan.</flux:description>
                 <flux:error name="ip_pool_id" />
+            </flux:field>
+
+            <flux:field>
+                <flux:label>IP Publik Dedicated <span class="text-zinc-400 font-normal">(add-on berbayar)</span></flux:label>
+                <flux:select wire:model.live="ip_publik_id" :disabled="! $router_id">
+                    <flux:select.option value="">Tanpa IP Publik</flux:select.option>
+                    @foreach ($ipPubliks as $ipPublik)
+                        <flux:select.option value="{{ $ipPublik->id }}">
+                            {{ $ipPublik->alamat_ip }} — Rp {{ number_format((float) $ipPublik->harga_bulanan, 0, ',', '.') }}/bulan
+                        </flux:select.option>
+                    @endforeach
+                </flux:select>
+                <flux:description>Ditagih mulai invoice periodik berikutnya. Menyimpan perubahan ini memutus sesi PPP pelanggan sesaat agar alamat baru berlaku.</flux:description>
+                <flux:error name="ip_publik_id" />
             </flux:field>
         @else
             <flux:field>

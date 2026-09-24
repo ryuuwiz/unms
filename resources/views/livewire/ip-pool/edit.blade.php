@@ -10,7 +10,7 @@
         <flux:field>
             <flux:label>Nama Pool</flux:label>
             <flux:input wire:model="nama_pool" placeholder="Contoh: Pool-Rumahan-01" />
-            <flux:description>Huruf, angka, strip, dan underscore saja (tanpa spasi) -- nama ini dipakai langsung sebagai remote-address PPP Secret di MikroTik.</flux:description>
+            <flux:description>Huruf, angka, strip, dan underscore saja (tanpa spasi) -- nama ini dipakai sebagai remote-address pada Profile PPP per Pool di MikroTik.</flux:description>
             <flux:error name="nama_pool" />
         </flux:field>
 

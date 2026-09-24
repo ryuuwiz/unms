@@ -194,6 +194,18 @@
                                 <flux:description>Layanan pelanggan akan dialihkan ke router ini sebelum router dihapus.</flux:description>
                             </flux:field>
 
+                            @if ($targetRouterId)
+                                <flux:field>
+                                    <flux:label>IP Pool di Router Tujuan</flux:label>
+                                    <flux:select wire:model.live="targetPoolId" placeholder="Pilih IP Pool...">
+                                        @foreach ($targetPools as $pool)
+                                            <flux:select.option value="{{ $pool->id }}">{{ $pool->nama_pool }} ({{ $pool->ip_network }}/{{ $pool->cidr }})</flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+                                    <flux:description>Wajib untuk layanan PPPoE yang dipindahkan. Layanan aktif langsung diprovisi ulang di router tujuan; sesuaikan per layanan lewat Edit bila perlu segmen pool berbeda.</flux:description>
+                                </flux:field>
+                            @endif
+
                             <div class="pt-2 border-t border-amber-200/60 dark:border-amber-800/60">
                                 <flux:checkbox
                                     wire:model.live="confirmForceDelete"

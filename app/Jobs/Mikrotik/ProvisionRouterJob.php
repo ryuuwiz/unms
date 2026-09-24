@@ -20,6 +20,9 @@ class ProvisionRouterJob implements ShouldQueue
 
     public int $tries = 3;
 
+    /** Pipeline penuh bisa beberapa menit; harus < retry_after antrean (config/queue.php). */
+    public int $timeout = 300;
+
     /**
      * @var array<int, int>
      */

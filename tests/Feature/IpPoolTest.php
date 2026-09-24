@@ -4,11 +4,13 @@ use App\Livewire\IpPool\Create;
 use App\Livewire\IpPool\Edit;
 use App\Livewire\IpPool\Index;
 use App\Models\IpPool;
+use App\Models\IpPublik;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\Router;
 use App\Models\User;
+use App\Services\Mikrotik\MikrotikService;
 use App\Utils\IpNetworkHelper;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,7 +29,7 @@ test('suggested ip range calculator works', function () {
     $range = IpNetworkHelper::calculateSuggestedRange('192.168.88.0', 24);
 
     expect($range)->toBe([
-        'start' => '192.168.88.1',
+        'start' => '192.168.88.2',
         'end' => '192.168.88.254',
     ]);
 
@@ -50,7 +52,7 @@ test('can create ip pool and calculate range automatically', function () {
         ->set('cidr', 24)
         ->call('generateRange')
         ->assertHasNoErrors()
-        ->assertSet('rentang_ip_awal', '10.0.0.1')
+        ->assertSet('rentang_ip_awal', '10.0.0.2')
         ->assertSet('rentang_ip_akhir', '10.0.0.254')
         ->set('priority_tx', 8)
         ->set('priority_rx', 8)
@@ -62,7 +64,7 @@ test('can create ip pool and calculate range automatically', function () {
     expect($pool)->not->toBeNull()
         ->and($pool->ip_network)->toBe('10.0.0.0')
         ->and($pool->cidr)->toBe(24)
-        ->and($pool->rentang_ip_awal)->toBe('10.0.0.1')
+        ->and($pool->rentang_ip_awal)->toBe('10.0.0.2')
         ->and($pool->rentang_ip_akhir)->toBe('10.0.0.254')
         ->and($pool->priority_tx)->toBe(8);
 });
@@ -269,39 +271,46 @@ test('pool name rejects spaces and special characters -- RouterOS remote-address
         ->call('save')->assertHasNoErrors();
 });
 
-test('nextFreeAddress and hasFreeAddress reflect ip_dynamic already allocated to active layanan', function () {
-    $router = Router::factory()->create();
+test('totalAddresses counts the inclusive range and containsAddress checks membership', function () {
     $pool = IpPool::factory()->create([
-        'router_id' => $router->id,
+        'router_id' => Router::factory()->create()->id,
         'rentang_ip_awal' => '10.0.0.2',
-        'rentang_ip_akhir' => '10.0.0.4',
+        'rentang_ip_akhir' => '10.0.0.254',
     ]);
 
-    expect($pool->nextFreeAddress())->toBe('10.0.0.2')
-        ->and($pool->hasFreeAddress())->toBeTrue();
-
-    LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.2', 'status' => 'aktif']);
-    LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.3', 'status' => 'proses']);
-
-    expect($pool->nextFreeAddress())->toBe('10.0.0.4')
-        ->and($pool->hasFreeAddress())->toBeTrue();
-
-    LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.4', 'status' => 'suspend']);
-
-    expect($pool->nextFreeAddress())->toBeNull()
-        ->and($pool->hasFreeAddress())->toBeFalse();
+    expect($pool->totalAddresses())->toBe(253)
+        ->and($pool->containsAddress('10.0.0.2'))->toBeTrue()
+        ->and($pool->containsAddress('10.0.0.254'))->toBeTrue()
+        ->and($pool->containsAddress('10.0.0.1'))->toBeFalse()
+        ->and($pool->containsAddress('10.0.1.5'))->toBeFalse();
 });
 
-test('used addresses ignore terminated layanan so their ip becomes free again', function () {
+test('ip pool range cannot cover an ip publik or ip_static already on the same router', function () {
     $router = Router::factory()->create();
-    $pool = IpPool::factory()->create([
-        'router_id' => $router->id,
-        'rentang_ip_awal' => '10.0.0.2',
-        'rentang_ip_akhir' => '10.0.0.2',
-    ]);
+    IpPublik::factory()->create(['router_id' => $router->id, 'alamat_ip' => '10.0.0.77']);
 
-    LayananPelanggan::factory()->create(['ip_pool_id' => $pool->id, 'ip_dynamic' => '10.0.0.2', 'status' => 'berhenti']);
+    isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $router, ['nama_pool' => 'Pool-Bentrok'])
+        ->call('save')
+        ->assertHasErrors('rentang_ip_akhir');
 
-    expect($pool->hasFreeAddress())->toBeTrue()
-        ->and($pool->nextFreeAddress())->toBe('10.0.0.2');
+    $lain = Router::factory()->create();
+    LayananPelanggan::factory()->create(['router_id' => $lain->id, 'ip_static' => '10.0.0.88']);
+
+    isiFormIpPool(Livewire::actingAs($this->superAdmin)->test(Create::class), $lain, ['nama_pool' => 'Pool-Statis'])
+        ->call('save')
+        ->assertHasErrors('rentang_ip_akhir');
+});
+
+test('ip pool index shows live usage from the router for online routers', function () {
+    $router = Router::factory()->online()->create();
+    IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Live', 'rentang_ip_awal' => '10.0.0.2', 'rentang_ip_akhir' => '10.0.0.11']);
+
+    $mock = Mockery::mock(MikrotikService::class);
+    $mock->shouldReceive('getPoolUsage')->once()->andReturn(['Pool-Live' => 9]);
+    app()->instance(MikrotikService::class, $mock);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->assertSee('Terpakai 9 / 10')
+        ->assertSee('hampir penuh');
 });

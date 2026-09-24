@@ -2,9 +2,14 @@
 
 namespace App\Observers;
 
+use App\Actions\IpPublik\LepasIpPublikAction;
+use App\Actions\IpPublik\TetapkanIpPublikAction;
+use App\Enums\JenisKoneksi;
+use App\Enums\StatusLayanan;
 use App\Jobs\Mikrotik\CleanupPppSecretOnOldRouterJob;
 use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
 use App\Models\LayananPelanggan;
+use Illuminate\Support\Facades\Auth;
 
 class LayananPelangganObserver
 {
@@ -27,6 +32,8 @@ class LayananPelangganObserver
                     $oldRouterId,
                     $pppUsername,
                     $layanan->id,
+                    Auth::id() ?? 'system:tanpa-user',
+                    'Layanan dipindah ke router lain',
                 );
             }
 
@@ -47,6 +54,8 @@ class LayananPelangganObserver
                     $routerId,
                     $oldUsername,
                     $layanan->id,
+                    Auth::id() ?? 'system:tanpa-user',
+                    'Username PPP layanan diganti',
                 );
             }
         }
@@ -64,6 +73,15 @@ class LayananPelangganObserver
         if ($layanan->wasChanged('paket_layanan_id') && $layanan->router_id) {
             UpdatePppoeProfileJob::dispatch($layanan);
         }
+
+        // Username/router/pool/IP statis berubah: secret lama sudah dibersihkan (updating), jadi provisi ulang
+        // sekarang + putus sesi agar tidak ada jendela outage sampai rekonsiliasi 15 menit. Tanpa IP Pool
+        // (PPPoE) provisi pasti ditolak, jadi ditunda sampai staf mengisinya.
+        if (! $layanan->trashed()
+            && $layanan->wasChanged(['ppp_username', 'router_id', 'ip_pool_id', 'ip_static'])
+            && ($layanan->ip_pool_id || $layanan->jenis_koneksi === JenisKoneksi::IpStatic)) {
+            TetapkanIpPublikAction::reprovision($layanan);
+        }
     }
 
     /**
@@ -74,6 +92,11 @@ class LayananPelangganObserver
     {
         if ($layanan->wasChanged('status')) {
             $layanan->pelanggan?->sinkronkanStatusDariLayanan();
+
+            // Suspend tetap memegang IP Publik (tetap ditagih); Berhenti mengembalikannya ke inventaris.
+            if ($layanan->status === StatusLayanan::Berhenti) {
+                $this->lepasIpPublik($layanan);
+            }
         }
     }
 
@@ -86,6 +109,7 @@ class LayananPelangganObserver
     public function deleted(LayananPelanggan $layanan): void
     {
         $layanan->pelanggan?->sinkronkanStatusDariLayanan();
+        $this->lepasIpPublik($layanan);
 
         $routerId = (int) $layanan->router_id;
         $pppUsername = (string) $layanan->ppp_username;
@@ -95,7 +119,21 @@ class LayananPelangganObserver
                 $routerId,
                 $pppUsername,
                 $layanan->id,
+                Auth::id() ?? 'system:tanpa-user',
+                'Layanan dihapus dari UNMS',
             );
+        }
+    }
+
+    /**
+     * Lepas seluruh IP Publik layanan tanpa provisi ulang: secret ikut dinonaktifkan/dihapus oleh jalur lain.
+     */
+    private function lepasIpPublik(LayananPelanggan $layanan): void
+    {
+        $action = app(LepasIpPublikAction::class);
+
+        foreach ($layanan->ipPubliks()->get() as $ipPublik) {
+            $action->execute($ipPublik, reprovision: false);
         }
     }
 }

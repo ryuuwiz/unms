@@ -9,6 +9,7 @@ use App\Http\Controllers\Webhook\WhatsappWebhookController;
 use App\Http\Controllers\Webhook\XenditWebhookController;
 use App\Livewire\Invoice;
 use App\Livewire\IpPool;
+use App\Livewire\IpPublik;
 use App\Livewire\Laporan;
 use App\Livewire\LayananPelanggan;
 use App\Livewire\Maps\EstimasiKabel;
@@ -267,6 +268,19 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::middleware('permission:ip_pool.lihat')->group(function () {
             Route::get('/', IpPool\Index::class)->name('index');
+        });
+    });
+
+    // ─── IP Publik Dedicated ──────────────────────────────────────
+    Route::prefix('ip-publik')->name('ip-publik.')->group(function () {
+        Route::middleware('permission:ip_publik.buat')->group(function () {
+            Route::get('/create', IpPublik\Create::class)->name('create');
+        });
+        Route::middleware('permission:ip_publik.ubah')->group(function () {
+            Route::get('/{ipPublik}/edit', IpPublik\Edit::class)->name('edit');
+        });
+        Route::middleware('permission:ip_publik.lihat')->group(function () {
+            Route::get('/', IpPublik\Index::class)->name('index');
         });
     });
 

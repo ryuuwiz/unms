@@ -48,11 +48,14 @@ class BillingService
                 return $existingInvoice;
             }
 
-            $harga = $layanan->hargaDasar();
+            $hargaPaket = $layanan->hargaDasar();
+            $hargaTambahan = $layanan->hargaTambahan();
+            $harga = $hargaPaket + $hargaTambahan;
 
+            // Diskon promo hanya berlaku pada harga paket, tidak pada add-on IP Publik.
             $diskon = 0.0;
             if ($promo && $promo->aktif) {
-                $diskon = $promo->hitungDiskon($harga);
+                $diskon = $promo->hitungDiskon($hargaPaket);
             }
 
             $jumlahSetelahPromo = max(0.0, $harga - $diskon);
@@ -76,6 +79,7 @@ class BillingService
                 'jumlah' => $harga,
                 'jumlah_setelah_promo' => $jumlahSetelahPromo + $tunggakan,
                 'jumlah_tunggakan' => $tunggakan,
+                'keterangan' => $this->keteranganAddOn($layanan, $hargaPaket),
                 'promo_id' => $promo?->id,
                 'status' => StatusInvoice::MenungguPembayaran,
                 'tanggal_terbit' => $terbit,
@@ -98,6 +102,24 @@ class BillingService
 
             return $invoice;
         });
+    }
+
+    /**
+     * Rincian komponen tagihan bila layanan punya add-on IP Publik (Invoice belum punya tabel item).
+     * Null bila tidak ada add-on, sehingga invoice tanpa add-on tidak berubah.
+     */
+    protected function keteranganAddOn(LayananPelanggan $layanan, float $hargaPaket): ?string
+    {
+        if ($layanan->ipPubliks->isEmpty()) {
+            return null;
+        }
+
+        $baris = [sprintf('Paket: Rp %s', number_format($hargaPaket, 0, ',', '.'))];
+        foreach ($layanan->ipPubliks as $ipPublik) {
+            $baris[] = sprintf('IP Publik %s: Rp %s', $ipPublik->alamat_ip, number_format((float) $ipPublik->harga_ditagih, 0, ',', '.'));
+        }
+
+        return implode('; ', $baris);
     }
 
     /**

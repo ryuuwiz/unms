@@ -7,6 +7,7 @@ use App\Enums\MikrotikJobType;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Services\Mikrotik\MikrotikService;
+use App\Support\PppDeletionContext;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -110,7 +111,11 @@ class MigratePppUsernameCommand extends Command
 
             try {
                 // 1. Hapus secret lama dari MikroTik
-                $mikrotikService->deletePppoeSecret($router, $oldUsername);
+                $mikrotikService->deletePppoeSecret(
+                    $router,
+                    $oldUsername,
+                    PppDeletionContext::system('artisan', "Migrasi format username PPP (layanan:migrate-ppp-username) untuk layanan #{$layanan->id}"),
+                );
 
                 // 2. Update ppp_username di database tanpa memicu event observer ganda
                 $layanan->updateQuietly(['ppp_username' => $newUsername]);

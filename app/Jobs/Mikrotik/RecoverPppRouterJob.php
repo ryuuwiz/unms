@@ -4,11 +4,13 @@ namespace App\Jobs\Mikrotik;
 
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
+use App\Enums\StatusRouter;
 use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Models\User;
 use App\Notifications\MikrotikJobFailedNotification;
 use App\Services\Mikrotik\MikrotikService;
+use App\Support\PppDeletionContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -34,7 +36,8 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
         public Router $router,
         public bool $force = false,
         public bool $cleanOrphans = false,
-        public bool $dryRun = false
+        public bool $dryRun = false,
+        public bool $auditOrphans = false
     ) {
         $this->onQueue('mikrotik-low');
     }
@@ -64,6 +67,20 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(MikrotikService $mikrotikService): void
     {
+        // Router yang diketahui offline (ping 5 menit) dilewati: tanpa ini job gagal dan menotifikasi tiap siklus 15 menit.
+        if ($this->router->fresh()?->status_koneksi === StatusRouter::Offline) {
+            MikrotikJobLog::create([
+                'router_id' => $this->router->id,
+                'job_type' => MikrotikJobType::ReconcilePppoe,
+                'status' => MikrotikJobStatus::Dilewati,
+                'attempt_count' => 1,
+                'error_message' => "Router {$this->router->nama_router} diketahui offline; rekonsiliasi dilewati sampai router online kembali.",
+                'finished_at' => Carbon::now(),
+            ]);
+
+            return;
+        }
+
         $lock = Cache::lock("mikrotik:router:{$this->router->id}", 120);
 
         try {
@@ -79,8 +96,16 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
 
                     if ($this->cleanOrphans) {
                         // Saat dry-run, jangan benar-benar hapus orphan — hanya laporkan (executeDelete = false).
-                        $orphanStats = $mikrotikService->cleanOrphanedPppSecrets($this->router, ! $this->dryRun);
+                        $orphanStats = $mikrotikService->cleanOrphanedPppSecrets(
+                            $this->router,
+                            ! $this->dryRun,
+                            null,
+                            $this->dryRun ? null : PppDeletionContext::system('artisan', 'Pembersihan orphaned secret atas permintaan eksplisit (opsi --clean-orphans)'),
+                        );
                         $result['orphans'] = $orphanStats;
+                    } elseif ($this->auditOrphans) {
+                        // Audit terjadwal: hanya melaporkan, tidak pernah menghapus.
+                        $result['orphans'] = $mikrotikService->cleanOrphanedPppSecrets($this->router, false);
                     }
 
                     $recoveredCount = $result['recovered'] ?? 0;
@@ -88,14 +113,18 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
                     $duplicatesRemoved = $result['duplicates_removed'] ?? 0;
                     $errors = $result['errors'] ?? [];
 
+                    $orphanCount = (int) ($result['orphans']['orphans_count'] ?? 0);
+                    $capExceeded = (bool) ($result['delete_cap_exceeded'] ?? false) || (bool) ($result['orphans']['cap_exceeded'] ?? false);
+                    $errors = array_merge($errors, $result['orphans']['errors'] ?? []);
                     $shouldLog = $this->cleanOrphans
+                        || ($this->auditOrphans && $orphanCount > 0)
                         || ($recoveredCount > 0)
                         || ($disabledCount > 0)
                         || ($duplicatesRemoved > 0)
                         || (! empty($errors));
 
                     if ($shouldLog) {
-                        MikrotikJobLog::create([
+                        $log = MikrotikJobLog::create([
                             'router_id' => $this->router->id,
                             'job_type' => MikrotikJobType::ReconcilePppoe,
                             'status' => empty($errors) ? MikrotikJobStatus::Success : MikrotikJobStatus::Failed,
@@ -104,6 +133,11 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
                             'error_message' => ! empty($errors) ? implode('; ', $errors) : null,
                             'finished_at' => Carbon::now(),
                         ]);
+
+                        // Batas hapus massal tercapai: NOC wajib tahu (sekali per router per jam).
+                        if ($capExceeded) {
+                            $this->notifyOncePerHour('delete-cap', $log);
+                        }
                     }
                 }
             });
@@ -129,10 +163,22 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
             ->first();
 
         if ($log) {
-            $recipients = User::role(['super_admin', 'noc'])->get();
-            foreach ($recipients as $recipient) {
-                $recipient->notify(new MikrotikJobFailedNotification($log));
-            }
+            $this->notifyOncePerHour('failed', $log);
+        }
+    }
+
+    /**
+     * Notifikasi ke super_admin/NOC dibatasi sekali per router per jam per jenis: router yang mati tidak
+     * boleh membanjiri notifikasi tiap siklus rekonsiliasi.
+     */
+    private function notifyOncePerHour(string $jenis, MikrotikJobLog $log): void
+    {
+        if (! Cache::add("mikrotik:notif:{$this->router->id}:{$jenis}", true, 3600)) {
+            return;
+        }
+
+        foreach (User::role(['super_admin', 'noc'])->get() as $recipient) {
+            $recipient->notify(new MikrotikJobFailedNotification($log));
         }
     }
 }
