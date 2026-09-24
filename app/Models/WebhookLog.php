@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\StatusWebhookLog;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -16,7 +15,7 @@ use Illuminate\Support\Carbon;
  * @property string $event_type
  * @property string|null $provider_event_id
  * @property string|null $xendit_event_id
- * @property array|null $payload
+ * @property array<string, mixed>|null $payload
  * @property StatusWebhookLog $status_proses
  * @property string|null $catatan_error
  * @property Carbon $diterima_pada
@@ -37,8 +36,6 @@ use Illuminate\Support\Carbon;
 ])]
 class WebhookLog extends Model
 {
-    use HasFactory;
-
     protected $table = 'webhook_log';
 
     public function setProviderEventIdAttribute(?string $value): void

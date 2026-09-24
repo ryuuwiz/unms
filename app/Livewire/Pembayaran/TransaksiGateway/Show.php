@@ -20,6 +20,7 @@ class Show extends Component
 {
     public TransaksiPaymentGateway $transaksi;
 
+    /** @var array<string, mixed>|null */
     public ?array $reconciliationResult = null;
 
     public function mount(TransaksiPaymentGateway $transaksi): void

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
@@ -17,13 +18,13 @@ class ImpersonateController extends Controller
     /**
      * Memulai sesi impersonasi ke akun pengguna atau pelanggan lain.
      */
-    public function take(Request $request, int|string $id, ?string $guardName = null): RedirectResponse
+    public function take(Request $request, int $id, ?string $guardName = null): RedirectResponse
     {
         $guardName = $guardName ?? $this->manager->getDefaultSessionGuard();
 
         $currentUser = $request->user();
 
-        if (! $currentUser || ! method_exists($currentUser, 'canImpersonate') || ! $currentUser->canImpersonate()) {
+        if (! $currentUser || ! $currentUser->canImpersonate()) {
             abort(403, 'Akses ditolak. Hanya Super Admin aktif yang dapat melakukan impersonasi.');
         }
 
@@ -31,11 +32,11 @@ class ImpersonateController extends Controller
             abort(403, 'Sesi impersonasi sedang aktif. Akhiri sesi saat ini terlebih dahulu.');
         }
 
-        if ($id == $currentUser->getAuthIdentifier() && ($this->manager->getCurrentAuthGuardName() === $guardName)) {
+        $userToImpersonate = $this->manager->findUserById($id, $guardName);
+
+        if ($userToImpersonate instanceof Model && $currentUser->is($userToImpersonate)) {
             abort(403, 'Tidak dapat mengimpersonasi akun Anda sendiri.');
         }
-
-        $userToImpersonate = $this->manager->findUserById($id, $guardName);
 
         if (! method_exists($userToImpersonate, 'canBeImpersonated') || ! $userToImpersonate->canBeImpersonated()) {
             abort(403, 'Akun ini tidak dapat diimpersonasi.');
@@ -79,7 +80,7 @@ class ImpersonateController extends Controller
 
         $currentUser = User::findOrFail($request->integer('impersonator'));
 
-        if (! method_exists($currentUser, 'canImpersonate') || ! $currentUser->canImpersonate()) {
+        if (! $currentUser->canImpersonate()) {
             abort(403, 'Akses ditolak. Hanya Super Admin aktif yang dapat melakukan impersonasi.');
         }
 

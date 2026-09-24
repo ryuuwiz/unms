@@ -448,6 +448,7 @@ class MikrotikService
             // 6. Cek apakah secret sudah ada di RouterOS
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
             $existing = $client->query($findQuery)->read();
+            $action = 'created';
 
             if (empty($existing) || ! isset($existing[0]['.id'])) {
                 try {
@@ -1110,6 +1111,7 @@ class MikrotikService
      *         already_synced: int,
      *         disabled: int,
      *         duplicates_removed: int,
+     *         terminated_removed: int,
      *         errors: array<string>
      *     },
      *     total_checked: int,
@@ -1117,6 +1119,10 @@ class MikrotikService
      *     already_synced: int,
      *     disabled: int,
      *     duplicates_removed: int,
+     *     terminated_removed: int,
+     *     delete_cap_exceeded: bool,
+     *     delete_skipped_over_cap: array<int, string>,
+     *     unmanaged_duplicates: array<int, string>,
      *     errors: array<string>,
      *     dry_run: bool,
      *     dry_run_changes: array<int, array<string, mixed>>
@@ -1921,7 +1927,20 @@ class MikrotikService
     /**
      * Paksa fetch ulang status realtime PPP, melewati cache dari getPppStatus().
      *
-     * @return array<string, mixed>
+     * @return array{
+     *     is_connected: bool,
+     *     status_label: string,
+     *     profile: ?string,
+     *     service: ?string,
+     *     ip_address: ?string,
+     *     local_address: ?string,
+     *     uptime: ?string,
+     *     caller_id: ?string,
+     *     last_logged_out: ?string,
+     *     is_disabled: bool,
+     *     router_online: bool,
+     *     error_message: ?string,
+     * }
      */
     public function refreshPppStatus(Router $router, string $username): array
     {
@@ -1969,7 +1988,20 @@ class MikrotikService
     /**
      * Ambil status realtime PPP Secret & sesi aktif dari RouterOS secara live (tanpa cache).
      *
-     * @return array<string, mixed>
+     * @return array{
+     *     is_connected: bool,
+     *     status_label: string,
+     *     profile: ?string,
+     *     service: ?string,
+     *     ip_address: ?string,
+     *     local_address: ?string,
+     *     uptime: ?string,
+     *     caller_id: ?string,
+     *     last_logged_out: ?string,
+     *     is_disabled: bool,
+     *     router_online: bool,
+     *     error_message: ?string,
+     * }
      */
     private function fetchLivePppStatus(Router $router, string $username): array
     {

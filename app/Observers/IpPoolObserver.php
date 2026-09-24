@@ -22,7 +22,7 @@ class IpPoolObserver
 
         $router = $ipPool->router;
 
-        if ($router && $router->status_koneksi === StatusRouter::Online) {
+        if ($router->status_koneksi === StatusRouter::Online) {
             SyncIpPoolToRouterJob::dispatch($ipPool);
         }
     }

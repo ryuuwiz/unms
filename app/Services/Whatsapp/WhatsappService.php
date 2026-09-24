@@ -130,7 +130,7 @@ class WhatsappService
     {
         $pelanggan = $invoice->pelanggan;
         $layanan = $invoice->layananPelanggan;
-        $namaPaket = $layanan?->paketLayanan?->nama_paket ?? 'Layanan Internet';
+        $namaPaket = $layanan?->paketLayanan->nama_paket ?? 'Layanan Internet';
 
         // Tautan checkout tanpa login: signed URL, bukan xendit_invoice_url langsung -- agar
         // pelanggan selalu mendarat di halaman rincian tagihan kami dulu (bisa sinkronisasi
@@ -142,14 +142,14 @@ class WhatsappService
 
         return [
             'nama_pelanggan' => $pelanggan ? "{$pelanggan->nama_depan} {$pelanggan->nama_belakang}" : 'Pelanggan',
-            'no_reg' => $pelanggan?->no_reg ?? '-',
+            'no_reg' => $pelanggan->no_reg ?? '-',
             'no_invoice' => $invoice->no_invoice,
             'periode' => $invoice->periode_tagihan ?? Carbon::parse($invoice->tanggal_terbit)->format('m/Y'),
             'total_tagihan' => 'Rp '.number_format($invoice->jumlah_setelah_promo ?? $invoice->jumlah, 0, ',', '.'),
             'jatuh_tempo' => Carbon::parse($invoice->tanggal_jatuh_tempo)->translatedFormat('d F Y'),
             'link_pembayaran' => $linkBayar,
             'nama_paket' => $namaPaket,
-            'site_id' => $layanan?->site_id ?? '-',
+            'site_id' => $layanan->site_id ?? '-',
             // Kode referensi kosmetik saja -- tidak ada integrasi PPOB/biller minimarket di
             // sistem ini untuk memvalidasinya, sekadar nomor rujukan singkat di pesan.
             'kode_bayar' => str_pad((string) ($invoice->id % 100000), 5, '0', STR_PAD_LEFT),
@@ -167,7 +167,7 @@ class WhatsappService
         $pelanggan = $ticket->pelanggan;
         $pic = $ticket->pic;
 
-        $alamat = $pelanggan?->alamat_lengkap ?? '-';
+        $alamat = $pelanggan->alamat_lengkap ?? '-';
         if ($pelanggan?->perumahan) {
             $alamat .= " ({$pelanggan->perumahan->nama_perumahan})";
         }
@@ -178,10 +178,10 @@ class WhatsappService
             'prioritas' => $ticket->prioritas->label(),
             'status_tiket' => $ticket->status->label(),
             'nama_pelanggan' => $pelanggan ? "{$pelanggan->nama_depan} {$pelanggan->nama_belakang}" : 'Pelanggan',
-            'no_reg' => $pelanggan?->no_reg ?? '-',
-            'no_hp_pelanggan' => $pelanggan?->no_hp ?? '-',
+            'no_reg' => $pelanggan->no_reg ?? '-',
+            'no_hp_pelanggan' => $pelanggan->no_hp ?? '-',
             'alamat' => $alamat,
-            'nama_pic' => $pic?->name ?? 'Belum Ditugaskan',
+            'nama_pic' => $pic->name ?? 'Belum Ditugaskan',
             'catatan_histori' => $catatan ?? $ticket->deskripsi,
             'deskripsi' => $ticket->deskripsi,
             'sla_target' => $ticket->sla_target_selesai ? Carbon::parse($ticket->sla_target_selesai)->translatedFormat('d F Y H:i') : '-',
@@ -200,9 +200,7 @@ class WhatsappService
 
         $params['jumlah_dibayar'] = 'Rp '.number_format((float) $pembayaran->jumlah_dibayar, 0, ',', '.');
         $params['tanggal_bayar'] = Carbon::parse($pembayaran->dibayar_pada ?? now())->translatedFormat('d F Y H:i');
-        $metodeText = $pembayaran->metode instanceof \BackedEnum
-            ? $pembayaran->metode->value
-            : (string) ($pembayaran->metode ?? 'Online');
+        $metodeText = $pembayaran->metode->value;
         $params['metode_bayar'] = strtoupper(str_replace('_', ' ', $metodeText));
         $params['referensi_transaksi'] = $pembayaran->referensi_transaksi ?? $invoice->no_invoice;
 

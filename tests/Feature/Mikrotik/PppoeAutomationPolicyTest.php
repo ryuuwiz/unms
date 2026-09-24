@@ -161,7 +161,7 @@ test('rekonsiliasi dilewati untuk router offline, dan mode audit tidak menghapus
 
     $online = Router::factory()->online()->create();
     $service = Mockery::mock(MikrotikService::class);
-    $service->shouldReceive('autoRecoverPppSecrets')->once()->andReturn(['recovered' => 0, 'disabled' => 0, 'duplicates_removed' => 0, 'errors' => []]);
+    $service->shouldReceive('autoRecoverPppSecrets')->once()->andReturn(['recovered' => 0, 'disabled' => 0, 'duplicates_removed' => 0, 'delete_cap_exceeded' => false, 'errors' => []]);
     $service->shouldReceive('cleanOrphanedPppSecrets')->once()->with(Mockery::any(), false)->andReturn(['orphans_count' => 2, 'orphans' => ['a', 'b'], 'errors' => []]);
 
     (new RecoverPppRouterJob($online, false, false, false, true))->handle($service);

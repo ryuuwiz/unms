@@ -34,7 +34,7 @@ class WhatsappWebhookController extends Controller
      */
     public function handle(Request $request): JsonResponse
     {
-        if ((int) $request->header('Content-Length', 0) > self::MAX_BODY_BYTES) {
+        if ((int) $request->headers->get('Content-Length', '0') > self::MAX_BODY_BYTES) {
             return response()->json([
                 'status' => false,
                 'type' => 'payload_too_large',

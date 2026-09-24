@@ -13,7 +13,7 @@ class PengaturanPrefixRegistrasiSeeder extends Seeder
     public function run(): void
     {
         foreach ([
-            'BF' => 'Bestfiber',
+            'BF' => 'BESTFIBER',
             'ARS' => 'Arsyila',
         ] as $kode => $nama) {
             PengaturanPrefixRegistrasi::firstOrCreate(['kode' => $kode], ['nama' => $nama, 'is_active' => true]);

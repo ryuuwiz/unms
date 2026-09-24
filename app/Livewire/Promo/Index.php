@@ -4,7 +4,6 @@ namespace App\Livewire\Promo;
 
 use App\Models\Promo;
 use Flux\Flux;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -67,7 +66,6 @@ class Index extends Component
     {
         $this->authorize('viewAny', Promo::class);
 
-        /** @var LengthAwarePaginator<Promo> $promos */
         $promos = Promo::query()
             ->when($this->search, function ($q) {
                 $term = trim($this->search);

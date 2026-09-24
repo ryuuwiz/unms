@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\KelurahanFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['kecamatan_id', 'nama_kelurahan', 'keterangan'])]
 class Kelurahan extends Model
 {
+    /** @use HasFactory<KelurahanFactory> */
     use HasFactory;
 
     protected $table = 'kelurahan';

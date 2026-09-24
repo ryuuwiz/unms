@@ -108,13 +108,13 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
                         $result['orphans'] = $mikrotikService->cleanOrphanedPppSecrets($this->router, false);
                     }
 
-                    $recoveredCount = $result['recovered'] ?? 0;
-                    $disabledCount = $result['disabled'] ?? 0;
-                    $duplicatesRemoved = $result['duplicates_removed'] ?? 0;
-                    $errors = $result['errors'] ?? [];
+                    $recoveredCount = $result['recovered'];
+                    $disabledCount = $result['disabled'];
+                    $duplicatesRemoved = $result['duplicates_removed'];
+                    $errors = $result['errors'];
 
                     $orphanCount = (int) ($result['orphans']['orphans_count'] ?? 0);
-                    $capExceeded = (bool) ($result['delete_cap_exceeded'] ?? false) || (bool) ($result['orphans']['cap_exceeded'] ?? false);
+                    $capExceeded = $result['delete_cap_exceeded'] || (bool) ($result['orphans']['cap_exceeded'] ?? false);
                     $errors = array_merge($errors, $result['orphans']['errors'] ?? []);
                     $shouldLog = $this->cleanOrphans
                         || ($this->auditOrphans && $orphanCount > 0)

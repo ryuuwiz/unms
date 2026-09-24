@@ -4,7 +4,7 @@ namespace App\DTO\PaymentGateway;
 
 use Livewire\Wireable;
 
-readonly class PingConnectionResult implements Wireable
+final readonly class PingConnectionResult implements Wireable
 {
     /**
      * @param  array<string, mixed>  $rawResponse
@@ -40,7 +40,7 @@ readonly class PingConnectionResult implements Wireable
      */
     public static function fromLivewire($value): static
     {
-        return new static(
+        return new self(
             success: (bool) ($value['success'] ?? false),
             message: (string) ($value['message'] ?? ''),
             balance: isset($value['balance']) ? (float) $value['balance'] : null,

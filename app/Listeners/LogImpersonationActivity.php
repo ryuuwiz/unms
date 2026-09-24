@@ -2,6 +2,9 @@
 
 namespace App\Listeners;
 
+use App\Models\AkunPelanggan;
+use App\Models\User;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Log;
 use Lab404\Impersonate\Events\LeaveImpersonation;
 use Lab404\Impersonate\Events\TakeImpersonation;
@@ -18,10 +21,10 @@ class LogImpersonationActivity
 
         Log::warning('Sesi impersonasi dimulai oleh Super Admin.', [
             'event' => 'impersonate.take',
-            'impersonator_id' => $impersonator?->getAuthIdentifier(),
-            'impersonator_email' => $impersonator?->email ?? 'unknown',
-            'impersonated_id' => $impersonated?->getAuthIdentifier(),
-            'impersonated_email' => $impersonated?->email ?? 'unknown',
+            'impersonator_id' => $impersonator->getAuthIdentifier(),
+            'impersonator_email' => $this->emailDari($impersonator),
+            'impersonated_id' => $impersonated->getAuthIdentifier(),
+            'impersonated_email' => $this->emailDari($impersonated),
             'ip' => request()->ip(),
             'user_agent' => request()->userAgent(),
             'timestamp' => now()->toIso8601String(),
@@ -38,10 +41,10 @@ class LogImpersonationActivity
 
         Log::info('Sesi impersonasi diakhiri oleh Super Admin.', [
             'event' => 'impersonate.leave',
-            'impersonator_id' => $impersonator?->getAuthIdentifier(),
-            'impersonator_email' => $impersonator?->email ?? 'unknown',
-            'impersonated_id' => $impersonated?->getAuthIdentifier(),
-            'impersonated_email' => $impersonated?->email ?? 'unknown',
+            'impersonator_id' => $impersonator->getAuthIdentifier(),
+            'impersonator_email' => $this->emailDari($impersonator),
+            'impersonated_id' => $impersonated->getAuthIdentifier(),
+            'impersonated_email' => $this->emailDari($impersonated),
             'ip' => request()->ip(),
             'user_agent' => request()->userAgent(),
             'timestamp' => now()->toIso8601String(),
@@ -59,5 +62,10 @@ class LogImpersonationActivity
             TakeImpersonation::class => 'handleTake',
             LeaveImpersonation::class => 'handleLeave',
         ];
+    }
+
+    private function emailDari(Authenticatable $pengguna): string
+    {
+        return $pengguna instanceof User || $pengguna instanceof AkunPelanggan ? $pengguna->email : 'unknown';
     }
 }

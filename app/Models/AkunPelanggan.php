@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusPelanggan;
+use Database\Factories\AkunPelangganFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -24,6 +25,7 @@ use Lab404\Impersonate\Models\Impersonate;
 #[Fillable(['pelanggan_id', 'email', 'password', 'email_verified_at'])]
 class AkunPelanggan extends Authenticatable
 {
+    /** @use HasFactory<AkunPelangganFactory> */
     use HasFactory, Impersonate, Notifiable;
 
     protected $table = 'akun_pelanggan';

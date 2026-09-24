@@ -93,7 +93,7 @@ class XenditSimulateCommand extends Command
             } else {
                 $this->error('❌ Gagal memproses webhook lokal: '.$result['message']);
                 if (isset($result['response'])) {
-                    $this->line(json_encode($result['response'], JSON_PRETTY_PRINT));
+                    $this->line(json_encode($result['response'], JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
                 }
 
                 return self::FAILURE;
@@ -134,8 +134,8 @@ class XenditSimulateCommand extends Command
             [
                 ['Transaksi Gateway', strtoupper($transaksi->status->value), 'Status transaksi gateway'],
                 ['Invoice', strtoupper($invoice->status->value), 'Tanggal Lunas: '.($invoice->tanggal_lunas ?? '-')],
-                ['Layanan Pelanggan', $layanan ? strtoupper($layanan->status->value) : '-', 'Expired Baru: '.($layanan?->tanggal_expired ?? '-')],
-                ['Log Webhook', $latestLog ? strtoupper($latestLog->status_proses->value) : 'Belum tercatat (async)', 'Event: '.($latestLog?->event_type ?? '-')],
+                ['Layanan Pelanggan', $layanan ? strtoupper($layanan->status->value) : '-', 'Expired Baru: '.($layanan->tanggal_expired ?? '-')],
+                ['Log Webhook', $latestLog ? strtoupper($latestLog->status_proses->value) : 'Belum tercatat (async)', 'Event: '.($latestLog->event_type ?? '-')],
             ]
         );
 
@@ -212,7 +212,7 @@ class XenditSimulateCommand extends Command
                 $options['trx_'.$trx->id] = sprintf(
                     '[Transaksi %s] Invoice %s (%s) - Rp %s',
                     $trx->external_id,
-                    $inv?->no_invoice ?? '-',
+                    $inv->no_invoice ?? '-',
                     $pelangganName,
                     number_format((float) $trx->total_tagihan, 0, ',', '.')
                 );

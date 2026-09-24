@@ -379,9 +379,9 @@ class Index extends Component
         try {
             $client = $this->qrSysblas->makeClient();
             $info = $client->getDeviceInfo();
-            $status = $info['session_status'] ?? ($info['connected'] ? 'WORKING' : 'UNKNOWN');
+            $status = $info['session_status'];
             $this->qrSessionStatus = $status;
-            $this->qrMessage = $info['message'] ?? '';
+            $this->qrMessage = $info['message'];
 
             if ($status === 'WORKING') {
                 $this->qrCodeImage = null;

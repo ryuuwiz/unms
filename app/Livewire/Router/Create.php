@@ -130,7 +130,7 @@ class Create extends Component
             'ip_address' => $parsed['host'],
             'port' => $port,
             'username' => trim($this->username),
-            'password_terenkripsi' => $this->password ?? '',
+            'password_terenkripsi' => $this->password,
             'deskripsi' => $this->deskripsi ? trim($this->deskripsi) : null,
             'status_koneksi' => StatusRouter::Unknown,
         ]);

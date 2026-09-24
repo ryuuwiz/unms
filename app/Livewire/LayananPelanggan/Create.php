@@ -100,7 +100,7 @@ class Create extends Component
      */
     public function getPaketHargaDefaultProperty(): float
     {
-        return (float) (PaketLayanan::find($this->paket_layanan_id)?->harga ?? 0);
+        return (float) (PaketLayanan::find($this->paket_layanan_id)->harga ?? 0);
     }
 
     /**
@@ -156,8 +156,8 @@ class Create extends Component
      */
     protected function syncAlamatDariPelanggan(): void
     {
-        $pelanggan = $this->pelanggan;
-        $this->alamat_pemasangan = $pelanggan?->alamat_lengkap ?? '';
+        $pelanggan = $this->getPelangganProperty();
+        $this->alamat_pemasangan = $pelanggan->alamat_lengkap ?? '';
         $this->latitude = $pelanggan?->latitude;
         $this->longitude = $pelanggan?->longitude;
         $this->perumahan_id = null;
@@ -203,14 +203,13 @@ class Create extends Component
 
         if (trim($this->alamat_pemasangan) === '') {
             $kelurahan = $perumahan->kelurahan;
-            $kecamatan = $kelurahan?->kecamatan;
-            $kota = $kecamatan?->kota;
+            $kecamatan = $kelurahan->kecamatan;
 
             $this->alamat_pemasangan = collect([
                 $perumahan->nama_perumahan,
-                $kelurahan ? "Kel. {$kelurahan->nama_kelurahan}" : null,
-                $kecamatan ? "Kec. {$kecamatan->nama_kecamatan}" : null,
-                $kota?->nama_kota,
+                "Kel. {$kelurahan->nama_kelurahan}",
+                "Kec. {$kecamatan->nama_kecamatan}",
+                $kecamatan->kota->nama_kota,
             ])->filter()->implode(', ');
         }
 
@@ -368,6 +367,10 @@ class Create extends Component
             ? Promo::find($this->promo_id)
             : null;
 
+        if ($this->pelanggan_id === null || $this->paket_layanan_id === null) {
+            return;
+        }
+
         try {
             app(DaftarkanLayananAction::class)->execute([
                 'pelanggan_id' => $this->pelanggan_id,
@@ -382,7 +385,7 @@ class Create extends Component
                 'jenis_tagihan_pertama' => $this->jenis_tagihan_pertama,
                 'promo' => $promo,
                 'ticket_id' => $this->ticket_id,
-                'dibuat_oleh' => auth()->id(),
+                'dibuat_oleh' => auth('web')->user()?->id,
             ]);
         } catch (\Throwable $e) {
             report($e);
@@ -411,7 +414,7 @@ class Create extends Component
                 'model' => PaketLayanan::class,
                 'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
                 'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga()
-                    .' ('.($pk->profilBandwidth?->labelKecepatan() ?? 'No Profile').')',
+                    .' ('.($pk->profilBandwidth->labelKecepatan()).')',
                 'cap' => 20,
             ],
         ];

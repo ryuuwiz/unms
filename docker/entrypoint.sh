@@ -9,6 +9,7 @@
 #   4. Masuk maintenance mode (php artisan down)
 #   5. Wait for DB & Redis (bisa di-skip)
 #   6. Migrasi (app:migrate-once, distributed lock)
+#   6b. Sinkron role & permission (db:seed RolesAndPermissionsSeeder)
 #   7. Bucket policy publik RustFS/S3
 #   8. Cache warm-up
 #   9. Keluar maintenance mode (php artisan up)
@@ -18,6 +19,7 @@
 #   WAIT_FOR_SERVICES=true|false    default true   - skip wait DB+Redis
 #   WAIT_TIMEOUT=60                 default 60     - detik tunggu service
 #   RUN_MIGRATIONS=true|false       default true   - skip migrate-once
+#   RUN_ROLE_SEED=true|false        default true   - skip sinkron role & permission
 #   ENABLE_MAINTENANCE=true|false   default true   - skip php artisan down/up
 # =============================================================================
 
@@ -111,6 +113,24 @@ if [[ "${RUN_MIGRATIONS:-true}" == "true" ]]; then
     fi
 else
     log "Skipping migrations (RUN_MIGRATIONS=${RUN_MIGRATIONS})."
+fi
+
+# =============================================================================
+# 6b. Sinkron role & permission
+#
+# RolesAndPermissionsSeeder memakai syncPermissions(): setiap boot mengembalikan
+# permission tiap role bawaan ke definisi di seeder, jadi perubahan manual lewat
+# halaman Peran pada role bawaan (super_admin, admin, sales, noc, teknisi,
+# customer_service) ikut tertimpa. Role kustom tidak disentuh. --force wajib
+# karena APP_ENV=production membuat db:seed meminta konfirmasi interaktif.
+# =============================================================================
+if [[ "${RUN_ROLE_SEED:-true}" == "true" ]]; then
+    log "Syncing roles & permissions (RolesAndPermissionsSeeder)..."
+    if ! php artisan db:seed --class=RolesAndPermissionsSeeder --force; then
+        warn "Role & permission sync failed (non-fatal). Continuing boot."
+    fi
+else
+    log "Skipping role seed (RUN_ROLE_SEED=${RUN_ROLE_SEED})."
 fi
 
 # =============================================================================

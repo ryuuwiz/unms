@@ -94,10 +94,6 @@ class SyncIpPoolToRouterJob implements ShouldBeUnique, ShouldQueue
     {
         $router = $this->ipPool->router;
 
-        if (! $router) {
-            return;
-        }
-
         $log = MikrotikJobLog::create([
             'router_id' => $router->id,
             'ip_pool_id' => $this->ipPool->id,
@@ -133,9 +129,6 @@ class SyncIpPoolToRouterJob implements ShouldBeUnique, ShouldQueue
     public function failed(?Throwable $exception): void
     {
         $router = $this->ipPool->router;
-        if (! $router) {
-            return;
-        }
 
         $log = MikrotikJobLog::where('ip_pool_id', $this->ipPool->id)
             ->where('job_type', MikrotikJobType::SyncIpPool)

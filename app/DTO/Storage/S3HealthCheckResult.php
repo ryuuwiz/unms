@@ -4,7 +4,7 @@ namespace App\DTO\Storage;
 
 use Livewire\Wireable;
 
-readonly class S3HealthCheckResult implements Wireable
+final readonly class S3HealthCheckResult implements Wireable
 {
     public function __construct(
         public bool $applicable,
@@ -47,7 +47,7 @@ readonly class S3HealthCheckResult implements Wireable
      */
     public static function fromLivewire($value): static
     {
-        return new static(
+        return new self(
             applicable: (bool) ($value['applicable'] ?? false),
             diskName: (string) ($value['diskName'] ?? ''),
             bucket: $value['bucket'] ?? null,

@@ -18,7 +18,7 @@ class PromoFactory extends Factory
     {
         return [
             'kode_promo' => 'PROMO-'.strtoupper($this->faker->bothify('??##')),
-            'nama_promo' => 'Promo '.$this->faker->words(2, true),
+            'nama_promo' => 'Promo '.$this->faker->word().' '.$this->faker->word(),
             'jenis' => JenisPromo::Diskon,
             'deskripsi' => $this->faker->sentence(),
             'aturan' => $this->faker->paragraph(),

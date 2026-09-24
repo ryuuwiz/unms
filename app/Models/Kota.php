@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\KotaFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 #[Fillable(['nama_kota', 'keterangan'])]
 class Kota extends Model
 {
+    /** @use HasFactory<KotaFactory> */
     use HasFactory;
 
     protected $table = 'kota';

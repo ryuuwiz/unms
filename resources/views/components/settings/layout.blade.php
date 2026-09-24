@@ -11,6 +11,7 @@
                 <flux:navlist.group :heading="__('Pengaturan Perusahaan')">
                     <flux:navlist.item :href="route('settings.perusahaan')" wire:navigate>{{ __('Perusahaan') }}</flux:navlist.item>
                     <flux:navlist.item :href="route('settings.gateway')" wire:navigate>{{ __('Payment Gateway') }}</flux:navlist.item>
+                    <flux:navlist.item :href="route('settings.template-deskripsi-tagihan')" wire:navigate>{{ __('Template Deskripsi Tagihan') }}</flux:navlist.item>
                 </flux:navlist.group>
             @endif
         </flux:navlist>

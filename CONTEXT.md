@@ -202,6 +202,10 @@ _Avoid_: Hapus Invoice Lunas Tanpa Rollback, Membatalkan Pembayaran Lama di Teng
 Kartu di halaman detail tiket (semua Jenis Ticket yang punya layanan) berisi PPP Username, PPP Password (aturan reveal: lihat PPP Password Credential), Site ID, Router (nama + IP), Jenis Koneksi (PPPoE/IP Static) beserta IP Statis dan IP Publik Dedicated bila ada, Paket & Bandwidth, dan Status Layanan. Semua kecuali password terlihat oleh siapa pun yang boleh membuka tiket (Teknisi: PIC), pada status tiket apa pun; field yang belum diisi NOC tampil "Menunggu proses NOC". Alamat Sesi PPP dinamis tidak ditampilkan (dibaca live dari router).
 _Avoid_: Router Ganda di Kartu Layanan dan Blok Infrastruktur, Menyembunyikan Info Non-Rahasia di Tiket Selesai
 
+**Template Deskripsi Tagihan Gateway**:
+Master data teks `description` yang dikirim ke payment gateway (Xendit) saat menerbitkan link bayar sebuah invoice periodik (`periode_tagihan` terisi) — teks yang tampil di bagian atas halaman checkout hosted dan dashboard gateway. CRUD beberapa template dengan tepat satu default (izin `payment_gateway.*`), placeholder divalidasi saat simpan (placeholder tak dikenal / konten kosong ditolak). Placeholder: `{brand}`, `{site_id}`, `{bulan}` (nama bulan + tahun dari `periode_tagihan`, mis. "Oktober 2026"), `{nama_paket_pelanggan}`, `{hingga}` (tanggal masa aktif layanan setelah invoice ini dibayar, `YYYY-MM-DD`, dihitung dengan rumus yang sama persis dengan `PerpanjangMasaAktifAction`), `{no_invoice}`, `{nama_pelanggan}`, `{no_reg}`, `{total_tagihan}`, `{jatuh_tempo}`, `{keterangan}`. `{brand}` diambil dari nama Prefix Registrasi aktif milik pelanggan (huruf awal `no_reg`, apa adanya sesuai yang diketik di Pengaturan, mis. "BESTFIBER"), fallback ke `Perusahaan.nama_brand`; berbeda dari `{nama_brand}` WhatsApp yang selalu brand perusahaan. Invoice tanpa periode (tagihan pertama, manual) memakai teks tetap `{brand} - {keterangan} - Invoice {no_invoice}`; bila render kosong/gagal jatuh ke teks lama `Tagihan Internet UNMS Invoice {no_invoice}`; dipotong 255 karakter. Hanya berlaku untuk link bayar baru; link lama tidak berubah. `external_id` tidak diubah (dipakai pencocokan webhook). Nama bisnis di header checkout Xendit tidak bisa diatur lewat API (hanya dari profil bisnis akun Xendit).
+_Avoid_: Mencampur dengan Template Pesan WhatsApp, Mengubah external_id demi Branding, Placeholder Tak Dikenal Lolos ke Halaman Checkout Pelanggan
+
 **Tunggakan Akumulatif**:
 Aturan penagihan di mana invoice siklus terbaru sebuah layanan memuat total bayar berupa tarif siklus itu ditambah seluruh invoice periodik sebelumnya yang belum dibayar pada layanan yang sama. Pelanggan hanya membayar invoice terbaru tersebut. Pembayaran memperpanjang masa aktif sebanyak siklus yang dicakup, dihitung dari tanggal expired lama (bukan tanggal bayar), sehingga bulan saat layanan diisolir tetap ditagih. Layanan berstatus `aktif` atau `suspend` terus menerima invoice tiap siklus sampai berstatus `berhenti`. Invoice ad-hoc (instalasi, denda) tidak digabung.
 _Avoid_: Saldo Tunggakan, Piutang Bergulir
@@ -301,7 +305,7 @@ Aksi NOC di dalam Ticket Pemasangan, khusus pengisian **pertama kali** (`layanan
 _Avoid_: Router/IP Pool Diturunkan Otomatis dari Paket, IP Pool Tetap per Paket Lintas-Router, Mengganti Profil Bandwidth Saat Aktivasi, Memakai Modal Aktivasi Pemasangan untuk Perubahan Router/Paket Setelah Layanan Aktif
 
 **Proses Divisi (NOC/Admin/Customer Service)**:
-Modal tunggal "Proses {Divisi}" yang menggantikan pola lama "Tandai Divisi Selesai" untuk divisi NOC, Admin, dan Customer Service (Teknisi tetap memakai tombol "Tandai Selesai" + form Progress Lapangan/Foto Tahap 2 karena digate bukti foto, bukan catatan bebas). Berlaku untuk seluruh Jenis Ticket yang menyentuh divisi tsb (Pemasangan, Gangguan, Pencabutan, Pindah Alamat), bukan hanya Pemasangan. Field "Status Ticket" di dalamnya sebenarnya adalah Status Per-Divisi Tiket milik divisi itu sendiri (On Progress/Selesai), ditambah opsi terpisah "Cancel" yang membatalkan tiket keseluruhan (`StatusTicket::Batal` lewat `UbahStatusTicketAction`), bukan status per-divisi. Field teknis (Mode Registrasi Mikrotik, Router, Paket) hanya tampil kalau tiket sudah punya `layanan_pelanggan_id` dan aksinya relevan (mis. Gangguan yang perlu re-provision router pada layanan yang sudah `Aktif` — inilah beda utamanya dengan Aktivasi Pemasangan yang khusus pengisian pertama kali). Field "Catatan Proses" wajib diisi, menyatu dalam satu baris Histori Tiket yang sama dengan perubahan status divisi (bukan modal "Tambah Catatan" terpisah, yang tetap ada untuk update informal).
+Modal tunggal "Proses {Divisi}" yang menggantikan pola lama "Tandai Divisi Selesai" untuk divisi NOC, Admin, dan Customer Service (Teknisi tetap memakai tombol "Tandai Selesai" + form Progress Lapangan/Foto Tahap 2 karena digate bukti foto, bukan catatan bebas). Berlaku untuk seluruh Jenis Ticket yang menyentuh divisi tsb (Pemasangan, Gangguan, Pencabutan, Pindah Alamat), bukan hanya Pemasangan. Field "Status Ticket" di dalamnya sebenarnya adalah Status Per-Divisi Tiket milik divisi itu sendiri (On Progress/Selesai), ditambah opsi terpisah "Cancel" yang membatalkan tiket keseluruhan (`StatusTicket::Batal` lewat `UbahStatusTicketAction`), bukan status per-divisi. Field teknis (Mode Registrasi Mikrotik, Router, IP Pool, Paket) hanya tampil kalau tiket sudah punya `layanan_pelanggan_id` dan aksinya relevan (mis. Gangguan yang perlu re-provision router pada layanan yang sudah `Aktif` — inilah beda utamanya dengan Aktivasi Pemasangan yang khusus pengisian pertama kali). Field "Catatan Proses" wajib diisi, menyatu dalam satu baris Histori Tiket yang sama dengan perubahan status divisi (bukan modal "Tambah Catatan" terpisah, yang tetap ada untuk update informal).
 _Avoid_: Memisah Modal per Aksi Teknis, Catatan Proses sebagai Modal Terpisah dari Perubahan Status Divisi, Opsi Cancel Mengubah Status Per-Divisi
 
 **Mode Registrasi Mikrotik**:
@@ -557,3 +561,47 @@ _Technical Reference_: `App\Notifications\InvoiceReminderNotification`, `App\Not
 _Avoid_: SMS Gateway (dihapus, tidak pernah diimplementasikan), Email ke Akun Portal Pelanggan
 
 
+**Ekspor Data Layanan**:
+Ekspor Excel satu baris per Data Registrasi Billing (layanan), bukan per pelanggan: pelanggan, Site ID, paket, status layanan, `tanggal_expired`. Difilter per paket dan status layanan; "Client Expired" berarti layanan yang `tanggal_expired`-nya sudah lewat (definisi yang sama dengan filter "expired" di daftar layanan), apa pun status layanannya — bukan status Pelanggan `Expired` yang diturunkan.
+_Avoid_: Ekspor per Pelanggan dengan Paket Digabung, Menyamakan Client Expired dengan Status Pelanggan Expired
+
+**NIK di Laporan Keuangan**:
+Kolom NIK pada ekspor Laporan Billing hanya terisi bila pengunduh memegang izin `pelanggan.lihat_ktp` (selain itu "-"); setiap ekspor berisi NIK tercatat di audit trail, dan tombol ekspor laporan mensyaratkan izin `laporan.ekspor`.
+_Avoid_: NIK untuk Semua Pemegang laporan.lihat, Ekspor NIK Tanpa Jejak Audit
+
+**Riwayat Tiket**:
+Halaman lintas-tiket yang menampilkan entri Histori Tiket (perubahan status, siapa, kapan, catatan) dari semua tiket, dapat difilter per status dan rentang tanggal. Berbeda dari daftar tiket (status tiket saat ini) dan dari Histori Tiket di halaman detail satu tiket.
+_Avoid_: Menyamakan Riwayat Tiket dengan Filter Status Daftar Tiket
+
+**Jenis Barang**:
+Item inventaris gudang yang stoknya dihitung dalam jumlah (kabel, konektor, modem), dikelompokkan dalam Kategori Barang (mis. `MDM` = Modem). Jenis barang yang dilacak per unit (modem/ONT) juga memiliki Unit Barang.
+_Avoid_: Barang Tanpa Kategori, Stok Diketik Manual
+
+**Unit Barang**:
+Satu fisik barang yang dilacak (mis. satu modem) dengan Kode Barang dan barcode sendiri, sehingga dapat ditelusuri ke tiket/pelanggan tujuannya. Barang habis pakai (kabel, konektor) tidak memiliki unit.
+_Avoid_: Unit untuk Barang Habis Pakai
+
+**Kode Barang**:
+Kode unik per Unit Barang yang di-generate saat Barang Masuk dan tidak pernah dipakai ulang, berformat `[KATEGORI]-[KONDISI]-[BRAND?]-[NOMOR]` (BRAND = kode Prefix Registrasi, mis. `BF`) (contoh `MDM-NEW-BF-240` modem baru, `MDM-PGT-240` modem pergantian). Kategori dan Kondisi (`NEW` baru, `PGT` pergantian) dikelola di pengaturan; nomor increment per prefix lengkap (`MDM-NEW-BF` dan `MDM-PGT` punya urutan sendiri). Kode `PGT` hanya di-generate untuk barang bekas yang masuk tanpa kode (modem lama dari pelanggan pra-sistem, barang bekas); unit yang sudah berkode dan dikembalikan tetap memakai kodenya, kondisinya tercatat di status/riwayat unit.
+_Avoid_: Nomor Increment Global, Kode Diketik Manual, Memakai Ulang Kode Unit yang Keluar
+
+**Status Unit Barang**:
+Siklus hidup Unit Barang: `di_gudang` → `terpasang` (Barang Keluar ke teknisi/tiket) → `dikembalikan` (masuk lagi sebagai kondisi `PGT`, kode unit tetap sama) atau `rusak` (dihapusbukukan). Barang Keluar untuk jenis barang yang dilacak per unit wajib memilih/memindai unit spesifik, bukan mengetik jumlah.
+_Avoid_: Mengganti Kode Unit Saat Dikembalikan, Barang Keluar Modem Tanpa Unit
+
+**Saldo Awal Barang**:
+Jenis Barang Masuk khusus untuk stok yang sudah ada sebelum sistem dipakai, diinput sekali per jenis barang, dibedakan dari pembelian nyata di laporan.
+_Avoid_: Saldo Awal sebagai Pembelian Biasa
+
+**Barang Masuk / Barang Keluar**:
+Mutasi stok yang menjadi satu-satunya sumber angka stok. Barang Keluar mencatat tanggal, jumlah, keterangan, Teknisi penerima (User peran teknisi), dan opsional tiket tujuan; stok tidak boleh negatif. Dicatat oleh Admin/NOC; Teknisi hanya melihat. Label barcode Code128 dicetak sebagai PDF.
+_Avoid_: Mengubah Angka Stok Langsung, Barang Keluar Tanpa Teknisi
+
+**Stok Periode**:
+Rekap stok per bulan per Jenis Barang: Stok Awal (= Stok Akhir bulan sebelumnya), Masuk, Keluar, Stok Akhir (= Awal + Masuk − Keluar), selalu dihitung dari mutasi, tidak disimpan sebagai angka yang bisa diedit.
+Data Barang dapat difilter per nama/kategori dan per jumlah stok (mis. Stok Akhir ≤ N, stok habis) serta diurutkan per jumlah stok.
+_Avoid_: Stok Awal Diinput Tiap Bulan, Stok Tersimpan Terpisah dari Mutasi
+
+**Impor Inventaris**:
+Migrasi satu kali spreadsheet gudang lama saat sistem mulai dipakai: satu berkas Excel berisi 3 sheet (Data Barang, Barang Masuk, Barang Keluar) yang di-parse ke tabel pratinjau lalu disimpan sekaligus (semua-atau-tidak, satu transaksi) hanya bila tanpa galat. Sheet Data Barang membuat/memperbarui Jenis Barang; STOK AWAL-nya menjadi mutasi Saldo Awal, sedangkan MASUK/KELUAR/STOK AKHIR hanya dipakai sebagai pemeriksaan silang (selisih = peringatan). Kategori/satuan/mode lacak dari kolom opsional, fallback kategori dari prefix kode. Baris barang dilacak di sheet Masuk/Keluar memakai kode unit asli (mis. `MDM-NEW-BF-240`) yang dipertahankan, dan penghitung kode per prefix dimajukan agar kode baru tidak bentrok. Kolom TEKNIS dicocokkan ke nama user berperan teknisi; nama tak dikenal = galat baris. Sheet Masuk punya kolom opsional TIPE (`SALDO AWAL`/`PEMBELIAN`/`PENGEMBALIAN`); stok awal barang dilacak wajib lewat baris Saldo Awal berkode unit, bukan angka STOK AWAL. Kondisi & brand unit diurai dari segmen kodenya. Tanggal berbentuk bulan saja (`09/2026`) jatuh pada hari terakhir bulan itu. Validasi memutar ulang mutasi per barang secara kronologis (stok tidak boleh negatif). Ditolak bila sudah ada mutasi apa pun; pengulangan hanya lewat perintah reset inventaris yang disengaja.
+_Avoid_: Impor Berulang yang Menggandakan Stok, Menyimpan Baris Valid Saja, Mengganti Kode Unit Lama Saat Impor

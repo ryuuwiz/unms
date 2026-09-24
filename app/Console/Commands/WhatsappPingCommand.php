@@ -49,7 +49,7 @@ class WhatsappPingCommand extends Command
             ['Nomor Terdaftar', $info['phone'] ?: '-'],
             ['Status Koneksi', $info['connected'] ? 'ONLINE / CONNECTED' : 'OFFLINE / DISCONNECTED'],
             ['Pesan Status', $info['message']],
-            ['Sisa Kuota Pesan', is_scalar($info['quota']) ? (string) $info['quota'] : '-'],
+            ['Sisa Kuota Pesan', $info['quota'] ?: '-'],
             ['Masa Aktif', $info['expired_at'] ?: '-'],
         ]);
 

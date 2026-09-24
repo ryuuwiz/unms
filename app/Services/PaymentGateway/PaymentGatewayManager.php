@@ -309,6 +309,8 @@ class PaymentGatewayManager
 
     /**
      * Eksekusi transaksi pelunasan invoice di database dengan row locking dan dispatch event post-commit.
+     *
+     * @param  PaymentCallbackData|array<string, mixed>  $payloadOrData
      */
     public function prosesPelunasan(
         Invoice $invoice,
@@ -378,9 +380,9 @@ class PaymentGatewayManager
 
             // 2. Buat / Dapatkan Record Pembayaran secara idempoten
             $channelDetailText = $channelDetail ? strtoupper($channelDetail) : '';
-            $nominalBayar = $amount > 0 ? $amount : (float) ($transaksi?->total_tagihan ?? $lockedInvoice->jumlah_setelah_promo);
+            $nominalBayar = $amount > 0 ? $amount : (float) ($transaksi->total_tagihan ?? $lockedInvoice->jumlah_setelah_promo);
             $providerLabel = strtoupper($provider);
-            $refTrx = $paymentRef ?: ($transaksi?->external_id ?? $lockedInvoice->no_invoice);
+            $refTrx = $paymentRef ?: ($transaksi->external_id ?? $lockedInvoice->no_invoice);
 
             $pembayaran = Pembayaran::firstOrCreate(
                 [

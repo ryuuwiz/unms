@@ -14,14 +14,14 @@ interface WhatsappGatewayDriverInterface
     /**
      * Ping / Cek status konektivitas gateway.
      *
-     * @return array{connected: bool, phone: string, quota: string, expired_at: ?string, message: string, raw: array<string, mixed>}
+     * @return array{connected: bool, phone: string, quota: string, expired_at: ?string, message: string, session_status: string, raw: array<string, mixed>}
      */
     public function pingConnection(): array;
 
     /**
      * Ambil status detail sesi/perangkat.
      *
-     * @return array<string, mixed>
+     * @return array{connected: bool, phone: string, quota: string, expired_at: ?string, message: string, session_status: string, raw: array<string, mixed>}
      */
     public function getDeviceInfo(): array;
 

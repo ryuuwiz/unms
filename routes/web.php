@@ -3,10 +3,12 @@
 use App\Http\Controllers\Api\MapMarkerController;
 use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
+use App\Http\Controllers\LabelBarangPdfController;
 use App\Http\Controllers\PelangganMediaController;
 use App\Http\Controllers\Webhook\PaymentWebhookController;
 use App\Http\Controllers\Webhook\WhatsappWebhookController;
 use App\Http\Controllers\Webhook\XenditWebhookController;
+use App\Livewire\Barang;
 use App\Livewire\Invoice;
 use App\Livewire\IpPool;
 use App\Livewire\IpPublik;
@@ -32,6 +34,7 @@ use App\Livewire\Roles;
 use App\Livewire\Router;
 use App\Livewire\Settings\PengaturanGateway;
 use App\Livewire\Settings\PengaturanPrefixRegistrasi;
+use App\Livewire\Settings\TemplateDeskripsiTagihan;
 use App\Livewire\Settings\WhatsappSettings;
 use App\Livewire\Ticket;
 use App\Livewire\Users;
@@ -103,6 +106,7 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::middleware('permission:ticket.lihat')->group(function () {
             Route::get('/', Ticket\Index::class)->name('index');
+            Route::get('/riwayat', Ticket\Riwayat::class)->name('riwayat');
             Route::get('/{ticket}', Ticket\Show::class)->name('show');
         });
     });
@@ -186,6 +190,7 @@ Route::middleware(['auth'])->group(function () {
     // ─── Pengaturan Gateway ────────────────────────────────────────
     Route::middleware('permission:payment_gateway.lihat')->group(function () {
         Route::get('/settings/gateway', PengaturanGateway::class)->name('settings.gateway');
+        Route::get('/settings/template-deskripsi-tagihan', TemplateDeskripsiTagihan::class)->name('settings.template-deskripsi-tagihan');
     });
 
     // ─── Pengaturan Prefix Registrasi ──────────────────────────────
@@ -242,6 +247,22 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('laporan')->name('laporan.')->group(function () {
         Route::middleware('permission:laporan.lihat')->group(function () {
             Route::get('/billing', Laporan\Billing::class)->name('billing');
+            Route::get('/layanan', Laporan\Layanan::class)->name('layanan');
+        });
+    });
+
+    // ─── Inventaris Barang (ADR-0057) ─────────────────────────────
+    Route::prefix('barang')->name('barang.')->group(function () {
+        Route::middleware('permission:barang.lihat')->group(function () {
+            Route::get('/', Barang\Index::class)->name('index');
+            Route::get('/masuk', Barang\Masuk::class)->name('masuk');
+            Route::get('/keluar', Barang\Keluar::class)->name('keluar');
+            Route::get('/unit', Barang\Unit::class)->name('unit');
+            Route::get('/label', LabelBarangPdfController::class)->name('label');
+        });
+        Route::middleware('permission:barang.ubah')->group(function () {
+            Route::get('/pengaturan', Barang\Pengaturan::class)->name('pengaturan');
+            Route::get('/impor', Barang\Impor::class)->name('impor');
         });
     });
 

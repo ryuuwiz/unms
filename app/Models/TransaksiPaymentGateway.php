@@ -7,7 +7,6 @@ use App\Enums\StatusTransaksiGateway;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -30,11 +29,11 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property float $fee_gateway
  * @property StatusTransaksiGateway $status
  * @property Carbon|null $expired_at
- * @property array|null $payload_request
- * @property array|null $payload_response
+ * @property array<string, mixed>|null $payload_request
+ * @property array<string, mixed>|null $payload_response
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Invoice $invoice
+ * @property-read Invoice|null $invoice Null bila Invoice di-soft-delete
  * @property-read Collection<int, WebhookLog> $webhookLogs
  */
 #[Fillable([
@@ -56,7 +55,7 @@ use Spatie\Activitylog\Support\LogOptions;
 ])]
 class TransaksiPaymentGateway extends Model
 {
-    use HasFactory, LogsActivity;
+    use LogsActivity;
 
     protected $table = 'transaksi_payment_gateway';
 

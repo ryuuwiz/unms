@@ -172,7 +172,7 @@ class Index extends Component
         $ubahStatusAction->execute(
             layanan: $layanan,
             statusBaru: $statusBaru,
-            actor: auth()->user(),
+            actor: auth('web')->user(),
             catatan: $catatan
         );
 
@@ -184,7 +184,14 @@ class Index extends Component
 
     public function render(): View
     {
-        $layanans = LayananPelanggan::query()
+        $expiry = match ($this->expiry) {
+            'all' => 'all',
+            'overdue' => 'overdue',
+            'soon' => 'soon',
+            default => null,
+        };
+
+        $query = LayananPelanggan::query()
             ->with(['pelanggan', 'paketLayanan', 'router'])
             ->when($this->search, fn ($q) => $q->whereHas('pelanggan', fn ($pq) => $pq->search($this->search)))
             ->when($this->filterStatus, function ($q) {
@@ -193,13 +200,15 @@ class Index extends Component
                 } else {
                     $q->where('status', $this->filterStatus);
                 }
-            })
-            ->when(
-                in_array($this->expiry, ['all', 'overdue', 'soon'], true),
-                fn ($q) => $q->perluPerhatian(PengaturanSiklusTagihan::ambil()->leadDays(), $this->expiry)->orderBy('tanggal_expired'),
-                fn ($q) => $q->latest(),
-            )
-            ->paginate(15);
+            });
+
+        if ($expiry !== null) {
+            $query->perluPerhatian(PengaturanSiklusTagihan::ambil()->leadDays(), $expiry)->orderBy('tanggal_expired');
+        } else {
+            $query->latest();
+        }
+
+        $layanans = $query->paginate(15);
 
         return view('livewire.layanan-pelanggan.index', [
             'layanans' => $layanans,

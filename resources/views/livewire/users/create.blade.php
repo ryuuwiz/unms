@@ -29,6 +29,7 @@
         <flux:field>
             <flux:label>Role</flux:label>
             <flux:select wire:model="role" placeholder="Pilih role...">
+                <flux:select.option value="">Pilih role...</flux:select.option>
                 @foreach ($roles as $role)
                     <flux:select.option value="{{ $role->name }}">
                         {{ Str::title(str_replace('_', ' ', $role->name)) }}

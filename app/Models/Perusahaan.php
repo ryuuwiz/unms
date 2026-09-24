@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -63,7 +62,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 ])]
 class Perusahaan extends Model implements HasMedia
 {
-    use HasFactory, InteractsWithMedia, LogsActivity;
+    use InteractsWithMedia, LogsActivity;
 
     protected $table = 'perusahaan';
 
@@ -115,14 +114,14 @@ class Perusahaan extends Model implements HasMedia
     public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumb')
+            ->nonQueued()
             ->width(100)
-            ->height(100)
-            ->nonQueued();
+            ->height(100);
 
         $this->addMediaConversion('invoice')
+            ->nonQueued()
             ->width(400)
-            ->height(120)
-            ->nonQueued();
+            ->height(120);
     }
 
     /**
@@ -142,7 +141,7 @@ class Perusahaan extends Model implements HasMedia
         }
 
         if (is_array($cached)) {
-            $model = new static;
+            $model = new self;
             $model->setRawAttributes($cached, true);
             $model->exists = true;
 
@@ -154,7 +153,7 @@ class Perusahaan extends Model implements HasMedia
 
         $perusahaan = static::where('is_default', true)->first()
             ?? static::first()
-            ?? new static([
+            ?? new self([
                 'nama_perusahaan' => config('app.name', 'GOBILLING'),
                 'nama_brand' => config('app.name', 'GOBILLING'),
                 'tagline' => 'Solusi Billing & Manajemen ISP Terpadu',

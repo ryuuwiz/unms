@@ -26,7 +26,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property Carbon|null $deleted_at
- * @property-read Invoice $invoice
+ * @property-read Invoice|null $invoice Null bila Invoice di-soft-delete
  * @property-read User|null $dicatatOleh
  */
 #[Fillable([

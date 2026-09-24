@@ -3,9 +3,11 @@
 namespace App\Services\Storage;
 
 use App\DTO\Storage\S3HealthCheckResult;
+use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Throwable;
 
 class S3HealthCheckService
@@ -39,7 +41,13 @@ class S3HealthCheckService
         }
 
         try {
-            $bucketOk = Storage::disk('s3')->getClient()->doesBucketExist($bucket);
+            $s3 = Storage::disk('s3');
+
+            if (! $s3 instanceof AwsS3V3Adapter) {
+                throw new RuntimeException('Disk [s3] bukan adapter AWS S3.');
+            }
+
+            $bucketOk = $s3->getClient()->doesBucketExist($bucket);
         } catch (Throwable $e) {
             return new S3HealthCheckResult(
                 applicable: true,

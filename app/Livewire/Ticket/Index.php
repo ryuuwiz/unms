@@ -7,7 +7,6 @@ use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\PrioritasTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Models\Ticket;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -75,7 +74,7 @@ class Index extends Component
     {
         $this->authorize('viewAny', Ticket::class);
 
-        $user = auth()->user();
+        $user = auth('web')->user();
 
         // Base query with eager loading for data_unms.md specifications
         $query = Ticket::query()
@@ -87,17 +86,8 @@ class Index extends Component
                 'pic',
                 'dibuatOleh',
                 'divisis',
-            ]);
-
-        // Role-based scoping
-        if ($user->hasRole('teknisi')) {
-            $query->where('pic_id', $user->id);
-        } elseif ($user->hasRole('sales')) {
-            $query->where(function (Builder $q) use ($user) {
-                $q->where('dibuat_oleh', $user->id)
-                    ->orWhereHas('pelanggan', fn (Builder $cq) => $cq->where('dibuat_oleh', $user->id));
-            });
-        }
+            ])
+            ->terlihatOleh($user);
 
         // Metrik cards
         $metricsQuery = clone $query;
@@ -127,7 +117,6 @@ class Index extends Component
                 $dq->where('ticket_divisi.divisi', $this->divisi);
             }));
 
-        /** @var LengthAwarePaginator<Ticket> $tickets */
         $tickets = $query->orderByDesc('id')->paginate(15);
 
         return view('livewire.ticket.index', [

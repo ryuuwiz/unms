@@ -862,7 +862,8 @@
 
                     <flux:field>
                         <flux:label>Router (NOC)</flux:label>
-                        <flux:select wire:model="prosesRouterId" placeholder="Pilih router...">
+                        <flux:select wire:model.live="prosesRouterId" placeholder="Pilih router...">
+                            <flux:select.option value="">Pilih router...</flux:select.option>
                             @foreach ($onlineRouters as $r)
                                 <flux:select.option value="{{ $r->id }}">{{ $r->nama_router }} ({{ $r->ip_address }})</flux:select.option>
                             @endforeach
@@ -870,10 +871,24 @@
                         <flux:error name="prosesRouterId" />
                     </flux:field>
 
+                    @if ($ticket->layananPelanggan?->jenis_koneksi === \App\Enums\JenisKoneksi::Pppoe)
+                        <flux:field>
+                            <flux:label>IP Pool</flux:label>
+                            <flux:select wire:model="prosesIpPoolId" placeholder="Pilih IP Pool..." :disabled="! $prosesRouterId">
+                                <flux:select.option value="">-- Pilih IP Pool --</flux:select.option>
+                                @foreach ($prosesIpPools as $pool)
+                                    <flux:select.option value="{{ $pool->id }}">{{ $pool->nama_pool }} ({{ $pool->ip_network }}/{{ $pool->cidr }})</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:error name="prosesIpPoolId" />
+                        </flux:field>
+                    @endif
+
                     @if ($prosesPilihanPaket === 'berbeda')
                         <flux:field>
                             <flux:label>Paket di Router</flux:label>
                             <flux:select wire:model="prosesPaketLayananId" placeholder="Pilih paket...">
+                                <flux:select.option value="">Pilih paket...</flux:select.option>
                                 @foreach ($paketLayananList as $pkt)
                                     <flux:select.option value="{{ $pkt->id }}">{{ $pkt->nama_paket }}</flux:select.option>
                                 @endforeach
@@ -912,6 +927,7 @@
                         <flux:field>
                             <flux:label>Paket Layanan</flux:label>
                             <flux:select wire:model="prosesPaketLayananId" placeholder="Pilih paket...">
+                                <flux:select.option value="">Pilih paket...</flux:select.option>
                                 @foreach ($paketLayananList as $pkt)
                                     <flux:select.option value="{{ $pkt->id }}">{{ $pkt->nama_paket }}</flux:select.option>
                                 @endforeach

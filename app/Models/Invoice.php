@@ -31,7 +31,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon $tanggal_terbit
  * @property Carbon $tanggal_jatuh_tempo
  * @property Carbon|null $tanggal_lunas
- * @property MetodePembayaran|string|null $metode_pembayaran
+ * @property MetodePembayaran|null $metode_pembayaran
  * @property int|null $dibuat_oleh
  * @property int|null $dihapus_oleh
  * @property string|null $keterangan_hapus
@@ -49,8 +49,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $xendit_invoice_url
  * @property string|null $xendit_status
  * @property Carbon|null $xendit_expired_at
- * @property-read Pelanggan $pelanggan
- * @property-read LayananPelanggan $layananPelanggan
+ * @property-read Pelanggan|null $pelanggan Null bila Pelanggan di-soft-delete
+ * @property-read LayananPelanggan|null $layananPelanggan Null bila layanan di-soft-delete
  * @property-read Promo|null $promo
  * @property-read User|null $dibuatOleh
  * @property-read User|null $dihapusOleh

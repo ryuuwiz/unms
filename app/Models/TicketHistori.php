@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enums\Ticket\StatusTicket;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -33,7 +32,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 ])]
 class TicketHistori extends Model implements HasMedia
 {
-    use HasFactory, InteractsWithMedia;
+    use InteractsWithMedia;
 
     protected $table = 'ticket_histori';
 
