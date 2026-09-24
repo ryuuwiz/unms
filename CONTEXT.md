@@ -561,3 +561,43 @@ _Technical Reference_: `App\Notifications\InvoiceReminderNotification`, `App\Not
 _Avoid_: SMS Gateway (dihapus, tidak pernah diimplementasikan), Email ke Akun Portal Pelanggan
 
 
+**Ekspor Data Layanan**:
+Ekspor Excel satu baris per Data Registrasi Billing (layanan), bukan per pelanggan: pelanggan, Site ID, paket, status layanan, `tanggal_expired`. Difilter per paket dan status layanan; "Client Expired" berarti layanan yang `tanggal_expired`-nya sudah lewat (definisi yang sama dengan filter "expired" di daftar layanan), apa pun status layanannya — bukan status Pelanggan `Expired` yang diturunkan.
+_Avoid_: Ekspor per Pelanggan dengan Paket Digabung, Menyamakan Client Expired dengan Status Pelanggan Expired
+
+**NIK di Laporan Keuangan**:
+Kolom NIK pada ekspor Laporan Billing hanya terisi bila pengunduh memegang izin `pelanggan.lihat_ktp` (selain itu "-"); setiap ekspor berisi NIK tercatat di audit trail, dan tombol ekspor laporan mensyaratkan izin `laporan.ekspor`.
+_Avoid_: NIK untuk Semua Pemegang laporan.lihat, Ekspor NIK Tanpa Jejak Audit
+
+**Riwayat Tiket**:
+Halaman lintas-tiket yang menampilkan entri Histori Tiket (perubahan status, siapa, kapan, catatan) dari semua tiket, dapat difilter per status dan rentang tanggal. Berbeda dari daftar tiket (status tiket saat ini) dan dari Histori Tiket di halaman detail satu tiket.
+_Avoid_: Menyamakan Riwayat Tiket dengan Filter Status Daftar Tiket
+
+**Jenis Barang**:
+Item inventaris gudang yang stoknya dihitung dalam jumlah (kabel, konektor, modem), dikelompokkan dalam Kategori Barang (mis. `MDM` = Modem). Jenis barang yang dilacak per unit (modem/ONT) juga memiliki Unit Barang.
+_Avoid_: Barang Tanpa Kategori, Stok Diketik Manual
+
+**Unit Barang**:
+Satu fisik barang yang dilacak (mis. satu modem) dengan Kode Barang dan barcode sendiri, sehingga dapat ditelusuri ke tiket/pelanggan tujuannya. Barang habis pakai (kabel, konektor) tidak memiliki unit.
+_Avoid_: Unit untuk Barang Habis Pakai
+
+**Kode Barang**:
+Kode unik per Unit Barang yang di-generate saat Barang Masuk dan tidak pernah dipakai ulang, berformat `[KATEGORI]-[KONDISI]-[BRAND?]-[NOMOR]` (BRAND = kode Prefix Registrasi, mis. `BF`) (contoh `MDM-NEW-BF-240` modem baru, `MDM-PGT-240` modem pergantian). Kategori dan Kondisi (`NEW` baru, `PGT` pergantian) dikelola di pengaturan; nomor increment per prefix lengkap (`MDM-NEW-BF` dan `MDM-PGT` punya urutan sendiri). Kode `PGT` hanya di-generate untuk barang bekas yang masuk tanpa kode (modem lama dari pelanggan pra-sistem, barang bekas); unit yang sudah berkode dan dikembalikan tetap memakai kodenya, kondisinya tercatat di status/riwayat unit.
+_Avoid_: Nomor Increment Global, Kode Diketik Manual, Memakai Ulang Kode Unit yang Keluar
+
+**Status Unit Barang**:
+Siklus hidup Unit Barang: `di_gudang` → `terpasang` (Barang Keluar ke teknisi/tiket) → `dikembalikan` (masuk lagi sebagai kondisi `PGT`, kode unit tetap sama) atau `rusak` (dihapusbukukan). Barang Keluar untuk jenis barang yang dilacak per unit wajib memilih/memindai unit spesifik, bukan mengetik jumlah.
+_Avoid_: Mengganti Kode Unit Saat Dikembalikan, Barang Keluar Modem Tanpa Unit
+
+**Saldo Awal Barang**:
+Jenis Barang Masuk khusus untuk stok yang sudah ada sebelum sistem dipakai, diinput sekali per jenis barang, dibedakan dari pembelian nyata di laporan.
+_Avoid_: Saldo Awal sebagai Pembelian Biasa
+
+**Barang Masuk / Barang Keluar**:
+Mutasi stok yang menjadi satu-satunya sumber angka stok. Barang Keluar mencatat tanggal, jumlah, keterangan, Teknisi penerima (User peran teknisi), dan opsional tiket tujuan; stok tidak boleh negatif. Dicatat oleh Admin/NOC; Teknisi hanya melihat. Label barcode Code128 dicetak sebagai PDF.
+_Avoid_: Mengubah Angka Stok Langsung, Barang Keluar Tanpa Teknisi
+
+**Stok Periode**:
+Rekap stok per bulan per Jenis Barang: Stok Awal (= Stok Akhir bulan sebelumnya), Masuk, Keluar, Stok Akhir (= Awal + Masuk − Keluar), selalu dihitung dari mutasi, tidak disimpan sebagai angka yang bisa diedit.
+Data Barang dapat difilter per nama/kategori dan per jumlah stok (mis. Stok Akhir ≤ N, stok habis) serta diurutkan per jumlah stok.
+_Avoid_: Stok Awal Diinput Tiap Bulan, Stok Tersimpan Terpisah dari Mutasi

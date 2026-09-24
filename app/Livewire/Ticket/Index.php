@@ -86,17 +86,8 @@ class Index extends Component
                 'pic',
                 'dibuatOleh',
                 'divisis',
-            ]);
-
-        // Role-based scoping
-        if ($user->hasRole('teknisi')) {
-            $query->where('pic_id', $user->id);
-        } elseif ($user->hasRole('sales')) {
-            $query->where(function (Builder $q) use ($user) {
-                $q->where('dibuat_oleh', $user->id)
-                    ->orWhereHas('pelanggan', fn (Builder $cq) => $cq->where('dibuat_oleh', $user->id));
-            });
-        }
+            ])
+            ->terlihatOleh($user);
 
         // Metrik cards
         $metricsQuery = clone $query;

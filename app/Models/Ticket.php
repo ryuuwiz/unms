@@ -391,6 +391,29 @@ class Ticket extends Model implements HasMedia
     }
 
     /**
+     * Tiket yang boleh dilihat user di daftar/riwayat -- cermin TicketPolicy::view(): Teknisi hanya
+     * tiket PIC-nya, Sales hanya tiket/pelanggan yang ia buat, peran lain semua.
+     *
+     * @param  Builder<Ticket>  $query
+     * @return Builder<Ticket>
+     */
+    public function scopeTerlihatOleh(Builder $query, User $user): Builder
+    {
+        if ($user->hasRole('teknisi')) {
+            return $query->where('pic_id', $user->id);
+        }
+
+        if ($user->hasRole('sales')) {
+            return $query->where(function (Builder $q) use ($user) {
+                $q->where('dibuat_oleh', $user->id)
+                    ->orWhereHas('pelanggan', fn (Builder $cq) => $cq->where('dibuat_oleh', $user->id));
+            });
+        }
+
+        return $query;
+    }
+
+    /**
      * Scope filter divisi.
      *
      * @param  Builder<Ticket>  $query

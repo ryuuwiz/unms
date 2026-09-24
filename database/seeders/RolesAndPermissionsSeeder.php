@@ -53,6 +53,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'ticket.lihat', 'ticket.buat', 'ticket.ubah', 'ticket.hapus', 'ticket.assign',
             // Laporan
             'laporan.lihat', 'laporan.ekspor',
+            // Inventaris Barang (ADR-0057)
+            'barang.lihat', 'barang.buat', 'barang.ubah', 'barang.hapus', 'barang.masuk', 'barang.keluar',
             // Pengguna & Peran
             'pengguna.lihat', 'pengguna.buat', 'pengguna.ubah', 'pengguna.hapus',
             'peran.lihat', 'peran.buat', 'peran.ubah', 'peran.hapus',
@@ -101,6 +103,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'promo.lihat', 'promo.buat', 'promo.ubah', 'promo.hapus',
             'ticket.lihat', 'ticket.buat', 'ticket.ubah', 'ticket.hapus', 'ticket.assign',
             'laporan.lihat', 'laporan.ekspor',
+            'barang.lihat', 'barang.buat', 'barang.ubah', 'barang.hapus', 'barang.masuk', 'barang.keluar',
             'pengguna.lihat', 'pengguna.buat', 'pengguna.ubah',
             'prefix_registrasi.lihat', 'prefix_registrasi.buat', 'prefix_registrasi.ubah',
         ]);
@@ -128,6 +131,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'profil_bandwidth.lihat', 'profil_bandwidth.buat', 'profil_bandwidth.ubah', 'profil_bandwidth.hapus',
             'paket_layanan.lihat',
             'ticket.lihat', 'ticket.buat', 'ticket.ubah', 'ticket.hapus', 'ticket.assign',
+            'barang.lihat', 'barang.buat', 'barang.ubah', 'barang.hapus', 'barang.masuk', 'barang.keluar',
         ]);
 
         // teknisi: hanya tiket yang di-assign + lihat data yang relevan
@@ -135,6 +139,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'pelanggan.lihat',
             'layanan_pelanggan.lihat', 'layanan_pelanggan.lihat_ppp_password',
             'ticket.lihat', 'ticket.ubah',
+            'barang.lihat',
         ]);
 
         // customer_service: sign-off tiket pemasangan sisi layanan pelanggan, tidak menyentuh jaringan

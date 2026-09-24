@@ -41,13 +41,31 @@ class Billing extends Component
 
     public function exportExcel(): BinaryFileResponse
     {
+        $this->authorize('laporan.ekspor');
+
+        $user = auth('web')->user();
+        $sertakanNik = (bool) $user?->can('pelanggan.lihat_ktp');
+
+        if ($sertakanNik) {
+            activity('laporan')
+                ->causedBy($user)
+                ->withProperties([
+                    'action' => 'ekspor_laporan_billing_dengan_nik',
+                    'status' => $this->status ?: null,
+                    'periode' => [$this->startDate, $this->endDate],
+                    'ip' => request()->ip(),
+                ])
+                ->log('Mengekspor Laporan Billing beserta NIK pelanggan');
+        }
+
         $fileName = 'Laporan-Billing-'.Carbon::now()->format('YmdHis').'.xlsx';
 
         return Excel::download(
             new LaporanBillingExport(
                 status: $this->status ?: null,
                 startDate: $this->startDate ?: null,
-                endDate: $this->endDate ?: null
+                endDate: $this->endDate ?: null,
+                sertakanNik: $sertakanNik,
             ),
             $fileName
         );
