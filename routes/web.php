@@ -32,6 +32,7 @@ use App\Livewire\Roles;
 use App\Livewire\Router;
 use App\Livewire\Settings\PengaturanGateway;
 use App\Livewire\Settings\PengaturanPrefixRegistrasi;
+use App\Livewire\Settings\TemplateDeskripsiTagihan;
 use App\Livewire\Settings\WhatsappSettings;
 use App\Livewire\Ticket;
 use App\Livewire\Users;
@@ -186,6 +187,7 @@ Route::middleware(['auth'])->group(function () {
     // ─── Pengaturan Gateway ────────────────────────────────────────
     Route::middleware('permission:payment_gateway.lihat')->group(function () {
         Route::get('/settings/gateway', PengaturanGateway::class)->name('settings.gateway');
+        Route::get('/settings/template-deskripsi-tagihan', TemplateDeskripsiTagihan::class)->name('settings.template-deskripsi-tagihan');
     });
 
     // ─── Pengaturan Prefix Registrasi ──────────────────────────────

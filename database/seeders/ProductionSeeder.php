@@ -17,6 +17,7 @@ class ProductionSeeder extends Seeder
             PerusahaanSeeder::class,
             WaTemplateSeeder::class,
             AturanPengingatTagihanSeeder::class,
+            TemplateDeskripsiTagihanSeeder::class,
         ]);
     }
 }
