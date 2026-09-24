@@ -25,9 +25,6 @@ class Index extends Component
     public string $search = '';
 
     #[Url]
-    public string $status = '';
-
-    #[Url]
     public string $jenis = '';
 
     #[Url]
@@ -39,12 +36,36 @@ class Index extends Component
     #[Url]
     public string $tab = 'semua';
 
-    public function updatedSearch(): void
+    /** 'prioritas' (overdue -> prioritas -> SLA) atau 'terbaru'. */
+    #[Url]
+    public string $urut = 'prioritas';
+
+    /**
+     * Buka di "Tiket Saya" bagi user yang masih memegang tiket terbuka sebagai PIC (Teknisi), kecuali
+     * URL sudah menyebut tab.
+     */
+    public function mount(): void
+    {
+        $user = auth('web')->user();
+
+        if ($user && ! request()->has('tab') && Ticket::query()->where('pic_id', $user->id)
+            ->whereNotIn('status', [StatusTicket::Selesai->value, StatusTicket::Batal->value])->exists()) {
+            $this->tab = 'saya';
+        }
+    }
+
+    public function updatedUrut(): void
     {
         $this->resetPage();
     }
 
-    public function updatedStatus(): void
+    public function resetFilter(): void
+    {
+        $this->reset(['search', 'jenis', 'prioritas', 'divisi']);
+        $this->resetPage();
+    }
+
+    public function updatedSearch(): void
     {
         $this->resetPage();
     }
@@ -75,6 +96,7 @@ class Index extends Component
         $this->authorize('viewAny', Ticket::class);
 
         $user = auth('web')->user();
+        abort_unless($user !== null, 403);
 
         // Base query with eager loading for data_unms.md specifications
         $query = Ticket::query()
@@ -110,14 +132,13 @@ class Index extends Component
 
         // Standard filters
         $query->when($this->search, fn (Builder $q) => $q->search($this->search))
-            ->when($this->status, fn (Builder $q) => $q->where('status', $this->status))
             ->when($this->jenis, fn (Builder $q) => $q->where('jenis', $this->jenis))
             ->when($this->prioritas, fn (Builder $q) => $q->where('prioritas', $this->prioritas))
             ->when($this->divisi, fn (Builder $q) => $q->whereHas('divisis', function (Builder $dq) {
                 $dq->where('ticket_divisi.divisi', $this->divisi);
             }));
 
-        $tickets = $query->orderByDesc('id')->paginate(15);
+        $tickets = ($this->urut === 'terbaru' ? $query->orderByDesc('id') : $query->urutkanPrioritas())->paginate(15);
 
         return view('livewire.ticket.index', [
             'tickets' => $tickets,
@@ -125,7 +146,7 @@ class Index extends Component
             'menungguPic' => $menungguPic,
             'dalamProses' => $dalamProses,
             'overdueCount' => $overdueCount,
-            'statuses' => StatusTicket::cases(),
+            'jumlahFilterAktif' => count(array_filter([$this->jenis, $this->prioritas, $this->divisi])),
             'jenisList' => JenisTicket::cases(),
             'prioritasList' => PrioritasTicket::cases(),
             'divisiList' => DivisiTicket::cases(),

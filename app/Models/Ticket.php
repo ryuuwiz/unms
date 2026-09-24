@@ -391,6 +391,28 @@ class Ticket extends Model implements HasMedia
     }
 
     /**
+     * Urutan daftar tiket: yang masih terbuka dulu -- lewat SLA paling atas, lalu prioritas
+     * (darurat -> rendah), lalu tenggat SLA terdekat -- dan yang selesai/batal terbaru dulu.
+     *
+     * @param  Builder<Ticket>  $query
+     * @return Builder<Ticket>
+     */
+    public function scopeUrutkanPrioritas(Builder $query): Builder
+    {
+        $tutup = [StatusTicket::Selesai->value, StatusTicket::Batal->value];
+        $marker = implode(',', array_fill(0, count($tutup), '?'));
+        $sekarang = Carbon::now()->toDateTimeString();
+
+        return $query
+            ->orderByRaw("CASE WHEN status IN ({$marker}) THEN 1 ELSE 0 END", $tutup)
+            ->orderByRaw("CASE WHEN status IN ({$marker}) THEN 1 WHEN sla_target_selesai IS NOT NULL AND sla_target_selesai < ? THEN 0 ELSE 1 END", [...$tutup, $sekarang])
+            ->orderByRaw("CASE WHEN status IN ({$marker}) THEN 0 ELSE CASE prioritas WHEN 'darurat' THEN 0 WHEN 'tinggi' THEN 1 WHEN 'sedang' THEN 2 ELSE 3 END END", $tutup)
+            ->orderByRaw("CASE WHEN status IN ({$marker}) OR sla_target_selesai IS NULL THEN 1 ELSE 0 END", $tutup)
+            ->orderByRaw("CASE WHEN status IN ({$marker}) THEN NULL ELSE sla_target_selesai END ASC", $tutup)
+            ->orderByDesc('id');
+    }
+
+    /**
      * Tiket yang boleh dilihat user di daftar/riwayat -- cermin TicketPolicy::view(): Teknisi hanya
      * tiket PIC-nya, Sales hanya tiket/pelanggan yang ia buat, peran lain semua.
      *
