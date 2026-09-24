@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\JenisKoneksi;
 use App\Enums\StatusLayanan;
 use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\JenisTicket;
@@ -9,6 +10,7 @@ use App\Livewire\LayananPelanggan\Index as LayananIndex;
 use App\Livewire\Ticket\Create as TicketCreate;
 use App\Livewire\Ticket\Show;
 use App\Models\IpPool;
+use App\Models\IpPublik;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
@@ -234,4 +236,43 @@ test('migrasi memberi izin lihat_ppp_password ke teknisi dan noc', function () {
 
     expect($this->teknisi->fresh()->can('layanan_pelanggan.lihat_ppp_password'))->toBeTrue()
         ->and($this->noc->fresh()->can('layanan_pelanggan.lihat_ppp_password'))->toBeTrue();
+});
+
+test('Teknisi melihat router, jenis koneksi, dan IP layanan di tiket terbuka maupun selesai, tanpa password di tiket tertutup', function () {
+    $ticket = buatTiketDenganLayanan([
+        'status' => StatusLayanan::Aktif,
+        'jenis_koneksi' => JenisKoneksi::IpStatic,
+        'ip_static' => '198.51.100.7',
+        'ppp_password_terenkripsi' => 'rahasia88',
+    ]);
+    IpPublik::factory()->create(['layanan_pelanggan_id' => $ticket->layanan_pelanggan_id, 'alamat_ip' => '203.0.113.50']);
+
+    foreach ([StatusTicket::Diproses, StatusTicket::Batal] as $status) {
+        $ticket->update(['status' => $status]);
+
+        Livewire::actingAs($this->teknisi)
+            ->test(Show::class, ['ticket' => $ticket->fresh()])
+            ->assertSee($this->router->nama_router)
+            ->assertSee($this->router->ip_address)
+            ->assertSee('IP Static')
+            ->assertSee('198.51.100.7')
+            ->assertSee('203.0.113.50')
+            ->assertDontSee('rahasia88');
+    }
+});
+
+test('jenis PPPoE tidak menampilkan baris IP, dan router kosong menampilkan placeholder', function () {
+    $ticket = buatTiketDenganLayanan([
+        'status' => StatusLayanan::Proses,
+        'router_id' => null,
+        'jenis_koneksi' => JenisKoneksi::Pppoe,
+        'ip_static' => null,
+    ]);
+
+    Livewire::actingAs($this->teknisi)
+        ->test(Show::class, ['ticket' => $ticket])
+        ->assertSee('PPPoE')
+        ->assertDontSee('IP Statis:')
+        ->assertDontSee('IP Publik:')
+        ->assertSee('Menunggu proses NOC');
 });

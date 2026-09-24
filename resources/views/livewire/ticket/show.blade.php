@@ -145,16 +145,7 @@
             <!-- Bagian Infra Jaringan -->
             <div class="pt-3 border-t border-zinc-100 dark:border-zinc-700/60">
                 <h4 class="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Infrastruktur Jaringan</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-zinc-50 dark:bg-zinc-900/50 p-3.5 rounded-lg text-xs">
-                    <div>
-                        <span class="text-zinc-500 block">Router Gateway:</span>
-                        <span class="font-semibold text-zinc-900 dark:text-white text-sm">
-                            {{ $ticket->layananPelanggan?->router?->nama_router ?? '-' }}
-                        </span>
-                        @if($ticket->layananPelanggan?->router)
-                            <div class="text-[11px] text-zinc-500 font-mono mt-0.5">{{ $ticket->layananPelanggan->router->ip_address }}</div>
-                        @endif
-                    </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-zinc-50 dark:bg-zinc-900/50 p-3.5 rounded-lg text-xs">
                     <div>
                         <span class="text-zinc-500 block">Titik ODP:</span>
                         <span class="font-semibold text-zinc-900 dark:text-white text-sm">
@@ -435,6 +426,25 @@
                                 @endif
                             </div>
                         @endif
+                        <div class="pt-2">
+                            <span class="text-zinc-500">Router:</span>
+                            @if ($ticket->layananPelanggan->router)
+                                <div class="font-semibold text-zinc-900 dark:text-white">{{ $ticket->layananPelanggan->router->nama_router }}</div>
+                                <div class="text-zinc-500 font-mono">{{ $ticket->layananPelanggan->router->ip_address }}</div>
+                            @else
+                                <div class="text-zinc-400 italic">Menunggu proses NOC</div>
+                            @endif
+                        </div>
+                        <div class="pt-2">
+                            <span class="text-zinc-500">Jenis Koneksi:</span>
+                            <div class="font-medium text-zinc-900 dark:text-white">{{ $ticket->layananPelanggan->jenis_koneksi->label() }}</div>
+                            @if ($ticket->layananPelanggan->ip_static)
+                                <div class="text-zinc-500 font-mono">IP Statis: <span class="select-all">{{ $ticket->layananPelanggan->ip_static }}</span></div>
+                            @endif
+                            @foreach ($ticket->layananPelanggan->ipPubliks as $ipPublik)
+                                <div class="text-zinc-500 font-mono">IP Publik: <span class="select-all">{{ $ipPublik->alamat_ip }}</span></div>
+                            @endforeach
+                        </div>
                         <div class="pt-2">
                             <span class="text-zinc-500">Paket & Bandwidth:</span>
                             <div class="font-medium text-zinc-900 dark:text-white">{{ $ticket->layananPelanggan->paketLayanan?->nama_paket ?? '-' }}</div>

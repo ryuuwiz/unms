@@ -150,6 +150,7 @@ class Show extends Component
             'pelanggan.dibuatOleh',
             'layananPelanggan.paketLayanan.profilBandwidth',
             'layananPelanggan.router',
+            'layananPelanggan.ipPubliks',
             'layananPelanggan.odpPort.odp',
             'pemasangan.odpPort.odp',
             'pic',
