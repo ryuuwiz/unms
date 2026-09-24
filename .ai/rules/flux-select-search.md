@@ -23,3 +23,27 @@ implementation.
 For small, admin-provisioned lists (routers, IP pools — a handful of rows in practice,
 not customer-scale) a plain `<flux:select>` without `searchable` is fine; don't build
 search UI for those.
+
+# `<flux:select placeholder>` needs an explicit empty option; never `:value="null"`
+
+The Flux Free select stub renders `placeholder` as `<option value="" disabled selected>`. When the
+bound property is `null`/`''` (or a value missing from the list), the browser can't keep a disabled
+option selected and visually shows the **first real option** instead — the user thinks it is
+chosen, Livewire still holds `null`, and `required` validation fails on submit.
+
+Always add an enabled empty option right after the opening tag, repeating the placeholder text:
+
+```blade
+<flux:select wire:model="kategoriId" placeholder="Pilih kategori...">
+    <flux:select.option value="">Pilih kategori...</flux:select.option>
+    @foreach ($kategoris as $kategori) ... @endforeach
+</flux:select>
+```
+
+Apply it to every select whose property can start empty or hold a value not in the options (e.g.
+a list filtered to online routers / active packages). Selects bound to a property that always has a
+valid default (enum defaults like `status = 'aktif'`) don't need it.
+
+Never write `<flux:select.option :value="null">`: the option stub omits the `value` attribute when
+it is null, so the browser submits the option's **text** (e.g. "Bukan di perumahan") as the value.
+Use `value=""` for a "none" choice; Livewire hydrates `''` into a `?int` property as `null`.

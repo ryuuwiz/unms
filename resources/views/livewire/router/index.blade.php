@@ -185,6 +185,7 @@
                             <flux:field>
                                 <flux:label>Pindahkan Layanan ke Router</flux:label>
                                 <flux:select wire:model.live="targetRouterId" placeholder="Pilih router tujuan...">
+                                    <flux:select.option value="">Pilih router tujuan...</flux:select.option>
                                     @foreach ($otherRouters as $other)
                                         <flux:select.option value="{{ $other->id }}">
                                             {{ $other->nama_router }} ({{ $other->ip_address }})
@@ -198,6 +199,7 @@
                                 <flux:field>
                                     <flux:label>IP Pool di Router Tujuan</flux:label>
                                     <flux:select wire:model.live="targetPoolId" placeholder="Pilih IP Pool...">
+                                        <flux:select.option value="">Pilih IP Pool...</flux:select.option>
                                         @foreach ($targetPools as $pool)
                                             <flux:select.option value="{{ $pool->id }}">{{ $pool->nama_pool }} ({{ $pool->ip_network }}/{{ $pool->cidr }})</flux:select.option>
                                         @endforeach

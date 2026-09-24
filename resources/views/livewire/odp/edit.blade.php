@@ -35,7 +35,7 @@
                 <flux:field>
                     <flux:label>Perumahan / Area Coverage <span class="text-zinc-400 font-normal">(opsional)</span></flux:label>
                     <flux:select wire:model="perumahan_id" placeholder="Pilih perumahan...">
-                        <flux:select.option :value="null">Bukan di perumahan</flux:select.option>
+                        <flux:select.option value="">Bukan di perumahan</flux:select.option>
                         @foreach ($perumahans as $prm)
                             <flux:select.option value="{{ $prm->id }}">{{ $prm->nama_perumahan }}</flux:select.option>
                         @endforeach

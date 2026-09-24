@@ -86,6 +86,7 @@
                 <flux:input wire:model="kode" label="Kode Barang" placeholder="mis. MDM-ZTE-F609" />
                 <flux:input wire:model="nama" label="Nama Barang" />
                 <flux:select wire:model="formKategoriId" label="Kategori" placeholder="Pilih kategori...">
+                    <flux:select.option value="">Pilih kategori...</flux:select.option>
                     @foreach($kategoris as $kategori)
                         <flux:select.option value="{{ $kategori->id }}">{{ $kategori->kode }} — {{ $kategori->nama }}</flux:select.option>
                     @endforeach

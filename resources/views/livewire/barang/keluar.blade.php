@@ -70,6 +70,7 @@
 
             <div class="space-y-4">
                 <flux:select wire:model.live="jenisId" label="Barang" placeholder="Pilih barang...">
+                    <flux:select.option value="">Pilih barang...</flux:select.option>
                     @foreach($jenisList as $jenis)
                         <flux:select.option value="{{ $jenis->id }}">{{ $jenis->kode }} — {{ $jenis->nama }}</flux:select.option>
                     @endforeach
@@ -94,6 +95,7 @@
                 @endif
 
                 <flux:select wire:model="teknisiId" label="Teknisi Penerima" placeholder="Pilih teknisi...">
+                    <flux:select.option value="">Pilih teknisi...</flux:select.option>
                     @foreach($teknisis as $teknisi)
                         <flux:select.option value="{{ $teknisi->id }}">{{ $teknisi->name }}</flux:select.option>
                     @endforeach

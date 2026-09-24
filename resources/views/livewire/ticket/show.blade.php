@@ -863,6 +863,7 @@
                     <flux:field>
                         <flux:label>Router (NOC)</flux:label>
                         <flux:select wire:model.live="prosesRouterId" placeholder="Pilih router...">
+                            <flux:select.option value="">Pilih router...</flux:select.option>
                             @foreach ($onlineRouters as $r)
                                 <flux:select.option value="{{ $r->id }}">{{ $r->nama_router }} ({{ $r->ip_address }})</flux:select.option>
                             @endforeach
@@ -887,6 +888,7 @@
                         <flux:field>
                             <flux:label>Paket di Router</flux:label>
                             <flux:select wire:model="prosesPaketLayananId" placeholder="Pilih paket...">
+                                <flux:select.option value="">Pilih paket...</flux:select.option>
                                 @foreach ($paketLayananList as $pkt)
                                     <flux:select.option value="{{ $pkt->id }}">{{ $pkt->nama_paket }}</flux:select.option>
                                 @endforeach
@@ -925,6 +927,7 @@
                         <flux:field>
                             <flux:label>Paket Layanan</flux:label>
                             <flux:select wire:model="prosesPaketLayananId" placeholder="Pilih paket...">
+                                <flux:select.option value="">Pilih paket...</flux:select.option>
                                 @foreach ($paketLayananList as $pkt)
                                     <flux:select.option value="{{ $pkt->id }}">{{ $pkt->nama_paket }}</flux:select.option>
                                 @endforeach

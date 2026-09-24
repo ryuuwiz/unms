@@ -67,6 +67,7 @@
 
             <div class="space-y-4">
                 <flux:select wire:model.live="jenisId" label="Barang" placeholder="Pilih barang...">
+                    <flux:select.option value="">Pilih barang...</flux:select.option>
                     @foreach($jenisList as $jenis)
                         <flux:select.option value="{{ $jenis->id }}">{{ $jenis->kode }} — {{ $jenis->nama }}</flux:select.option>
                     @endforeach
@@ -89,6 +90,7 @@
 
                 @if ($jenisTerpilih?->dilacak_per_unit)
                     <flux:select wire:model="kondisiId" label="Kondisi" placeholder="Pilih kondisi...">
+                        <flux:select.option value="">Pilih kondisi...</flux:select.option>
                         @foreach($kondisis as $kondisi)
                             <flux:select.option value="{{ $kondisi->id }}">{{ $kondisi->kode }} — {{ $kondisi->nama }}</flux:select.option>
                         @endforeach
