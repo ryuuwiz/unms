@@ -862,13 +862,26 @@
 
                     <flux:field>
                         <flux:label>Router (NOC)</flux:label>
-                        <flux:select wire:model="prosesRouterId" placeholder="Pilih router...">
+                        <flux:select wire:model.live="prosesRouterId" placeholder="Pilih router...">
                             @foreach ($onlineRouters as $r)
                                 <flux:select.option value="{{ $r->id }}">{{ $r->nama_router }} ({{ $r->ip_address }})</flux:select.option>
                             @endforeach
                         </flux:select>
                         <flux:error name="prosesRouterId" />
                     </flux:field>
+
+                    @if ($ticket->layananPelanggan?->jenis_koneksi === \App\Enums\JenisKoneksi::Pppoe)
+                        <flux:field>
+                            <flux:label>IP Pool</flux:label>
+                            <flux:select wire:model="prosesIpPoolId" placeholder="Pilih IP Pool..." :disabled="! $prosesRouterId">
+                                <flux:select.option value="">-- Pilih IP Pool --</flux:select.option>
+                                @foreach ($prosesIpPools as $pool)
+                                    <flux:select.option value="{{ $pool->id }}">{{ $pool->nama_pool }} ({{ $pool->ip_network }}/{{ $pool->cidr }})</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:error name="prosesIpPoolId" />
+                        </flux:field>
+                    @endif
 
                     @if ($prosesPilihanPaket === 'berbeda')
                         <flux:field>
