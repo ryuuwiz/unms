@@ -16,7 +16,6 @@ use App\Models\Router;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -259,7 +258,7 @@ class Edit extends Component
         $layanan = LayananPelanggan::findOrFail($this->layananId);
         $this->authorize('update', $layanan);
 
-        $newPassword = Str::password(8, symbols: false);
+        $newPassword = LayananPelanggan::generatePppPassword();
 
         $layanan->update(['ppp_password_terenkripsi' => $newPassword]);
 

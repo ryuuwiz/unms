@@ -121,8 +121,8 @@ Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN
 _Avoid_: Username Bebas, PPP User Manual, Format Lama (`user_budi_01`), Digenerate Saat Registrasi Dibuat
 
 **PPP Password Credential**:
-Kredensial autentikasi PPPoE pelanggan yang selalu di-generate sistem secara acak (8 karakter alfanumerik) saat Data Registrasi Billing dibuat atau di-reset, tidak pernah diinput manual oleh staf. Ditampilkan hanya sekali (*reveal-once-at-generation*) kepada staf yang men-trigger pembuatan/reset tersebut lewat toast/modal sekali-lihat; setelahnya tersembunyi di semua tempat dan hanya bisa diungkap ulang oleh `super_admin` (izin `layanan_pelanggan.lihat_ppp_password`) lewat aksi *reveal* beraudit trail Spatie Activitylog, mengikuti pola yang sama dengan Watermark Dokumen Identitas.
-_Avoid_: Password Manual Staf, Password Bebas, Plaintext Permanen di Halaman, Reveal Tanpa Audit
+Kredensial autentikasi PPPoE pelanggan yang di-generate sistem secara acak (8 karakter alfanumerik) pada langkah NOC (Aktivasi Pemasangan atau Proses NOC) bersamaan dengan PPP Username Credential, hanya bila masih kosong (tidak pernah menimpa yang sudah ada), atau saat di-reset lewat halaman Edit layanan. Satu-satunya pengecualian input manual: mode "Sudah Registrasi Mikrotik", di mana NOC mengetik password asli secret yang sudah ia buat sendiri di router (UNMS tidak memanggil RouterOS di mode ini, jadi password acak akan berbeda dari kenyataan). Tersembunyi secara default; diungkap lewat aksi *reveal* beraudit trail Spatie Activitylog (izin `layanan_pelanggan.lihat_ppp_password`, mengikuti pola Watermark Dokumen Identitas) oleh `super_admin` di mana saja, serta Teknisi dan NOC **hanya di dalam halaman tiket yang masih terbuka** dan yang boleh mereka akses (Teknisi: tiket yang PIC-nya dirinya). Tiket berstatus Selesai/Batal menyembunyikan aksi reveal.
+_Avoid_: Password Manual Staf (kecuali mode Sudah Registrasi Mikrotik), Password Bebas, Plaintext Permanen di Halaman, Reveal Tanpa Audit, Password Digenerate Saat Registrasi Billing Dibuat
 
 **Site ID**:
 Pengenal unik titik instalasi layanan pelanggan (format `SITE-XXXXXXXX`).

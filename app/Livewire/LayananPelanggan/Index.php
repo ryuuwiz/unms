@@ -83,6 +83,10 @@ class Index extends Component
             return;
         }
 
+        if ($layanan->status === StatusLayanan::Proses) {
+            $layanan->isiPppPasswordJikaKosong();
+        }
+
         try {
             $result = $mikrotikService->createOrUpdatePppoeSecret($layanan->router, $layanan);
             $action = $result['action'] ?? 'terprovisi';

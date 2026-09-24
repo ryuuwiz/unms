@@ -123,8 +123,13 @@ class Show extends Component
 
     public string $prosesPppUsername = '';
 
+    public string $prosesPppPassword = '';
+
     // Proses Admin saja
     public bool $prosesUbahPaket = false;
+
+    // Reveal PPP Password di panel Informasi Layanan -- lihat ADR-0055.
+    public string $revealedPppPassword = '';
 
     public function mount(Ticket $ticket): void
     {
@@ -138,6 +143,8 @@ class Show extends Component
 
     protected function loadTicket(): void
     {
+        $this->revealedPppPassword = '';
+
         $this->ticket->load([
             'pelanggan.perumahan.kelurahan.kecamatan.kota',
             'pelanggan.dibuatOleh',
@@ -431,6 +438,7 @@ class Show extends Component
                 'ppp_username' => $pppUsername,
                 'odp_port_id' => $odpPortId,
             ]);
+            $layanan->isiPppPasswordJikaKosong();
 
             if ($odpPortId) {
                 OdpPort::whereKey($odpPortId)->update([
@@ -593,6 +601,7 @@ class Show extends Component
         $this->prosesPaketLayananId = $layanan?->paket_layanan_id;
         $this->prosesPppMode = 'auto';
         $this->prosesPppUsername = $layanan?->ppp_username ?? '';
+        $this->prosesPppPassword = '';
         $this->prosesUbahPaket = false;
         $this->showProsesModal = true;
     }
@@ -644,6 +653,8 @@ class Show extends Component
                 return;
             }
 
+            $perluPasswordManual = $layanan->perluPasswordManual($this->prosesModeMikrotik === 'sudah');
+
             $this->validate([
                 'prosesModeMikrotik' => ['required', 'in:proses,sudah'],
                 'prosesPilihanPaket' => ['required', 'in:bawaan,berbeda'],
@@ -655,9 +666,11 @@ class Show extends Component
                     'nullable', 'string', 'max:64',
                     Rule::unique('layanan_pelanggan', 'ppp_username')->ignore($layanan->id),
                 ],
+                'prosesPppPassword' => [Rule::requiredIf($perluPasswordManual), 'nullable', 'string', 'max:64'],
             ], [
                 'prosesPppUsername.required' => 'PPP Username manual wajib diisi.',
                 'prosesPppUsername.unique' => 'PPP Username sudah dipakai layanan lain.',
+                'prosesPppPassword.required' => 'Password PPP asli di router wajib diisi.',
             ]);
 
             $paketLayananId = $this->prosesPilihanPaket === 'bawaan' ? $layanan->paket_layanan_id : $this->prosesPaketLayananId;
@@ -667,6 +680,12 @@ class Show extends Component
                 $layanan->update(['ppp_username' => $this->prosesPppUsername]);
             } elseif (empty($layanan->ppp_username)) {
                 $layanan->update(['ppp_username' => LayananPelanggan::generatePppUsername($layanan->pelanggan)]);
+            }
+
+            if ($perluPasswordManual) {
+                $layanan->update(['ppp_password_terenkripsi' => $this->prosesPppPassword]);
+            } elseif ($layanan->status === StatusLayanan::Proses) {
+                $layanan->isiPppPasswordJikaKosong();
             }
 
             if ($this->prosesModeMikrotik === 'proses') {
@@ -728,6 +747,35 @@ class Show extends Component
         }
 
         $this->loadTicket();
+    }
+
+    /**
+     * Ungkap PPP Password layanan tiket ini -- dibatasi TicketPolicy::lihatKredensialPpp dan
+     * beraudit trail. Lihat ADR-0055.
+     */
+    public function revealPppPassword(): void
+    {
+        $this->authorize('lihatKredensialPpp', $this->ticket);
+
+        $layanan = $this->ticket->layananPelanggan;
+        abort_unless($layanan && $layanan->ppp_password_terenkripsi, 404);
+
+        activity('layanan_pelanggan')
+            ->performedOn($layanan)
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'action' => 'reveal_ppp_password',
+                'ticket' => $this->ticket->nomor_ticket,
+                'ip' => request()->ip(),
+            ])
+            ->log("Mengungkap PPP Password layanan {$layanan->ppp_username} lewat tiket {$this->ticket->nomor_ticket}");
+
+        $this->revealedPppPassword = $layanan->ppp_password_terenkripsi;
+    }
+
+    public function sembunyikanPppPassword(): void
+    {
+        $this->revealedPppPassword = '';
     }
 
     public function render(): View

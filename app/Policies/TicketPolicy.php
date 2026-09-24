@@ -169,6 +169,18 @@ class TicketPolicy
     }
 
     /**
+     * Apakah user boleh mengungkap PPP Password layanan lewat halaman tiket ini -- hanya selagi
+     * tiket belum Selesai/Batal dan user boleh melihat tiketnya (Teknisi: PIC). Super admin
+     * lolos lewat Gate::before. Lihat ADR-0055.
+     */
+    public function lihatKredensialPpp(User $user, Ticket $ticket): bool
+    {
+        return $user->can('layanan_pelanggan.lihat_ppp_password')
+            && ! $ticket->status->isTerminal()
+            && $this->view($user, $ticket);
+    }
+
+    /**
      * Determine whether the user can assign or reassign PIC for the ticket.
      */
     public function assignPic(User $user, Ticket $ticket, ?User $pic = null): bool

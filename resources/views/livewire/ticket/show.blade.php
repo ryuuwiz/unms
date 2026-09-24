@@ -408,9 +408,33 @@
                     <div class="space-y-2.5 text-xs divide-y divide-zinc-100 dark:divide-zinc-700/50">
                         <div>
                             <span class="text-zinc-500">PPP Username / Site ID:</span>
-                            <div class="font-semibold text-zinc-900 dark:text-white font-mono text-sm">{{ $ticket->layananPelanggan->ppp_username }}</div>
+                            @if ($ticket->layananPelanggan->ppp_username)
+                                <div class="font-semibold text-zinc-900 dark:text-white font-mono text-sm select-all">{{ $ticket->layananPelanggan->ppp_username }}</div>
+                            @else
+                                <div class="text-zinc-400 italic">Menunggu proses NOC</div>
+                            @endif
                             <div class="text-zinc-500 font-mono">Site ID: {{ $ticket->layananPelanggan->site_id }}</div>
                         </div>
+                        @if ($ticket->layananPelanggan->ppp_username)
+                            <div class="pt-2">
+                                <span class="text-zinc-500">PPP Password:</span>
+                                @if ($revealedPppPassword)
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-zinc-900 dark:text-white font-mono text-sm select-all tracking-wider" data-testid="ppp-password">{{ $revealedPppPassword }}</span>
+                                        <flux:button type="button" size="xs" variant="ghost" icon="eye-slash" wire:click="sembunyikanPppPassword" aria-label="Sembunyikan password PPP" />
+                                    </div>
+                                @elseif (! $ticket->layananPelanggan->ppp_password_terenkripsi)
+                                    <div class="text-zinc-400 italic">Belum tercatat</div>
+                                @else
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-mono text-sm text-zinc-500">••••••••</span>
+                                        @can('lihatKredensialPpp', $ticket)
+                                            <flux:button type="button" size="xs" variant="ghost" icon="eye" wire:click="revealPppPassword" wire:loading.attr="disabled" wire:target="revealPppPassword" aria-label="Tampilkan password PPP" />
+                                        @endcan
+                                    </div>
+                                @endif
+                            </div>
+                        @endif
                         <div class="pt-2">
                             <span class="text-zinc-500">Paket & Bandwidth:</span>
                             <div class="font-medium text-zinc-900 dark:text-white">{{ $ticket->layananPelanggan->paketLayanan?->nama_paket ?? '-' }}</div>
@@ -812,7 +836,7 @@
                 <div class="pt-3 border-t border-zinc-100 dark:border-zinc-700/60 space-y-3">
                     <flux:field>
                         <flux:label>Mode Registrasi Mikrotik</flux:label>
-                        <flux:radio.group wire:model="prosesModeMikrotik">
+                        <flux:radio.group wire:model.live="prosesModeMikrotik">
                             <flux:radio value="proses" label="Proses Registrasi Mikrotik" description="Sistem mengirim perintah ke router (PPPoE) dan menyimpan histori jika berhasil." />
                             <flux:radio value="sudah" label="Sudah Registrasi Mikrotik" description="PPP sudah dibuat manual/sebelumnya. Sistem hanya update histori ticket." />
                         </flux:radio.group>
@@ -852,13 +876,22 @@
                         <flux:label>PPP Username & Password</flux:label>
                         <flux:radio.group wire:model.live="prosesPppMode">
                             <flux:radio value="auto" label="Generate otomatis dari No. Reg" description="PPP saat ini tidak diubah jika mode auto." />
-                            <flux:radio value="manual" label="Isi manual" description="Username wajib unik. Password akan di-generate." />
+                            <flux:radio value="manual" label="Isi manual" description="Username wajib unik. Password di-generate sistem." />
                         </flux:radio.group>
                         @if ($prosesPppMode === 'manual')
                             <flux:input wire:model="prosesPppUsername" placeholder="Username PPP..." class="mt-2" />
                         @endif
                         <flux:error name="prosesPppUsername" />
                     </flux:field>
+
+                    @if ($ticket->layananPelanggan?->perluPasswordManual($prosesModeMikrotik === 'sudah'))
+                        <flux:field>
+                            <flux:label>Password PPP di Router</flux:label>
+                            <flux:input type="password" wire:model="prosesPppPassword" placeholder="Password asli secret di router..." autocomplete="off" viewable />
+                            <flux:description>Wajib diisi: sistem tidak membuat password untuk secret yang sudah ada di router.</flux:description>
+                            <flux:error name="prosesPppPassword" />
+                        </flux:field>
+                    @endif
                 </div>
             @endif
 

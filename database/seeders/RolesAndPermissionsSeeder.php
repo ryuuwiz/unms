@@ -120,6 +120,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $nocRole->syncPermissions([
             $p['pelanggan.lihat'],
             $p['layanan_pelanggan.lihat'], $p['layanan_pelanggan.ubah'], $p['layanan_pelanggan.aktivasi'],
+            $p['layanan_pelanggan.lihat_ppp_password'],
             $p['router.lihat'], $p['router.buat'], $p['router.ubah'], $p['router.hapus'],
             $p['router.provision'], $p['router.sync'],
             $p['ip_pool.lihat'], $p['ip_pool.buat'], $p['ip_pool.ubah'], $p['ip_pool.hapus'],
@@ -133,7 +134,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // teknisi: hanya tiket yang di-assign + lihat data yang relevan
         $teknisiRole->syncPermissions([
             $p['pelanggan.lihat'],
-            $p['layanan_pelanggan.lihat'],
+            $p['layanan_pelanggan.lihat'], $p['layanan_pelanggan.lihat_ppp_password'],
             $p['ticket.lihat'], $p['ticket.ubah'],
         ]);
 

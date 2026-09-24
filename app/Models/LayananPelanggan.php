@@ -422,6 +422,34 @@ class LayananPelanggan extends Model
     }
 
     /**
+     * PPP Password acak 8 karakter alfanumerik -- lihat CONTEXT.md "PPP Password Credential".
+     */
+    public static function generatePppPassword(): string
+    {
+        return Str::password(8, symbols: false);
+    }
+
+    /**
+     * Isi PPP Password hanya bila masih kosong; tidak pernah menimpa yang sudah ada.
+     */
+    public function isiPppPasswordJikaKosong(): void
+    {
+        if (empty($this->ppp_password_terenkripsi)) {
+            $this->update(['ppp_password_terenkripsi' => static::generatePppPassword()]);
+        }
+    }
+
+    /**
+     * Apakah NOC wajib mengetik password asli: password kosong dan bukan first-time provisioning
+     * (layanan non-PROSES) atau mode "Sudah Registrasi Mikrotik" (secret dibuat manual di router).
+     */
+    public function perluPasswordManual(bool $modeSudahRegistrasi): bool
+    {
+        return empty($this->ppp_password_terenkripsi)
+            && ($modeSudahRegistrasi || $this->status !== StatusLayanan::Proses);
+    }
+
+    /**
      * Generate ppp_username unik untuk pelanggan dengan format {no_reg}_{NNNNN}.
      *
      * Suffix berupa 5-digit angka acak (10000-99999) via CSPRNG yang dijamin unik global.
