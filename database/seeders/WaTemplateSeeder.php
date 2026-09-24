@@ -9,11 +9,30 @@ use Illuminate\Database\Seeder;
 class WaTemplateSeeder extends Seeder
 {
     /**
+     * Template Notifikasi Invoice Terbit -- dipakai juga oleh migrasi data supaya DB
+     * produksi menerimanya tanpa menimpa template lain yang sudah diedit admin (ADR-0056).
+     *
+     * @return array<string, mixed>
+     */
+    public static function invoiceTerbit(): array
+    {
+        return [
+            'kode' => 'invoice_terbit',
+            'nama' => 'Invoice Baru Terbit',
+            'kategori' => KategoriTemplateWa::Tagihan,
+            'konten' => "Selamat pagi/siang Bapak/Ibu {nama_pelanggan}\n\nTagihan baru layanan internet Anda telah terbit.\nNo. Invoice: {no_invoice}\nJatuh Tempo: {jatuh_tempo}\n\nNo Registrasi: {no_reg}\nKode Bayar: {kode_bayar}\n\nRincian Tagihan:\n1. {site_id} - {nama_paket} ({total_tagihan})\n\nTotal Tagihan : {total_tagihan}\n\nBayar online tanpa login melalui tautan berikut:\n{link_pembayaran}\n\nSilahkan selesaikan pembayaran sebelum jatuh tempo untuk menjaga layanan tetap aktif.\nApabila pembayaran sudah dilakukan, mohon abaikan informasi ini.\n\nWaspada Penipuan\nJangan lakukan pembayaran ke rekening pribadi/nomor yang tidak terdaftar. Informasi resmi hanya melalui kanal resmi {nama_brand}.\n\nHormat kami,\n{nama_brand}\n\nPesan ini dikirim oleh sistem informasi pelanggan {nama_brand}.",
+            'keterangan' => 'Dikirimkan otomatis saat sebuah invoice dibuat (tagihan pertama, periodik, atau manual).',
+            'is_aktif' => true,
+        ];
+    }
+
+    /**
      * Run the database seeds.
      */
     public function run(): void
     {
         $templates = [
+            self::invoiceTerbit(),
             [
                 'kode' => 'pengingat_tagihan_h3',
                 'nama' => 'Pengingat Tagihan H-3 (Tagihan Baru Terbit)',

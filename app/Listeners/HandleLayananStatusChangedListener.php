@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Enums\ProvisioningStatus;
 use App\Enums\StatusLayanan;
 use App\Events\LayananPelangganStatusChangedEvent;
+use App\Jobs\Mikrotik\CleanupPppSecretOnOldRouterJob;
 use App\Jobs\Mikrotik\DisablePppoeAccountJob;
 use App\Jobs\Mikrotik\EnablePppoeAccountJob;
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
@@ -34,8 +35,19 @@ class HandleLayananStatusChangedListener
                 EnablePppoeAccountJob::dispatch($layanan);
             }
         } elseif ($event->statusBaru === StatusLayanan::Berhenti) {
-            // Nonaktifkan secret saat berhenti berlangganan
-            DisablePppoeAccountJob::dispatch($layanan);
+            // Berhenti adalah input admin/NOC (tiket Pencabutan / ubah status): secret dihapus beserta sesinya.
+            // Jejak siapa+alasan diteruskan; kegagalan dikejar rekonsiliasi (autoRecoverPppSecrets).
+            $username = trim((string) $layanan->ppp_username);
+
+            if ($username !== '') {
+                CleanupPppSecretOnOldRouterJob::dispatch(
+                    (int) $layanan->router_id,
+                    $username,
+                    $layanan->id,
+                    $event->actor?->id ?? 'system:tanpa-user',
+                    'Layanan Berhenti'.($event->catatan ? ": {$event->catatan}" : ''),
+                );
+            }
         }
     }
 }

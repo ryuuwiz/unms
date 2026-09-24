@@ -243,6 +243,8 @@ test('can delete router and move its layanans to another router', function () {
     $pelanggan = Pelanggan::factory()->create();
     $paket = PaketLayanan::factory()->create();
 
+    $poolB = IpPool::factory()->create(['router_id' => $routerB->id]);
+
     $layanan = LayananPelanggan::factory()->create([
         'pelanggan_id' => $pelanggan->id,
         'paket_layanan_id' => $paket->id,
@@ -253,12 +255,14 @@ test('can delete router and move its layanans to another router', function () {
         ->test(Index::class)
         ->call('confirmDelete', $routerA->id)
         ->set('targetRouterId', $routerB->id)
+        ->set('targetPoolId', $poolB->id)
         ->call('deleteRouter')
         ->assertSet('deletingId', null)
         ->assertHasNoErrors();
 
     expect(Router::find($routerA->id))->toBeNull()
-        ->and($layanan->fresh()->router_id)->toBe($routerB->id);
+        ->and($layanan->fresh()->router_id)->toBe($routerB->id)
+        ->and($layanan->fresh()->ip_pool_id)->toBe($poolB->id);
 });
 
 test('can delete router and force delete its layanans with confirmation', function () {
@@ -312,4 +316,3 @@ test('handles invalid encrypted password gracefully without throwing DecryptExce
     expect($router->password_terenkripsi)->toBeNull();
     expect($router->toArray()['password_terenkripsi'])->toBeNull();
 });
-

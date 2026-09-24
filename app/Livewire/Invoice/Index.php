@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Invoice;
 
+use App\Actions\Invoice\BatalkanInvoiceLunasAction;
 use App\Enums\StatusInvoice;
 use App\Models\Invoice;
 use Flux\Flux;
@@ -55,8 +56,7 @@ class Index extends Component
         $this->authorize('delete', $invoice);
 
         if ($invoice->isLunas()) {
-            Flux::toast(variant: 'danger', text: 'Invoice yang sudah lunas tidak dapat dihapus.');
-            $this->deletingId = null;
+            $this->batalkanInvoiceLunas($invoice);
 
             return;
         }
@@ -86,6 +86,29 @@ class Index extends Component
         Flux::toast(variant: 'success', text: "Invoice {$invoice->no_invoice} berhasil dibatalkan/dihapus.");
     }
 
+    protected function batalkanInvoiceLunas(Invoice $invoice): void
+    {
+        $this->authorize('voidLunas', $invoice);
+
+        $this->validate(
+            ['keteranganHapus' => ['required', 'string', 'min:5', 'max:500']],
+            ['keteranganHapus.required' => 'Alasan pembatalan invoice lunas wajib diisi.', 'keteranganHapus.min' => 'Alasan minimal 5 karakter.'],
+        );
+
+        try {
+            app(BatalkanInvoiceLunasAction::class)->execute($invoice, auth()->user(), $this->keteranganHapus);
+        } catch (\Exception $e) {
+            Flux::toast(variant: 'danger', text: $e->getMessage(), duration: 10000);
+            $this->deletingId = null;
+
+            return;
+        }
+
+        $this->deletingId = null;
+
+        Flux::toast(variant: 'success', text: "Invoice lunas {$invoice->no_invoice} dibatalkan; pembayaran dan masa aktif layanan dikembalikan.");
+    }
+
     public function render(): View
     {
         $this->authorize('viewAny', Invoice::class);
@@ -104,6 +127,8 @@ class Index extends Component
         return view('livewire.invoice.index', [
             'invoices' => $invoices,
             'statuses' => StatusInvoice::cases(),
+            'deletingLunas' => $this->deletingId
+                && Invoice::whereKey($this->deletingId)->where('status', StatusInvoice::Lunas)->exists(),
         ]);
     }
 }

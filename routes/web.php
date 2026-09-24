@@ -13,6 +13,7 @@ use App\Livewire\BarangKeluar;
 use App\Livewire\BarangMasuk;
 use App\Livewire\Invoice;
 use App\Livewire\IpPool;
+use App\Livewire\IpPublik;
 use App\Livewire\Laporan;
 use App\Livewire\LayananPelanggan;
 use App\Livewire\Maps\EstimasiKabel;
@@ -38,6 +39,7 @@ use App\Livewire\Settings\PengaturanGateway;
 use App\Livewire\Settings\PengaturanJenisBarang;
 use App\Livewire\Settings\PengaturanKondisiBarang;
 use App\Livewire\Settings\PengaturanPrefixRegistrasi;
+use App\Livewire\Settings\TemplateDeskripsiTagihan;
 use App\Livewire\Settings\WhatsappSettings;
 use App\Livewire\Ticket;
 use App\Livewire\Users;
@@ -192,6 +194,7 @@ Route::middleware(['auth'])->group(function () {
     // ─── Pengaturan Gateway ────────────────────────────────────────
     Route::middleware('permission:payment_gateway.lihat')->group(function () {
         Route::get('/settings/gateway', PengaturanGateway::class)->name('settings.gateway');
+        Route::get('/settings/template-deskripsi-tagihan', TemplateDeskripsiTagihan::class)->name('settings.template-deskripsi-tagihan');
     });
 
     // ─── Pengaturan Prefix Registrasi ──────────────────────────────
@@ -314,6 +317,19 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::middleware('permission:ip_pool.lihat')->group(function () {
             Route::get('/', IpPool\Index::class)->name('index');
+        });
+    });
+
+    // ─── IP Publik Dedicated ──────────────────────────────────────
+    Route::prefix('ip-publik')->name('ip-publik.')->group(function () {
+        Route::middleware('permission:ip_publik.buat')->group(function () {
+            Route::get('/create', IpPublik\Create::class)->name('create');
+        });
+        Route::middleware('permission:ip_publik.ubah')->group(function () {
+            Route::get('/{ipPublik}/edit', IpPublik\Edit::class)->name('edit');
+        });
+        Route::middleware('permission:ip_publik.lihat')->group(function () {
+            Route::get('/', IpPublik\Index::class)->name('index');
         });
     });
 

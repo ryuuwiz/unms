@@ -64,6 +64,22 @@
 
                     <flux:table.cell class="font-mono text-xs text-zinc-600 dark:text-zinc-300">
                         {{ $pool->rentang_ip_awal }} - {{ $pool->rentang_ip_akhir }}
+                        @php
+                            $terpakai = $usage[$pool->router_id][$pool->nama_pool] ?? (isset($usage[$pool->router_id]) ? 0 : null);
+                            $total = $pool->totalAddresses();
+                        @endphp
+                        @if ($total > 3 && $pool->containsAddress($pool->getGatewayAddress()))
+                            <span class="block font-sans text-[11px] font-semibold text-red-600 dark:text-red-400" title="Gateway {{ $pool->getGatewayAddress() }} dipakai sebagai local-address PPP dan bisa dibagikan ke pelanggan">
+                                ⚠ Rentang memuat gateway {{ $pool->getGatewayAddress() }}
+                            </span>
+                        @endif
+                        @if ($terpakai === null)
+                            <span class="block font-sans text-[11px] text-zinc-400">Pemakaian: tidak diketahui (router offline)</span>
+                        @else
+                            <span class="block font-sans text-[11px] {{ $total > 0 && $terpakai / $total >= 0.9 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-zinc-500' }}">
+                                Terpakai {{ $terpakai }} / {{ $total }}{{ $total > 0 && $terpakai / $total >= 0.9 ? ' — hampir penuh' : '' }}
+                            </span>
+                        @endif
                     </flux:table.cell>
 
                     <flux:table.cell>

@@ -212,7 +212,9 @@ return [
             'maxJobs' => 0,
             'memory' => 128,
             'tries' => 3,
-            'timeout' => 30,
+            // Provisi/isolir = banyak round-trip RouterOS (find + pool + profile + secret + kick); harus < retry_after
+            // antrean (360 dtk) dan < expireAfter lock WithoutOverlapping per router (120 dtk) di job-jobnya.
+            'timeout' => 90,
             'nice' => 0,
         ],
         'supervisor-payments' => [

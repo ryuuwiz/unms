@@ -4,6 +4,7 @@ namespace App\Jobs\Mikrotik;
 
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
+use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
@@ -59,7 +60,7 @@ class DisablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
         return [
             (new WithoutOverlapping("mikrotik-router-{$this->layanan->router_id}"))
                 ->releaseAfter(5)
-                ->expireAfter(30)
+                ->expireAfter(120)
                 ->shared(),
         ];
     }
@@ -69,6 +70,23 @@ class DisablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
         $router = $this->layanan->router;
 
         if (! $router) {
+            return;
+        }
+
+        // Job bisa tertunda/tersusun ulang di antrean: status dibaca ulang saat dieksekusi. Layanan yang sudah Aktif
+        // kembali (mis. baru bayar) tidak boleh diisolir oleh job Suspend yang basi.
+        if ($this->layanan->status === StatusLayanan::Aktif) {
+            MikrotikJobLog::create([
+                'router_id' => $router->id,
+                'layanan_pelanggan_id' => $this->layanan->id,
+                'job_type' => MikrotikJobType::DisablePppoe,
+                'status' => MikrotikJobStatus::Dilewati,
+                'attempt_count' => $this->attempts(),
+                'payload' => ['username' => $this->layanan->ppp_username],
+                'error_message' => 'Status layanan sudah Aktif saat job dieksekusi; isolir dibatalkan.',
+                'finished_at' => Carbon::now(),
+            ]);
+
             return;
         }
 

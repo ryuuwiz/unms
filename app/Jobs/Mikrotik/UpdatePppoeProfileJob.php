@@ -58,7 +58,7 @@ class UpdatePppoeProfileJob implements ShouldBeUnique, ShouldQueue
         return [
             (new WithoutOverlapping("mikrotik-router-{$this->layanan->router_id}"))
                 ->releaseAfter(5)
-                ->expireAfter(30)
+                ->expireAfter(120)
                 ->shared(),
         ];
     }

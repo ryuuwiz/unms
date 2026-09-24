@@ -86,11 +86,15 @@
                                     @can('invoice.cetak')
                                         <flux:button href="{{ route('invoice.cetak', $inv) }}" target="_blank" size="xs" variant="subtle" icon="printer" title="Cetak PDF" />
                                     @endcan
-                                    @can('invoice.hapus')
-                                        @if(!$inv->isLunas())
+                                    @if($inv->isLunas())
+                                        @can('voidLunas', $inv)
+                                            <flux:button wire:click="confirmDelete({{ $inv->id }})" size="xs" variant="danger" icon="arrow-uturn-left" title="Batalkan Invoice Lunas" />
+                                        @endcan
+                                    @else
+                                        @can('invoice.hapus')
                                             <flux:button wire:click="confirmDelete({{ $inv->id }})" size="xs" variant="danger" icon="trash" title="Batalkan Tagihan" />
-                                        @endif
-                                    @endcan
+                                        @endcan
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -117,12 +121,19 @@
         <div class="p-6 space-y-4">
             <div class="flex items-center gap-3 text-rose-600">
                 <flux:icon name="exclamation-triangle" class="size-6" />
-                <h3 class="text-lg font-bold">Batalkan Tagihan?</h3>
+                <h3 class="text-lg font-bold">{{ $deletingLunas ? 'Batalkan Invoice Lunas?' : 'Batalkan Tagihan?' }}</h3>
             </div>
-            <p class="text-sm text-zinc-600 dark:text-zinc-400">
-                Apakah Anda yakin ingin membatalkan tagihan invoice ini? Status tagihan akan diubah menjadi <strong>Dibatalkan</strong>.
-            </p>
-            <flux:textarea wire:model="keteranganHapus" label="Alasan Pembatalan (Opsional)" placeholder="Contoh: Kesalahan nominal atau permohonan pelanggan..." rows="2" />
+            @if ($deletingLunas)
+                <p class="text-sm text-zinc-600 dark:text-zinc-400">
+                    Invoice berstatus <strong>Lunas</strong>. Pembayarannya akan dihapus dari laporan, masa aktif layanan dikembalikan ke sebelum pelunasan (layanan diisolir bila masa aktif jadi lewat), dan invoice menjadi <strong>Dibatalkan</strong>. Hanya pembayaran terakhir layanan yang bisa dibatalkan; pelunasan lewat payment gateway tidak bisa.
+                </p>
+            @else
+                <p class="text-sm text-zinc-600 dark:text-zinc-400">
+                    Apakah Anda yakin ingin membatalkan tagihan invoice ini? Status tagihan akan diubah menjadi <strong>Dibatalkan</strong>.
+                </p>
+            @endif
+            <flux:textarea wire:model="keteranganHapus" :label="$deletingLunas ? 'Alasan Pembatalan (Wajib)' : 'Alasan Pembatalan (Opsional)'" placeholder="Contoh: Kesalahan nominal atau permohonan pelanggan..." rows="2" />
+            <flux:error name="keteranganHapus" />
             <div class="flex justify-end gap-2 pt-2">
                 <flux:button wire:click="$set('deletingId', null)" variant="subtle">Batal</flux:button>
                 <flux:button wire:click="deleteInvoice" variant="danger">Ya, Batalkan Invoice</flux:button>

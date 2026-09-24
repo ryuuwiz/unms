@@ -599,6 +599,7 @@ class Show extends Component
             'layanans.paketLayanan.profilBandwidth',
             'layanans.router',
             'layanans.ipPool',
+            'layanans.ipPubliks',
             'layanans.odpPort.odp',
             'media',
         ])->findOrFail($this->pelangganId);

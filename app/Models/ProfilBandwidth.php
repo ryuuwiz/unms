@@ -92,6 +92,16 @@ class ProfilBandwidth extends Model
     }
 
     /**
+     * Nama PPP Profile di RouterOS. Tanpa pool: profile polos (rate-limit saja, untuk layanan
+     * dengan alamat literal di secret). Dengan pool: "{bandwidth}@{pool}" yang membawa
+     * local/remote-address (lihat CONTEXT.md "Profile PPP per Pool").
+     */
+    public function pppProfileName(?IpPool $pool = null): string
+    {
+        return $pool ? "{$this->nama_bandwidth}@{$pool->nama_pool}" : $this->nama_bandwidth;
+    }
+
+    /**
      * Label kecepatan maksimum format TX / RX (misal: "20/10 Mbps" atau "20 Mbps (1:1)").
      */
     public function labelKecepatan(): string

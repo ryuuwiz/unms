@@ -1,3 +1,5 @@
+**Status**: Superseded oleh ADR-0051 (alokasi IP kini oleh RouterOS lewat Profile PPP per Pool; temuan bahwa `/ppp/secret` menolak nama pool tetap berlaku).
+
 # PPP Secret remote-address must be a literal IP, auto-allocated with pool-fallback
 
 `LayananPelanggan::resolveRemoteAddress()` used to return the IP Pool's `nama_pool` for dynamic PPPoE, on the assumption that RouterOS accepts a pool name as `remote-address` on `/ppp/secret` the same way it does on `/ppp/profile`. It doesn't: verified directly against a live RouterOS device, `/ppp/secret/add` with `remote-address=<pool-name>` always fails with `invalid value for argument remote-address`, while the identical value on `/ppp/profile/add` succeeds. This caused every dynamic-PPPoE provision to fail in production (`invalid value for argument remote-address`).

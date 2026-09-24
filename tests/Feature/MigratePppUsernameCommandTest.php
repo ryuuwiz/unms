@@ -9,6 +9,7 @@ use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikException;
 use App\Services\Mikrotik\MikrotikService;
+use App\Support\PppDeletionContext;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -48,7 +49,7 @@ test('migrasi mengupdate ppp_username ke format baru dan provision sync ke route
     $mikrotik = Mockery::mock(MikrotikService::class);
     $mikrotik->shouldReceive('deletePppoeSecret')
         ->once()
-        ->with(Mockery::type(Router::class), 'user_lama_01')
+        ->with(Mockery::type(Router::class), 'user_lama_01', Mockery::type(PppDeletionContext::class))
         ->andReturn(true);
     $mikrotik->shouldReceive('createOrUpdatePppoeSecret')
         ->once()

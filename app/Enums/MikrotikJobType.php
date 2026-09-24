@@ -9,6 +9,7 @@ enum MikrotikJobType: string
     case DisablePppoe = 'disable_pppoe';
     case DeletePppoe = 'delete_pppoe';
     case SyncIpPool = 'sync_ip_pool';
+    case DeleteIpPool = 'delete_ip_pool';
     case Ping = 'ping';
     case TestConnection = 'test_connection';
     case ReconcilePppoe = 'reconcile_pppoe';
@@ -27,6 +28,7 @@ enum MikrotikJobType: string
             self::DisablePppoe => 'Isolir PPPoE',
             self::DeletePppoe => 'Hapus PPPoE',
             self::SyncIpPool => 'Sinkronisasi IP Pool',
+            self::DeleteIpPool => 'Hapus IP Pool dari Router',
             self::Ping => 'Ping Router',
             self::TestConnection => 'Uji Koneksi',
             self::ReconcilePppoe => 'Auto-Recover PPPoE',

@@ -185,31 +185,85 @@ class LayananPelanggan extends Model
     }
 
     /**
+     * Relasi ke IP Publik Dedicated yang sedang dipegang layanan ini (add-on berbayar).
+     *
+     * @return HasMany<IpPublik, $this>
+     */
+    public function ipPubliks(): HasMany
+    {
+        return $this->hasMany(IpPublik::class, 'layanan_pelanggan_id');
+    }
+
+    /**
+     * IP Publik Dedicated pertama yang dipegang layanan (tahap pertama: maksimal satu per layanan).
+     */
+    public function ipPublikAktif(): ?IpPublik
+    {
+        return $this->ipPubliks->first();
+    }
+
+    /**
+     * Total tagihan bulanan add-on IP Publik (harga yang di-snapshot saat penetapan).
+     */
+    public function hargaTambahan(): float
+    {
+        return (float) $this->ipPubliks->sum('harga_ditagih');
+    }
+
+    /**
+     * Apakah alamat sesi ditetapkan literal di PPP Secret (IP Publik atau IP Statis), bukan oleh
+     * pool RouterOS lewat Profile PPP per Pool.
+     */
+    public function usesLiteralAddress(): bool
+    {
+        return $this->resolveRemoteAddress() !== null;
+    }
+
+    /**
+     * Pool yang dipakai untuk memilih PPP Profile: null bila alamat literal (profile polos).
+     */
+    public function profilePool(): ?IpPool
+    {
+        return $this->usesLiteralAddress() ? null : $this->ipPool;
+    }
+
+    /**
      * Tentukan nilai remote-address yang harus dikirim ke PPP Secret RouterOS.
      *
-     * Prioritas: ip_static (jika jenis IP Static) → ip_dynamic (IP literal hasil auto-assign dari IP Pool
-     * untuk PPPoE dinamis, lihat MikrotikService::allocateDynamicIp()) → null.
-     *
-     * PENTING: nama IP Pool TIDAK BOLEH dikirim langsung sebagai remote-address -- pada `/ppp/secret`,
-     * RouterOS menolaknya dengan "invalid value for argument remote-address" (berbeda dari `/ppp/profile`,
-     * yang menerima nama pool). remote-address harus selalu berupa alamat IP literal.
+     * Prioritas: IP Publik Dedicated → ip_static → null. Null berarti PPPoE dinamis: secret dibiarkan
+     * tanpa remote-address dan RouterOS mengalokasikan IP dari pool lewat Profile PPP per Pool
+     * (lihat CONTEXT.md). Nama pool TIDAK BOLEH dikirim sebagai remote-address di `/ppp/secret` --
+     * RouterOS menolaknya; nama pool hanya valid di `/ppp/profile`.
      */
     public function resolveRemoteAddress(): ?string
     {
+        if ($publik = $this->ipPublikAktif()) {
+            return $publik->alamat_ip;
+        }
+
         if (! empty($this->ip_static) && filter_var($this->ip_static, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             return $this->ip_static;
         }
 
-        return $this->ip_dynamic;
+        return null;
     }
 
     /**
      * Tentukan nilai local-address (Gateway) yang harus dikirim ke PPP Secret RouterOS.
      *
-     * Prioritas: Gateway dari IP Pool terkait → Subnet Gateway dari ip_static → null.
+     * Null untuk PPPoE dinamis (gateway dibawa profile). Untuk IP Publik: gateway inventaris.
+     * Untuk IP Statis: Gateway dari IP Pool terkait, atau Subnet Gateway dari ip_static.
      */
     public function resolveLocalAddress(): ?string
     {
+        if ($publik = $this->ipPublikAktif()) {
+            return $publik->gateway;
+        }
+
+        if (! $this->usesLiteralAddress()) {
+            return null;
+        }
+
         if ($this->ipPool) {
             return $this->ipPool->getGatewayAddress();
         }
@@ -365,6 +419,34 @@ class LayananPelanggan extends Model
         } while (static::where('site_id', $siteId)->exists());
 
         return $siteId;
+    }
+
+    /**
+     * PPP Password acak 8 karakter alfanumerik -- lihat CONTEXT.md "PPP Password Credential".
+     */
+    public static function generatePppPassword(): string
+    {
+        return Str::password(8, symbols: false);
+    }
+
+    /**
+     * Isi PPP Password hanya bila masih kosong; tidak pernah menimpa yang sudah ada.
+     */
+    public function isiPppPasswordJikaKosong(): void
+    {
+        if (empty($this->ppp_password_terenkripsi)) {
+            $this->update(['ppp_password_terenkripsi' => static::generatePppPassword()]);
+        }
+    }
+
+    /**
+     * Apakah NOC wajib mengetik password asli: password kosong dan bukan first-time provisioning
+     * (layanan non-PROSES) atau mode "Sudah Registrasi Mikrotik" (secret dibuat manual di router).
+     */
+    public function perluPasswordManual(bool $modeSudahRegistrasi): bool
+    {
+        return empty($this->ppp_password_terenkripsi)
+            && ($modeSudahRegistrasi || $this->status !== StatusLayanan::Proses);
     }
 
     /**

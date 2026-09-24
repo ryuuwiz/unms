@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Notifications\MikrotikJobFailedNotification;
 use App\Observers\IpPoolObserver;
 use App\Services\Mikrotik\MikrotikService;
+use App\Support\PppDeletionContext;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -87,7 +88,7 @@ test('provisionRouterFull executes complete pipeline and logs success', function
 
     $mockService->shouldReceive('cleanOrphanedPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), false, Mockery::any())
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), false, Mockery::any(), null)
         ->andReturn([
             'total_checked' => 1,
             'orphans_count' => 0,
@@ -283,7 +284,7 @@ test('cleanOrphanedPppSecrets does not delete secret if registered concurrently 
         'status' => StatusLayanan::Aktif,
     ]);
 
-    $stats = $mockService->cleanOrphanedPppSecrets($this->router, executeDelete: true);
+    $stats = $mockService->cleanOrphanedPppSecrets($this->router, executeDelete: true, context: PppDeletionContext::system('test', 'uji'));
 
     expect($stats['deleted'])->toBe(0)
         ->and($stats['orphans_count'])->toBe(0);

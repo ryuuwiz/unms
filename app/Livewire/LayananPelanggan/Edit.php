@@ -2,15 +2,20 @@
 
 namespace App\Livewire\LayananPelanggan;
 
+use App\Actions\IpPublik\LepasIpPublikAction;
+use App\Actions\IpPublik\TetapkanIpPublikAction;
+use App\Actions\LayananPelanggan\UbahStatusLayananAction;
 use App\Enums\JenisKoneksi;
 use App\Enums\StatusLayanan;
 use App\Livewire\Concerns\HasSearchableOptions;
 use App\Models\IpPool;
+use App\Models\IpPublik;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Router;
 use Flux\Flux;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -37,6 +42,8 @@ class Edit extends Component
     public ?int $ip_pool_id = null;
 
     public ?string $ip_static = null;
+
+    public ?int $ip_publik_id = null;
 
     public string $nama_site = '';
 
@@ -69,6 +76,7 @@ class Edit extends Component
         $this->router_id = $layananPelanggan->router_id;
         $this->ip_pool_id = $layananPelanggan->ip_pool_id;
         $this->ip_static = $layananPelanggan->ip_static;
+        $this->ip_publik_id = $layananPelanggan->ipPubliks()->value('id');
         $this->nama_site = $layananPelanggan->nama_site ?? '';
         $this->alamat_pemasangan = $layananPelanggan->alamat_pemasangan ?? '';
         $this->latitude = $layananPelanggan->latitude;
@@ -98,9 +106,24 @@ class Edit extends Component
             'ip_pool_id' => $this->jenis_koneksi === 'pppoe'
                 ? ['required', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)]
                 : ['nullable', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)],
-            'ip_static' => $this->jenis_koneksi === 'ip_static'
-                ? ['required', 'ipv4']
-                : ['nullable', 'ipv4'],
+            'ip_static' => [
+                $this->jenis_koneksi === 'ip_static' ? 'required' : 'nullable',
+                'ipv4',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $bentrok = $value && $this->router_id ? IpPublik::bentrokDenganPool($this->router_id, (string) $value) : null;
+                    if ($bentrok !== null) {
+                        $fail($bentrok);
+                    }
+
+                    if ($value && (
+                        LayananPelanggan::where('router_id', $this->router_id)->where('ip_static', $value)->whereKeyNot($this->layananId)->exists()
+                        || IpPublik::where('alamat_ip', $value)->exists()
+                    )) {
+                        $fail("Alamat {$value} sudah dipakai layanan lain atau terdaftar sebagai IP Publik pada router yang sama.");
+                    }
+                },
+            ],
+            'ip_publik_id' => ['nullable', 'integer', Rule::exists('ip_publik', 'id')->where('router_id', $this->router_id)],
             'ppp_username' => [
                 'required',
                 'string',
@@ -108,7 +131,7 @@ class Edit extends Component
                 'regex:/^'.$escapedNoReg.'_[0-9]{5}$/',
                 "unique:layanan_pelanggan,ppp_username,{$this->layananId}",
             ],
-            'status' => ['required', 'string'],
+            'status' => ['required', Rule::enum(StatusLayanan::class)],
             'tanggal_mulai' => ['required', 'date'],
             'tanggal_expired' => ['nullable', 'date', 'after_or_equal:tanggal_mulai'],
         ];
@@ -141,6 +164,10 @@ class Edit extends Component
      */
     public function updatedJenisKoneksi(): void
     {
+        if ($this->jenis_koneksi !== 'pppoe') {
+            $this->ip_publik_id = null;
+        }
+
         if ($this->jenis_koneksi === 'pppoe') {
             $this->ip_static = null;
             if ($this->router_id) {
@@ -182,15 +209,44 @@ class Edit extends Component
             'ip_static' => $this->jenis_koneksi === 'ip_static' ? $this->ip_static : null,
             'ppp_username' => $this->ppp_username,
             'jenis_koneksi' => $this->jenis_koneksi,
-            'status' => $this->status,
             'tanggal_mulai' => $this->tanggal_mulai,
             'tanggal_expired' => $this->tanggal_expired ?: null,
         ];
 
-        $layanan->update($data);
+        DB::transaction(function () use ($layanan, $data) {
+            $layanan->update($data);
+            $this->sinkronkanIpPublik($layanan);
+        });
+
+        // Perubahan status wajib lewat Action agar event (isolir/aktivasi/hapus secret) dan jejak actor ikut jalan;
+        // update langsung membuat status billing dan router tidak sinkron.
+        $statusBaru = StatusLayanan::from($this->status);
+        if ($layanan->fresh()->status !== $statusBaru) {
+            app(UbahStatusLayananAction::class)->execute($layanan->fresh(), $statusBaru, Auth::user(), 'Diubah lewat form Edit Data Registrasi Billing');
+        }
 
         Flux::toast(variant: 'success', text: 'Data Registrasi Billing berhasil diperbarui.');
         $this->redirectRoute('layanan-pelanggan.index', navigate: true);
+    }
+
+    /**
+     * Selaraskan IP Publik layanan dengan pilihan form. IP lama dilepas bila diganti/dikosongkan atau
+     * router berubah (IP terikat router); provisi ulang + putus sesi dipicu action, bukan form.
+     */
+    private function sinkronkanIpPublik(LayananPelanggan $layanan): void
+    {
+        $tujuanId = $this->jenis_koneksi === 'pppoe' ? $this->ip_publik_id : null;
+        $saatIni = $layanan->ipPubliks()->first();
+        $routerBerubah = $layanan->wasChanged('router_id');
+
+        if ($saatIni && ($routerBerubah || $saatIni->id !== $tujuanId)) {
+            app(LepasIpPublikAction::class)->execute($saatIni, reprovision: ! $routerBerubah && $tujuanId === null);
+            $saatIni = null;
+        }
+
+        if ($tujuanId && $saatIni === null) {
+            app(TetapkanIpPublikAction::class)->execute(IpPublik::findOrFail($tujuanId), $layanan->fresh());
+        }
     }
 
     /**
@@ -202,7 +258,7 @@ class Edit extends Component
         $layanan = LayananPelanggan::findOrFail($this->layananId);
         $this->authorize('update', $layanan);
 
-        $newPassword = Str::password(8, symbols: false);
+        $newPassword = LayananPelanggan::generatePppPassword();
 
         $layanan->update(['ppp_password_terenkripsi' => $newPassword]);
 
@@ -232,12 +288,19 @@ class Edit extends Component
         $ipPools = $this->router_id
             ? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
             : collect();
+        $ipPubliks = $this->router_id
+            ? IpPublik::where('router_id', $this->router_id)
+                ->where(fn ($q) => $q->whereNull('layanan_pelanggan_id')->orWhere('layanan_pelanggan_id', $this->layananId))
+                ->orderBy('alamat_ip')
+                ->get()
+            : collect();
         $jenisKoneksi = JenisKoneksi::cases();
         $statuses = StatusLayanan::cases();
 
         return view('livewire.layanan-pelanggan.edit', compact(
             'routers',
             'ipPools',
+            'ipPubliks',
             'jenisKoneksi',
             'statuses',
         ));

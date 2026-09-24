@@ -1,6 +1,6 @@
 # ADR 0033: Resolusi Local & Remote Address PPP Secret Berbasis IP Pool Router Terhubung
 
-**Status**: Accepted  
+**Status**: Superseded oleh ADR-0051 (perilaku `local/remote-address` PPP Secret; isolasi jalur/segmentasi tetap berlaku)  
 **Date**: 2026-09-01  
 
 ## Konteks

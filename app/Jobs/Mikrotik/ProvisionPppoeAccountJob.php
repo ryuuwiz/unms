@@ -36,7 +36,8 @@ class ProvisionPppoeAccountJob implements ShouldBeUnique, ShouldQueue
     public array $backoff = [30, 120, 300];
 
     public function __construct(
-        public LayananPelanggan $layanan
+        public LayananPelanggan $layanan,
+        public bool $kickActive = false,
     ) {
         $this->onQueue('mikrotik-high');
     }
@@ -60,7 +61,7 @@ class ProvisionPppoeAccountJob implements ShouldBeUnique, ShouldQueue
         return [
             (new WithoutOverlapping("mikrotik-router-{$this->layanan->router_id}"))
                 ->releaseAfter(5)
-                ->expireAfter(30)
+                ->expireAfter(120)
                 ->shared(),
         ];
     }
@@ -88,6 +89,11 @@ class ProvisionPppoeAccountJob implements ShouldBeUnique, ShouldQueue
 
         try {
             $result = $mikrotikService->createOrUpdatePppoeSecret($router, $this->layanan);
+
+            // Perubahan alamat (mis. IP Publik) tidak berlaku ke sesi berjalan sampai sesi diputus.
+            if ($this->kickActive) {
+                $mikrotikService->removeActiveSession($router, (string) $this->layanan->ppp_username);
+            }
 
             $log->update([
                 'status' => MikrotikJobStatus::Success,

@@ -35,7 +35,7 @@ class IpNetworkHelper
 
     /**
      * Calculate the suggested IP range (start and end) for a given network and CIDR.
-     * Start IP is network + 1 (e.g. .1)
+     * Start IP is network + 2 (e.g. .2): network + 1 dipakai sebagai gateway/local-address PPP dan tidak boleh masuk pool.
      * End IP is broadcast - 1 (e.g. .254)
      *
      * @param  string  $network  e.g., '192.168.88.0'
@@ -59,8 +59,8 @@ class IpNetworkHelper
         $networkLong = $ipLong & $mask;
         $broadcastLong = $networkLong | (~$mask);
 
-        // Network + 1
-        $startLong = $networkLong + 1;
+        // Network + 2 (network + 1 adalah gateway)
+        $startLong = $networkLong + 2;
         // Broadcast - 1
         $endLong = $broadcastLong - 1;
 

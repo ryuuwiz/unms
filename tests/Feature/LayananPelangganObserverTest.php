@@ -13,6 +13,7 @@ use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
+use App\Support\PppDeletionContext;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -152,17 +153,18 @@ test('resolveRemoteAddress returns ip_static when present', function () {
     expect($this->layanan->resolveRemoteAddress())->toBe('192.168.1.100');
 });
 
-test('resolveRemoteAddress returns ip_dynamic (literal IP) when no ip_static but ip_pool present -- never the pool name', function () {
+test('resolveRemoteAddress is null for dynamic PPPoE even with a pool -- RouterOS allocates from the profile pool', function () {
     $this->layanan->ip_static = null;
     $this->layanan->ip_pool_id = $this->poolLama->id;
     $this->layanan->ip_dynamic = '10.0.0.2';
     $this->layanan->setRelation('ipPool', $this->poolLama);
 
-    expect($this->layanan->resolveRemoteAddress())->toBe('10.0.0.2')
-        ->and($this->layanan->resolveRemoteAddress())->not->toBe($this->poolLama->nama_pool);
+    expect($this->layanan->resolveRemoteAddress())->toBeNull()
+        ->and($this->layanan->usesLiteralAddress())->toBeFalse()
+        ->and($this->layanan->profilePool()?->id)->toBe($this->poolLama->id);
 });
 
-test('resolveRemoteAddress returns null when neither ip_static nor ip_dynamic is set', function () {
+test('resolveRemoteAddress returns null when neither ip_static nor a pool is set', function () {
     $this->layanan->ip_static = null;
     $this->layanan->ip_pool_id = null;
     $this->layanan->ip_dynamic = null;
@@ -181,9 +183,18 @@ test('IpPool getGatewayAddress returns first host of ip_network', function () {
     expect($this->poolLama->getGatewayAddress())->toBe('10.0.1.1');
 });
 
-test('resolveLocalAddress returns gateway of related ipPool', function () {
+test('resolveLocalAddress is null for dynamic PPPoE (gateway lives on the profile)', function () {
     $this->poolLama->ip_network = '10.0.0.0';
     $this->layanan->ip_static = null;
+    $this->layanan->ip_pool_id = $this->poolLama->id;
+    $this->layanan->setRelation('ipPool', $this->poolLama);
+
+    expect($this->layanan->resolveLocalAddress())->toBeNull();
+});
+
+test('resolveLocalAddress returns gateway of related ipPool for a literal ip_static', function () {
+    $this->poolLama->ip_network = '10.0.0.0';
+    $this->layanan->ip_static = '10.0.0.50';
     $this->layanan->ip_pool_id = $this->poolLama->id;
     $this->layanan->setRelation('ipPool', $this->poolLama);
 
@@ -214,7 +225,8 @@ test('CleanupPppSecretOnOldRouterJob calls deletePppoeSecret and logs Success', 
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->routerLama->id),
-            $this->layanan->ppp_username
+            $this->layanan->ppp_username,
+            Mockery::type(PppDeletionContext::class)
         )
         ->andReturn(true);
 

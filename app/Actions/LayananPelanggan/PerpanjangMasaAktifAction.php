@@ -28,6 +28,21 @@ class PerpanjangMasaAktifAction
      */
     public function execute(LayananPelanggan $layanan, Invoice $invoice, Carbon $dibayarPada): LayananPelanggan
     {
+        $layanan->update([
+            'tanggal_expired' => $this->hitungExpiredBaru($layanan, $invoice, $dibayarPada)->toDateString(),
+            'status' => StatusLayanan::Aktif,
+        ]);
+
+        return $layanan;
+    }
+
+    /**
+     * Tanggal expired layanan setelah $invoice dibayar pada $dibayarPada, tanpa menulis apa pun.
+     * Dipakai execute() dan placeholder `{hingga}` Template Deskripsi Tagihan Gateway agar
+     * keduanya tidak pernah berbeda hasil.
+     */
+    public function hitungExpiredBaru(LayananPelanggan $layanan, Invoice $invoice, Carbon $dibayarPada): Carbon
+    {
         $paket = $layanan->paketLayanan;
         $masaNilai = $paket ? (int) $paket->masa_aktif_nilai : 1;
         $masaSatuan = $paket ? $paket->masa_aktif_satuan : MasaAktifSatuan::Bulan;
@@ -43,19 +58,46 @@ class PerpanjangMasaAktifAction
             $tanggalBaru = ($currentExpired ?? $dibayarPada->copy()->startOfDay())
                 ->addMonthsNoOverflow(($masaNilai * $siklus) + $bonusBulan);
 
-            $newExpired = PengaturanSiklusTagihan::ambil()->sesuaikanKeHariJatuhTempo($tanggalBaru);
-        } else {
-            $baseDate = ($currentExpired && $currentExpired->isFuture())
-                ? $currentExpired->copy()
-                : $dibayarPada->copy()->startOfDay();
-
-            $newExpired = $baseDate->addDays($masaNilai);
+            return PengaturanSiklusTagihan::ambil()->sesuaikanKeHariJatuhTempo($tanggalBaru);
         }
 
-        $layanan->update([
-            'tanggal_expired' => $newExpired->toDateString(),
-            'status' => StatusLayanan::Aktif,
-        ]);
+        $baseDate = ($currentExpired && $currentExpired->isFuture())
+            ? $currentExpired->copy()
+            : $dibayarPada->copy()->startOfDay();
+
+        return $baseDate->addDays($masaNilai);
+    }
+
+    /**
+     * Kebalikan execute() untuk pembatalan invoice lunas: kurangi masa aktif sebanyak yang
+     * ditambahkan pelunasan itu (siklus digabung + bonus promo), lalu sesuaikan ke Hari Jatuh
+     * Tempo. Tidak mengubah status layanan -- pemanggil yang memutuskan isolir.
+     *
+     * Paket harian: dikurangi `masa_aktif_nilai` hari. Bila dulu basisnya tanggal bayar
+     * (expired lama sudah lewat), hasilnya hanya mendekati expired lama.
+     */
+    public function batalkan(LayananPelanggan $layanan, Invoice $invoice): LayananPelanggan
+    {
+        $expired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
+
+        if (! $expired) {
+            return $layanan;
+        }
+
+        $paket = $layanan->paketLayanan;
+        $masaNilai = $paket ? (int) $paket->masa_aktif_nilai : 1;
+        $masaSatuan = $paket ? $paket->masa_aktif_satuan : MasaAktifSatuan::Bulan;
+
+        if ($masaSatuan === MasaAktifSatuan::Bulan) {
+            $bonusBulan = (int) ($invoice->promo?->bonus_bulan ?? 0);
+            $siklus = 1 + $invoice->invoiceDigabung()->count();
+            $baru = PengaturanSiklusTagihan::ambil()
+                ->sesuaikanKeHariJatuhTempo($expired->copy()->subMonthsNoOverflow(($masaNilai * $siklus) + $bonusBulan));
+        } else {
+            $baru = $expired->copy()->subDays($masaNilai);
+        }
+
+        $layanan->update(['tanggal_expired' => $baru->toDateString()]);
 
         return $layanan;
     }

@@ -3,9 +3,11 @@
 namespace App\Providers;
 
 use App\Events\InvoicePaidEvent;
+use App\Events\InvoiceTerbitEvent;
 use App\Events\LayananPelangganStatusChangedEvent;
 use App\Listeners\CatatLogPembayaranListener;
 use App\Listeners\HandleLayananStatusChangedListener;
+use App\Listeners\KirimNotifikasiInvoiceTerbitListener;
 use App\Listeners\LogImpersonationActivity;
 use App\Listeners\RecordLastLoginAt;
 use App\Listeners\TriggerEmailNotifikasiListener;
@@ -93,6 +95,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(InvoicePaidEvent::class, TriggerMikrotikAktivasiStubListener::class);
         Event::listen(InvoicePaidEvent::class, TriggerWaNotifikasiStubListener::class);
         Event::listen(InvoicePaidEvent::class, TriggerEmailNotifikasiListener::class);
+        Event::listen(InvoiceTerbitEvent::class, KirimNotifikasiInvoiceTerbitListener::class);
         Event::listen(LayananPelangganStatusChangedEvent::class, HandleLayananStatusChangedListener::class);
         Event::subscribe(LogImpersonationActivity::class);
     }

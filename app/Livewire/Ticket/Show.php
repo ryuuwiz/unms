@@ -7,6 +7,7 @@ use App\Actions\LayananPelanggan\UbahPaketLayananAction;
 use App\Actions\Ticket\AssignPicAction;
 use App\Actions\Ticket\UbahStatusDivisiTicketAction;
 use App\Actions\Ticket\UbahStatusTicketAction;
+use App\Enums\JenisKoneksi;
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\StatusLayanan;
@@ -117,14 +118,21 @@ class Show extends Component
 
     public ?int $prosesRouterId = null;
 
+    public ?int $prosesIpPoolId = null;
+
     public ?int $prosesPaketLayananId = null;
 
     public string $prosesPppMode = 'auto';
 
     public string $prosesPppUsername = '';
 
+    public string $prosesPppPassword = '';
+
     // Proses Admin saja
     public bool $prosesUbahPaket = false;
+
+    // Reveal PPP Password di panel Informasi Layanan -- lihat ADR-0055.
+    public string $revealedPppPassword = '';
 
     public function mount(Ticket $ticket): void
     {
@@ -138,11 +146,14 @@ class Show extends Component
 
     protected function loadTicket(): void
     {
+        $this->revealedPppPassword = '';
+
         $this->ticket->load([
             'pelanggan.perumahan.kelurahan.kecamatan.kota',
             'pelanggan.dibuatOleh',
             'layananPelanggan.paketLayanan.profilBandwidth',
             'layananPelanggan.router',
+            'layananPelanggan.ipPubliks',
             'layananPelanggan.odpPort.odp',
             'pemasangan.odpPort.odp',
             'pic',
@@ -431,6 +442,7 @@ class Show extends Component
                 'ppp_username' => $pppUsername,
                 'odp_port_id' => $odpPortId,
             ]);
+            $layanan->isiPppPasswordJikaKosong();
 
             if ($odpPortId) {
                 OdpPort::whereKey($odpPortId)->update([
@@ -590,11 +602,34 @@ class Show extends Component
         $this->prosesModeMikrotik = 'proses';
         $this->prosesPilihanPaket = 'bawaan';
         $this->prosesRouterId = $layanan?->router_id;
+        $this->prosesIpPoolId = $layanan?->ip_pool_id;
         $this->prosesPaketLayananId = $layanan?->paket_layanan_id;
         $this->prosesPppMode = 'auto';
         $this->prosesPppUsername = $layanan?->ppp_username ?? '';
+        $this->prosesPppPassword = '';
         $this->prosesUbahPaket = false;
         $this->showProsesModal = true;
+    }
+
+    /**
+     * IP Pool Proses NOC mengikuti router terpilih: pertahankan pool bila masih milik router itu,
+     * selain itu auto-select kalau router cuma punya 1 pool.
+     *
+     * Dipanggil otomatis oleh Livewire saat properti prosesRouterId berubah.
+     */
+    public function updatedProsesRouterId(): void
+    {
+        if (! $this->prosesRouterId) {
+            $this->prosesIpPoolId = null;
+
+            return;
+        }
+
+        $pools = IpPool::where('router_id', $this->prosesRouterId)->pluck('id');
+
+        if (! $pools->contains($this->prosesIpPoolId)) {
+            $this->prosesIpPoolId = $pools->count() === 1 ? $pools->first() : null;
+        }
     }
 
     /**
@@ -644,10 +679,17 @@ class Show extends Component
                 return;
             }
 
+            $perluPasswordManual = $layanan->perluPasswordManual($this->prosesModeMikrotik === 'sudah');
+
             $this->validate([
                 'prosesModeMikrotik' => ['required', 'in:proses,sudah'],
                 'prosesPilihanPaket' => ['required', 'in:bawaan,berbeda'],
                 'prosesRouterId' => ['required', 'integer', 'exists:router,id'],
+                'prosesIpPoolId' => [
+                    Rule::requiredIf($layanan->jenis_koneksi === JenisKoneksi::Pppoe),
+                    'nullable', 'integer',
+                    Rule::exists('ip_pool', 'id')->where('router_id', $this->prosesRouterId),
+                ],
                 'prosesPaketLayananId' => ['required', 'integer', 'exists:paket_layanan,id'],
                 'prosesPppMode' => ['required', 'in:auto,manual'],
                 'prosesPppUsername' => [
@@ -655,18 +697,28 @@ class Show extends Component
                     'nullable', 'string', 'max:64',
                     Rule::unique('layanan_pelanggan', 'ppp_username')->ignore($layanan->id),
                 ],
+                'prosesPppPassword' => [Rule::requiredIf($perluPasswordManual), 'nullable', 'string', 'max:64'],
             ], [
+                'prosesIpPoolId.required' => 'IP Pool wajib dipilih untuk koneksi PPPoE.',
+                'prosesIpPoolId.exists' => 'IP Pool tidak valid atau bukan milik router terpilih.',
                 'prosesPppUsername.required' => 'PPP Username manual wajib diisi.',
                 'prosesPppUsername.unique' => 'PPP Username sudah dipakai layanan lain.',
+                'prosesPppPassword.required' => 'Password PPP asli di router wajib diisi.',
             ]);
 
             $paketLayananId = $this->prosesPilihanPaket === 'bawaan' ? $layanan->paket_layanan_id : $this->prosesPaketLayananId;
-            app(UbahPaketLayananAction::class)->execute($layanan, $paketLayananId, $this->prosesRouterId);
+            app(UbahPaketLayananAction::class)->execute($layanan, $paketLayananId, $this->prosesRouterId, $this->prosesIpPoolId);
 
             if ($this->prosesPppMode === 'manual') {
                 $layanan->update(['ppp_username' => $this->prosesPppUsername]);
             } elseif (empty($layanan->ppp_username)) {
                 $layanan->update(['ppp_username' => LayananPelanggan::generatePppUsername($layanan->pelanggan)]);
+            }
+
+            if ($perluPasswordManual) {
+                $layanan->update(['ppp_password_terenkripsi' => $this->prosesPppPassword]);
+            } elseif ($layanan->status === StatusLayanan::Proses) {
+                $layanan->isiPppPasswordJikaKosong();
             }
 
             if ($this->prosesModeMikrotik === 'proses') {
@@ -730,6 +782,35 @@ class Show extends Component
         $this->loadTicket();
     }
 
+    /**
+     * Ungkap PPP Password layanan tiket ini -- dibatasi TicketPolicy::lihatKredensialPpp dan
+     * beraudit trail. Lihat ADR-0055.
+     */
+    public function revealPppPassword(): void
+    {
+        $this->authorize('lihatKredensialPpp', $this->ticket);
+
+        $layanan = $this->ticket->layananPelanggan;
+        abort_unless($layanan && $layanan->ppp_password_terenkripsi, 404);
+
+        activity('layanan_pelanggan')
+            ->performedOn($layanan)
+            ->causedBy(Auth::user())
+            ->withProperties([
+                'action' => 'reveal_ppp_password',
+                'ticket' => $this->ticket->nomor_ticket,
+                'ip' => request()->ip(),
+            ])
+            ->log("Mengungkap PPP Password layanan {$layanan->ppp_username} lewat tiket {$this->ticket->nomor_ticket}");
+
+        $this->revealedPppPassword = $layanan->ppp_password_terenkripsi;
+    }
+
+    public function sembunyikanPppPassword(): void
+    {
+        $this->revealedPppPassword = '';
+    }
+
     public function render(): View
     {
         /** @var Collection<int, User> $staffList */
@@ -751,6 +832,9 @@ class Show extends Component
         $aktivasiIpPools = $this->aktivasiRouterId
             ? IpPool::where('router_id', $this->aktivasiRouterId)->orderBy('nama_pool')->get()
             : collect();
+        $prosesIpPools = $this->prosesRouterId
+            ? IpPool::where('router_id', $this->prosesRouterId)->orderBy('nama_pool')->get()
+            : collect();
 
         // Paket Layanan aktif untuk dropdown "Paket Berbeda" (Proses NOC) / "Ubah Paket Layanan"
         // (Proses Admin) -- tidak difilter per-router, lihat CONTEXT.md "Proses Divisi".
@@ -763,6 +847,7 @@ class Show extends Component
             'odpPorts' => $odpPorts,
             'onlineRouters' => $onlineRouters,
             'aktivasiIpPools' => $aktivasiIpPools,
+            'prosesIpPools' => $prosesIpPools,
             'paketLayananList' => $paketLayananList,
         ]);
     }

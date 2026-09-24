@@ -215,7 +215,7 @@ class WhatsappService
      * @param  array<string, mixed>  $params
      * @return array<string, mixed>
      */
-    protected function mergeCompanyParams(array $params): array
+    public function mergeCompanyParams(array $params): array
     {
         try {
             $perusahaan = Perusahaan::default();

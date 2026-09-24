@@ -9,6 +9,7 @@ use App\Enums\GatewayChannel;
 use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
+use App\Services\PaymentGateway\DeskripsiTagihanBuilder;
 use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
@@ -157,7 +158,7 @@ class XenditDriver extends AbstractPaymentDriver
                     'external_id' => $externalId,
                     'amount' => $totalTagihan,
                     'payer_email' => $payerEmail,
-                    'description' => "Tagihan Internet UNMS Invoice {$invoice->no_invoice}",
+                    'description' => app(DeskripsiTagihanBuilder::class)->buat($invoice),
                     'invoice_duration' => (float) $invoiceDurationSeconds,
                     'customer' => $customerObj,
                     'items' => $items,
