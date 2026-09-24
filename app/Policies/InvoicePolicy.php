@@ -27,6 +27,14 @@ class InvoicePolicy
         return $user->can('invoice.hapus');
     }
 
+    /**
+     * Void invoice Lunas (rollback pembayaran & masa aktif) -- lihat CONTEXT.md "Pembatalan Invoice Lunas".
+     */
+    public function voidLunas(User $user, Invoice $invoice): bool
+    {
+        return $user->can('invoice.void_lunas');
+    }
+
     public function cetak(User $user, Invoice $invoice): bool
     {
         return $user->can('invoice.cetak');

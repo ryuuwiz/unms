@@ -59,4 +59,38 @@ class PerpanjangMasaAktifAction
 
         return $layanan;
     }
+
+    /**
+     * Kebalikan execute() untuk pembatalan invoice lunas: kurangi masa aktif sebanyak yang
+     * ditambahkan pelunasan itu (siklus digabung + bonus promo), lalu sesuaikan ke Hari Jatuh
+     * Tempo. Tidak mengubah status layanan -- pemanggil yang memutuskan isolir.
+     *
+     * Paket harian: dikurangi `masa_aktif_nilai` hari. Bila dulu basisnya tanggal bayar
+     * (expired lama sudah lewat), hasilnya hanya mendekati expired lama.
+     */
+    public function batalkan(LayananPelanggan $layanan, Invoice $invoice): LayananPelanggan
+    {
+        $expired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
+
+        if (! $expired) {
+            return $layanan;
+        }
+
+        $paket = $layanan->paketLayanan;
+        $masaNilai = $paket ? (int) $paket->masa_aktif_nilai : 1;
+        $masaSatuan = $paket ? $paket->masa_aktif_satuan : MasaAktifSatuan::Bulan;
+
+        if ($masaSatuan === MasaAktifSatuan::Bulan) {
+            $bonusBulan = (int) ($invoice->promo?->bonus_bulan ?? 0);
+            $siklus = 1 + $invoice->invoiceDigabung()->count();
+            $baru = PengaturanSiklusTagihan::ambil()
+                ->sesuaikanKeHariJatuhTempo($expired->copy()->subMonthsNoOverflow(($masaNilai * $siklus) + $bonusBulan));
+        } else {
+            $baru = $expired->copy()->subDays($masaNilai);
+        }
+
+        $layanan->update(['tanggal_expired' => $baru->toDateString()]);
+
+        return $layanan;
+    }
 }

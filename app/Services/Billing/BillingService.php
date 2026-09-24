@@ -8,6 +8,7 @@ use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusTransaksiGateway;
 use App\Events\InvoicePaidEvent;
+use App\Events\InvoiceTerbitEvent;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
@@ -99,6 +100,8 @@ class BillingService
             }
 
             $this->applyPromoUsage($invoice, $promo, $diskon, $layanan->pelanggan_id);
+
+            InvoiceTerbitEvent::dispatch($invoice);
 
             return $invoice;
         });
@@ -199,6 +202,8 @@ class BillingService
             ]);
 
             $this->applyPromoUsage($invoice, $promo, $diskon, $layanan->pelanggan_id);
+
+            InvoiceTerbitEvent::dispatch($invoice);
 
             return $invoice;
         });

@@ -194,6 +194,10 @@ _Avoid_: Grace Period Bebas, Menyamakan dengan Hari Jatuh Tempo Siklus Tagihan, 
 Tindakan perubahan status invoice menjadi `dibatalkan` oleh sistem atau staf berwenang yang menggugurkan kewajiban bayar tanpa menghapus riwayat audit trail (misal akibat koreksi tagihan ganda atau perubahan paket).
 _Avoid_: Hapus Tagihan Manual, Void Bebas, Delete Invoice
 
+**Pembatalan Invoice Lunas**:
+Void invoice berstatus `lunas` (izin `invoice.void_lunas`, default hanya `super_admin`, alasan wajib) beserta rollback-nya: Pembayaran di-soft-delete sehingga keluar dari laporan, `tanggal_expired` layanan dikurangi sebanyak yang ditambahkan pelunasan itu (siklus digabung + bonus promo, disesuaikan ke Hari Jatuh Tempo), invoice yang tadinya digabung dilepas jadi `kadaluarsa`, dan layanan `aktif` yang masa aktifnya jadi lewat langsung di-suspend (PPP ikut disable). Invoice jadi `dibatalkan` + soft-delete; semuanya tercatat di audit trail. Hanya untuk pelunasan manual/transfer dan hanya pembayaran **terakhir** sebuah layanan (perpanjangan lebih baru bertumpuk di atasnya); pelunasan lewat payment gateway ditolak karena uangnya sudah diterima dan harus di-refund di gateway. Pemakaian promo tidak dikembalikan (sama seperti pembatalan invoice belum lunas).
+_Avoid_: Hapus Invoice Lunas Tanpa Rollback, Membatalkan Pembayaran Lama di Tengah Riwayat, Void Pembayaran Gateway dari UI
+
 **Tunggakan Akumulatif**:
 Aturan penagihan di mana invoice siklus terbaru sebuah layanan memuat total bayar berupa tarif siklus itu ditambah seluruh invoice periodik sebelumnya yang belum dibayar pada layanan yang sama. Pelanggan hanya membayar invoice terbaru tersebut. Pembayaran memperpanjang masa aktif sebanyak siklus yang dicakup, dihitung dari tanggal expired lama (bukan tanggal bayar), sehingga bulan saat layanan diisolir tetap ditagih. Layanan berstatus `aktif` atau `suspend` terus menerima invoice tiap siklus sampai berstatus `berhenti`. Invoice ad-hoc (instalasi, denda) tidak digabung.
 _Avoid_: Saldo Tunggakan, Piutang Bergulir
@@ -539,8 +543,12 @@ _Avoid_: Batch Sender Kedua, Jalur Kirim Paralel
 Sistem pengingat tagihan terjadwal (`invoice:kirim-pengingat`) yang berjalan setiap jam untuk mengevaluasi aturan pengingat aktif dan mengirimkan notifikasi berformat template dinamis dengan link pembayaran ke dua kanal sekaligus: WhatsApp (antrean `wa-blast` Horizon dengan perlindungan pembatasan laju) dan Email (notification queue standar, langsung ke `Pelanggan.email` jika terisi).
 _Avoid_: Pengiriman Manual Satu Per Satu, Blast Tanpa Antrean Terisolasi, Pengingat WhatsApp Saja
 
+**Notifikasi Invoice Terbit**:
+Pesan tagihan baru (rincian + tautan pembayaran bertanda tangan) yang dikirim ke pelanggan begitu sebuah Invoice dibuat — tagihan pertama saat Data Registrasi Billing dibuat, tagihan periodik oleh `invoice:generate`, maupun invoice manual (biaya instalasi, denda) — lewat WhatsApp (template `invoice_terbit`, antrean `wa-blast`) dan email ke `Pelanggan.email` bila terisi. Dipicu event `InvoiceTerbitEvent` dari `BillingService` setelah transaksi commit, bukan observer model, sehingga seeder/factory tidak mengirim pesan. Pembuatan di luar jendela siang (07:00–20:00 WIB, mis. batch `invoice:generate` pukul 01:00) ditunda ke 08:30 berikutnya. Tanpa opt-out per invoice; pelanggan tanpa no. HP valid dilewati + log; kegagalan kirim tidak pernah menggagalkan pembuatan invoice. Terpisah dari Pengingat Tagihan Otomatis (aturan H-3/H-1/H0/tunggakan tetap apa adanya dan bisa tumpang-tindih dengan pesan ini; admin boleh menonaktifkan aturan H-3).
+_Avoid_: Observer Invoice::created (memicu pesan dari seeder/factory), Mengandalkan Aturan H-3 sebagai Notifikasi Terbit (tagihan pertama jatuh tempo H+1 sehingga tidak pernah cocok), Pesan Malam Hari Tanpa Penundaan
+
 **Notifikasi Email Invoice**:
-Email transaksional yang dikirim ke `Pelanggan.email` (bukan email akun Portal Pelanggan) untuk dua peristiwa: pengingat jatuh tempo tagihan dan konfirmasi pembayaran lunas, berisi link ke halaman invoice Portal Pelanggan tanpa lampiran PDF. Dikirim via SMTP Mailpit di lingkungan lokal; dilewati (skip + log) jika pelanggan tidak memiliki email.
+Email transaksional yang dikirim ke `Pelanggan.email` (bukan email akun Portal Pelanggan) untuk tiga peristiwa: invoice terbit, pengingat jatuh tempo tagihan, dan konfirmasi pembayaran lunas, berisi link ke halaman invoice Portal Pelanggan tanpa lampiran PDF. Dikirim via SMTP Mailpit di lingkungan lokal; dilewati (skip + log) jika pelanggan tidak memiliki email.
 _Technical Reference_: `App\Notifications\InvoiceReminderNotification`, `App\Notifications\InvoicePaymentConfirmedNotification`
 _Avoid_: SMS Gateway (dihapus, tidak pernah diimplementasikan), Email ke Akun Portal Pelanggan
 
