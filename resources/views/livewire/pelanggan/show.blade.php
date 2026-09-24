@@ -109,10 +109,13 @@
                 @endcan
             </div>
 
-            {{-- Lokasi: peta sebagai hero, kartu alamat mengambang di desktop --}}
-            <section aria-labelledby="judul-lokasi" class="relative">
+            {{-- Lokasi: peta + kartu alamat berdampingan di desktop (bukan ditumpuk di atas peta, agar
+                 tidak menutupi kontrol zoom/marker), kartu di bawah peta pada layar kecil. --}}
+            <section aria-labelledby="judul-lokasi" class="grid grid-cols-1 gap-3 {{ $hasCoord ? 'xl:grid-cols-3' : '' }}">
                 @if ($hasCoord)
-                    <x-map-view :lat="$pelanggan->latitude" :lng="$pelanggan->longitude" :popup-title="$pelanggan->namaLengkap()" :popup-subtitle="$pelanggan->alamat_lengkap" height="clamp(300px, 55vh, 560px)" />
+                    <div class="xl:col-span-2">
+                        <x-map-view :lat="$pelanggan->latitude" :lng="$pelanggan->longitude" :popup-title="$pelanggan->namaLengkap()" :popup-subtitle="$pelanggan->alamat_lengkap" height="clamp(300px, 55vh, 560px)" />
+                    </div>
                 @else
                     <div class="flex min-h-64 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 p-6 text-center dark:border-zinc-700">
                         <flux:icon name="map-pin" class="size-8 text-zinc-400" />
@@ -124,7 +127,7 @@
                     </div>
                 @endif
 
-                <div class="{{ $card }} relative z-10 mt-3 p-4 shadow-lg sm:p-5 {{ $hasCoord ? 'xl:absolute xl:bottom-4 xl:left-4 xl:mt-0 xl:w-80' : '' }}">
+                <div class="{{ $card }} p-4 sm:p-5">
                     <h2 id="judul-lokasi" class="text-sm font-medium text-zinc-500 dark:text-zinc-400">Lokasi pemasangan</h2>
                     <p class="mt-1 text-base font-semibold text-zinc-900 dark:text-zinc-50">{{ $pelanggan->alamat_lengkap }}</p>
                     @if ($wilayah)

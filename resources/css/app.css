@@ -40,14 +40,6 @@
 
 @layer base {
 
-    /* Aksesibilitas: base font-size dinaikkan di layar >=lg (desktop). rem-based
-       jadi teks & spacing Tailwind/Flux ikut menskalakan proporsional. */
-    @media (min-width: 1024px) {
-        html {
-            font-size: 112.5%; /* 18px */
-        }
-    }
-
     *,
     ::after,
     ::before,
