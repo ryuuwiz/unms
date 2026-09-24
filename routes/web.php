@@ -262,6 +262,7 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::middleware('permission:barang.ubah')->group(function () {
             Route::get('/pengaturan', Barang\Pengaturan::class)->name('pengaturan');
+            Route::get('/impor', Barang\Impor::class)->name('impor');
         });
     });
 

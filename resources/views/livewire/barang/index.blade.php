@@ -6,6 +6,9 @@
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <flux:button icon="arrow-down-tray" wire:click="exportExcel">Ekspor Excel</flux:button>
+            @if (auth()->user()?->can('barang.buat') && auth()->user()?->can('barang.masuk') && auth()->user()?->can('barang.keluar'))
+                <flux:button icon="arrow-up-tray" :href="route('barang.impor')" wire:navigate>Impor Excel</flux:button>
+            @endif
             @can('barang.buat')
                 <flux:button variant="primary" icon="plus" wire:click="openCreateModal">Tambah Barang</flux:button>
             @endcan

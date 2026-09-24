@@ -16,3 +16,4 @@ Gudang ISP menyimpan barang habis pakai (kabel, konektor) yang cukup dihitung ju
 - Koreksi stok dilakukan dengan mutasi baru (masuk/keluar koreksi), bukan mengubah angka; mutasi tidak diedit setelah tersimpan.
 - Rekap bulanan menjumlahkan mutasi setiap kali ditampilkan; cukup untuk volume gudang ISP kecil. Tabel snapshot bulanan bisa ditambahkan bila lambat.
 - Penghitung kode terpisah dari data unit: memulihkan unit yang terhapus tidak mengembalikan nomor lamanya ke urutan.
+- **Impor Inventaris (migrasi awal)** membuat unit dengan kode lamanya (mis. `MDM-NEW-BF-240`) alih-alih meng-generate; penghitung prefix dimajukan ke nomor tertinggi yang diimpor sehingga kode baru tidak pernah bentrok. Impor hanya berjalan bila belum ada mutasi sama sekali; mengulanginya harus lewat `php artisan inventaris:reset` yang disengaja (menghapus mutasi, unit, dan penghitung; jenis/kategori/kondisi tetap).

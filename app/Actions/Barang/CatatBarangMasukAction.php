@@ -22,7 +22,9 @@ class CatatBarangMasukAction
 {
     /**
      * Jenis biasa: cukup jumlah. Jenis dilacak: tipe Pengembalian memakai unit berkode yang sudah ada
-     * ($unitIds, kodenya tetap, kondisi berubah), tipe lain meng-generate $jumlah unit baru.
+     * ($unitIds, kodenya tetap, kondisi berubah), tipe lain meng-generate $jumlah unit baru -- kecuali
+     * $kodeUnit diisi (Impor Inventaris): satu unit dibuat dengan kode lama itu dan penghitung
+     * prefix-nya dimajukan agar kode baru tidak bentrok.
      *
      * @param  list<int>  $unitIds
      *
@@ -38,6 +40,7 @@ class CatatBarangMasukAction
         ?KondisiBarang $kondisi = null,
         ?PengaturanPrefixRegistrasi $brand = null,
         array $unitIds = [],
+        ?string $kodeUnit = null,
     ): MutasiBarang {
         if (! in_array($tipe, TipeMutasiBarang::masuk(), true)) {
             throw ValidationException::withMessages(['tipe' => 'Tipe mutasi bukan barang masuk.']);
@@ -47,7 +50,7 @@ class CatatBarangMasukAction
             throw ValidationException::withMessages(['kondisi' => 'Kondisi wajib dipilih untuk barang yang dilacak per unit.']);
         }
 
-        return DB::transaction(function () use ($jenis, $tipe, $tanggal, $jumlah, $actor, $keterangan, $kondisi, $brand, $unitIds) {
+        return DB::transaction(function () use ($jenis, $tipe, $tanggal, $jumlah, $actor, $keterangan, $kondisi, $brand, $unitIds, $kodeUnit) {
             JenisBarang::whereKey($jenis->id)->lockForUpdate()->first();
 
             $units = new Collection;
@@ -70,6 +73,20 @@ class CatatBarangMasukAction
                     'kondisi_barang_id' => $kondisi?->id,
                 ]);
                 $jumlah = $units->count();
+            } elseif ($jenis->dilacak_per_unit && $kondisi && $kodeUnit !== null) {
+                if (UnitBarang::where('kode', $kodeUnit)->exists()) {
+                    throw ValidationException::withMessages(['kodeUnit' => "Kode unit {$kodeUnit} sudah terdaftar."]);
+                }
+
+                $units->push(UnitBarang::create([
+                    'jenis_barang_id' => $jenis->id,
+                    'kode' => $kodeUnit,
+                    'kondisi_barang_id' => $kondisi->id,
+                    'prefix_registrasi_id' => $brand?->id,
+                    'status' => StatusUnitBarang::DiGudang,
+                ]));
+                $this->majukanPenghitung($kodeUnit);
+                $jumlah = 1;
             } elseif ($jenis->dilacak_per_unit && $kondisi) {
                 if ($jumlah < 1) {
                     throw ValidationException::withMessages(['jumlah' => 'Jumlah minimal 1.']);
@@ -127,5 +144,30 @@ class CatatBarangMasukAction
         ]);
 
         return range($terakhir + 1, $terakhir + $jumlah);
+    }
+
+    /**
+     * Pastikan penghitung prefix minimal setara nomor kode lama (`MDM-NEW-BF-240` -> prefix
+     * `MDM-NEW-BF` >= 240). Dipanggil di dalam transaksi.
+     */
+    private function majukanPenghitung(string $kodeUnit): void
+    {
+        $posisi = strrpos($kodeUnit, '-');
+        $nomor = $posisi === false ? '' : substr($kodeUnit, $posisi + 1);
+
+        if ($posisi === false || ! ctype_digit($nomor)) {
+            return;
+        }
+
+        $prefix = substr($kodeUnit, 0, $posisi);
+
+        DB::table('kode_barang_counter')->insertOrIgnore([
+            'prefix' => $prefix, 'nomor_terakhir' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        DB::table('kode_barang_counter')
+            ->where('prefix', $prefix)
+            ->where('nomor_terakhir', '<', (int) $nomor)
+            ->update(['nomor_terakhir' => (int) $nomor, 'updated_at' => now()]);
     }
 }
