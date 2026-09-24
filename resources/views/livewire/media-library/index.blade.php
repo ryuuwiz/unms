@@ -103,17 +103,24 @@
                 Unggah Berkas
             </h3>
 
-            <form wire:submit="uploadFiles" class="space-y-3">
-                <flux:input type="file" wire:model="uploads" multiple accept=".jpg,.jpeg,.png,.webp,.pdf,.xlsx,.xls,.csv,.docx" />
+            {{-- S3 temp uploads reject `multiple` + wire:model, so upload files one by one; each single upload appends to the array. --}}
+            <form wire:submit="uploadFiles" class="space-y-3" x-data="{ uploading: false }">
+                <flux:input type="file" multiple accept=".jpg,.jpeg,.png,.webp,.pdf,.xlsx,.xls,.csv,.docx"
+                    x-on:change="
+                        const files = [...$event.target.files];
+                        const next = () => files.length ? $wire.upload('uploads', files.shift(), next, next) : (uploading = false);
+                        uploading = true;
+                        $wire.set('uploads', []).then(next);
+                    " />
                 <p class="text-xs text-zinc-400">Gambar (jpg, png, webp) atau dokumen (pdf, xlsx, xls, csv, docx), maksimal 20MB per berkas.</p>
 
                 @error('uploads.*')
                     <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
                 @enderror
 
-                <div wire:loading wire:target="uploads" class="text-xs text-zinc-400">Mengunggah...</div>
+                <div x-show="uploading" x-cloak class="text-xs text-zinc-400">Mengunggah...</div>
 
-                <flux:button type="submit" variant="primary" icon="arrow-up-tray" wire:loading.attr="disabled" wire:target="uploadFiles">
+                <flux:button type="submit" variant="primary" icon="arrow-up-tray" wire:loading.attr="disabled" wire:target="uploadFiles" x-bind:disabled="uploading">
                     Unggah
                 </flux:button>
             </form>
