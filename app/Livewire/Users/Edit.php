@@ -39,7 +39,7 @@ class Edit extends Component
         $this->name = $user->name;
         $this->email = $user->email;
         $this->phone = $user->phone ?? '';
-        $this->role = $user->roles->first()?->name ?? '';
+        $this->role = $user->getRoleNames()->first() ?? '';
         $this->status = $user->status->value;
     }
 
@@ -53,7 +53,7 @@ class Edit extends Component
         ]);
 
         $user = User::findOrFail($this->userId);
-        $oldRole = $user->roles->first()?->name ?? '';
+        $oldRole = $user->getRoleNames()->first() ?? '';
 
         $user->update([
             'name' => $this->name,

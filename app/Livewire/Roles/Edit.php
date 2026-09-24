@@ -27,7 +27,7 @@ class Edit extends Component
 
     public function mount(Role $role): void
     {
-        $this->roleId = $role->id;
+        $this->roleId = $role->getKey();
         $this->name = $role->name;
         $this->selectedPermissions = $role->permissions->pluck('name')->all();
     }

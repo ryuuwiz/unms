@@ -20,6 +20,9 @@ class XenditCallbackData
         public readonly array $rawPayload = []
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $payload
+     */
     public static function fromWebhookPayload(array $payload): self
     {
         return self::fromArray($payload);
@@ -34,7 +37,7 @@ class XenditCallbackData
     {
         // 1. Format Xendit Hosted Invoice Callback (status: PAID / EXPIRED, payment_method, paid_amount, external_id)
         if (isset($payload['status']) && (isset($payload['payment_method']) || isset($payload['paid_amount']) || isset($payload['merchant_name']) || (isset($payload['id']) && isset($payload['external_id']) && ! isset($payload['event'])))) {
-            $status = strtoupper((string) ($payload['status'] ?? 'PAID'));
+            $status = strtoupper((string) $payload['status']);
             $pm = strtoupper((string) ($payload['payment_method'] ?? ''));
 
             $channel = match ($pm) {
@@ -94,7 +97,7 @@ class XenditCallbackData
             return new self(
                 eventId: (string) ($payload['id'] ?? ($data['id'] ?? uniqid('evt_', true))),
                 externalId: (string) ($data['reference_id'] ?? ($data['external_id'] ?? '')),
-                eventType: (string) ($payload['event'] ?? 'payment.succeeded'),
+                eventType: (string) $payload['event'],
                 status: strtoupper((string) ($data['status'] ?? 'SUCCEEDED')),
                 amount: (float) ($data['amount'] ?? 0),
                 channel: $channel,

@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\User;
+use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -12,23 +13,23 @@ class UsersList extends Component
 {
     use WithPagination;
 
-    public $search = '';
+    public string $search = '';
 
-    public $userToDelete = null;
+    public ?int $userToDelete = null;
 
     // Form state
-    public $showModal = false;
+    public bool $showModal = false;
 
-    public $name = '';
+    public string $name = '';
 
-    public $email = '';
+    public string $email = '';
 
-    public function updatingSearch()
+    public function updatingSearch(): void
     {
         $this->resetPage();
     }
 
-    public function save()
+    public function save(): void
     {
         $this->validate([
             'name' => 'required|min:3',
@@ -47,13 +48,13 @@ class UsersList extends Component
         \Flux::toast('User created successfully.');
     }
 
-    public function confirmDelete($userId)
+    public function confirmDelete(int $userId): void
     {
         $this->userToDelete = $userId;
         $this->dispatch('open-modal', 'delete-user-modal');
     }
 
-    public function deleteUser()
+    public function deleteUser(): void
     {
         if ($this->userToDelete) {
             User::find($this->userToDelete)?->delete();
@@ -64,7 +65,7 @@ class UsersList extends Component
         $this->userToDelete = null;
     }
 
-    public function render()
+    public function render(): View
     {
         return view('livewire.users-list', [
             'users' => User::where('name', 'like', '%'.$this->search.'%')

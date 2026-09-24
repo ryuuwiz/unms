@@ -222,7 +222,7 @@ class Edit extends Component
         // update langsung membuat status billing dan router tidak sinkron.
         $statusBaru = StatusLayanan::from($this->status);
         if ($layanan->fresh()->status !== $statusBaru) {
-            app(UbahStatusLayananAction::class)->execute($layanan->fresh(), $statusBaru, Auth::user(), 'Diubah lewat form Edit Data Registrasi Billing');
+            app(UbahStatusLayananAction::class)->execute($layanan->fresh(), $statusBaru, Auth::guard('web')->user(), 'Diubah lewat form Edit Data Registrasi Billing');
         }
 
         Flux::toast(variant: 'success', text: 'Data Registrasi Billing berhasil diperbarui.');

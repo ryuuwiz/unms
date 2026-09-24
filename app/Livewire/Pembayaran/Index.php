@@ -4,7 +4,6 @@ namespace App\Livewire\Pembayaran;
 
 use App\Enums\MetodePembayaran;
 use App\Models\Pembayaran;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -38,7 +37,6 @@ class Index extends Component
     {
         $this->authorize('viewAny', Pembayaran::class);
 
-        /** @var LengthAwarePaginator<Pembayaran> $pembayarans */
         $pembayarans = Pembayaran::query()
             ->with(['invoice.pelanggan', 'invoice.layananPelanggan.paketLayanan', 'dicatatOleh'])
             ->when($this->search, function ($q) {

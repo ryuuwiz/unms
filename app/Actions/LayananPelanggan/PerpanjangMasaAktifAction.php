@@ -89,7 +89,7 @@ class PerpanjangMasaAktifAction
         $masaSatuan = $paket ? $paket->masa_aktif_satuan : MasaAktifSatuan::Bulan;
 
         if ($masaSatuan === MasaAktifSatuan::Bulan) {
-            $bonusBulan = (int) ($invoice->promo?->bonus_bulan ?? 0);
+            $bonusBulan = (int) ($invoice->promo->bonus_bulan ?? 0);
             $siklus = 1 + $invoice->invoiceDigabung()->count();
             $baru = PengaturanSiklusTagihan::ambil()
                 ->sesuaikanKeHariJatuhTempo($expired->copy()->subMonthsNoOverflow(($masaNilai * $siklus) + $bonusBulan));

@@ -6,6 +6,7 @@ use App\Enums\UserStatus;
 use App\Models\User;
 use Database\Seeders\ProductionSeeder;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
@@ -102,7 +103,7 @@ class InstallAppCommand extends Command
         // 4. Resolve Phone Number (Optional)
         $phone = $this->option('phone');
         if (! $phone && ! $isForce) {
-            $phone = $this->ask('Superadmin Phone/WhatsApp (Optional)', $existingUser?->phone ?? '');
+            $phone = $this->ask('Superadmin Phone/WhatsApp (Optional)', $existingUser->phone ?? '');
             $phone = ! empty($phone) ? $phone : null;
         }
 
@@ -143,7 +144,7 @@ class InstallAppCommand extends Command
             $user->status = UserStatus::Active;
 
             if (! $user->email_verified_at) {
-                $user->email_verified_at = now();
+                $user->email_verified_at = Carbon::now();
             }
 
             if ($password) {

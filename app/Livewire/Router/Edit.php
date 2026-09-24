@@ -128,7 +128,7 @@ class Edit extends Component
             'deskripsi' => $this->deskripsi ? trim($this->deskripsi) : null,
         ];
 
-        if ($this->password !== null && $this->password !== '') {
+        if ($this->password !== '') {
             $updateData['password_terenkripsi'] = $this->password;
         }
 
@@ -176,11 +176,11 @@ class Edit extends Component
                 'finished_at' => now(),
             ]);
 
-            $profileStats = $stats['profiles'] ?? [];
-            $profileSynced = $profileStats['synced'] ?? 0;
-            $profileTotal = $profileStats['total'] ?? 0;
+            $profileStats = $stats['profiles'];
+            $profileSynced = $profileStats['synced'];
+            $profileTotal = $profileStats['total'];
 
-            if (($stats['recovered'] ?? 0) > 0) {
+            if ($stats['recovered'] > 0) {
                 Flux::toast(
                     variant: 'success',
                     text: "Auto-Recovery berhasil: {$profileSynced}/{$profileTotal} profil disinkronkan, {$stats['recovered']} akun dipulihkan/disinkronkan, {$stats['already_synced']} sudah sesuai."

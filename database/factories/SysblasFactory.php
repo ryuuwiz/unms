@@ -19,7 +19,7 @@ class SysblasFactory extends Factory
     public function definition(): array
     {
         return [
-            'nama' => 'GOWA '.$this->faker->words(2, true),
+            'nama' => 'GOWA '.$this->faker->word().' '.$this->faker->word(),
             'provider' => SysblasProvider::Gowa,
             'session_name' => 'device_'.$this->faker->unique()->numerify('###'),
             'nomor' => '08'.$this->faker->numerify('##########'),

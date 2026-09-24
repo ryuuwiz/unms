@@ -79,13 +79,13 @@ class XenditDriver extends AbstractPaymentDriver
 
         $pelanggan = $invoice->pelanggan;
         $mobileNumber = self::formatNomorHpE164($pelanggan?->no_hp);
-        $payerEmail = (! empty($pelanggan?->email) && filter_var($pelanggan->email, FILTER_VALIDATE_EMAIL))
+        $payerEmail = (! empty($pelanggan->email) && filter_var($pelanggan->email, FILTER_VALIDATE_EMAIL))
             ? $pelanggan->email
             : null;
 
         // Line Items
         $items = [];
-        $namaPaket = $invoice->layananPelanggan?->paketLayanan?->nama_paket ?? 'Langganan Internet';
+        $namaPaket = $invoice->layananPelanggan?->paketLayanan->nama_paket ?? 'Langganan Internet';
         $items[] = new InvoiceItem([
             'name' => "Paket Internet: {$namaPaket}",
             'price' => (float) $invoice->jumlah,
@@ -115,10 +115,10 @@ class XenditDriver extends AbstractPaymentDriver
         }
 
         $customerData = [
-            'given_names' => ! empty($pelanggan?->nama_depan) ? trim($pelanggan->nama_depan) : 'Pelanggan',
+            'given_names' => ! empty($pelanggan->nama_depan) ? trim($pelanggan->nama_depan) : 'Pelanggan',
         ];
 
-        if (! empty($pelanggan?->nama_belakang)) {
+        if (! empty($pelanggan->nama_belakang)) {
             $customerData['surname'] = trim($pelanggan->nama_belakang);
         }
         if (! empty($payerEmail)) {
@@ -503,7 +503,7 @@ class XenditDriver extends AbstractPaymentDriver
 
             $balance = $balanceApi->getBalance('CASH');
             $balanceData = json_decode((string) json_encode($balance), true) ?: [];
-            $amount = (float) ($balanceData['balance'] ?? ($balance->getBalance() ?? 0));
+            $amount = (float) ($balanceData['balance'] ?? $balance->getBalance());
 
             return new PingConnectionResult(
                 success: true,

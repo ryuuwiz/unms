@@ -28,6 +28,7 @@ class Index extends Component
     // ─── State Import Modal ──────────────────────────────────────────
     public bool $showImportModal = false;
 
+    /** @var mixed */
     public $importFile = null;
 
     /** @var array<int, array{nama: string, keterangan: string|null, perumahan: string|null, kapasitas: int, latitude: float, longitude: float}> */

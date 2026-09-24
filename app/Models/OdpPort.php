@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusOdpPort;
+use Database\Factories\OdpPortFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['odp_id', 'nomor_port', 'status', 'layanan_pelanggan_id'])]
 class OdpPort extends Model
 {
+    /** @use HasFactory<OdpPortFactory> */
     use HasFactory;
 
     protected $table = 'odp_port';

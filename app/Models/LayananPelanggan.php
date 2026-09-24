@@ -49,8 +49,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Pelanggan $pelanggan
- * @property-read PaketLayanan $paketLayanan
+ * @property-read Pelanggan|null $pelanggan Null bila Pelanggan di-soft-delete
+ * @property-read PaketLayanan|null $paketLayanan Null bila Paket di-soft-delete
  * @property-read Router|null $router
  * @property-read IpPool|null $ipPool
  * @property-read OdpPort|null $odpPort
@@ -528,7 +528,7 @@ class LayananPelanggan extends Model
             return $this->alamat_pemasangan;
         }
 
-        return $this->pelanggan?->alamat_lengkap ?? '';
+        return $this->pelanggan->alamat_lengkap ?? '';
     }
 
     /**

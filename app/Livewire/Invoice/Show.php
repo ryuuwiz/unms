@@ -85,7 +85,7 @@ class Show extends Component
                     'dibayar_pada' => $this->dibayar_pada,
                     'catatan' => $this->catatan ?: null,
                 ],
-                actor: auth()->user()
+                actor: auth('web')->user()
             );
 
             Flux::toast(variant: 'success', text: "Pembayaran untuk {$this->invoice->no_invoice} berhasil dicatat & layanan telah diperpanjang!");

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Wa\TipePengingatTagihan;
+use Database\Factories\AturanPengingatTagihanFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -38,6 +39,7 @@ use Spatie\Activitylog\Support\LogOptions;
 ])]
 class AturanPengingatTagihan extends Model
 {
+    /** @use HasFactory<AturanPengingatTagihanFactory> */
     use HasFactory, LogsActivity;
 
     protected $table = 'aturan_pengingat_tagihan';

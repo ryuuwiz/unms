@@ -120,11 +120,18 @@ class WhatsappClient
         return $cleaned;
     }
 
+    /**
+     * @return array{success: bool, status: string, message: string, data: array<string, mixed>}
+     */
     public function sendMessage(string $phone, string $message): array
     {
         return $this->driver->sendMessage($phone, $message);
     }
 
+    /**
+     * @param  array<int, array{phone?: string, message?: string}>  $messages
+     * @return array{success: bool, status: string, message: string, data: array<int, array{success: bool, status: string, message: string, data: array<string, mixed>}>}
+     */
     public function sendBatchMessages(array $messages, ?int $delaySeconds = null, ?int $jitterSeconds = null): array
     {
         $results = [];
@@ -179,41 +186,65 @@ class WhatsappClient
         return $this->driver->sendSeen($phone);
     }
 
+    /**
+     * @return array{connected: bool, phone: string, quota: string, expired_at: ?string, message: string, session_status: string, raw: array<string, mixed>}
+     */
     public function pingConnection(): array
     {
         return $this->driver->pingConnection();
     }
 
+    /**
+     * @return array{connected: bool, phone: string, quota: string, expired_at: ?string, message: string, session_status: string, raw: array<string, mixed>}
+     */
     public function getDeviceInfo(): array
     {
         return $this->driver->getDeviceInfo();
     }
 
+    /**
+     * @return array{success: bool, status: string, qr: ?string, message: string}
+     */
     public function getQrCode(): array
     {
         return $this->driver->getQrCode();
     }
 
+    /**
+     * @return array{success: bool, message: string, data: array<string, mixed>}
+     */
     public function startSession(): array
     {
         return $this->driver->startSession();
     }
 
+    /**
+     * @return array{success: bool, message: string, data: array<string, mixed>}
+     */
     public function stopSession(): array
     {
         return $this->driver->stopSession();
     }
 
+    /**
+     * @return array{success: bool, message: string, data: array<string, mixed>}
+     */
     public function restartSession(): array
     {
         return $this->driver->restartSession();
     }
 
+    /**
+     * @return array{success: bool, message: string, data: array<string, mixed>}
+     */
     public function logoutSession(): array
     {
         return $this->driver->logoutSession();
     }
 
+    /**
+     * @return array{success: bool, exists: bool, phone: string, message: string}
+     */
     public function checkNumberStatus(string $phone): array
     {
         return $this->driver->checkNumberStatus($phone);

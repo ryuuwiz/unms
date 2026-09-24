@@ -149,7 +149,7 @@ class Show extends Component
 
         activity('pelanggan')
             ->performedOn($pelanggan)
-            ->causedBy(Auth::user())
+            ->causedBy(Auth::guard('web')->user())
             ->log("Mereset password akun portal pelanggan {$pelanggan->identitasLengkap()} ke default");
 
         Flux::toast(variant: 'success', text: 'Password portal pelanggan berhasil direset ke default (12345678).');
@@ -195,7 +195,7 @@ class Show extends Component
 
         try {
             /** @var User $actor */
-            $actor = Auth::user();
+            $actor = Auth::guard('web')->user();
 
             $billingService->prosesPembayaranManual(
                 invoice: $invoice,
@@ -310,7 +310,7 @@ class Show extends Component
                 'jenis_dokumen' => $this->docJenis,
                 'nomor_dokumen' => $this->docNomor ?: null,
                 'keterangan' => $this->docKeterangan ?: null,
-                'uploaded_by' => Auth::user()?->name,
+                'uploaded_by' => Auth::guard('web')->user()?->name,
             ]
         );
 
@@ -330,7 +330,7 @@ class Show extends Component
 
         activity('pelanggan')
             ->performedOn($pelanggan)
-            ->causedBy(Auth::user())
+            ->causedBy(Auth::guard('web')->user())
             ->withProperties(['file_name' => $fileName, 'media_id' => $mediaId])
             ->log("Menghapus dokumen {$fileName} milik pelanggan {$pelanggan->identitasLengkap()}");
 
@@ -402,7 +402,7 @@ class Show extends Component
 
         activity('layanan_pelanggan')
             ->performedOn($layanan)
-            ->causedBy(auth()->user())
+            ->causedBy(auth('web')->user())
             ->withProperties([
                 'action' => 'reveal_ppp_password',
                 'ip' => request()->ip(),
@@ -452,7 +452,7 @@ class Show extends Component
             return;
         }
 
-        $oldPaketNama = $layanan->paketLayanan?->nama_paket ?? 'Lama';
+        $oldPaketNama = $layanan->paketLayanan->nama_paket ?? 'Lama';
         $newPaket = PaketLayanan::with('profilBandwidth')->findOrFail($this->newPaketId);
 
         // Update paket_layanan_id (memicu LayananPelangganObserver -> UpdatePppoeProfileJob)
@@ -462,7 +462,7 @@ class Show extends Component
 
         activity('layanan_pelanggan')
             ->performedOn($layanan)
-            ->causedBy(Auth::user())
+            ->causedBy(Auth::guard('web')->user())
             ->withProperties([
                 'old_paket_id' => $layanan->getOriginal('paket_layanan_id'),
                 'old_paket_nama' => $oldPaketNama,
@@ -564,7 +564,7 @@ class Show extends Component
             layanan: $layanan,
             jumlah: (float) $this->tambahInvoiceJumlah,
             keterangan: $this->tambahInvoiceKeterangan,
-            dibuatOleh: auth()->id(),
+            dibuatOleh: auth('web')->user()?->id,
             promo: $promo,
             tanggalJatuhTempo: Carbon::parse($this->tambahInvoiceTanggalJatuhTempo),
         );
@@ -584,7 +584,7 @@ class Show extends Component
                 'model' => PaketLayanan::class,
                 'query' => fn () => PaketLayanan::aktif()->with('profilBandwidth'),
                 'label' => fn (PaketLayanan $pk) => $pk->nama_paket.' — '.$pk->formattedHarga()
-                    .' ('.($pk->profilBandwidth?->labelKecepatan() ?? 'No Profile').')',
+                    .' ('.($pk->profilBandwidth->labelKecepatan()).')',
                 'cap' => 20,
             ],
         ];

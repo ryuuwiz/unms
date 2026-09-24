@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\Sysblas\SysblasProvider;
 use App\Services\Whatsapp\WhatsappClient;
+use Database\Factories\SysblasFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -55,6 +56,7 @@ use Spatie\Activitylog\Support\LogOptions;
 ])]
 class Sysblas extends Model
 {
+    /** @use HasFactory<SysblasFactory> */
     use HasFactory, LogsActivity;
 
     protected $table = 'sysblas';

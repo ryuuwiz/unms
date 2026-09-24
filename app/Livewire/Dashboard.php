@@ -94,6 +94,7 @@ class Dashboard extends Component
             ->where('status', '!=', StatusInvoice::Dibatalkan)
             ->selectRaw('COALESCE(SUM(jumlah_setelah_promo - jumlah_tunggakan), 0) as ditagih')
             ->selectRaw('COALESCE(SUM(CASE WHEN status = ? THEN jumlah_setelah_promo - jumlah_tunggakan ELSE 0 END), 0) as lunas', [StatusInvoice::Lunas->value])
+            ->toBase()
             ->first();
 
         $ditagih = (float) $siklus->ditagih;
@@ -197,12 +198,12 @@ class Dashboard extends Component
         $user = auth()->user();
 
         return view('livewire.dashboard', [
-            'pelanggan' => $this->pelanggan,
-            'pendapatan' => $this->pendapatan,
-            'tagihan' => $this->tagihan,
-            'tren' => $this->tren,
-            'transaksiTerbaru' => $this->transaksiTerbaru,
-            'perluPerhatian' => $this->perluPerhatian,
+            'pelanggan' => $this->getPelangganProperty(),
+            'pendapatan' => $this->getPendapatanProperty(),
+            'tagihan' => $this->getTagihanProperty(),
+            'tren' => $this->getTrenProperty(),
+            'transaksiTerbaru' => $this->getTransaksiTerbaruProperty(),
+            'perluPerhatian' => $this->getPerluPerhatianProperty(),
             'bisaLihatInvoice' => $user->can('invoice.lihat'),
             'bisaLihatPelanggan' => $user->can('pelanggan.lihat'),
         ]);

@@ -8,6 +8,7 @@ use App\Enums\Ticket\PrioritasTicket;
 use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\Ticket\SumberTicket;
+use Carbon\CarbonInterface;
 use Database\Factories\TicketFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -44,12 +45,12 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- * @property-read Pelanggan $pelanggan
+ * @property-read Pelanggan|null $pelanggan Null bila Pelanggan di-soft-delete
  * @property-read LayananPelanggan|null $layananPelanggan
  * @property-read User|null $pic
  * @property-read User|null $dibuatOleh
  * @property-read Collection<int, TicketHistori> $histori
- * @property-read Collection<int, \stdClass> $divisis
+ * @property-read Collection<int, TicketDivisi> $divisis
  */
 #[Fillable([
     'nomor_ticket',
@@ -94,8 +95,11 @@ class Ticket extends Model implements HasMedia
                 $ticket->nomor_ticket = static::generateNomorTicket();
             }
 
-            if (empty($ticket->sla_target_selesai) && $ticket->prioritas instanceof PrioritasTicket) {
-                $ticket->sla_target_selesai = Carbon::now()->addHours($ticket->prioritas->durasiSlaHours());
+            // Prioritas bisa belum terisi saat creating (default kolom baru berlaku di DB).
+            $prioritas = $ticket->getAttribute('prioritas');
+
+            if (empty($ticket->sla_target_selesai) && $prioritas instanceof PrioritasTicket) {
+                $ticket->sla_target_selesai = Carbon::now()->addHours($prioritas->durasiSlaHours());
             }
         });
     }
@@ -214,7 +218,7 @@ class Ticket extends Model implements HasMedia
             ? $this->divisis->first(fn (TicketDivisi $item) => $item->divisi === $divisi)
             : $this->divisis()->where('divisi', $divisi->value)->first();
 
-        return $row?->status ?? StatusDivisiTicket::Belum;
+        return $row->status ?? StatusDivisiTicket::Belum;
     }
 
     /**
@@ -369,10 +373,10 @@ class Ticket extends Model implements HasMedia
         }
 
         if ($this->isOverdue()) {
-            return 'Lewat '.Carbon::now()->diffForHumans($this->sla_target_selesai, true);
+            return 'Lewat '.Carbon::now()->diffForHumans($this->sla_target_selesai, CarbonInterface::DIFF_ABSOLUTE);
         }
 
-        return Carbon::now()->diffForHumans($this->sla_target_selesai, true);
+        return Carbon::now()->diffForHumans($this->sla_target_selesai, CarbonInterface::DIFF_ABSOLUTE);
     }
 
     /**

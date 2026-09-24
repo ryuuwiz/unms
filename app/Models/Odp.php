@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusOdpPort;
+use Database\Factories\OdpFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -22,10 +23,15 @@ use Illuminate\Support\Facades\DB;
  * @property float|null $longitude
  * @property-read Perumahan|null $perumahan
  * @property-read Collection<int, OdpPort> $ports
+ * @property-read int $port_kosong_count Hanya terisi bila diambil dengan withCount(['ports as port_kosong_count' => ...])
+ * @property-read int $port_terpakai_count Idem, alias withCount status terpakai
+ * @property-read int $port_rusak_count Idem, alias withCount status rusak
+ * @property-read float $jarak Hanya terisi bila diambil dengan selectRaw jarak (Haversine)
  */
 #[Fillable(['nama_odp', 'perumahan_id', 'kapasitas_port', 'keterangan', 'latitude', 'longitude'])]
 class Odp extends Model
 {
+    /** @use HasFactory<OdpFactory> */
     use HasFactory;
 
     protected $table = 'odp';

@@ -43,15 +43,13 @@ class MapMarkerController extends Controller
             $pelanggans = $query->with('perumahan:id,nama_perumahan')->get();
 
             foreach ($pelanggans as $p) {
-                $statusEnum = $p->status instanceof StatusPelanggan ? $p->status : StatusPelanggan::tryFrom((string) $p->status);
-                $statusColor = match ($statusEnum) {
+                $statusColor = match ($p->status) {
                     StatusPelanggan::Aktif => 'emerald',
                     StatusPelanggan::BelumTerpasang => 'zinc',
                     StatusPelanggan::ReqPemasangan => 'cyan',
                     StatusPelanggan::PemasanganSelesai => 'indigo',
                     StatusPelanggan::Expired => 'amber',
                     StatusPelanggan::Off => 'rose',
-                    default => 'zinc',
                 };
 
                 $markers[] = [
@@ -61,7 +59,7 @@ class MapMarkerController extends Controller
                     'lng' => (float) $p->longitude,
                     'title' => $p->identitasLengkap(),
                     'subtitle' => ($p->perumahan?->nama_perumahan ? $p->perumahan->nama_perumahan.' • ' : '').$p->no_hp,
-                    'badge' => $statusEnum?->label() ?? ucfirst((string) $p->status),
+                    'badge' => $p->status->label(),
                     'color' => $statusColor,
                     'detail_url' => route('pelanggan.show', $p->id),
                     'icon' => 'user',
@@ -98,7 +96,7 @@ class MapMarkerController extends Controller
                     'lat' => (float) $l->pelanggan->latitude,
                     'lng' => (float) $l->pelanggan->longitude,
                     'title' => $l->site_id.' ('.$l->ppp_username.')',
-                    'subtitle' => ($l->paketLayanan?->nama_paket ?? 'Paket').' • Router: '.($l->router?->nama_router ?? '-'),
+                    'subtitle' => ($l->paketLayanan->nama_paket ?? 'Paket').' • Router: '.($l->router->nama_router ?? '-'),
                     'badge' => $l->statusBadgeLabel(),
                     'color' => $l->statusBadgeColor(),
                     'detail_url' => route('pelanggan.show', $l->pelanggan_id),

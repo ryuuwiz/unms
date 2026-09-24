@@ -67,7 +67,7 @@ class WhatsappWebhookService
             if (isset($payload['message']) && (isset($payload['phone']) || isset($payload['sender']))) {
                 $reply = $this->handleIncomingMessage([
                     'phone' => $payload['phone'] ?? $payload['sender'] ?? '',
-                    'message' => $payload['message'] ?? '',
+                    'message' => $payload['message'],
                     'raw' => $payload,
                 ]);
                 $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
@@ -213,7 +213,7 @@ class WhatsappWebhookService
                 }
 
                 $from = (string) ($payload['from'] ?? '');
-                $rawPhone = explode('@', $from)[0] ?? $from;
+                $rawPhone = explode('@', $from)[0];
                 $body = (string) ($payload['body'] ?? '');
 
                 $reply = $this->handleIncomingMessage([
@@ -246,7 +246,7 @@ class WhatsappWebhookService
     protected function handleWahaMessageAck(array $payload, string $session): void
     {
         $to = (string) ($payload['to'] ?? $payload['from'] ?? '');
-        $rawPhone = explode('@', $to)[0] ?? $to;
+        $rawPhone = explode('@', $to)[0];
         $phone = WhatsappClient::normalizePhoneNumber($rawPhone);
         $ack = $payload['ack'] ?? null;
         $ackName = strtolower((string) ($payload['ackName'] ?? ''));
@@ -437,7 +437,7 @@ class WhatsappWebhookService
             $msg = "Halo Bapak/Ibu *{$pelanggan->namaLengkap()}* (No Reg: {$pelanggan->no_reg}),\n\nBerikut rincian tagihan Anda yang belum dibayar:\n";
 
             foreach ($unpaidInvoices as $inv) {
-                $tglJatuhTempo = $inv->tanggal_jatuh_tempo?->format('d/m/Y') ?? '-';
+                $tglJatuhTempo = $inv->tanggal_jatuh_tempo->format('d/m/Y');
                 $nominal = number_format($inv->jumlah_setelah_promo ?? $inv->jumlah, 0, ',', '.');
                 $linkBayar = $inv->xendit_invoice_url ?? route('portal.invoice.show', $inv->id);
                 $msg .= "• *{$inv->no_invoice}* : Rp {$nominal} (Jatuh Tempo: {$tglJatuhTempo})\n  Link Bayar: {$linkBayar}\n";
@@ -468,9 +468,6 @@ class WhatsappWebhookService
             foreach ($activeTickets as $t) {
                 $statusLabel = $t->status->label();
                 $msg .= "• *{$t->nomor_ticket}* - {$t->jenis->label()} (Status: *{$statusLabel}*)\n";
-                if ($t->catatan_penyelesaian) {
-                    $msg .= "  Catatan: {$t->catatan_penyelesaian}\n";
-                }
             }
             $msg .= "\nTim teknisi kami sedang memproses kendala Anda. Mohon ditunggu.";
 

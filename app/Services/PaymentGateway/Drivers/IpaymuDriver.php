@@ -91,12 +91,12 @@ class IpaymuDriver extends AbstractPaymentDriver
 
         $pelanggan = $invoice->pelanggan;
         $buyerPhone = self::formatNomorHpNumeric($pelanggan?->no_hp) ?: '081234567890';
-        $buyerName = trim(($pelanggan?->nama_depan ?? 'Pelanggan').' '.($pelanggan?->nama_belakang ?? ''));
-        $buyerEmail = (! empty($pelanggan?->email) && filter_var($pelanggan->email, FILTER_VALIDATE_EMAIL))
+        $buyerName = trim(($pelanggan->nama_depan ?? 'Pelanggan').' '.($pelanggan->nama_belakang ?? ''));
+        $buyerEmail = (! empty($pelanggan->email) && filter_var($pelanggan->email, FILTER_VALIDATE_EMAIL))
             ? $pelanggan->email
             : 'noreply@gobilling.id';
 
-        $namaPaket = $invoice->layananPelanggan?->paketLayanan?->nama_paket ?? 'Langganan Internet';
+        $namaPaket = $invoice->layananPelanggan?->paketLayanan->nama_paket ?? 'Langganan Internet';
         $redirectUrl = route('portal.invoice.show', $invoice->id);
         $notifyUrl = url('/webhook/payment/ipaymu');
 

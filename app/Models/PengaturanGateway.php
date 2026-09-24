@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -44,7 +43,7 @@ use Spatie\Activitylog\Support\LogOptions;
 ])]
 class PengaturanGateway extends Model
 {
-    use HasFactory, LogsActivity;
+    use LogsActivity;
 
     protected $table = 'pengaturan_gateway';
 
@@ -164,7 +163,7 @@ class PengaturanGateway extends Model
                 'bebankan_ke_pelanggan' => true,
                 'is_default' => true,
                 'is_active' => true,
-                'sandbox_mode' => env('XENDIT_ENV', 'development') !== 'production',
+                'sandbox_mode' => config('services.xendit.env') !== 'production',
             ]
         );
 

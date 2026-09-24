@@ -201,7 +201,7 @@ class Create extends Component
                     'jenis_dokumen' => $this->jenis_dokumen ?: 'MOU / Kontrak',
                     'nomor_dokumen' => $this->nomor_dokumen ?: null,
                     'keterangan' => $this->keterangan_dokumen ?: null,
-                    'uploaded_by' => Auth::user()?->name,
+                    'uploaded_by' => Auth::guard('web')->user()?->name,
                 ]
             );
         }

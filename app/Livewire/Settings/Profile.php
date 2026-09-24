@@ -29,9 +29,9 @@ class Profile extends Component
      */
     public function mount(): void
     {
-        $this->name = Auth::user()->name;
-        $this->email = Auth::user()->email;
-        $this->phone = Auth::user()->phone ?? '';
+        $this->name = Auth::guard('web')->user()->name;
+        $this->email = Auth::guard('web')->user()->email;
+        $this->phone = Auth::guard('web')->user()->phone ?? '';
     }
 
     /**
@@ -46,10 +46,10 @@ class Profile extends Component
             'fotoProfil.max' => 'Ukuran foto maksimal 2 MB.',
         ]);
 
-        $user = Auth::user();
+        $user = Auth::guard('web')->user();
 
         // Hapus eksplisit dulu -- jangan andalkan singleFile() otomatis, supaya tidak
-        // pernah menyisakan foto lama walau ada kuirk state Auth::user() antar request.
+        // pernah menyisakan foto lama walau ada kuirk state Auth::guard('web')->user() antar request.
         $user->clearMediaCollection('foto_profil');
 
         $user->addMediaFromDisk(
@@ -69,7 +69,7 @@ class Profile extends Component
      */
     public function updateProfileInformation(): void
     {
-        $user = Auth::user();
+        $user = Auth::guard('web')->user();
 
         $validated = $this->validate($this->profileRules($user->id));
 

@@ -225,7 +225,7 @@ class Create extends Component
 
         $invoice = $billingService->generateInvoice(
             layanan: $layanan,
-            dibuatOleh: auth()->id(),
+            dibuatOleh: auth('web')->user()?->id,
             promo: $promo,
             tanggalJatuhTempo: $jatuhTempo,
             periodeTagihan: $this->periode_tagihan
@@ -268,7 +268,7 @@ class Create extends Component
             layanan: $layanan,
             jumlah: (float) $this->jumlahManual,
             keterangan: $this->keterangan,
-            dibuatOleh: auth()->id(),
+            dibuatOleh: auth('web')->user()?->id,
             promo: $promo,
             tanggalJatuhTempo: $jatuhTempo,
         );

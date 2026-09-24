@@ -20,7 +20,7 @@ class AturanPengingatTagihanFactory extends Factory
     public function definition(): array
     {
         return [
-            'nama_aturan' => 'Aturan '.$this->faker->words(3, true),
+            'nama_aturan' => 'Aturan '.$this->faker->word().' '.$this->faker->word(),
             'tipe_pengingat' => TipePengingatTagihan::SebelumJatuhTempo,
             'hari_offset' => 3,
             'jam_eksekusi' => '08:30:00',

@@ -44,7 +44,7 @@ class HandleLayananStatusChangedListener
                     (int) $layanan->router_id,
                     $username,
                     $layanan->id,
-                    $event->actor?->id ?? 'system:tanpa-user',
+                    $event->actor->id ?? 'system:tanpa-user',
                     'Layanan Berhenti'.($event->catatan ? ": {$event->catatan}" : ''),
                 );
             }

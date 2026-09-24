@@ -244,7 +244,7 @@ class WahaDriver implements WhatsappGatewayDriverInterface
             ])->get($url, ['format' => 'image']);
 
             if ($response->successful()) {
-                $contentType = $response->header('Content-Type') ?? '';
+                $contentType = $response->header('Content-Type');
 
                 if (str_contains($contentType, 'image')) {
                     $base64 = base64_encode($response->body());

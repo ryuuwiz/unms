@@ -139,13 +139,13 @@ class MikrotikRecoverPppCommand extends Command
                 } else {
                     $stats = $mikrotikService->autoRecoverPppSecrets($router, dryRun: $dryRun);
 
-                    $profileStats = $stats['profiles'] ?? [];
-                    $profileText = ($profileStats['synced'] ?? 0).'/'.($profileStats['total'] ?? 0);
+                    $profileStats = $stats['profiles'];
+                    $profileText = $profileStats['synced'].'/'.$profileStats['total'];
 
-                    $recoveredCount = $stats['recovered'] ?? 0;
-                    $alreadySyncedCount = $stats['already_synced'] ?? 0;
-                    $disabledCount = $stats['disabled'] ?? 0;
-                    $duplicatesRemoved = $stats['duplicates_removed'] ?? 0;
+                    $recoveredCount = $stats['recovered'];
+                    $alreadySyncedCount = $stats['already_synced'];
+                    $disabledCount = $stats['disabled'];
+                    $duplicatesRemoved = $stats['duplicates_removed'];
 
                     $secretLabel = $dryRun ? 'akan dipulihkan' : 'dipulihkan';
                     $secretText = "{$recoveredCount} {$secretLabel} / {$alreadySyncedCount} sinkron ({$disabledCount} isolir)";
@@ -161,20 +161,20 @@ class MikrotikRecoverPppCommand extends Command
                             $dryRun ? null : PppDeletionContext::system('artisan', 'Pembersihan orphaned secret atas permintaan eksplisit (mikrotik:recover-ppp --clean-orphans)'),
                         );
                         $orphanText = $dryRun
-                            ? ($orphanStats['orphans_count'] ?? 0).' akan dihapus'
-                            : ($orphanStats['deleted'] ?? 0).' dihapus';
+                            ? $orphanStats['orphans_count'].' akan dihapus'
+                            : $orphanStats['deleted'].' dihapus';
                     }
 
                     if (! $cleanOrphans && $auditOrphans) {
                         $orphanStats = $mikrotikService->cleanOrphanedPppSecrets($router, false);
-                        $orphanText = ($orphanStats['orphans_count'] ?? 0).' terdeteksi (audit)';
+                        $orphanText = $orphanStats['orphans_count'].' terdeteksi (audit)';
                     }
 
-                    $shouldLog = $force || $cleanOrphans || $routerId !== null
+                    $shouldLog = $cleanOrphans || $routerId !== null
                         || ($recoveredCount > 0)
                         || ($disabledCount > 0)
                         || ($duplicatesRemoved > 0)
-                        || (! empty($stats['errors'] ?? []));
+                        || ($stats['errors'] !== []);
 
                     if ($shouldLog) {
                         MikrotikJobLog::create([

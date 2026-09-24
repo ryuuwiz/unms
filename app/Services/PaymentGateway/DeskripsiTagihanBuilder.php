@@ -73,15 +73,15 @@ class DeskripsiTagihanBuilder
 
         return [
             'brand' => $this->brand($pelanggan?->no_reg),
-            'site_id' => $layanan?->site_id ?? '-',
-            'bulan' => $bulan->locale('id')->translatedFormat('F Y'),
-            'nama_paket_pelanggan' => $layanan?->paketLayanan?->nama_paket ?? 'Layanan Internet',
+            'site_id' => $layanan->site_id ?? '-',
+            'bulan' => $bulan->translatedFormat('F Y'),
+            'nama_paket_pelanggan' => $layanan?->paketLayanan->nama_paket ?? 'Layanan Internet',
             'hingga' => $layanan
                 ? $this->perpanjangMasaAktif->hitungExpiredBaru($layanan, $invoice, Carbon::now())->toDateString()
                 : '-',
             'no_invoice' => (string) $invoice->no_invoice,
             'nama_pelanggan' => $pelanggan ? trim("{$pelanggan->nama_depan} {$pelanggan->nama_belakang}") : 'Pelanggan',
-            'no_reg' => $pelanggan?->no_reg ?? '-',
+            'no_reg' => $pelanggan->no_reg ?? '-',
             'total_tagihan' => 'Rp '.number_format((float) ($invoice->jumlah_setelah_promo ?? $invoice->jumlah), 0, ',', '.'),
             'jatuh_tempo' => Carbon::parse($invoice->tanggal_jatuh_tempo)->toDateString(),
             'keterangan' => $invoice->keterangan ?: 'Tagihan Internet',

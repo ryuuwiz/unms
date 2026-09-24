@@ -51,7 +51,7 @@ class Edit extends Component
         $this->nama_promo = $promo->nama_promo;
         $this->jenis = $promo->jenis->value;
         $this->deskripsi = $promo->deskripsi ?? '';
-        $this->diskon_tipe = $promo->diskon_tipe?->value ?? 'nominal';
+        $this->diskon_tipe = $promo->diskon_tipe->value ?? 'nominal';
         $this->diskon_nilai = $promo->diskon_nilai ? (float) $promo->diskon_nilai : null;
         $this->bonus_bulan = $promo->bonus_bulan;
         $this->minimal_nominal_invoice = $promo->minimal_nominal_invoice ? (float) $promo->minimal_nominal_invoice : null;

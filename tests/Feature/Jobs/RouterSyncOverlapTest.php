@@ -72,7 +72,7 @@ test('runs the sync pipeline once the router lock is free', function () {
     $mockService = Mockery::mock(MikrotikService::class);
     $mockService->shouldReceive('autoRecoverPppSecrets')
         ->once()
-        ->andReturn(['recovered' => 0, 'disabled' => 0, 'duplicates_removed' => 0, 'errors' => []]);
+        ->andReturn(['recovered' => 0, 'disabled' => 0, 'duplicates_removed' => 0, 'delete_cap_exceeded' => false, 'errors' => []]);
     $this->app->instance(MikrotikService::class, $mockService);
 
     RecoverPppRouterJob::dispatch($router);

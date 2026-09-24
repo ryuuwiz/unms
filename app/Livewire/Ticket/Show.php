@@ -188,7 +188,7 @@ class Show extends Component
 
         try {
             /** @var User $actor */
-            $actor = Auth::user();
+            $actor = Auth::guard('web')->user();
             $action->execute(
                 ticket: $this->ticket,
                 statusBaru: $statusBaruEnum,
@@ -222,7 +222,7 @@ class Show extends Component
 
         try {
             /** @var User $actor */
-            $actor = Auth::user();
+            $actor = Auth::guard('web')->user();
             $action->execute(
                 ticket: $this->ticket,
                 pic: $newPic,
@@ -351,7 +351,7 @@ class Show extends Component
                 ticket: $this->ticket,
                 divisi: DivisiTicket::Teknisi,
                 statusBaru: StatusDivisiTicket::Progress,
-                actor: Auth::user(),
+                actor: Auth::guard('web')->user(),
             );
         }
 
@@ -572,7 +572,7 @@ class Show extends Component
                 ticket: $this->ticket,
                 divisi: $divisi,
                 statusBaru: StatusDivisiTicket::Selesai,
-                actor: Auth::user(),
+                actor: Auth::guard('web')->user(),
             );
 
             Flux::toast(variant: 'success', text: "{$divisi->label()} berhasil ditandai selesai.");
@@ -605,7 +605,7 @@ class Show extends Component
         $this->prosesIpPoolId = $layanan?->ip_pool_id;
         $this->prosesPaketLayananId = $layanan?->paket_layanan_id;
         $this->prosesPppMode = 'auto';
-        $this->prosesPppUsername = $layanan?->ppp_username ?? '';
+        $this->prosesPppUsername = $layanan->ppp_username ?? '';
         $this->prosesPppPassword = '';
         $this->prosesUbahPaket = false;
         $this->showProsesModal = true;
@@ -656,7 +656,7 @@ class Show extends Component
                 app(UbahStatusTicketAction::class)->execute(
                     ticket: $this->ticket,
                     statusBaru: StatusTicket::Batal,
-                    actor: Auth::user(),
+                    actor: Auth::guard('web')->user(),
                     catatan: $this->prosesCatatan,
                 );
 
@@ -769,7 +769,7 @@ class Show extends Component
                 ticket: $this->ticket,
                 divisi: $divisi,
                 statusBaru: $statusBaruEnum,
-                actor: Auth::user(),
+                actor: Auth::guard('web')->user(),
                 catatan: $this->prosesCatatan,
             );
 
@@ -795,7 +795,7 @@ class Show extends Component
 
         activity('layanan_pelanggan')
             ->performedOn($layanan)
-            ->causedBy(Auth::user())
+            ->causedBy(Auth::guard('web')->user())
             ->withProperties([
                 'action' => 'reveal_ppp_password',
                 'ticket' => $this->ticket->nomor_ticket,

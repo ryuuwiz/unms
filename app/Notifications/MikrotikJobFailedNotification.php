@@ -27,7 +27,7 @@ class MikrotikJobFailedNotification extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        $routerName = $this->jobLog->router?->nama_router ?? 'Router';
+        $routerName = $this->jobLog->router->nama_router;
         $jobLabel = $this->jobLog->job_type->label();
 
         return [

@@ -80,7 +80,7 @@ class TicketSeeder extends Seeder
             foreach ($divisis as $divisiItem) {
                 DB::table('ticket_divisi')->insertOrIgnore([
                     'ticket_id' => $ticket->id,
-                    'divisi' => $divisiItem instanceof DivisiTicket ? $divisiItem->value : $divisiItem,
+                    'divisi' => $divisiItem->value,
                 ]);
             }
 

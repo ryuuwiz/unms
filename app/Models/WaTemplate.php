@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Wa\KategoriTemplateWa;
+use Database\Factories\WaTemplateFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,6 +34,7 @@ use Spatie\Activitylog\Support\LogOptions;
 ])]
 class WaTemplate extends Model
 {
+    /** @use HasFactory<WaTemplateFactory> */
     use HasFactory, LogsActivity;
 
     protected $table = 'wa_template';

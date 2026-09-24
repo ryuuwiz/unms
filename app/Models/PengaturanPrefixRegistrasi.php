@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\PengaturanPrefixRegistrasiFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,6 +22,7 @@ use Spatie\Activitylog\Support\LogOptions;
 #[Fillable(['kode', 'nama', 'is_active'])]
 class PengaturanPrefixRegistrasi extends Model
 {
+    /** @use HasFactory<PengaturanPrefixRegistrasiFactory> */
     use HasFactory, LogsActivity;
 
     protected $table = 'pengaturan_prefix_registrasi';

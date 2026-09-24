@@ -91,7 +91,7 @@ class KirimWaBlastJob implements ShouldQueue
             $this->antrian->tandaiTerkirim($result);
         } else {
             // Jika terkena response 429 Too Many Requests dari WAHA, tunda job untuk retry
-            if (($result['status'] ?? '') === 'rate_limited') {
+            if ($result['status'] === 'rate_limited') {
                 $this->release(15 + rand(1, 5));
 
                 return;

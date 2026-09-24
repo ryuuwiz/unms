@@ -249,6 +249,7 @@ test('RecoverPppRouterJob runs autoRecoverPppSecrets on mikrotik-low queue', fun
             'already_synced' => 0,
             'disabled' => 0,
             'duplicates_removed' => 0,
+            'delete_cap_exceeded' => false,
             'errors' => [],
         ]);
 

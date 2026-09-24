@@ -10,7 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 
 class TriggerMikrotikAktivasiStubListener implements ShouldQueue
 {
-    public $queue = 'mikrotik-high';
+    public string $queue = 'mikrotik-high';
 
     /**
      * Handle event pembayaran invoice untuk aktivasi / un-suspend otomatis di MikroTik.

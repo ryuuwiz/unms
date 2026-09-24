@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Support\Facades\Storage;
 
 class EnsurePublicMediaBucketCommand extends Command
@@ -48,7 +49,15 @@ class EnsurePublicMediaBucketCommand extends Command
             return self::SUCCESS;
         }
 
-        $client = Storage::disk('s3')->getClient();
+        $s3 = Storage::disk('s3');
+
+        if (! $s3 instanceof AwsS3V3Adapter) {
+            $this->components->error('Disk [s3] bukan adapter AWS S3 (AwsS3V3Adapter).');
+
+            return self::FAILURE;
+        }
+
+        $client = $s3->getClient();
 
         if (! $client->doesBucketExist($bucket)) {
             $client->createBucket(['Bucket' => $bucket]);
@@ -63,7 +72,7 @@ class EnsurePublicMediaBucketCommand extends Command
                 'Action' => ['s3:GetObject'],
                 'Resource' => ["arn:aws:s3:::{$bucket}/*"],
             ]],
-        ]);
+        ], JSON_THROW_ON_ERROR);
 
         try {
             $client->putBucketPolicy(['Bucket' => $bucket, 'Policy' => $policy]);

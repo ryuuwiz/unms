@@ -8,7 +8,6 @@ use App\Models\AntrianWaBlast;
 use App\Models\Sysblas;
 use App\Models\User;
 use Flux\Flux;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\View\View;
@@ -172,7 +171,6 @@ class Index extends Component
             $query->whereDate('tanggal_kirim', '<=', $this->tanggal_sampai);
         }
 
-        /** @var LengthAwarePaginator<AntrianWaBlast> $antrianList */
         $antrianList = $query->paginate(15);
 
         $totalAntrian = AntrianWaBlast::count();

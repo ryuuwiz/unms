@@ -6,7 +6,6 @@ use App\Actions\Invoice\BatalkanInvoiceLunasAction;
 use App\Enums\StatusInvoice;
 use App\Models\Invoice;
 use Flux\Flux;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -76,7 +75,7 @@ class Index extends Component
 
         $invoice->update([
             'status' => StatusInvoice::Dibatalkan,
-            'dihapus_oleh' => auth()->id(),
+            'dihapus_oleh' => auth('web')->user()?->id,
             'keterangan_hapus' => $this->keteranganHapus ?: 'Dibatalkan oleh admin',
         ]);
 
@@ -96,7 +95,7 @@ class Index extends Component
         );
 
         try {
-            app(BatalkanInvoiceLunasAction::class)->execute($invoice, auth()->user(), $this->keteranganHapus);
+            app(BatalkanInvoiceLunasAction::class)->execute($invoice, auth('web')->user(), $this->keteranganHapus);
         } catch (\Exception $e) {
             Flux::toast(variant: 'danger', text: $e->getMessage(), duration: 10000);
             $this->deletingId = null;
@@ -113,7 +112,6 @@ class Index extends Component
     {
         $this->authorize('viewAny', Invoice::class);
 
-        /** @var LengthAwarePaginator<Invoice> $invoices */
         $invoices = Invoice::query()
             ->with(['pelanggan', 'layananPelanggan.paketLayanan', 'promo'])
             ->when($this->search, fn ($q) => $q->search($this->search))

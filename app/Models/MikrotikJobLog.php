@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -40,8 +39,6 @@ use Illuminate\Support\Carbon;
 ])]
 class MikrotikJobLog extends Model
 {
-    use HasFactory;
-
     protected $table = 'mikrotik_job_logs';
 
     /**
