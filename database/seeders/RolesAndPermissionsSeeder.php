@@ -64,6 +64,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'payment_gateway.lihat', 'payment_gateway.buat', 'payment_gateway.ubah', 'payment_gateway.hapus',
             // Media Library (termasuk Storage & S3 Monitoring)
             'media_library.lihat', 'media_library.hapus', 'media_library.unggah',
+            // Barang (Inventaris)
+            'barang.lihat', 'barang.buat', 'barang.ubah', 'barang.hapus',
+            'barang_masuk.lihat', 'barang_masuk.catat',
+            'barang_keluar.lihat', 'barang_keluar.catat',
+            'pengaturan_barang.lihat', 'pengaturan_barang.ubah',
         ] as $permName) {
             $p[$permName] = Permission::firstOrCreate(['name' => $permName]);
         }
@@ -102,6 +107,10 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['laporan.lihat'], $p['laporan.ekspor'],
             $p['pengguna.lihat'], $p['pengguna.buat'], $p['pengguna.ubah'],
             $p['prefix_registrasi.lihat'], $p['prefix_registrasi.buat'], $p['prefix_registrasi.ubah'],
+            $p['barang.lihat'], $p['barang.buat'], $p['barang.ubah'], $p['barang.hapus'],
+            $p['barang_masuk.lihat'], $p['barang_masuk.catat'],
+            $p['barang_keluar.lihat'], $p['barang_keluar.catat'],
+            $p['pengaturan_barang.lihat'], $p['pengaturan_barang.ubah'],
         ]);
 
         // sales: akuisisi pelanggan baru & tiket pemasangan
@@ -125,13 +134,17 @@ class RolesAndPermissionsSeeder extends Seeder
             $p['profil_bandwidth.lihat'], $p['profil_bandwidth.buat'], $p['profil_bandwidth.ubah'], $p['profil_bandwidth.hapus'],
             $p['paket_layanan.lihat'],
             $p['ticket.lihat'], $p['ticket.buat'], $p['ticket.ubah'], $p['ticket.hapus'], $p['ticket.assign'],
+            $p['barang.lihat'], $p['barang_masuk.lihat'], $p['barang_masuk.catat'],
+            $p['barang_keluar.lihat'], $p['barang_keluar.catat'],
         ]);
 
-        // teknisi: hanya tiket yang di-assign + lihat data yang relevan
+        // teknisi: hanya tiket yang di-assign + lihat data yang relevan + catat pemakaian barang di lapangan
         $teknisiRole->syncPermissions([
             $p['pelanggan.lihat'],
             $p['layanan_pelanggan.lihat'],
             $p['ticket.lihat'], $p['ticket.ubah'],
+            $p['barang.lihat'], $p['barang_masuk.lihat'], $p['barang_masuk.catat'],
+            $p['barang_keluar.lihat'], $p['barang_keluar.catat'],
         ]);
 
         // customer_service: sign-off tiket pemasangan sisi layanan pelanggan, tidak menyentuh jaringan

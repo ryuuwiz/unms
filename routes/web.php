@@ -1,12 +1,16 @@
 <?php
 
 use App\Http\Controllers\Api\MapMarkerController;
+use App\Http\Controllers\BarangLabelController;
 use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\PelangganMediaController;
 use App\Http\Controllers\Webhook\PaymentWebhookController;
 use App\Http\Controllers\Webhook\WhatsappWebhookController;
 use App\Http\Controllers\Webhook\XenditWebhookController;
+use App\Livewire\Barang;
+use App\Livewire\BarangKeluar;
+use App\Livewire\BarangMasuk;
 use App\Livewire\Invoice;
 use App\Livewire\IpPool;
 use App\Livewire\Laporan;
@@ -29,7 +33,10 @@ use App\Livewire\ProfilBandwidth;
 use App\Livewire\Promo;
 use App\Livewire\Roles;
 use App\Livewire\Router;
+use App\Livewire\Settings\PengaturanCabangBarang;
 use App\Livewire\Settings\PengaturanGateway;
+use App\Livewire\Settings\PengaturanJenisBarang;
+use App\Livewire\Settings\PengaturanKondisiBarang;
 use App\Livewire\Settings\PengaturanPrefixRegistrasi;
 use App\Livewire\Settings\WhatsappSettings;
 use App\Livewire\Ticket;
@@ -237,10 +244,50 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
+    // ─── Barang (Inventaris) ────────────────────────────────────────
+    Route::prefix('barang')->name('barang.')->group(function () {
+        Route::middleware('permission:barang.buat')->group(function () {
+            Route::get('/create', Barang\Create::class)->name('create');
+        });
+        Route::middleware('permission:barang.ubah')->group(function () {
+            Route::get('/{barang}/edit', Barang\Edit::class)->name('edit');
+        });
+        Route::middleware('permission:barang.lihat')->group(function () {
+            Route::get('/', Barang\Index::class)->name('index');
+            Route::get('/{barang}/label', [BarangLabelController::class, 'cetak'])->name('label');
+        });
+    });
+
+    Route::prefix('barang-masuk')->name('barang-masuk.')->group(function () {
+        Route::middleware('permission:barang_masuk.catat')->group(function () {
+            Route::get('/create', BarangMasuk\Create::class)->name('create');
+        });
+        Route::middleware('permission:barang_masuk.lihat')->group(function () {
+            Route::get('/', BarangMasuk\Index::class)->name('index');
+        });
+    });
+
+    Route::prefix('barang-keluar')->name('barang-keluar.')->group(function () {
+        Route::middleware('permission:barang_keluar.catat')->group(function () {
+            Route::get('/create', BarangKeluar\Create::class)->name('create');
+        });
+        Route::middleware('permission:barang_keluar.lihat')->group(function () {
+            Route::get('/', BarangKeluar\Index::class)->name('index');
+        });
+    });
+
+    // ─── Pengaturan Kode Barang (Jenis/Kondisi/Cabang) ─────────────
+    Route::middleware('permission:pengaturan_barang.lihat')->group(function () {
+        Route::get('/settings/jenis-barang', PengaturanJenisBarang::class)->name('settings.jenis-barang');
+        Route::get('/settings/kondisi-barang', PengaturanKondisiBarang::class)->name('settings.kondisi-barang');
+        Route::get('/settings/cabang-barang', PengaturanCabangBarang::class)->name('settings.cabang-barang');
+    });
+
     // ─── Laporan Keuangan ─────────────────────────────────────────
     Route::prefix('laporan')->name('laporan.')->group(function () {
         Route::middleware('permission:laporan.lihat')->group(function () {
             Route::get('/billing', Laporan\Billing::class)->name('billing');
+            Route::get('/data-pelanggan', Laporan\DataPelanggan::class)->name('data-pelanggan');
         });
     });
 

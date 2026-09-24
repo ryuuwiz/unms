@@ -14,6 +14,7 @@
             'overview' => ['icon' => 'user', 'label' => 'Informasi & Lokasi', 'count' => null],
             'subscriptions' => ['icon' => 'rss', 'label' => 'Layanan Internet', 'count' => $pelanggan->layanans->count() ?: null],
             'billing' => ['icon' => 'banknotes', 'label' => 'Tagihan & Pembayaran', 'count' => $invoicesAktif->count() ?: null, 'alert' => true],
+            'tickets' => ['icon' => 'ticket', 'label' => 'Histori Ticket', 'count' => $pelanggan->tickets()->count() ?: null],
             'dokumen' => ['icon' => 'document-duplicate', 'label' => 'Dokumen & Legalitas', 'count' => ($dokumens->count() + ($ktpMedia ? 1 : 0)) ?: null],
             'audit' => ['icon' => 'clock', 'label' => 'Riwayat Aktivitas', 'count' => $activityLogs->count() ?: null],
         ];
@@ -582,6 +583,17 @@
                 @endif
             </details>
         </div>
+    @endif
+
+    {{-- ═══════════ Tab: Histori Ticket ═══════════ --}}
+    @if ($activeTab === 'tickets')
+        @can('viewAny', App\Models\Ticket::class)
+            <livewire:pelanggan.ticket-history :pelanggan="$pelanggan" :key="'ticket-history-'.$pelanggan->id" />
+        @else
+            <div class="{{ $card }} p-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                Anda tidak memiliki akses untuk melihat histori tiket pelanggan ini.
+            </div>
+        @endcan
     @endif
 
     {{-- ═══════════ Tab 4: Dokumen & Legalitas ═══════════ --}}
