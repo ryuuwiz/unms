@@ -13,9 +13,12 @@ use App\Livewire\Barang\Pengaturan;
 use App\Models\JenisBarang;
 use App\Models\KategoriBarang;
 use App\Models\KondisiBarang;
+use App\Models\MutasiBarang;
 use App\Models\PengaturanPrefixRegistrasi;
 use App\Models\UnitBarang;
 use App\Models\User;
+use Database\Seeders\DevUsersSeeder;
+use Database\Seeders\InventarisSeeder;
 use Database\Seeders\PengaturanPrefixRegistrasiSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -189,4 +192,25 @@ test('kategori dan kondisi hanya bisa dihapus bila tidak dipakai', function () {
         ->and(KondisiBarang::find($kondisiKosong->id))->toBeNull();
 
     Livewire::actingAs($this->teknisi)->test(Pengaturan::class)->assertForbidden();
+});
+
+test('InventarisSeeder membuat data contoh yang konsisten dan aman dijalankan ulang', function () {
+    $this->seed(DevUsersSeeder::class);
+
+    $this->seed(InventarisSeeder::class);
+
+    $mutasiAwal = MutasiBarang::count();
+    $router = JenisBarang::where('kode', 'MDM-F670')->firstOrFail();
+
+    expect(JenisBarang::count())->toBeGreaterThanOrEqual(10)
+        // 5 saldo awal baru + 2 bekas + 10 pembelian - 3 keluar + 1 dikembalikan.
+        ->and($router->stok())->toBe(15)
+        ->and(UnitBarang::where('kode', 'MDM-NEW-BF-1')->exists())->toBeTrue()
+        ->and(UnitBarang::where('kode', 'like', 'MDM-PGT-%')->count())->toBe(2)
+        ->and(UnitBarang::where('kode', 'MDM-NEW-BF-1')->value('status'))->toBe(StatusUnitBarang::Dikembalikan)
+        ->and(JenisBarang::all()->every(fn (JenisBarang $j) => $j->stok() >= 0))->toBeTrue()
+        ->and(MutasiBarang::where('tipe', TipeMutasiBarang::Rusak)->whereNull('teknisi_id')->count())->toBe(1);
+
+    $this->seed(InventarisSeeder::class);
+    expect(MutasiBarang::count())->toBe($mutasiAwal);
 });

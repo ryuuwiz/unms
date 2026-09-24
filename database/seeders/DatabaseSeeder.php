@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             PengaturanPrefixRegistrasiSeeder::class,
             PelangganSeeder::class,
             TicketSeeder::class,
+            InventarisSeeder::class,
             PerusahaanSeeder::class,
             SysblasSeeder::class,
             WaTemplateSeeder::class,

@@ -82,13 +82,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=caddy:2-alpine /usr/bin/caddy /usr/local/bin/caddy
 
 # --- Ekstensi PHP --------------------------------------------------------------
-# REDIS_CLIENT=phpredis di .env.docker.example -> butuh ekstensi pecl asli;
-# predis/predis di composer.json cuma fallback client, bukan yang dipakai.
-RUN curl -sSLf \
-        https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions \
-        -o /usr/local/bin/install-php-extensions \
-    && chmod +x /usr/local/bin/install-php-extensions \
-    && install-php-extensions \
+# install-php-extensions disalin dari image resmi (registry, sama seperti base image) -- bukan
+# curl ke github.com/releases/latest -- supaya satu titik jaringan build hilang.
+COPY --from=ghcr.io/mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/
+
+# Ekstensi bawaan PHP (dikompilasi dari sumber di image, ~2 menit): layer sendiri agar tidak
+# ikut terulang bila langkah jaringan di bawah gagal.
+RUN install-php-extensions \
         bcmath \
         exif \
         gd \
@@ -97,9 +97,19 @@ RUN curl -sSLf \
         opcache \
         pcntl \
         pdo_mysql \
-        redis \
         sockets \
         zip
+
+# REDIS_CLIENT=phpredis di .env.docker.example -> butuh ekstensi pecl asli;
+# predis/predis di composer.json cuma fallback client, bukan yang dipakai.
+# Satu-satunya langkah yang mengunduh dari pecl.php.net: diulang bila DNS/jaringan builder sesaat
+# gagal ("Temporary failure in name resolution"), lalu diverifikasi terpasang.
+RUN for percobaan in 1 2 3 4 5; do \
+        install-php-extensions redis && break; \
+        echo "install redis gagal (percobaan ${percobaan}/5), ulangi 15 detik lagi..." >&2; \
+        sleep 15; \
+    done \
+    && php -m | grep -qx redis
 
 # --- Samakan UID/GID www-data (1000) di seluruh fleet -------------------------
 RUN usermod -u 1000 www-data && groupmod -g 1000 www-data
