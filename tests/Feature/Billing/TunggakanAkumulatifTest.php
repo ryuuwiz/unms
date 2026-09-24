@@ -148,7 +148,7 @@ test('membatalkan invoice penggabung mengembalikan invoice yang diserap menjadi 
         ->and($lama->fresh()->digabung_ke_invoice_id)->toBeNull();
 });
 
-test('invoice yang sudah digabung tidak dapat dibatalkan langsung', function () {
+test('invoice yang sudah digabung tetap dapat dibatalkan langsung tanpa kondisi', function () {
     $lama = ($this->buatInvoice)('2026-08', StatusInvoice::Kadaluarsa);
     $this->billing->generateInvoice($this->layanan, periodeTagihan: '2026-09');
 
@@ -160,5 +160,5 @@ test('invoice yang sudah digabung tidak dapat dibatalkan langsung', function () 
         ->set('deletingId', $lama->id)
         ->call('deleteInvoice');
 
-    expect($lama->fresh()->status)->toBe(StatusInvoice::Digabung);
+    expect($lama->fresh()->status)->toBe(StatusInvoice::Dibatalkan);
 });

@@ -61,13 +61,6 @@ class Index extends Component
             return;
         }
 
-        if ($invoice->isDigabung()) {
-            Flux::toast(variant: 'danger', text: 'Invoice yang sudah digabung tidak dapat dibatalkan; batalkan invoice penggabungnya.');
-            $this->deletingId = null;
-
-            return;
-        }
-
         // Tunggakan yang diserap invoice ini kembali menjadi invoice terbuka sendiri.
         $invoice->invoiceDigabung->each->update([
             'status' => StatusInvoice::Kadaluarsa,
@@ -88,15 +81,8 @@ class Index extends Component
 
     protected function batalkanInvoiceLunas(Invoice $invoice): void
     {
-        $this->authorize('voidLunas', $invoice);
-
-        $this->validate(
-            ['keteranganHapus' => ['required', 'string', 'min:5', 'max:500']],
-            ['keteranganHapus.required' => 'Alasan pembatalan invoice lunas wajib diisi.', 'keteranganHapus.min' => 'Alasan minimal 5 karakter.'],
-        );
-
         try {
-            app(BatalkanInvoiceLunasAction::class)->execute($invoice, auth()->user(), $this->keteranganHapus);
+            app(BatalkanInvoiceLunasAction::class)->execute($invoice, auth()->user(), $this->keteranganHapus ?: 'Dibatalkan oleh admin');
         } catch (\Exception $e) {
             Flux::toast(variant: 'danger', text: $e->getMessage(), duration: 10000);
             $this->deletingId = null;

@@ -132,7 +132,7 @@
                     Apakah Anda yakin ingin membatalkan tagihan invoice ini? Status tagihan akan diubah menjadi <strong>Dibatalkan</strong>.
                 </p>
             @endif
-            <flux:textarea wire:model="keteranganHapus" :label="$deletingLunas ? 'Alasan Pembatalan (Wajib)' : 'Alasan Pembatalan (Opsional)'" placeholder="Contoh: Kesalahan nominal atau permohonan pelanggan..." rows="2" />
+            <flux:textarea wire:model="keteranganHapus" label="Alasan Pembatalan (Opsional)" placeholder="Contoh: Kesalahan nominal atau permohonan pelanggan..." rows="2" />
             <flux:error name="keteranganHapus" />
             <div class="flex justify-end gap-2 pt-2">
                 <flux:button wire:click="$set('deletingId', null)" variant="subtle">Batal</flux:button>
