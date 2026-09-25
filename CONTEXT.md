@@ -279,6 +279,10 @@ _Avoid_: Ticket Pemasangan Dibuat Sebelum Data Registrasi Billing, Aktivasi Otom
 Diturunkan dari seluruh Data Registrasi Billing pelanggan: `Aktif` jika ada layanan Aktif; `Expired` jika tidak ada yang Aktif tetapi ada yang Suspend; `Off` jika semua Berhenti. Selama belum ada layanan Aktif, tahap pemasangan (`BelumTerpasang`, `ReqPemasangan`, `PemasanganSelesai`) dikendalikan tiket Pemasangan.
 _Avoid_: Status Manual per Layanan, Status Pelanggan Mengikuti Satu Layanan Saja
 
+**Riwayat Tiket**:
+Daftar semua Tiket milik satu Pelanggan, dilihat dari halaman detail Pelanggan, terbaru di atas. Hanya memuat tiket yang boleh dilihat user (teknisi: tiket yang ia pegang sebagai PIC; sales: tiket/pelanggan yang ia buat); tiket yang dihapus tidak ditampilkan. Berbeda dari Histori Tiket, yaitu jejak perubahan di dalam satu Tiket.
+_Avoid_: Histori Ticket Pelanggan (rancu dengan histori di dalam satu tiket)
+
 **Nomor Tiket**:
 Pengenal unik resmi untuk setiap tiket yang di-generate sistem secara terstandarisasi dengan format `TCK-YYYY-NNNNNN`.
 _Avoid_: Ticket ID Bebas, No Aduan, Kode Masalah

@@ -12,6 +12,7 @@ use App\Models\Pembayaran;
 use App\Models\ProfilBandwidth;
 use App\Models\Promo;
 use App\Models\Router;
+use App\Models\Ticket;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -436,4 +437,46 @@ test('handles invalid encrypted nik gracefully without throwing DecryptException
         ->test(Show::class, ['pelanggan' => $pelangganInvalid])
         ->assertOk()
         ->assertSee('—');
+});
+
+test('tab Riwayat Tiket menampilkan tiket pelanggan ini dengan filter, badge jumlah tiket terbuka', function () {
+    $terbuka = Ticket::factory()->gangguan()->create(['pelanggan_id' => $this->pelanggan->id]);
+    $selesai = Ticket::factory()->selesai()->create(['pelanggan_id' => $this->pelanggan->id]);
+    $dihapus = Ticket::factory()->create(['pelanggan_id' => $this->pelanggan->id]);
+    $dihapus->delete();
+    $milikLain = Ticket::factory()->create();
+
+    $komponen = Livewire::actingAs($this->superAdmin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->assertViewHas('jumlahTiketTerbuka', 1)
+        ->call('setTab', 'tiket')
+        ->assertSee('Riwayat Tiket')
+        ->assertSee($terbuka->nomor_ticket)
+        ->assertSee($selesai->nomor_ticket)
+        ->assertDontSee($dihapus->nomor_ticket)
+        ->assertDontSee($milikLain->nomor_ticket);
+
+    $komponen->set('filterStatusTiket', 'terbuka')
+        ->assertSee($terbuka->nomor_ticket)
+        ->assertDontSee($selesai->nomor_ticket);
+});
+
+test('Riwayat Tiket teknisi hanya berisi tiket yang ia pegang, dan tersembunyi tanpa izin ticket.lihat', function () {
+    $teknisi = User::factory()->create(['status' => UserStatus::Active])->assignRole('teknisi');
+    $miliknya = Ticket::factory()->create(['pelanggan_id' => $this->pelanggan->id, 'pic_id' => $teknisi->id]);
+    $lain = Ticket::factory()->create(['pelanggan_id' => $this->pelanggan->id]);
+
+    Livewire::actingAs($teknisi)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->call('setTab', 'tiket')
+        ->assertSee($miliknya->nomor_ticket)
+        ->assertDontSee($lain->nomor_ticket);
+
+    $tanpaIzin = User::factory()->create(['status' => UserStatus::Active])->givePermissionTo('pelanggan.lihat');
+
+    Livewire::actingAs($tanpaIzin)
+        ->test(Show::class, ['pelanggan' => $this->pelanggan])
+        ->call('setTab', 'tiket')
+        ->assertDontSee('Riwayat Tiket')
+        ->assertDontSee($miliknya->nomor_ticket);
 });

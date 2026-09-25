@@ -52,3 +52,20 @@ test('lonceng menampilkan notifikasi user dan bisa menandai dibaca', function ()
 
     expect($this->noc->unreadNotifications()->count())->toBe(0);
 });
+
+test('notifikasi baru diteruskan ke browser sekali, notifikasi lama saat halaman dibuka tidak', function () {
+    (new EnablePppoeAccountJob($this->layanan))->failed(new MaxAttemptsExceededException('Notifikasi lama'));
+    $this->travel(2)->seconds();
+
+    $lonceng = Livewire::actingAs($this->noc)->test(NotifikasiLonceng::class);
+    $lonceng->call('periksaBaru')->assertNotDispatched('notifikasi-browser');
+
+    (new EnablePppoeAccountJob($this->layanan))->failed(new MaxAttemptsExceededException('Router tidak merespons'));
+    $this->travel(2)->seconds();
+
+    $lonceng->call('periksaBaru')->assertDispatched('notifikasi-browser', fn (string $event, array $params) => count($params['notifikasi']) === 1
+        && str_contains($params['notifikasi'][0]['body'], 'Router tidak merespons'));
+
+    $this->travel(2)->seconds();
+    $lonceng->call('periksaBaru')->assertNotDispatched('notifikasi-browser');
+});

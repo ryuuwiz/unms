@@ -17,6 +17,9 @@
             'dokumen' => ['icon' => 'document-duplicate', 'label' => 'Dokumen & Legalitas', 'count' => ($dokumens->count() + ($ktpMedia ? 1 : 0)) ?: null],
             'audit' => ['icon' => 'clock', 'label' => 'Riwayat Aktivitas', 'count' => $activityLogs->count() ?: null],
         ];
+        if ($bisaLihatTiket) {
+            $tabs = array_merge(array_slice($tabs, 0, 4, true), ['tiket' => ['icon' => 'ticket', 'label' => 'Riwayat Tiket', 'count' => $jumlahTiketTerbuka ?: null, 'alert' => true]], array_slice($tabs, 4, null, true));
+        }
     @endphp
 
     {{-- Header --}}
@@ -696,6 +699,63 @@
                 </section>
             </div>
         </div>
+    @endif
+
+    {{-- ═══════════ Tab: Riwayat Tiket ═══════════ --}}
+    @if ($activeTab === 'tiket' && $tickets)
+        <section class="space-y-3">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div class="grid grid-cols-2 gap-3 sm:flex">
+                    <flux:select wire:model.live="filterStatusTiket" label="Status" size="sm">
+                        <flux:select.option value="">Semua</flux:select.option>
+                        <flux:select.option value="terbuka">Terbuka</flux:select.option>
+                        <flux:select.option value="ditutup">Selesai / Batal</flux:select.option>
+                    </flux:select>
+                    <flux:select wire:model.live="filterJenisTiket" label="Jenis" size="sm">
+                        <flux:select.option value="">Semua</flux:select.option>
+                        @foreach (App\Enums\Ticket\JenisTicket::cases() as $jenis)
+                            <flux:select.option value="{{ $jenis->value }}">{{ $jenis->label() }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </div>
+                @can('create', App\Models\Ticket::class)
+                    <flux:button :href="route('ticket.create', ['pelanggan_id' => $pelanggan->id])" wire:navigate variant="primary" icon="plus">Buat Tiket</flux:button>
+                @endcan
+            </div>
+
+            @if ($tickets->isNotEmpty())
+                <ul class="{{ $card }} divide-y divide-zinc-100 dark:divide-zinc-800">
+                    @foreach ($tickets as $tiket)
+                        <li wire:key="tiket-{{ $tiket->id }}">
+                            <a href="{{ route('ticket.show', $tiket) }}" wire:navigate class="flex flex-col gap-2 p-4 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between sm:p-6 dark:hover:bg-zinc-800/60">
+                                <div class="min-w-0 space-y-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="font-mono text-base font-semibold text-primary-600 dark:text-primary-400">{{ $tiket->nomor_ticket }}</span>
+                                        <flux:badge size="sm" :color="$tiket->jenis->color()">{{ $tiket->jenis->label() }}</flux:badge>
+                                        <flux:badge size="sm" :color="$tiket->status->color()">{{ $tiket->status->label() }}</flux:badge>
+                                        <flux:badge size="sm" :color="$tiket->prioritas->color()">{{ $tiket->prioritas->label() }}</flux:badge>
+                                    </div>
+                                    <p class="text-base text-zinc-900 dark:text-zinc-100">
+                                        {{ $tiket->layananPelanggan ? ($tiket->layananPelanggan->site_id ?? '—') . ' · ' . ($tiket->layananPelanggan->paketLayanan?->nama_paket ?? 'Layanan') : 'Tanpa layanan terkait' }}
+                                    </p>
+                                    <p class="text-sm text-zinc-500 dark:text-zinc-400">PIC {{ $tiket->pic?->name ?? 'Belum ditugaskan' }}</p>
+                                </div>
+                                <div class="shrink-0 text-sm text-zinc-500 sm:text-right dark:text-zinc-400">
+                                    <div>Dibuat {{ $tiket->created_at?->translatedFormat('d M Y, H:i') }}</div>
+                                    <div>Diperbarui {{ $tiket->updated_at?->translatedFormat('d M Y, H:i') }}</div>
+                                </div>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+                <div>{{ $tickets->links() }}</div>
+            @else
+                <div class="rounded-xl border-2 border-dashed border-zinc-200 p-8 text-center dark:border-zinc-800">
+                    <flux:icon name="ticket" class="mx-auto size-8 text-zinc-400" />
+                    <p class="mt-2 text-base font-medium text-zinc-700 dark:text-zinc-300">Belum ada tiket untuk pelanggan ini.</p>
+                </div>
+            @endif
+        </section>
     @endif
 
     {{-- ═══════════ Tab 5: Riwayat Aktivitas (timeline) ═══════════ --}}

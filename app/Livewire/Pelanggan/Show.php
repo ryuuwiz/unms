@@ -3,6 +3,8 @@
 namespace App\Livewire\Pelanggan;
 
 use App\Enums\StatusInvoice;
+use App\Enums\Ticket\JenisTicket;
+use App\Enums\Ticket\StatusTicket;
 use App\Livewire\Concerns\HasSearchableOptions;
 use App\Models\AkunPelanggan;
 use App\Models\Invoice;
@@ -11,6 +13,7 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\Pembayaran;
 use App\Models\Promo;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Billing\BillingService;
 use App\Services\CustomerDocumentService;
@@ -26,13 +29,14 @@ use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use Livewire\WithPagination;
 use Spatie\Activitylog\Models\Activity;
 
 #[Layout('layouts.app')]
 #[Title('Detail Pelanggan')]
 class Show extends Component
 {
-    use HasSearchableOptions, WithFileUploads;
+    use HasSearchableOptions, WithFileUploads, WithPagination;
 
     public int $pelangganId;
 
@@ -40,6 +44,13 @@ class Show extends Component
     public string $activeTab = 'overview';
 
     public bool $showNik = false;
+
+    /** Filter Riwayat Tiket: '' (semua), 'terbuka', 'ditutup' (Selesai/Batal). */
+    #[Url(as: 'status_tiket')]
+    public string $filterStatusTiket = '';
+
+    #[Url(as: 'jenis_tiket')]
+    public string $filterJenisTiket = '';
 
     /**
      * Modal states & properties
@@ -117,6 +128,16 @@ class Show extends Component
     public function setTab(string $tab): void
     {
         $this->activeTab = $tab;
+    }
+
+    public function updatedFilterStatusTiket(): void
+    {
+        $this->resetPage('tiket');
+    }
+
+    public function updatedFilterJenisTiket(): void
+    {
+        $this->resetPage('tiket');
     }
 
     public function toggleShowNik(): void
@@ -641,6 +662,29 @@ class Show extends Component
 
         $promosAktif = Promo::query()->aktif()->get();
 
+        // Riwayat Tiket: tersembunyi tanpa izin ticket.lihat; isinya dibatasi seperti TicketPolicy::view().
+        $user = Auth::guard('web')->user();
+        $bisaLihatTiket = $user instanceof User && $user->can('viewAny', Ticket::class);
+        $jumlahTiketTerbuka = 0;
+        $tickets = null;
+
+        if ($bisaLihatTiket) {
+            $ditutup = [StatusTicket::Selesai, StatusTicket::Batal];
+            $tiketTerlihat = fn () => Ticket::query()->where('pelanggan_id', $this->pelangganId)->terlihatOleh($user);
+
+            $jumlahTiketTerbuka = $tiketTerlihat()->whereNotIn('status', $ditutup)->count();
+
+            if ($this->activeTab === 'tiket') {
+                $tickets = $tiketTerlihat()
+                    ->when($this->filterStatusTiket === 'terbuka', fn ($q) => $q->whereNotIn('status', $ditutup))
+                    ->when($this->filterStatusTiket === 'ditutup', fn ($q) => $q->whereIn('status', $ditutup))
+                    ->when(JenisTicket::tryFrom($this->filterJenisTiket), fn ($q, JenisTicket $jenis) => $q->where('jenis', $jenis))
+                    ->with(['layananPelanggan.paketLayanan', 'pic'])
+                    ->orderByDesc('id')
+                    ->paginate(10, pageName: 'tiket');
+            }
+        }
+
         return view('livewire.pelanggan.show', [
             'pelanggan' => $pelanggan,
             'activityLogs' => $activityLogs,
@@ -653,6 +697,9 @@ class Show extends Component
             'selectedInvoice' => $selectedInvoice,
             'selectedLayananForModal' => $selectedLayananForModal,
             'promosAktif' => $promosAktif,
+            'bisaLihatTiket' => $bisaLihatTiket,
+            'jumlahTiketTerbuka' => $jumlahTiketTerbuka,
+            'tickets' => $tickets,
         ]);
     }
 }
