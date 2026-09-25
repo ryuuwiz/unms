@@ -150,33 +150,30 @@ test('invoice yang dilunasi lewat payment gateway tidak dapat dibatalkan', funct
     expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas);
 });
 
-test('UI: hanya pemegang izin void_lunas yang bisa, dan alasan wajib', function () {
-    $layanan = buatLayananBerexpired($this->siklus->sesuaikanKeHariJatuhTempo(now()->addMonths(2)));
-    $invoice = $this->billing->generateInvoice($layanan, periodeTagihan: now()->addMonths(2)->format('Y-m'));
-    lunasiManual($invoice);
+test('UI: admin dan super_admin bisa hapus invoice lunas tanpa izin void_lunas terpisah dan tanpa alasan wajib', function () {
+    $layananAdmin = buatLayananBerexpired($this->siklus->sesuaikanKeHariJatuhTempo(now()->addMonths(2)));
+    $invoiceAdmin = $this->billing->generateInvoice($layananAdmin, periodeTagihan: now()->addMonths(2)->format('Y-m'));
+    lunasiManual($invoiceAdmin);
 
     Livewire::actingAs($this->admin)
         ->test(Index::class)
-        ->set('deletingId', $invoice->id)
-        ->set('keteranganHapus', 'Salah catat pembayaran')
-        ->call('deleteInvoice')
-        ->assertForbidden();
-
-    Livewire::actingAs($this->superAdmin)
-        ->test(Index::class)
-        ->set('deletingId', $invoice->id)
+        ->set('deletingId', $invoiceAdmin->id)
         ->set('keteranganHapus', '')
         ->call('deleteInvoice')
-        ->assertHasErrors(['keteranganHapus' => 'required']);
+        ->assertHasNoErrors();
 
-    expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas);
+    expect(Invoice::withTrashed()->find($invoiceAdmin->id)->status)->toBe(StatusInvoice::Dibatalkan);
+
+    $layananSuperAdmin = buatLayananBerexpired($this->siklus->sesuaikanKeHariJatuhTempo(now()->addMonths(2)));
+    $invoiceSuperAdmin = $this->billing->generateInvoice($layananSuperAdmin, periodeTagihan: now()->addMonths(2)->format('Y-m'));
+    lunasiManual($invoiceSuperAdmin);
 
     Livewire::actingAs($this->superAdmin)
         ->test(Index::class)
-        ->set('deletingId', $invoice->id)
+        ->set('deletingId', $invoiceSuperAdmin->id)
         ->set('keteranganHapus', 'Salah catat pembayaran')
         ->call('deleteInvoice')
         ->assertHasNoErrors();
 
-    expect(Invoice::withTrashed()->find($invoice->id)->status)->toBe(StatusInvoice::Dibatalkan);
+    expect(Invoice::withTrashed()->find($invoiceSuperAdmin->id)->status)->toBe(StatusInvoice::Dibatalkan);
 });
