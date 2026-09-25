@@ -68,6 +68,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'payment_gateway.lihat', 'payment_gateway.buat', 'payment_gateway.ubah', 'payment_gateway.hapus',
             // Media Library (termasuk Storage & S3 Monitoring)
             'media_library.lihat', 'media_library.hapus', 'media_library.unggah',
+            // Log Tugas Terjadwal
+            'tugas_terjadwal.lihat',
         ] as $permName) {
             Permission::firstOrCreate(['name' => $permName]);
         }
@@ -135,6 +137,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'paket_layanan.lihat',
             'ticket.lihat', 'ticket.buat', 'ticket.ubah', 'ticket.hapus', 'ticket.assign',
             'barang.lihat', 'barang.buat', 'barang.ubah', 'barang.hapus', 'barang.masuk', 'barang.keluar',
+            'tugas_terjadwal.lihat',
         ]);
 
         // teknisi: hanya tiket yang di-assign + lihat data yang relevan

@@ -247,6 +247,10 @@ _Avoid_: Portal Pelanggan Saja, Halaman Bayar Terpisah, Custom Checkout Form, Ka
 Catatan audit trail penerimaan callback HTTP dari payment gateway untuk mencatat event id, payload mentah, status verifikasi signature/token, dan proses eksekusi database.
 _Avoid_: Callback History, Webhook Record, Xendit Webhook Saja
 
+**Log Tugas Terjadwal**:
+Catatan satu kali eksekusi tugas terjadwal sistem (perintah berkala seperti pembuatan invoice harian, cek isolir, rekonsiliasi pembayaran, ping router): nama perintah, waktu mulai dan selesai, durasi, status (Berhasil, Gagal, Dilewati), dan output error bila gagal. Tugas berfrekuensi tinggi (tiap menit atau lebih sering) hanya dicatat saat gagal. Berbeda dari job antrean Horizon, yang merupakan unit kerja asinkron hasil dispatch, bukan eksekusi jadwal.
+_Avoid_: Cron Log, Scheduler History, Job Log
+
 **Koneksi Payment Gateway**:
 Entitas konfigurasi akun penyedia gateway pembayaran (seperti Xendit, iPaymu) yang memuat kredensial terenkripsi di database, status aktif, mode sandbox, dan penanda default gateway.
 _Avoid_: Akun Gateway Bebas, Setting Gateway Statis, Env Gateway

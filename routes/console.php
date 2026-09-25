@@ -2,9 +2,12 @@
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('invoice:generate')->dailyAt('01:00')->onOneServer();
+Schedule::command('invoice:generate')->dailyAt('01:00')->onOneServer()->sentryMonitor();
 Schedule::command('invoice:cek-kadaluarsa')->dailyAt('02:00')->onOneServer();
-Schedule::command('layanan:cek-isolir')->dailyAt('02:30')->onOneServer();
+Schedule::command('layanan:cek-isolir')->dailyAt('02:30')->onOneServer()->sentryMonitor();
+
+// Tugas billing kritis memakai sentryMonitor(): Sentry Crons memberi alert saat tugas tidak jalan sama
+// sekali (scheduler mati), hal yang tidak bisa dideteksi Log Tugas Terjadwal dari dalam aplikasi.
 
 // Tenggat Pembayaran Invoice Pertama (H+1): dicek tiap jam (bukan ikut jadwal harian
 // di atas) supaya isolir benar-benar terjadi mendekati 1x24 jam, bukan sampai ~2 hari.
@@ -40,7 +43,8 @@ Schedule::command('xendit:cek-va-expired')->hourly()->onOneServer();
 Schedule::command('pembayaran:rekonsiliasi')
     ->everyFifteenMinutes()
     ->withoutOverlapping(15)
-    ->onOneServer();
+    ->onOneServer()
+    ->sentryMonitor();
 
 // Ping router tiap 10 dtk: online<->offline terdeteksi < 10 dtk dan memicu notifikasi NOC + recovery.
 // Tugas sub-menit dijalankan berulang oleh schedule:run per menit (docker/supervisor.d/schedule.conf).
@@ -61,3 +65,12 @@ Schedule::command('horizon:snapshot')->everyFiveMinutes()->onOneServer();
 // in 15 minutes -- catches a wedged worker that a plain HTTP HEALTHCHECK on
 // the web process can't see (Horizon shares the container with Caddy/PHP-FPM).
 Schedule::command('horizon:monitor-health')->everyFiveMinutes()->onOneServer();
+
+// Hapus Log Tugas Terjadwal lebih dari 30 hari (model Prunable).
+Schedule::command('model:prune')->daily()->onOneServer();
+
+// Simpan output setiap tugas ke storage/logs agar CatatLogTugasTerjadwal bisa melampirkan
+// ekor output saat tugas gagal. Harus tetap di baris paling akhir file ini.
+foreach (Schedule::events() as $event) {
+    $event->storeOutput();
+}

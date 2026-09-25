@@ -39,6 +39,7 @@ use App\Livewire\Settings\PengaturanPrefixRegistrasi;
 use App\Livewire\Settings\TemplateDeskripsiTagihan;
 use App\Livewire\Settings\WhatsappSettings;
 use App\Livewire\Ticket;
+use App\Livewire\TugasTerjadwal;
 use App\Livewire\Users;
 use App\Livewire\Wilayah;
 use App\Models\Perusahaan;
@@ -206,6 +207,11 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('permission:media_library.lihat')->group(function () {
             Route::get('/', MediaLibrary\Index::class)->name('index');
         });
+    });
+
+    // ─── Log Tugas Terjadwal ──────────────────────────────────────
+    Route::middleware('permission:tugas_terjadwal.lihat')->group(function () {
+        Route::get('/tugas-terjadwal', TugasTerjadwal\Index::class)->name('tugas-terjadwal.index');
     });
 
     // ─── SysBlast Gateway, Antrian & Template Pesan ────────────────

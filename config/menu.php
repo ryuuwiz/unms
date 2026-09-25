@@ -354,6 +354,13 @@ return [
                     'active' => 'media-library.*',
                     'permission' => 'media_library.lihat',
                 ],
+                [
+                    'title' => 'Log Tugas Terjadwal',
+                    'icon' => 'clock',
+                    'route' => 'tugas-terjadwal.index',
+                    'active' => 'tugas-terjadwal.*',
+                    'permission' => 'tugas_terjadwal.lihat',
+                ],
             ],
         ],
     ],
