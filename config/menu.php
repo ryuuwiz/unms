@@ -147,6 +147,13 @@ return [
                     'permission' => 'promo.lihat',
                 ],
                 [
+                    'title' => 'RAB Kantor',
+                    'icon' => 'clipboard-document-list',
+                    'route' => 'rab.index',
+                    'active' => 'rab.*',
+                    'permission' => 'rab.lihat',
+                ],
+                [
                     'title' => 'Laporan Keuangan',
                     'icon' => 'chart-bar',
                     'route' => 'laporan.billing',

@@ -5,6 +5,7 @@ use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\LabelBarangPdfController;
 use App\Http\Controllers\PelangganMediaController;
+use App\Http\Controllers\RabPdfController;
 use App\Http\Controllers\Webhook\PaymentWebhookController;
 use App\Http\Controllers\Webhook\WhatsappWebhookController;
 use App\Http\Controllers\Webhook\XenditWebhookController;
@@ -30,6 +31,7 @@ use App\Livewire\Portal\Invoice\Index;
 use App\Livewire\Portal\Invoice\Show;
 use App\Livewire\ProfilBandwidth;
 use App\Livewire\Promo;
+use App\Livewire\Rab;
 use App\Livewire\Roles;
 use App\Livewire\Router;
 use App\Livewire\Settings\PengaturanGateway;
@@ -241,6 +243,12 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('permission:promo.lihat')->group(function () {
             Route::get('/', Promo\Index::class)->name('index');
         });
+    });
+
+    // ─── RAB Kantor ───────────────────────────────────────────────
+    Route::prefix('rab')->name('rab.')->middleware('permission:rab.lihat')->group(function () {
+        Route::get('/', Rab\Index::class)->name('index');
+        Route::get('/cetak', RabPdfController::class)->name('cetak');
     });
 
     // ─── Laporan Keuangan ─────────────────────────────────────────

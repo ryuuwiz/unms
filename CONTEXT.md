@@ -609,3 +609,19 @@ _Avoid_: Stok Awal Diinput Tiap Bulan, Stok Tersimpan Terpisah dari Mutasi
 **Impor Inventaris**:
 Migrasi satu kali spreadsheet gudang lama saat sistem mulai dipakai: satu berkas Excel berisi 3 sheet (Data Barang, Barang Masuk, Barang Keluar) yang di-parse ke tabel pratinjau lalu disimpan sekaligus (semua-atau-tidak, satu transaksi) hanya bila tanpa galat. Sheet Data Barang membuat/memperbarui Jenis Barang; STOK AWAL-nya menjadi mutasi Saldo Awal, sedangkan MASUK/KELUAR/STOK AKHIR hanya dipakai sebagai pemeriksaan silang (selisih = peringatan). Kategori/satuan/mode lacak dari kolom opsional; tanpa kolom KATEGORI, kategori diambil dari prefix kode bila dikenal, selain itu masuk kategori `UMUM`. Berkas gudang asli diterima apa adanya: nama sheet tanpa beda huruf besar/kecil, baris judul di atas header, rumus dibaca nilai hasil hitungnya, kode barang boleh berisi spasi dan `: / .`. Baris barang dilacak di sheet Masuk/Keluar memakai kode unit asli (mis. `MDM-NEW-BF-240`) yang dipertahankan, dan penghitung kode per prefix dimajukan agar kode baru tidak bentrok. Kolom TEKNIS/TIM TEKNIS: nama pertama menjadi teknisi penerima (dicocokkan ke user teknisi, atau dipetakan manual di pratinjau), tim lengkap disalin ke keterangan; KETERANGAN berisi EROR/CACAT/RUSAK dicatat sebagai barang Rusak (boleh tanpa teknisi, mis. "All"). Barang Masuk tanpa tanggal jatuh di awal periode berkas (judul "PERIODE …" atau bulan paling awal). Sheet Masuk punya kolom opsional TIPE (`SALDO AWAL`/`PEMBELIAN`/`PENGEMBALIAN`); stok awal barang dilacak wajib lewat baris Saldo Awal berkode unit, bukan angka STOK AWAL. Kondisi & brand unit diurai dari segmen kodenya. Tanggal berbentuk bulan saja (`09/2026`) jatuh pada hari terakhir bulan itu. Validasi memutar ulang mutasi per barang secara kronologis (stok tidak boleh negatif). Ditolak bila sudah ada mutasi apa pun; pengulangan hanya lewat perintah reset inventaris yang disengaja.
 _Avoid_: Impor Berulang yang Menggandakan Stok, Menyimpan Baris Valid Saja, Mengganti Kode Unit Lama Saat Impor
+
+**RAB Kantor**:
+Rancangan Anggaran Belanja internal kantor per bulan: daftar rencana pengeluaran yang dicatat staf dan dilihat per bulan. Hanya rencana, tanpa persetujuan dan tanpa pencatatan realisasi. Bisa disalin dari bulan sebelumnya ke bulan yang masih kosong.
+_Avoid_: Anggaran, Budget, RAB Proyek
+
+**Item RAB**:
+Satu baris rencana dalam RAB Kantor: Uraian, Qty, Harga satuan, dan Divisi RAB. Jumlah = Qty × Harga; total bulan = jumlah semua Item RAB bulan itu.
+_Avoid_: Baris Anggaran, Pos Belanja
+
+**Divisi RAB**:
+Penanggung jawab sebuah Item RAB: salah satu divisi dari Divisi Tiket **atau** teks bebas (nama orang atau beberapa orang). Hanya label, tidak menugaskan atau berhubungan dengan tiket.
+_Avoid_: Divisi Tiket (untuk konteks RAB)
+
+**Bulan Terkunci**:
+Bulan RAB Kantor sebelum bulan berjalan. Item RAB di bulan itu tidak bisa ditambah, diubah, dihapus, atau diisi lewat salin, kecuali oleh staf yang diberi izin buka kunci. Tetap bisa dilihat dan diekspor.
+_Avoid_: Tutup Buku, Arsip

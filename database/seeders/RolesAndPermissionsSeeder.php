@@ -55,6 +55,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'laporan.lihat', 'laporan.ekspor',
             // Inventaris Barang (ADR-0057)
             'barang.lihat', 'barang.buat', 'barang.ubah', 'barang.hapus', 'barang.masuk', 'barang.keluar',
+            // RAB Kantor
+            'rab.lihat', 'rab.kelola', 'rab.buka_kunci',
             // Pengguna & Peran
             'pengguna.lihat', 'pengguna.buat', 'pengguna.ubah', 'pengguna.hapus',
             'peran.lihat', 'peran.buat', 'peran.ubah', 'peran.hapus',
@@ -104,6 +106,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'ticket.lihat', 'ticket.buat', 'ticket.ubah', 'ticket.hapus', 'ticket.assign',
             'laporan.lihat', 'laporan.ekspor',
             'barang.lihat', 'barang.buat', 'barang.ubah', 'barang.hapus', 'barang.masuk', 'barang.keluar',
+            'rab.lihat', 'rab.kelola',
             'pengguna.lihat', 'pengguna.buat', 'pengguna.ubah',
             'prefix_registrasi.lihat', 'prefix_registrasi.buat', 'prefix_registrasi.ubah',
         ]);
