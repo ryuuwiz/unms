@@ -24,7 +24,7 @@ use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
+use App\Notifications\MikrotikJobNotification;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Support\Facades\Artisan;
@@ -184,7 +184,7 @@ test('batas hapus tercapai memberi tahu NOC hanya sekali per router per jam', fu
     (new RecoverPppRouterJob($router))->handle($service);
     (new RecoverPppRouterJob($router))->handle($service);
 
-    Notification::assertSentToTimes($noc, MikrotikJobFailedNotification::class, 1);
+    Notification::assertSentToTimes($noc, MikrotikJobNotification::class, 1);
     expect(MikrotikJobLog::where('router_id', $router->id)->where('status', MikrotikJobStatus::Failed)->count())->toBe(2);
 });
 

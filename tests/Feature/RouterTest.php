@@ -3,6 +3,8 @@
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\StatusRouter;
+use App\Jobs\Mikrotik\CleanupPppSecretOnOldRouterJob;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Livewire\Router\Create;
 use App\Livewire\Router\Edit;
 use App\Livewire\Router\Index;
@@ -18,6 +20,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -237,6 +240,7 @@ test('can delete router with unused ip pools and job logs from index', function 
 });
 
 test('can delete router and move its layanans to another router', function () {
+    Queue::fake([CleanupPppSecretOnOldRouterJob::class, ProvisionPppoeAccountJob::class]);
     $routerA = Router::factory()->create(['nama_router' => 'ROUTER_A']);
     $routerB = Router::factory()->create(['nama_router' => 'ROUTER_B']);
 
@@ -263,6 +267,9 @@ test('can delete router and move its layanans to another router', function () {
     expect(Router::find($routerA->id))->toBeNull()
         ->and($layanan->fresh()->router_id)->toBe($routerB->id)
         ->and($layanan->fresh()->ip_pool_id)->toBe($poolB->id);
+
+    // Secret di router lama dibersihkan lewat antrean.
+    Queue::assertPushed(CleanupPppSecretOnOldRouterJob::class, fn (CleanupPppSecretOnOldRouterJob $job) => $job->oldRouterId === $routerA->id);
 });
 
 test('can delete router and force delete its layanans with confirmation', function () {

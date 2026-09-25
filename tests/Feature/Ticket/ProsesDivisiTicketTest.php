@@ -121,6 +121,11 @@ test('NOC memilih router baru ikut menyimpan IP Pool sehingga provisi menerima l
         ->atLeast()->once()
         ->withArgs(fn (Router $router, LayananPelanggan $layanan) => $router->is($routerBaru) && $layanan->ipPool?->is($poolBaru));
     $mockService->shouldReceive('removeActiveSession')->andReturn(true);
+    // Secret lama di router asal dibersihkan (CleanupPppSecretOnOldRouterJob).
+    $mockService->shouldReceive('deletePppoeSecret')
+        ->once()
+        ->withArgs(fn (Router $router) => $router->is($this->router))
+        ->andReturn(true);
 
     Livewire::actingAs($this->noc)
         ->test(Show::class, ['ticket' => $this->ticket])

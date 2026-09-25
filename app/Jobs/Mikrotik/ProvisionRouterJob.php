@@ -4,7 +4,7 @@ namespace App\Jobs\Mikrotik;
 
 use App\Models\Router;
 use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
+use App\Notifications\MikrotikJobNotification;
 use App\Services\Mikrotik\MikrotikService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -71,7 +71,7 @@ class ProvisionRouterJob implements ShouldQueue
 
         if ($log) {
             foreach ($recipients as $recipient) {
-                $recipient->notify(new MikrotikJobFailedNotification($log));
+                $recipient->notify(new MikrotikJobNotification($log));
             }
         }
     }

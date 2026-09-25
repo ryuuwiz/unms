@@ -11,6 +11,7 @@ use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Cache;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Cache;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
     $this->router = Router::factory()->online()->create();
     $this->pelanggan = Pelanggan::factory()->create();
     $this->profil = ProfilBandwidth::factory()->create();
@@ -29,7 +31,7 @@ beforeEach(function () {
     ]);
 });
 
-it('locks every mikrotik-high job class under the same shared per-router key', function () {
+it('locks every per-customer job class under one shared per-router key, separate from reconciliation', function () {
     $jobs = [
         new ProvisionPppoeAccountJob($this->layanan),
         new EnablePppoeAccountJob($this->layanan),
@@ -45,7 +47,8 @@ it('locks every mikrotik-high job class under the same shared per-router key', f
 
         expect($middleware)->toHaveCount(1);
         expect($middleware[0])->toBeInstanceOf(WithoutOverlapping::class);
-        expect($middleware[0]->key)->toBe("mikrotik-router-{$this->router->id}");
+        // ADR-0059: bukan mikrotik-router-{id} (kunci rekonsiliasi router-wide).
+        expect($middleware[0]->key)->toBe("mikrotik-layanan-router-{$this->router->id}");
         expect($middleware[0]->shareKey)->toBeTrue();
 
         $lockKeys[] = $middleware[0]->getLockKey($job);
@@ -56,8 +59,8 @@ it('locks every mikrotik-high job class under the same shared per-router key', f
     expect(array_unique($lockKeys))->toHaveCount(1);
 });
 
-it('releases a second mikrotik-high job back to the queue when the router lock is held', function () {
-    $lockKey = 'laravel-queue-overlap:mikrotik-router-'.$this->router->id;
+it('releases a second per-customer job back to the queue when another per-customer job holds the router lock', function () {
+    $lockKey = 'laravel-queue-overlap:mikrotik-layanan-router-'.$this->router->id;
     $lock = Cache::lock($lockKey, 30);
     expect($lock->get())->toBeTrue();
 
@@ -80,4 +83,27 @@ it('runs the mikrotik-high job once the shared router lock is free', function ()
     $this->app->instance(MikrotikService::class, $mockService);
 
     ProvisionPppoeAccountJob::dispatch($this->layanan);
+});
+
+it('does not wait behind router-wide reconciliation holding mikrotik-router-{id}', function () {
+    $lock = Cache::lock('laravel-queue-overlap:mikrotik-router-'.$this->router->id, 600);
+    expect($lock->get())->toBeTrue();
+
+    $mockService = Mockery::mock(MikrotikService::class);
+    $mockService->shouldReceive('createOrUpdatePppoeSecret')
+        ->once()
+        ->andReturn(['status' => 'success', 'action' => 'created']);
+    $this->app->instance(MikrotikService::class, $mockService);
+
+    ProvisionPppoeAccountJob::dispatch($this->layanan);
+
+    $lock->release();
+});
+
+it('bounds retries by time, not by lock-contention releases', function () {
+    $job = new ProvisionPppoeAccountJob($this->layanan);
+
+    expect($job->retryUntil()->getTimestamp())->toBeGreaterThan(now()->addMinutes(9)->getTimestamp())
+        ->and($job->maxExceptions)->toBe(5)
+        ->and(property_exists($job, 'tries'))->toBeFalse();
 });

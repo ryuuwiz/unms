@@ -110,12 +110,11 @@ class WhatsappService
         ]);
 
         if ($isValidPhone) {
-            // Pengiriman instan: gunakan dispatchAfterResponse jika di web context, atau dispatch langsung
-            if (! app()->runningInConsole() && (! $tanggalTarget || $tanggalTarget->isPast() || $tanggalTarget->isToday())) {
-                KirimWaBlastJob::dispatchAfterResponse($antrian);
-            } else {
-                KirimWaBlastJob::dispatch($antrian);
-            }
+            // Selalu lewat worker: dispatchAfterResponse menjalankan job secara sinkron, sehingga
+            // release() karena Jeda Antar-Pesan membuang job (baru disapu wa:proses-antrian 5 menit kemudian).
+            KirimWaBlastJob::dispatch($antrian);
+        } else {
+            AntrianWaBlast::catatGagal($antrian, (string) $antrian->pesan_error);
         }
 
         return $antrian;

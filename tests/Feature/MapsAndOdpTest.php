@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Pelanggan\Create;
 use App\Models\Odp;
 use App\Models\User;
 use App\Services\Geospatial\GeoJsonParser;
@@ -171,4 +172,19 @@ test('odp scope terdekat finds nearest odps with straight distance', function ()
 
     expect($nearest)->not->toBeEmpty();
     expect($nearest->first()->nama_odp)->toBe('ODP-DEKAT');
+});
+
+test('saran ODP terdekat pelanggan hanya dalam toleransi 150 meter', function () {
+    // 0,0009 derajat lintang ≈ 100 m; 0,0018 ≈ 200 m (dulu masih masuk radius 300 m).
+    $this->user->givePermissionTo(Permission::firstOrCreate(['name' => 'pelanggan.buat']));
+    Odp::create(['nama_odp' => 'ODP-100M', 'kapasitas_port' => 8, 'latitude' => -6.2009, 'longitude' => 106.8400]);
+    Odp::create(['nama_odp' => 'ODP-200M', 'kapasitas_port' => 8, 'latitude' => -6.2018, 'longitude' => 106.8400]);
+
+    $komponen = Livewire\Livewire::actingAs($this->user)
+        ->test(Create::class)
+        ->set('latitude', '-6.2000')
+        ->set('longitude', '106.8400')
+        ->call('cariOdpTerdekat');
+
+    expect(collect($komponen->get('odpTerdekat'))->pluck('nama_odp')->all())->toBe(['ODP-100M']);
 });

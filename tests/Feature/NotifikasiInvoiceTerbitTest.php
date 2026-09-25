@@ -11,6 +11,7 @@ use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
+use App\Models\User;
 use App\Models\WaTemplate;
 use App\Notifications\InvoiceTerbitNotification;
 use App\Services\Billing\BillingService;
@@ -101,6 +102,15 @@ test('pengiriman ditunda ke 08:30 WIB di luar jendela siang dan langsung di dala
 
     Carbon::setTestNow(Carbon::create(2026, 9, 24, 21, 0, 0, 'Asia/Jakarta'));
     expect($listener->withDelay($event)->format('Y-m-d H:i'))->toBe('2026-09-25 08:30');
+
+    Carbon::setTestNow();
+});
+
+test('invoice buatan admin (tagihan pertama, manual) langsung dikirim walau malam hari', function () {
+    $invoice = Invoice::factory()->create(['pelanggan_id' => $this->pelanggan->id, 'dibuat_oleh' => User::factory()->create()->id]);
+
+    Carbon::setTestNow(Carbon::create(2026, 9, 24, 21, 0, 0, 'Asia/Jakarta'));
+    expect(app(KirimNotifikasiInvoiceTerbitListener::class)->withDelay(new InvoiceTerbitEvent($invoice)))->toBe(0);
 
     Carbon::setTestNow();
 });

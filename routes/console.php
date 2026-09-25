@@ -26,6 +26,12 @@ Schedule::command('mikrotik:provisi-router --async --audit-orphans')
     ->onOneServer()
     ->runInBackground();
 
+// Provisi Cadangan: layanan yang belum terprovisi dan tidak dicoba job antrean 5 menit terakhir diantrekan ulang.
+Schedule::command('mikrotik:provisi-tertunda')
+    ->everyMinute()
+    ->withoutOverlapping(5)
+    ->onOneServer();
+
 Schedule::command('xendit:cek-va-expired')->hourly()->onOneServer();
 
 // Sweeper rekonsiliasi pembayaran dua arah: dispatch ulang webhook mandek + polling
@@ -36,10 +42,11 @@ Schedule::command('pembayaran:rekonsiliasi')
     ->withoutOverlapping(15)
     ->onOneServer();
 
-// Periodic Health Check / System Resource Ping (Non-blocking queue)
+// Ping router tiap 10 dtk: online<->offline terdeteksi < 10 dtk dan memicu notifikasi NOC + recovery.
+// Tugas sub-menit dijalankan berulang oleh schedule:run per menit (docker/supervisor.d/schedule.conf).
 Schedule::command('mikrotik:ping')
-    ->everyFiveMinutes()
-    ->withoutOverlapping(5)
+    ->everyTenSeconds()
+    ->withoutOverlapping(1)
     ->onOneServer()
     ->runInBackground();
 

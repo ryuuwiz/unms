@@ -222,7 +222,7 @@ class Create extends Component
         }
 
         $this->odpTerdekat = Odp::query()
-            ->terdekat((float) $this->latitude, (float) $this->longitude, 300)
+            ->terdekat((float) $this->latitude, (float) $this->longitude, Odp::RADIUS_PELANGGAN_METER)
             ->withCount(['ports as port_kosong_count' => fn ($query) => $query->where('status', 'kosong')])
             ->take(3)
             ->get()
@@ -235,7 +235,7 @@ class Create extends Component
             ->toArray();
 
         if (empty($this->odpTerdekat)) {
-            Flux::toast(variant: 'warning', text: 'Tidak ada ODP dalam radius 300 meter.');
+            Flux::toast(variant: 'warning', text: 'Tidak ada ODP dalam radius '.Odp::RADIUS_PELANGGAN_METER.' meter.');
         }
     }
 

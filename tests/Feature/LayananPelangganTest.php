@@ -7,6 +7,7 @@ use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\UserStatus;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Livewire\LayananPelanggan\Create;
 use App\Livewire\LayananPelanggan\Edit;
 use App\Livewire\LayananPelanggan\Index;
@@ -26,6 +27,7 @@ use App\Services\Billing\BillingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 
@@ -142,6 +144,7 @@ test('admin dapat mengedit layanan meskipun router terkait sedang offline', func
 });
 
 test('admin can edit layanan pelanggan and switch to ip_static', function () {
+    Queue::fake([ProvisionPppoeAccountJob::class]);
     $layanan = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
@@ -163,6 +166,9 @@ test('admin can edit layanan pelanggan and switch to ip_static', function () {
     expect($layanan->jenis_koneksi)->toBe(JenisKoneksi::IpStatic)
         ->and($layanan->ip_static)->toBe('10.20.30.40')
         ->and($layanan->ip_pool_id)->toBeNull();
+
+    // Alamat berubah: provisi ulang diantrekan.
+    Queue::assertPushed(ProvisionPppoeAccountJob::class);
 });
 
 test('validasi gagal jika ip_pool_id dari router lain dipilih pada edit', function () {

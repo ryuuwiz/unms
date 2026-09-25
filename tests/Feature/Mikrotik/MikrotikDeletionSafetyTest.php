@@ -226,7 +226,7 @@ test('syncIpPool gagal bila RouterOS menolak, dan sync_status menjadi failed (bu
 test('disablePppoeSecret gagal bila set disabled ditolak, dan menolak layanan tanpa username', function () {
     $layanan = LayananPelanggan::factory()->create(['router_id' => $this->router->id, 'ppp_username' => 'budi_11111']);
     [$client] = fakeRouterOs([
-        '/ppp/secret/print' => [['.id' => '*1', 'name' => 'budi_11111']],
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => 'budi_11111', 'comment' => 'UNMS: S1 - Budi']],
         '/ppp/secret/set' => ['after' => ['message' => 'failure: denied']],
     ]);
 

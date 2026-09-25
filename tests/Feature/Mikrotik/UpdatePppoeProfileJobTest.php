@@ -11,7 +11,7 @@ use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
+use App\Notifications\MikrotikJobNotification;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -113,5 +113,5 @@ test('UpdatePppoeProfileJob failed() method notifies noc and super admin', funct
 
     $job->failed(new RuntimeException('Timeout'));
 
-    Notification::assertSentTo([$superAdmin, $noc], MikrotikJobFailedNotification::class);
+    Notification::assertSentTo([$superAdmin, $noc], MikrotikJobNotification::class);
 });

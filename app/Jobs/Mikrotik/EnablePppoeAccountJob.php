@@ -6,38 +6,31 @@ use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
+use App\Jobs\Mikrotik\Concerns\AntreanLayananRouter;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
-use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
 use App\Services\Mikrotik\MikrotikService;
+use App\Services\Mikrotik\NotifikasiNoc;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Throwable;
 
 class EnablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public int $tries = 3;
+    use AntreanLayananRouter, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $uniqueFor = 300;
-
-    /**
-     * @var array<int, int>
-     */
-    public array $backoff = [30, 120, 300];
 
     public function __construct(
         public LayananPelanggan $layanan
     ) {
         $this->onQueue('mikrotik-high');
+        $this->tandaiWaktuDispatch();
     }
 
     public function uniqueId(): string
@@ -45,23 +38,9 @@ class EnablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
         return "router:{$this->layanan->router_id}:layanan:{$this->layanan->id}";
     }
 
-    /**
-     * Serialize PPPoE lifecycle jobs per physical router (shared across all
-     * mikrotik-high job classes) so a burst of jobs for many customers on the
-     * same router doesn't open several concurrent RouterOS API sessions and
-     * spike the router's CPU. uniqueId() above only dedupes per-customer, not
-     * per-router, which is what this middleware closes.
-     *
-     * @return array<int, object>
-     */
-    public function middleware(): array
+    protected function routerIdUntukKunci(): int
     {
-        return [
-            (new WithoutOverlapping("mikrotik-router-{$this->layanan->router_id}"))
-                ->releaseAfter(5)
-                ->expireAfter(120)
-                ->shared(),
-        ];
+        return (int) $this->layanan->router_id;
     }
 
     public function handle(MikrotikService $mikrotikService): void
@@ -134,33 +113,22 @@ class EnablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
                 'finished_at' => Carbon::now(),
             ]);
 
-            throw $e;
+            $this->gagalkanAtauCobaLagi($e);
+
+            return;
         }
+
+        app(NotifikasiNoc::class)->kirim($log->refresh());
     }
 
     public function failed(?Throwable $exception): void
     {
-        $router = $this->layanan->router;
-        if (! $router) {
-            return;
-        }
-
-        $log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
-            ->where('job_type', MikrotikJobType::EnablePppoe)
-            ->latest()
-            ->first();
-
-        if ($log) {
-            $log->update([
-                'status' => MikrotikJobStatus::Failed,
-                'error_message' => $exception?->getMessage() ?? 'Gagal mengaktifkan akun PPPoE setelah 3 percobaan',
-                'finished_at' => Carbon::now(),
-            ]);
-
-            $recipients = User::role(['super_admin', 'noc'])->get();
-            foreach ($recipients as $recipient) {
-                $recipient->notify(new MikrotikJobFailedNotification($log));
-            }
-        }
+        $this->laporkanKegagalanAkhir(
+            MikrotikJobType::EnablePppoe,
+            $this->layanan->router_id,
+            $this->layanan->id,
+            $exception,
+            ['username' => $this->layanan->ppp_username],
+        );
     }
 }

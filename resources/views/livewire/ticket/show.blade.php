@@ -263,6 +263,17 @@
                             Router: <strong>{{ $ticket->layananPelanggan?->router?->nama_router ?? '-' }}</strong>,
                             PPP: <strong>{{ $ticket->layananPelanggan?->ppp_username ?? '-' }}</strong>
                         </div>
+                        @if ($ticket->layananPelanggan?->provisioning_status === \App\Enums\ProvisioningStatus::Failed)
+                            <flux:callout variant="danger" icon="exclamation-triangle" class="mt-2">
+                                <flux:callout.heading>Provisi ke router gagal — PPP Secret belum ada di MikroTik</flux:callout.heading>
+                                <flux:callout.text>{{ $ticket->layananPelanggan->last_provisioning_error }}</flux:callout.text>
+                                @can('aktivasiPemasangan', $ticket)
+                                    <x-slot name="actions">
+                                        <flux:button size="sm" icon="arrow-path" wire:click="provisiUlang">Coba Provisi Lagi</flux:button>
+                                    </x-slot>
+                                @endcan
+                            </flux:callout>
+                        @endif
                     @else
                         @can('aktivasiPemasangan', $ticket)
                             <flux:button

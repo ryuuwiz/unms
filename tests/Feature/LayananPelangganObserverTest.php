@@ -245,7 +245,7 @@ test('CleanupPppSecretOnOldRouterJob calls deletePppoeSecret and logs Success', 
         ->and($log->status)->toBe(MikrotikJobStatus::Success);
 });
 
-test('CleanupPppSecretOnOldRouterJob logs Failed when deletePppoeSecret throws', function () {
+test('CleanupPppSecretOnOldRouterJob logs Failed and rethrows connection errors so the queue retries it', function () {
     $mockService = Mockery::mock(MikrotikService::class);
     $mockService->shouldReceive('deletePppoeSecret')
         ->once()
@@ -257,8 +257,8 @@ test('CleanupPppSecretOnOldRouterJob logs Failed when deletePppoeSecret throws',
         $this->layanan->id
     );
 
-    // Tidak boleh melempar exception — dicatat sebagai Failed
-    $job->handle($mockService);
+    // Galat koneksi: dicatat Failed lalu dilempar ulang agar antrean mencoba lagi (ADR-0059).
+    expect(fn () => $job->handle($mockService))->toThrow(RuntimeException::class, 'Connection refused');
 
     $log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
         ->where('job_type', MikrotikJobType::DeletePppoe)

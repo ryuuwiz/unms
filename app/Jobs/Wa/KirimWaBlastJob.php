@@ -2,31 +2,57 @@
 
 namespace App\Jobs\Wa;
 
+use App\Enums\Wa\StatusAntrianWa;
 use App\Models\AntrianWaBlast;
 use App\Models\Sysblas;
+use App\Models\User;
+use App\Notifications\GatewayWaBermasalahNotification;
 use App\Services\Whatsapp\WhatsappClient;
+use DateTimeInterface;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
+use RuntimeException;
 use Throwable;
 
-class KirimWaBlastJob implements ShouldQueue
+/**
+ * Batas percobaan memakai waktu (retryUntil), bukan jumlah: setiap release karena Jeda Antar-Pesan
+ * / Batas Laju ikut dihitung sebagai attempt, sehingga `$tries` habis sebelum pesan sempat dikirim
+ * (pola yang sama dengan ADR-0059). Hanya galat kirim sungguhan yang dihitung (`maxExceptions`).
+ */
+class KirimWaBlastJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 3;
+    private const BATAS_MENIT = 120;
 
     public int $maxExceptions = 3;
+
+    /** Penyapu Antrean Macet tidak menggandakan job yang masih menunggu giliran. */
+    public int $uniqueFor = self::BATAS_MENIT * 60;
 
     public function __construct(
         public AntrianWaBlast $antrian
     ) {
         $this->onQueue('wa-blast');
+    }
+
+    public function uniqueId(): string
+    {
+        return (string) $this->antrian->id;
+    }
+
+    public function retryUntil(): DateTimeInterface
+    {
+        return Carbon::now()->addMinutes(self::BATAS_MENIT);
     }
 
     /**
@@ -87,32 +113,69 @@ class KirimWaBlastJob implements ShouldQueue
             $this->antrian->pesan
         );
 
-        if ($result['success']) {
-            $this->antrian->tandaiTerkirim($result);
-        } else {
-            // Jika terkena response 429 Too Many Requests dari WAHA, tunda job untuk retry
-            if ($result['status'] === 'rate_limited') {
-                $this->release(15 + rand(1, 5));
+        match ($result['status']) {
+            'success' => $this->antrian->tandaiTerkirim($result),
+            'rate_limited' => $this->release(15 + rand(1, 5)),
+            'error' => $this->cobaLagiNanti($sysblas, $result['message']),
+            'unauthorized' => $this->gagalkanKarenaGateway($sysblas, $result),
+            default => $this->antrian->tandaiGagal($result['message'], $result),
+        };
+    }
 
-                return;
-            }
+    /**
+     * Galat sementara (timeout, koneksi, HTTP 5xx): kembalikan ke Menunggu dan lempar agar di-retry
+     * dengan backoff; dihitung maxExceptions.
+     */
+    private function cobaLagiNanti(?Sysblas $sysblas, string $galat): void
+    {
+        $this->antrian->update([
+            'status' => StatusAntrianWa::Menunggu,
+            'pesan_error' => $galat,
+            'percobaan_ke' => $this->antrian->percobaan_ke + 1,
+        ]);
 
-            $this->antrian->tandaiGagal($result['message'], $result);
+        Log::channel('whatsapp')->warning('Pengiriman WA gagal sementara, akan dicoba lagi', [
+            'antrian_id' => $this->antrian->id,
+            'jenis' => $this->antrian->jenis,
+            'gateway' => $sysblas?->nama,
+            'error' => $galat,
+        ]);
+
+        $this->beritahuGatewayBermasalah($sysblas, $galat);
+
+        throw new RuntimeException($galat);
+    }
+
+    /**
+     * @param  array{success: bool, status: string, message: string, data: array<string, mixed>}  $result
+     */
+    private function gagalkanKarenaGateway(?Sysblas $sysblas, array $result): void
+    {
+        $this->antrian->tandaiGagal($result['message'], $result);
+        $this->beritahuGatewayBermasalah($sysblas, $result['message']);
+    }
+
+    /**
+     * Lonceng admin & super_admin, maksimal sekali per jam per gateway.
+     */
+    private function beritahuGatewayBermasalah(?Sysblas $sysblas, string $galat): void
+    {
+        if (! Cache::add('wa-gateway-bermasalah-'.($sysblas->id ?? 'default'), true, 3600)) {
+            return;
         }
+
+        Notification::send(
+            User::role(['super_admin', 'admin'])->get(),
+            new GatewayWaBermasalahNotification($sysblas->nama ?? 'Default', $galat),
+        );
     }
 
     public function failed(?Throwable $exception): void
     {
         if ($this->antrian->exists) {
             $this->antrian->tandaiGagal(
-                $exception ? $exception->getMessage() : 'Job pengiriman WhatsApp gagal melebihi batas percobaan.'
+                $exception ? $exception->getMessage() : 'Batas waktu pengiriman WhatsApp habis.'
             );
         }
-
-        Log::error('KirimWaBlastJob Failed Permanently', [
-            'antrian_id' => $this->antrian->id,
-            'phone' => $this->antrian->no_hp_tujuan,
-            'error' => $exception?->getMessage(),
-        ]);
     }
 }

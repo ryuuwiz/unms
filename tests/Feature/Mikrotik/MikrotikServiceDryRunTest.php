@@ -52,6 +52,7 @@ test('autoRecoverPppSecrets dryRun=true logs remote-address drift as a change wi
     $client->shouldReceive('read')->andReturn([
         [
             'name' => 'dry-run-user',
+            'comment' => 'UNMS: S1 - Budi',
             'profile' => 'Profile-Fast-20M',
             'remote-address' => '10.20.30.5/32', // format berbeda dari resolveRemoteAddress(), tapi bukan fokus sprint ini
             'local-address' => '10.20.30.1',
@@ -106,6 +107,7 @@ test('autoRecoverPppSecrets dryRun=true logs disabled-state drift without toggli
     $client->shouldReceive('read')->andReturn([
         [
             'name' => 'dry-run-suspend-user',
+            'comment' => 'UNMS: S1 - Budi',
             'profile' => 'Profile-Fast-20M',
             'remote-address' => '10.20.30.5',
             'local-address' => '10.20.30.1',

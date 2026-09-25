@@ -4,6 +4,7 @@ namespace App\Jobs\Mikrotik;
 
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
+use App\Jobs\Mikrotik\Concerns\AntreanLayananRouter;
 use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
@@ -13,7 +14,6 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Throwable;
@@ -22,14 +22,12 @@ use Throwable;
  * Hapus PPP Secret dari router lama saat layanan pelanggan pindah router.
  *
  * Job ini dipanggil oleh LayananPelangganObserver ketika router_id berubah.
- * Jika router lama offline, kegagalan dicatat di MikrotikJobLog sebagai Failed
- * tanpa melempar exception agar tidak memblokir proses update layanan.
+ * Galat koneksi (router lama offline) di-retry sampai batas waktu antrean; kegagalan akhir
+ * tercatat di MikrotikJobLog dan diberitahukan ke NOC.
  */
 class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public int $tries = 1;
+    use AntreanLayananRouter, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $uniqueFor = 300;
 
@@ -41,6 +39,7 @@ class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
         public readonly string $reason = 'Pembersihan secret lama (pindah router / ganti username / layanan dihapus)',
     ) {
         $this->onQueue('mikrotik-high');
+        $this->tandaiWaktuDispatch();
     }
 
     public function uniqueId(): string
@@ -48,23 +47,9 @@ class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
         return "router:{$this->oldRouterId}:layanan:{$this->layananPelangganId}";
     }
 
-    /**
-     * Serialize PPPoE lifecycle jobs per physical router (shared across all
-     * mikrotik-high job classes) so a burst of jobs for many customers on the
-     * same router doesn't open several concurrent RouterOS API sessions and
-     * spike the router's CPU. uniqueId() above only dedupes per-customer, not
-     * per-router, which is what this middleware closes.
-     *
-     * @return array<int, object>
-     */
-    public function middleware(): array
+    protected function routerIdUntukKunci(): int
     {
-        return [
-            (new WithoutOverlapping("mikrotik-router-{$this->oldRouterId}"))
-                ->releaseAfter(5)
-                ->expireAfter(120)
-                ->shared(),
-        ];
+        return $this->oldRouterId;
     }
 
     public function handle(MikrotikService $mikrotikService): void
@@ -80,7 +65,7 @@ class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
             'layanan_pelanggan_id' => $this->layananPelangganId,
             'job_type' => MikrotikJobType::DeletePppoe,
             'status' => MikrotikJobStatus::Pending,
-            'attempt_count' => 1,
+            'attempt_count' => $this->attempts(),
             'payload' => [
                 'username' => $this->pppUsername,
                 'actor' => $this->actor ?? 'system:tanpa-user',
@@ -101,13 +86,24 @@ class CleanupPppSecretOnOldRouterJob implements ShouldBeUnique, ShouldQueue
                 'payload' => array_merge($log->payload ?? [], ['deleted' => $dihapus]),
             ]);
         } catch (Throwable $e) {
-            // Jika router lama offline atau gagal: catat sebagai Failed.
-            // Tidak di-throw agar tidak memblokir update layanan.
             $log->update([
                 'status' => MikrotikJobStatus::Failed,
                 'error_message' => $e->getMessage(),
                 'finished_at' => Carbon::now(),
             ]);
+
+            $this->gagalkanAtauCobaLagi($e);
         }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $this->laporkanKegagalanAkhir(
+            MikrotikJobType::DeletePppoe,
+            $this->oldRouterId,
+            $this->layananPelangganId,
+            $exception,
+            ['username' => $this->pppUsername, 'reason' => $this->reason],
+        );
     }
 }

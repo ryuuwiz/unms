@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProvisioningStatus;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
 use App\Enums\StatusOdpPort;
@@ -8,6 +9,9 @@ use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\UserStatus;
+use App\Exceptions\MikrotikConnectionException;
+use App\Exceptions\MikrotikException;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Livewire\Ticket\Create as TicketCreate;
 use App\Livewire\Ticket\Show;
 use App\Models\Invoice;
@@ -21,9 +25,13 @@ use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Notifications\MikrotikJobNotification;
+use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -68,6 +76,11 @@ beforeEach(function () {
         'periode_tagihan' => null,
         'status' => StatusInvoice::MenungguPembayaran,
     ]);
+
+    // Tanpa koneksi RouterOS sungguhan: provisi Aktivasi dianggap berhasil kecuali tes mengubahnya.
+    $this->mikrotik = Mockery::mock(MikrotikService::class)->makePartial();
+    $this->mikrotik->shouldReceive('createOrUpdatePppoeSecret')->andReturn(['status' => 'success', 'action' => 'created'])->byDefault();
+    $this->app->instance(MikrotikService::class, $this->mikrotik);
 });
 
 function buatTicketPemasangan(User $admin, Pelanggan $pelanggan, LayananPelanggan $layanan, User $teknisi): Ticket
@@ -292,4 +305,60 @@ test('alur lengkap: keempat divisi selesai memicu status ticket otomatis Selesai
     expect($ticket->statusDivisi(DivisiTicket::Admin))->toBe(StatusDivisiTicket::Selesai)
         ->and($ticket->status)->toBe(StatusTicket::Selesai)
         ->and($ticket->perlu_aktivasi_manual)->toBeFalse();
+});
+
+test('Aktivasi yang gagal karena router tak terjangkau mengantrekan provisi ulang, memberi tahu NOC, dan tiket menampilkan callout', function () {
+    Queue::fake([ProvisionPppoeAccountJob::class]);
+    Notification::fake();
+    $ticket = buatTicketPemasangan($this->admin, $this->pelanggan, $this->layanan, $this->teknisi);
+
+    Livewire::actingAs($this->teknisi)
+        ->test(Show::class, ['ticket' => $ticket])
+        ->set('odp_id', $this->odp->id)
+        ->set('odp_port_id', $this->odpPort->id)
+        ->set('fotoPemasangan', [UploadedFile::fake()->image('pasang1.jpg')])
+        ->call('simpanProgressLapangan');
+
+    $this->mikrotik->shouldReceive('createOrUpdatePppoeSecret')->andReturnUsing(function (Router $router, LayananPelanggan $layanan) {
+        $layanan->update(['provisioning_status' => ProvisioningStatus::Failed, 'last_provisioning_error' => 'Connection timed out']);
+
+        throw new MikrotikException('Gagal provisi', 0, new MikrotikConnectionException('Connection timed out'));
+    });
+
+    Livewire::actingAs($this->noc)
+        ->test(Show::class, ['ticket' => $ticket->fresh()])
+        ->set('aktivasiRouterId', $this->router->id)
+        ->set('aktivasiIpPoolId', $this->ipPool->id)
+        ->call('prosesAktivasi')
+        ->assertHasNoErrors()
+        ->assertSee('Provisi ke router gagal')
+        ->assertSee('Connection timed out');
+
+    Queue::assertPushed(ProvisionPppoeAccountJob::class, fn (ProvisionPppoeAccountJob $job) => $job->layanan->is($this->layanan));
+    Notification::assertSentTo($this->noc, MikrotikJobNotification::class);
+    expect($this->layanan->fresh()->status)->toBe(StatusLayanan::Proses);
+});
+
+test('Aktivasi yang gagal karena galat data tidak mengantrekan retry yang pasti gagal lagi', function () {
+    Queue::fake([ProvisionPppoeAccountJob::class]);
+    Notification::fake();
+    $ticket = buatTicketPemasangan($this->admin, $this->pelanggan, $this->layanan, $this->teknisi);
+
+    Livewire::actingAs($this->teknisi)
+        ->test(Show::class, ['ticket' => $ticket])
+        ->set('odp_id', $this->odp->id)
+        ->set('odp_port_id', $this->odpPort->id)
+        ->set('fotoPemasangan', [UploadedFile::fake()->image('pasang1.jpg')])
+        ->call('simpanProgressLapangan');
+
+    $this->mikrotik->shouldReceive('createOrUpdatePppoeSecret')->andThrow(new MikrotikException('Secret sudah ada tanpa komentar UNMS:'));
+
+    Livewire::actingAs($this->noc)
+        ->test(Show::class, ['ticket' => $ticket->fresh()])
+        ->set('aktivasiRouterId', $this->router->id)
+        ->set('aktivasiIpPoolId', $this->ipPool->id)
+        ->call('prosesAktivasi');
+
+    Queue::assertNotPushed(ProvisionPppoeAccountJob::class);
+    Notification::assertSentTo($this->noc, MikrotikJobNotification::class);
 });

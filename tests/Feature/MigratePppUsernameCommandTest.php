@@ -67,7 +67,7 @@ test('migrasi mengupdate ppp_username ke format baru dan provision sync ke route
 
 test('counter increment jika pelanggan sudah punya layanan dengan format baru', function () {
     // Layanan pertama sudah berformat baru — harus di-skip (tidak dimigrasi ulang)
-    $this->layanan->update(['ppp_username' => 'BF2308202601_10001']);
+    $this->layanan->updateQuietly(['ppp_username' => 'BF2308202601_10001']);
 
     // Layanan kedua masih format lama — harus dimigrasi ke format baru
     $layanan2 = LayananPelanggan::factory()->create([

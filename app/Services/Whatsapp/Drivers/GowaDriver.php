@@ -132,7 +132,7 @@ class GowaDriver implements WhatsappGatewayDriverInterface
 
             return [
                 'success' => $isSuccess,
-                'status' => $isSuccess ? 'success' : 'failed',
+                'status' => $isSuccess ? 'success' : WhatsappClient::statusGagalHttp($response->status()),
                 'message' => $json['message'] ?? ($isSuccess ? 'Pesan berhasil dikirim via GOWA' : "HTTP {$response->status()}"),
                 'data' => $json['results'] ?? $json,
             ];

@@ -17,6 +17,8 @@ use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Exceptions\DuplikatLayananAktifException;
+use App\Exceptions\MikrotikException;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
@@ -29,6 +31,7 @@ use App\Models\TicketHistori;
 use App\Models\TicketPemasangan;
 use App\Models\User;
 use App\Services\Mikrotik\MikrotikService;
+use App\Services\Mikrotik\NotifikasiNoc;
 use App\Services\Whatsapp\WhatsappService;
 use Exception;
 use Flux\Flux;
@@ -480,26 +483,48 @@ class Show extends Component
                 duration: 15000,
             );
         } catch (\Throwable $e) {
-            MikrotikJobLog::create([
+            $log = MikrotikJobLog::create([
                 'router_id' => $this->aktivasiRouterId,
                 'layanan_pelanggan_id' => $layanan->id,
                 'job_type' => MikrotikJobType::ProvisionPppoe,
                 'status' => MikrotikJobStatus::Failed,
                 'attempt_count' => 1,
+                'payload' => ['username' => $pppUsername],
                 'error_message' => $e->getMessage(),
                 'finished_at' => now(),
             ]);
 
+            app(NotifikasiNoc::class)->kirim($log, whatsapp: true);
+
+            // Galat koneksi dicoba ulang otomatis di antrean; galat data/konfigurasi butuh perbaikan NOC dulu.
+            $dicobaLagi = MikrotikException::bisaDicobaLagi($e);
+            if ($dicobaLagi) {
+                ProvisionPppoeAccountJob::dispatch($layanan->fresh());
+            }
+
             Flux::toast(
                 variant: 'warning',
                 heading: 'Router/IP Pool Tersimpan, Provisi Gagal',
-                text: "Provisi ke router gagal: {$e->getMessage()} Gunakan tombol Provisi di daftar layanan untuk mencoba lagi.",
+                text: "Provisi ke router gagal: {$e->getMessage()} ".($dicobaLagi ? 'Sistem mencoba ulang otomatis dan NOC diberi tahu.' : 'Perbaiki penyebabnya lalu klik Coba Provisi Lagi.'),
                 duration: 20000,
             );
         }
 
         $this->showAktivasiModal = false;
         $this->loadTicket();
+    }
+
+    /**
+     * Coba ulang provisi layanan tiket ini lewat antrean (callout "Provisi gagal").
+     */
+    public function provisiUlang(): void
+    {
+        $layanan = $this->ticket->layananPelanggan;
+        abort_if($layanan === null || $layanan->router_id === null, 404);
+        $this->authorize('aktivasiPemasangan', $this->ticket);
+
+        ProvisionPppoeAccountJob::dispatch($layanan);
+        Flux::toast(variant: 'info', text: "Provisi {$layanan->ppp_username} diantrekan. Hasilnya muncul di lonceng notifikasi.");
     }
 
     /**

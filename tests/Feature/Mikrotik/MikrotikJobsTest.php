@@ -21,12 +21,14 @@ use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
+use App\Notifications\MikrotikJobNotification;
 use App\Services\Mikrotik\MikrotikService;
+use App\Services\Mikrotik\NotifikasiNoc;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
@@ -90,7 +92,7 @@ test('ProvisionPppoeAccountJob does not retry and notifies immediately on perman
         ->and($log->status)->toBe(MikrotikJobStatus::Failed)
         ->and($log->error_message)->toContain('terdaftar pada router lain');
 
-    Notification::assertSentTo($superAdmin, MikrotikJobFailedNotification::class);
+    Notification::assertSentTo($superAdmin, MikrotikJobNotification::class);
 });
 
 test('ProvisionPppoeAccountJob rethrows MikrotikConnectionException so the queue retries it', function () {
@@ -215,25 +217,39 @@ test('SyncIpPoolToRouterJob syncs pool and logs success', function () {
         ->and($log->status)->toBe(MikrotikJobStatus::Success);
 });
 
-test('PingRouterJob tests connection and logs success', function () {
-    $mockService = Mockery::mock(MikrotikService::class);
-    $mockService->shouldReceive('testConnection')
-        ->once()
-        ->with(
-            Mockery::on(fn ($r) => $r->id === $this->router->id),
-            3
-        )
-        ->andReturn(['status' => 'success']);
+test('PingRouterJob hanya mencatat dan memberi tahu NOC saat status router berubah', function () {
+    Notification::fake();
+    Queue::fake([RecoverPppRouterJob::class]);
+    $noc = User::factory()->create();
+    $noc->assignRole('noc');
 
-    $job = new PingRouterJob($this->router);
-    $job->handle($mockService);
+    $offline = fn () => Mockery::mock(MikrotikService::class)->shouldReceive('testConnection')
+        ->andReturnUsing(function (Router $router) {
+            $router->update(['status_koneksi' => StatusRouter::Offline, 'last_ping_message' => 'Connection refused']);
+            throw new MikrotikConnectionException('Connection refused');
+        })->getMock();
+    $online = fn () => Mockery::mock(MikrotikService::class)->shouldReceive('testConnection')
+        ->andReturnUsing(function (Router $router) {
+            $router->update(['status_koneksi' => StatusRouter::Online]);
 
-    $log = MikrotikJobLog::where('router_id', $this->router->id)
-        ->where('job_type', MikrotikJobType::Ping)
-        ->first();
+            return ['status' => 'success'];
+        })->getMock();
 
-    expect($log)->not->toBeNull()
-        ->and($log->status)->toBe(MikrotikJobStatus::Success);
+    // Online -> online: tidak ada log/notifikasi.
+    (new PingRouterJob($this->router))->handle($online(), app(NotifikasiNoc::class));
+    expect(MikrotikJobLog::where('job_type', MikrotikJobType::Ping)->count())->toBe(0);
+
+    // Online -> offline: log gagal + notifikasi; job tidak gagal.
+    (new PingRouterJob($this->router))->handle($offline(), app(NotifikasiNoc::class));
+    // Offline -> offline lagi: tidak menambah log.
+    (new PingRouterJob($this->router))->handle($offline(), app(NotifikasiNoc::class));
+    // Offline -> online: log sukses + notifikasi + recovery.
+    (new PingRouterJob($this->router))->handle($online(), app(NotifikasiNoc::class));
+
+    expect(MikrotikJobLog::where('job_type', MikrotikJobType::Ping)->orderBy('id')->pluck('status')->all())
+        ->toBe([MikrotikJobStatus::Failed, MikrotikJobStatus::Success]);
+    Notification::assertSentToTimes($noc, MikrotikJobNotification::class, 2);
+    Queue::assertPushed(RecoverPppRouterJob::class, 1);
 });
 
 test('RecoverPppRouterJob runs autoRecoverPppSecrets on mikrotik-low queue', function () {
@@ -283,7 +299,7 @@ test('job failure sends database notification to super_admin and noc users', fun
     $job = new ProvisionPppoeAccountJob($this->layanan);
     $job->failed(new Exception('Connection timeout'));
 
-    Notification::assertSentTo([$superAdmin, $nocUser], MikrotikJobFailedNotification::class);
+    Notification::assertSentTo([$superAdmin, $nocUser], MikrotikJobNotification::class);
 });
 
 test('SyncBandwidthProfileToRoutersJob ensures profile on all online routers', function () {

@@ -16,7 +16,7 @@ use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
+use App\Notifications\MikrotikJobNotification;
 use App\Observers\IpPoolObserver;
 use App\Services\Mikrotik\MikrotikService;
 use App\Support\PppDeletionContext;
@@ -148,7 +148,7 @@ test('ProvisionRouterJob failed notification is sent to super_admin and noc', fu
     $job = new ProvisionRouterJob($this->router);
     $job->failed(new Exception('Connection timeout'));
 
-    Notification::assertSentTo([$superAdmin, $noc], MikrotikJobFailedNotification::class);
+    Notification::assertSentTo([$superAdmin, $noc], MikrotikJobNotification::class);
 });
 
 test('mikrotik:provisi-router command runs successfully', function () {
@@ -253,8 +253,8 @@ test('autoRecoverPppSecrets removes duplicate secrets in RouterOS', function () 
     // Simulasikan kembalikan 2 entri secret dengan nama yang sama (duplikat) di RouterOS
     $mockClient->shouldReceive('query')->andReturnSelf();
     $mockClient->shouldReceive('read')->andReturn([
-        ['.id' => '*1', 'name' => 'BF2308202601_00001', 'profile' => 'Home-20M', 'disabled' => 'false'],
-        ['.id' => '*2', 'name' => 'BF2308202601_00001', 'profile' => 'Home-20M', 'disabled' => 'false'],
+        ['.id' => '*1', 'name' => 'BF2308202601_00001', 'comment' => 'UNMS: S1 - Budi', 'profile' => 'Home-20M', 'disabled' => 'false'],
+        ['.id' => '*2', 'name' => 'BF2308202601_00001', 'comment' => 'UNMS: S1 - Budi', 'profile' => 'Home-20M', 'disabled' => 'false'],
     ]);
 
     $stats = $mockService->autoRecoverPppSecrets($this->router);

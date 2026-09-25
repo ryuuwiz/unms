@@ -8,7 +8,7 @@ use App\Enums\StatusRouter;
 use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
+use App\Notifications\MikrotikJobNotification;
 use App\Services\Mikrotik\MikrotikService;
 use App\Support\PppDeletionContext;
 use Illuminate\Bus\Queueable;
@@ -178,7 +178,7 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
         }
 
         foreach (User::role(['super_admin', 'noc'])->get() as $recipient) {
-            $recipient->notify(new MikrotikJobFailedNotification($log));
+            $recipient->notify(new MikrotikJobNotification($log));
         }
     }
 }

@@ -69,7 +69,8 @@ return [
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 360),
-            'block_for' => null,
+            // BLPOP menunggu job baru alih-alih polling berjeda: job MikroTik diambil seketika (target < 10 dtk).
+            'block_for' => (int) env('REDIS_QUEUE_BLOCK_FOR', 5),
             'after_commit' => false,
         ],
 

@@ -270,7 +270,7 @@
 
     {{-- ═══════════ Tab 2: Layanan Internet ═══════════ --}}
     @if ($activeTab === 'subscriptions')
-        <div class="space-y-6">
+        <div class="space-y-6" wire:poll.10s.visible="loadPppStatuses">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <flux:heading size="lg">Layanan internet</flux:heading>

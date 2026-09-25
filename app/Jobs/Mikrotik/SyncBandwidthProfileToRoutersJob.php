@@ -9,7 +9,7 @@ use App\Models\MikrotikJobLog;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\User;
-use App\Notifications\MikrotikJobFailedNotification;
+use App\Notifications\MikrotikJobNotification;
 use App\Services\Mikrotik\MikrotikService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -124,7 +124,7 @@ class SyncBandwidthProfileToRoutersJob implements ShouldBeUnique, ShouldQueue
         if ($log) {
             $recipients = User::role(['super_admin', 'noc'])->get();
             foreach ($recipients as $recipient) {
-                $recipient->notify(new MikrotikJobFailedNotification($log));
+                $recipient->notify(new MikrotikJobNotification($log));
             }
         }
     }

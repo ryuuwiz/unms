@@ -14,6 +14,7 @@ use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use RouterOS\Client;
 use RouterOS\Exceptions\StreamException;
 
@@ -191,7 +192,7 @@ test('createOrUpdatePppoeSecret for dynamic PPPoE sends no local/remote-address 
 test('createOrUpdatePppoeSecret unsets literal addresses left on an existing dynamic secret', function () {
     [$router, $layanan] = layananPppoeDinamis();
     [$client, $sent] = fakeRouterOs([
-        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'remote-address' => '10.0.0.7', 'local-address' => '10.0.0.1']],
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'comment' => 'UNMS: S1 - Budi', 'remote-address' => '10.0.0.7', 'local-address' => '10.0.0.1']],
     ]);
 
     $this->service->createOrUpdatePppoeSecret($router, $layanan, $client);
@@ -205,6 +206,8 @@ test('createOrUpdatePppoeSecret unsets literal addresses left on an existing dyn
 
 test('createOrUpdatePppoeSecret for ip_static keeps a literal secret on the plain profile', function () {
     [$router, $layanan] = layananPppoeDinamis();
+    // Ganti ip_static memicu provisi ulang lewat observer; tes ini menguji service langsung.
+    Queue::fake();
     $layanan->update(['ip_static' => '10.0.1.25', 'jenis_koneksi' => JenisKoneksi::IpStatic]);
     [$client, $sent] = fakeRouterOs();
 
@@ -223,6 +226,7 @@ test('autoRecoverPppSecrets dry-run flags a dynamic secret still carrying a lite
         '/ppp/secret/print' => [[
             '.id' => '*1',
             'name' => $layanan->ppp_username,
+            'comment' => 'UNMS: S1 - Budi',
             'profile' => 'P10@Pool-Rumah',
             'remote-address' => '10.0.0.7',
             'local-address' => '10.0.0.1',
@@ -244,7 +248,7 @@ test('autoRecoverPppSecrets dry-run flags a dynamic secret still carrying a lite
 test('autoRecoverPppSecrets treats the old plain profile as drift so secrets migrate to the per-pool profile', function () {
     [$router, $layanan] = layananPppoeDinamis();
     [$client] = fakeRouterOs([
-        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10', 'password' => 'secret123']],
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'comment' => 'UNMS: S1 - Budi', 'profile' => 'P10', 'password' => 'secret123']],
     ]);
 
     $res = $this->service->autoRecoverPppSecrets($router->fresh(), $client, dryRun: true);

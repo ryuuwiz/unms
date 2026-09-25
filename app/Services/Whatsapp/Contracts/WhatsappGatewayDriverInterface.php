@@ -5,7 +5,8 @@ namespace App\Services\Whatsapp\Contracts;
 interface WhatsappGatewayDriverInterface
 {
     /**
-     * Kirim pesan teks ke nomor tujuan.
+     * Kirim pesan teks ke nomor tujuan. Tidak melempar exception; `status` gagal: `error` (koneksi,
+     * timeout, HTTP 5xx), `rate_limited`, `unauthorized`, `failed` -- lihat WhatsappClient::statusGagalHttp().
      *
      * @return array{success: bool, status: string, message: string, data: array<string, mixed>}
      */

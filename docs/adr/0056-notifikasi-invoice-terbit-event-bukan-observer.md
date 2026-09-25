@@ -16,3 +16,6 @@ Pelanggan tidak mendapat pesan apa pun saat invoice dibuat (tagihan pertama saat
 - Setiap jalur pembuatan invoice baru harus lewat `BillingService`; membuat `Invoice` langsung tidak mengirim pesan.
 - Semua invoice manual (denda, biaya instalasi) langsung mengirim pesan ke pelanggan.
 - Listener antrean tidak mendapat method injection pada `handle()`; dependensi lewat konstruktor.
+
+## Amandemen (2026-09-25)
+Jendela siang hanya berlaku untuk batch `invoice:generate` (invoice tanpa `dibuat_oleh`). Invoice buatan admin (tagihan pertama saat registrasi, invoice manual) selalu langsung dikirim: pelanggan biasanya sedang dilayani, dan penundaan ke 08:30 tampak seperti pesan hilang.

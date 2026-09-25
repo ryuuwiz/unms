@@ -168,7 +168,7 @@
             <div class="flex items-center gap-3">
                 <flux:button wire:click="cariOdpTerdekat" variant="primary" icon="map-pin">Cari ODP Terdekat
                 </flux:button>
-                <flux:description>Mencari maksimal 3 ODP terdekat dalam radius 300 meter berdasarkan koordinat di atas.
+                <flux:description>Mencari maksimal 3 ODP terdekat dalam radius {{ \App\Models\Odp::RADIUS_PELANGGAN_METER }} meter berdasarkan koordinat di atas.
                 </flux:description>
             </div>
 

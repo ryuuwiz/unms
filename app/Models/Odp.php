@@ -36,6 +36,9 @@ class Odp extends Model
 
     protected $table = 'odp';
 
+    /** Toleransi jarak ODP ke pelanggan saat mencari ODP terdekat -- lihat CONTEXT.md "ODP Terdekat". */
+    public const RADIUS_PELANGGAN_METER = 150;
+
     /**
      * Cast atribut model.
      *

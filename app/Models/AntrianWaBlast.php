@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @property int $id
@@ -127,6 +128,22 @@ class AntrianWaBlast extends Model
             'pesan_error' => $errorMessage,
             'response_log' => $responseLog,
             'percobaan_ke' => $this->percobaan_ke + 1,
+        ]);
+
+        self::catatGagal($this, $errorMessage);
+    }
+
+    /**
+     * Log kegagalan akhir pesan WA (storage/logs/whatsapp-*.log) untuk ditelusuri admin/NOC.
+     */
+    public static function catatGagal(self $antrian, string $errorMessage): void
+    {
+        Log::channel('whatsapp')->error('Pesan WA gagal terkirim', [
+            'antrian_id' => $antrian->id,
+            'jenis' => $antrian->jenis,
+            'referensi' => $antrian->referensi_tipe ? "{$antrian->referensi_tipe}#{$antrian->referensi_id}" : null,
+            'no_hp' => $antrian->no_hp_tujuan,
+            'error' => $errorMessage,
         ]);
     }
 }

@@ -82,6 +82,36 @@ class MikrotikService
     }
 
     /**
+     * Secret Milik Billing: berkomentar `UNMS:`. Selain itu Secret Manual NOC -- tidak pernah diubah,
+     * diisolir, atau dihapus oleh sistem (CONTEXT.md, ADR-0059).
+     *
+     * @param  array<string, mixed>  $secret
+     */
+    public static function milikBilling(array $secret): bool
+    {
+        return str_starts_with((string) ($secret['comment'] ?? ''), 'UNMS:');
+    }
+
+    /**
+     * Saring entri bernama sama menjadi milik billing saja; tolak bila semuanya Secret Manual NOC.
+     *
+     * @param  array<int, array<string, mixed>>  $existing
+     * @return array<int, array<string, mixed>>
+     *
+     * @throws MikrotikException
+     */
+    private function hanyaMilikBilling(array $existing, string $username, Router $router): array
+    {
+        $milik = array_values(array_filter($existing, fn (array $secret) => self::milikBilling($secret)));
+
+        if ($milik === []) {
+            throw new MikrotikException("Secret {$username} sudah ada di router {$router->nama_router} tanpa komentar 'UNMS:' (dibuat manual NOC) dan tidak diubah. Ganti komentarnya menjadi 'UNMS: ...' untuk menyerahkannya ke billing, atau ubah username layanan.");
+        }
+
+        return $milik;
+    }
+
+    /**
      * Library RouterOS tidak melempar exception untuk `!trap`; galat hanya muncul sebagai after.message.
      * Tanpa pengecekan ini respons galat terbaca sebagai daftar kosong atau mutasi "berhasil".
      *
@@ -231,14 +261,17 @@ class MikrotikService
                 'last_ping_message' => Str::limit($e->getMessage(), 250),
             ]);
 
-            MikrotikJobLog::create([
-                'router_id' => $router->id,
-                'job_type' => MikrotikJobType::TestConnection,
-                'status' => MikrotikJobStatus::Failed,
-                'attempt_count' => 1,
-                'error_message' => $e->getMessage(),
-                'finished_at' => Carbon::now(),
-            ]);
+            // Hanya saat transisi (seperti log sukses di atas): ping tiap 10 dtk ke router mati tidak membanjiri log.
+            if ($previousStatus !== StatusRouter::Offline) {
+                MikrotikJobLog::create([
+                    'router_id' => $router->id,
+                    'job_type' => MikrotikJobType::TestConnection,
+                    'status' => MikrotikJobStatus::Failed,
+                    'attempt_count' => 1,
+                    'error_message' => $e->getMessage(),
+                    'finished_at' => Carbon::now(),
+                ]);
+            }
 
             throw new MikrotikException(
                 "Uji koneksi gagal pada {$router->nama_router}: {$e->getMessage()}",
@@ -492,6 +525,11 @@ class MikrotikService
                 }
             }
 
+            // Secret Manual NOC bernama sama tidak disentuh; duplikat hanya dihapus bila milik billing.
+            if (! empty($existing) && isset($existing[0]['.id'])) {
+                $existing = $this->hanyaMilikBilling($existing, $username, $router);
+            }
+
             if (! empty($existing) && isset($existing[0]['.id'])) {
                 // Update secret eksisting utama
                 $secretId = $existing[0]['.id'];
@@ -622,7 +660,7 @@ class MikrotikService
                 return $this->createOrUpdatePppoeSecret($router, $layanan, $client);
             }
 
-            $secretId = $existing[0]['.id'];
+            $secretId = $this->hanyaMilikBilling($existing, $username, $router)[0]['.id'];
             $setQuery = (new Query('/ppp/secret/set'))
                 ->equal('.id', $secretId)
                 ->equal('profile', $profileName);
@@ -688,7 +726,7 @@ class MikrotikService
                 return true;
             }
 
-            $secretId = $existing[0]['.id'];
+            $secretId = $this->hanyaMilikBilling($existing, $username, $router)[0]['.id'];
             $enableQuery = (new Query('/ppp/secret/set'))
                 ->equal('.id', $secretId)
                 ->equal('disabled', 'no');
@@ -727,7 +765,7 @@ class MikrotikService
             $this->assertNoTrap($existing, 'pembacaan PPP Secret');
 
             if (! empty($existing) && isset($existing[0]['.id'])) {
-                $secretId = $existing[0]['.id'];
+                $secretId = $this->hanyaMilikBilling($existing, $username, $router)[0]['.id'];
                 $disableQuery = (new Query('/ppp/secret/set'))
                     ->equal('.id', $secretId)
                     ->equal('disabled', 'yes');
@@ -881,7 +919,7 @@ class MikrotikService
             }
 
             foreach ($existing as $item) {
-                if (self::isProtectedSecret($item)) {
+                if (! self::milikBilling($item)) {
                     $this->recordDeletion($router, $username, $context, 'protected_skipped', $this->snapshotSecret($item), $layananId);
 
                     return false;
@@ -1187,6 +1225,10 @@ class MikrotikService
 
             if (! isset($remoteSecrets[$name])) {
                 $remoteSecrets[$name] = $s;
+            } elseif (self::milikBilling($s) && ! self::milikBilling($remoteSecrets[$name])) {
+                // Entri milik billing jadi acuan; Secret Manual NOC bernama sama dicatat sebagai duplikat (tidak disentuh).
+                $duplicateEntries[] = $remoteSecrets[$name];
+                $remoteSecrets[$name] = $s;
             } else {
                 $duplicateEntries[] = $s;
             }
@@ -1225,6 +1267,13 @@ class MikrotikService
             $expectedRemoteAddress = (string) ($layanan->resolveRemoteAddress() ?? '');
             $expectedLocalAddress = (string) ($layanan->resolveLocalAddress() ?? '');
             $remote = $remoteSecrets[$username] ?? null;
+
+            // Secret Manual NOC bernama sama: jangan ditimpa/diisolir, laporkan saja (ADR-0059).
+            if ($remote !== null && ! self::milikBilling($remote)) {
+                $errors[] = "Secret {$username} di router adalah Secret Manual NOC (tanpa komentar 'UNMS:'); tidak disinkronkan.";
+
+                continue;
+            }
 
             // Periksa apakah secret hilang, profile berbeda, password berbeda, remote-address, atau local-address tidak sesuai
             $needsRecovery = false;
@@ -1357,7 +1406,7 @@ class MikrotikService
             $username = trim((string) $layanan->ppp_username);
             $remote = $remoteSecrets[$username] ?? null;
 
-            if ($username === '' || $remote === null || self::isProtectedSecret($remote)) {
+            if ($username === '' || $remote === null || ! self::milikBilling($remote)) {
                 continue;
             }
 
@@ -1402,7 +1451,7 @@ class MikrotikService
             foreach ($duplicateEntries as $dup) {
                 $name = $dup['name'];
 
-                if (! isset($registeredLookup[$name]) || ! isset($dup['.id']) || self::isProtectedSecret($dup) || self::isProtectedSecret($remoteSecrets[$name])) {
+                if (! isset($registeredLookup[$name]) || ! isset($dup['.id']) || ! self::milikBilling($dup) || ! self::milikBilling($remoteSecrets[$name])) {
                     $unmanagedDuplicates[] = $name;
 
                     continue;

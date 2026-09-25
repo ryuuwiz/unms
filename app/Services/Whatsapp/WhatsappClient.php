@@ -121,6 +121,21 @@ class WhatsappClient
     }
 
     /**
+     * Klasifikasi respons HTTP gagal dari gateway: `rate_limited` (429) dan `error` (5xx) dicoba
+     * ulang oleh KirimWaBlastJob; `unauthorized` (401/403) berarti gateway salah konfigurasi;
+     * sisanya `failed` (permanen, mis. nomor ditolak).
+     */
+    public static function statusGagalHttp(int $kodeHttp): string
+    {
+        return match (true) {
+            $kodeHttp === 429 => 'rate_limited',
+            in_array($kodeHttp, [401, 403], true) => 'unauthorized',
+            $kodeHttp >= 500 => 'error',
+            default => 'failed',
+        };
+    }
+
+    /**
      * @return array{success: bool, status: string, message: string, data: array<string, mixed>}
      */
     public function sendMessage(string $phone, string $message): array

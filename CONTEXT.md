@@ -400,13 +400,21 @@ _Avoid_: Sync Parsial Tanpa Urutan, Push Manual Bebas, Provisi Terfragmentasi
 Proses komparasi periodik terjadwal dan auto-recovery antara basis data UNMS dengan konfigurasi aktual di RouterOS untuk mendeteksi *configuration drift*, memulihkan PPP secret/profil yang hilang atau terhapus di router, dan menyelaraskan status disabled.
 _Avoid_: Cek Status Lepas, Sync Buta, Ping Tanpa Rekonsiliasi
 
+**Provisi Cadangan**:
+Jaring pengaman terjadwal (tiap menit) untuk layanan yang sudah punya router dan username PPP tetapi belum berhasil diprovisi, misalnya karena job antrean hilang, gagal, atau tidak pernah dijalankan. Layanan diambil alih hanya bila tidak ada percobaan provisi dalam 5 menit terakhir dan routernya tidak tercatat offline. Galat yang sama dengan percobaan sebelumnya tidak diberitahukan ulang ke NOC (tetap tercatat di Job Log). Berbeda dari Rekonsiliasi Router yang membandingkan isi router dengan database untuk layanan yang sudah terprovisi.
+_Avoid_: Provisi Ulang Berebut dengan Job Antrean, Notifikasi Berulang untuk Galat yang Sama
+
 **Gate Proaktif Router Offline**:
-Pemeriksaan `Router.status_koneksi` (hasil `mikrotik:ping` tiap 5 menit) di awal `EnablePppoeAccountJob`/`DisablePppoeAccountJob` sebelum mencoba konek ke RouterOS. Jika diketahui `offline`, job dihentikan dengan `MikrotikJobLog` berstatus `Dilewati` (bukan `Gagal`) tanpa notifikasi kegagalan, dan penyelarasan sebenarnya diserahkan ke siklus Rekonsiliasi Router 15-menit berikutnya. Kredensial yang salah (bukan router mati) tetap tertangkap jalur reaktif `getClient()` seperti biasa — gate ini murni mengurangi percobaan & notifikasi sia-sia untuk kasus yang sudah diketahui, bukan pengganti validasi koneksi.
+Pemeriksaan `Router.status_koneksi` (hasil `mikrotik:ping` tiap 10 detik) di awal `EnablePppoeAccountJob`/`DisablePppoeAccountJob` sebelum mencoba konek ke RouterOS. Jika diketahui `offline`, job dihentikan dengan `MikrotikJobLog` berstatus `Dilewati` (bukan `Gagal`) tanpa notifikasi kegagalan, dan penyelarasan sebenarnya diserahkan ke siklus Rekonsiliasi Router 15-menit berikutnya. Kredensial yang salah (bukan router mati) tetap tertangkap jalur reaktif `getClient()` seperti biasa — gate ini murni mengurangi percobaan & notifikasi sia-sia untuk kasus yang sudah diketahui, bukan pengganti validasi koneksi.
 _Avoid_: Menganggap Dilewati sebagai Gagal, Notifikasi Kegagalan untuk Router yang Memang Mati, Skip Permanen Tanpa Percobaan Ulang
 
 **Orphaned Secret (PPP Secret Tak Terkelola)**:
 Akun PPP Secret yang terdeteksi ada di RouterOS namun tidak memiliki rekaman di database UNMS (misal akun manual NOC atau sisa instalasi lama). Penjadwal hanya **mengaudit** (melaporkan), tidak pernah menghapus, karena NOC membuat secret manual yang sah. Penghapusan hanya lewat CLI eksplisit (`--clean-orphans`), hanya untuk secret berkomentar `UNMS:`, tidak untuk secret berkomentar `MANUAL:`/`NOC:`/`SYSTEM:`/`WHITELIST:` atau akun sistem, dan dibatasi jumlahnya per eksekusi.
 _Avoid_: Hapus Buta Akun Router, Rogue User Tanpa Log, Pola Nama sebagai Penanda Kepemilikan, Penghapusan Orphan Terjadwal
+
+**Secret Milik Billing / Secret Manual NOC**:
+Kepemilikan PPP Secret di router ditentukan komentarnya. Secret Milik Billing berkomentar `UNMS:` dan hanya itu yang boleh dibuat ulang, diubah, diisolir, dibuka, atau dihapus oleh sistem. Secret lain adalah Secret Manual NOC dan tidak pernah disentuh sistem, termasuk bila namanya sama dengan username PPP sebuah layanan: provisi/isolir layanan itu gagal dengan pesan jelas dan Notifikasi NOC, sampai NOC mengganti komentarnya menjadi `UNMS:` (menyerahkannya ke billing) atau username layanan diubah.
+_Avoid_: Mengambil Alih Secret Bernama Sama, Menimpa Secret Manual NOC, Kepemilikan dari Pola Nama
 
 **Penghapusan PPP Secret**:
 Satu-satunya jalur yang boleh menghapus secret di router. Wajib membawa jejak input (siapa: user ID atau `system:<sumber>`, dan alasan), menolak username kosong dan secret dilindungi, dicatat di Job Log beserta snapshot secret tanpa password, dan dibatasi `MIKROTIK_MAX_DELETES_PER_RUN` (default 10) per router per eksekusi. Pemicu yang sah: layanan **Berhenti** (input admin/NOC lewat tiket Pencabutan atau ubah status), pindah router, ganti username, layanan dihapus, atau CLI eksplisit. **Isolir (Suspend) tidak pernah menghapus.**
@@ -454,6 +462,10 @@ _Avoid_: Local/Remote Address Literal di Secret PPPoE Dinamis, Provisi PPPoE Tan
 **ODP (Optical Distribution Point)**:
 Titik terminasi fisik kabel distribusi serat optik luar ruang tempat tersambungnya kabel drop instalasi pelanggan, memiliki kapasitas port terukur (4, 8, 16, 24, 32), deskripsi/PON, dan koordinat geografis presisi untuk perhitungan jalur pemasangan jaringan.
 _Avoid_: Box ODP Bebas, Kotak Fiber Lepas, ODP Tanpa Koordinat
+
+**ODP Terdekat**:
+Saran ODP untuk pelanggan baru/diubah berdasarkan koordinat: maksimal 3 ODP dengan jarak lurus paling dekat, hanya yang berada dalam toleransi **150 meter** dari lokasi pelanggan. ODP di luar toleransi tidak disarankan.
+_Avoid_: Radius 300 Meter, Menyarankan ODP di Luar Toleransi
 
 **Penghapusan ODP**:
 Penghapusan (permanen, satuan maupun massal lewat pilihan baris / "pilih semua hasil pencarian") hanya untuk ODP yang tidak punya port Terpakai oleh layanan; ODP yang portnya masih dipakai dilewati dan dilaporkan, karena menghapusnya diam-diam melepas ikatan port dari layanan pelanggan. Hapus massal >10 ODP wajib konfirmasi ketik `HAPUS`; setiap penghapusan tercatat di audit trail (nama & ID ODP).
@@ -555,9 +567,17 @@ _Avoid_: Batch Sender Kedua, Jalur Kirim Paralel
 Sistem pengingat tagihan terjadwal (`invoice:kirim-pengingat`) yang berjalan setiap jam untuk mengevaluasi aturan pengingat aktif dan mengirimkan notifikasi berformat template dinamis dengan link pembayaran ke dua kanal sekaligus: WhatsApp (antrean `wa-blast` Horizon dengan perlindungan pembatasan laju) dan Email (notification queue standar, langsung ke `Pelanggan.email` jika terisi).
 _Avoid_: Pengiriman Manual Satu Per Satu, Blast Tanpa Antrean Terisolasi, Pengingat WhatsApp Saja
 
+**Notifikasi NOC**:
+Pemberitahuan ke user berperan NOC dan super admin tentang hasil integrasi MikroTik. Lonceng di aplikasi menampilkan hasil aksi per pelanggan (provisi, un-isolir, ganti profil berhasil/gagal) serta perubahan status router online/offline. WhatsApp hanya untuk kejadian genting: aksi per pelanggan yang gagal permanen dan router berubah online/offline. Isolir massal yang berhasil tidak diberitahukan; tidak ada notifikasi per sesi PPPoE pelanggan naik/turun.
+_Avoid_: Notifikasi Tersimpan Tanpa Tampilan, WhatsApp untuk Setiap Keberhasilan, Notifikasi Sesi PPPoE
+
 **Notifikasi Invoice Terbit**:
-Pesan tagihan baru (rincian + tautan pembayaran bertanda tangan) yang dikirim ke pelanggan begitu sebuah Invoice dibuat — tagihan pertama saat Data Registrasi Billing dibuat, tagihan periodik oleh `invoice:generate`, maupun invoice manual (biaya instalasi, denda) — lewat WhatsApp (template `invoice_terbit`, antrean `wa-blast`) dan email ke `Pelanggan.email` bila terisi. Dipicu event `InvoiceTerbitEvent` dari `BillingService` setelah transaksi commit, bukan observer model, sehingga seeder/factory tidak mengirim pesan. Pembuatan di luar jendela siang (07:00–20:00 WIB, mis. batch `invoice:generate` pukul 01:00) ditunda ke 08:30 berikutnya. Tanpa opt-out per invoice; pelanggan tanpa no. HP valid dilewati + log; kegagalan kirim tidak pernah menggagalkan pembuatan invoice. Terpisah dari Pengingat Tagihan Otomatis (aturan H-3/H-1/H0/tunggakan tetap apa adanya dan bisa tumpang-tindih dengan pesan ini; admin boleh menonaktifkan aturan H-3).
+Pesan tagihan baru (rincian + tautan pembayaran bertanda tangan) yang dikirim ke pelanggan begitu sebuah Invoice dibuat — tagihan pertama saat Data Registrasi Billing dibuat, tagihan periodik oleh `invoice:generate`, maupun invoice manual (biaya instalasi, denda) — lewat WhatsApp (template `invoice_terbit`, antrean `wa-blast`) dan email ke `Pelanggan.email` bila terisi. Dipicu event `InvoiceTerbitEvent` dari `BillingService` setelah transaksi commit, bukan observer model, sehingga seeder/factory tidak mengirim pesan. Hanya batch `invoice:generate` (invoice tanpa pembuat) yang dibuat di luar jendela siang (07:00–20:00 WIB) ditunda ke 08:30 berikutnya; invoice buatan admin (tagihan pertama, manual) selalu langsung dikirim karena pelanggan biasanya sedang dilayani. Pesan yang menunggu giliran Jeda Antar-Pesan tidak dianggap gagal; galat gateway sementara (timeout, 5xx) dicoba ulang hingga 2 jam, lalu dianggap gagal dan tercatat di log WhatsApp. Tanpa opt-out per invoice; pelanggan tanpa no. HP valid dilewati + log; kegagalan kirim tidak pernah menggagalkan pembuatan invoice. Terpisah dari Pengingat Tagihan Otomatis (aturan H-3/H-1/H0/tunggakan tetap apa adanya dan bisa tumpang-tindih dengan pesan ini; admin boleh menonaktifkan aturan H-3).
 _Avoid_: Observer Invoice::created (memicu pesan dari seeder/factory), Mengandalkan Aturan H-3 sebagai Notifikasi Terbit (tagihan pertama jatuh tempo H+1 sehingga tidak pernah cocok), Pesan Malam Hari Tanpa Penundaan
+
+**Gateway WA Bermasalah**:
+Keadaan ketika gateway WhatsApp (WAHA/GOWA) menolak autentikasi (401/403) atau tidak terjangkau (timeout, 5xx), sehingga semua pesan ke pelanggan gagal. Admin dan super admin diberi tahu lewat lonceng maksimal sekali per jam per gateway. Kegagalan per nomor (nomor tidak valid/tidak terdaftar) bukan Gateway WA Bermasalah; cukup terlihat di halaman Antrian WA dan log WhatsApp.
+_Avoid_: Lonceng untuk Setiap Pesan Gagal
 
 **Notifikasi Email Invoice**:
 Email transaksional yang dikirim ke `Pelanggan.email` (bukan email akun Portal Pelanggan) untuk tiga peristiwa: invoice terbit, pengingat jatuh tempo tagihan, dan konfirmasi pembayaran lunas, berisi link ke halaman invoice Portal Pelanggan tanpa lampiran PDF. Dikirim via SMTP Mailpit di lingkungan lokal; dilewati (skip + log) jika pelanggan tidak memiliki email.

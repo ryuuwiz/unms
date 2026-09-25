@@ -28,11 +28,16 @@ class KirimNotifikasiInvoiceTerbitListener implements ShouldQueue
     public function __construct(private WhatsappService $whatsappService) {}
 
     /**
-     * Di luar jendela siang (mis. batch invoice:generate 01:00), tunda ke 08:30 berikutnya.
+     * Batch invoice:generate (tanpa `dibuat_oleh`) di luar jendela siang ditunda ke 08:30 berikutnya.
+     * Invoice buatan admin (tagihan pertama, manual) selalu langsung: pelanggan biasanya sedang dilayani.
      */
     public function withDelay(InvoiceTerbitEvent $event): DateTimeInterface|int
     {
         $sekarang = now(self::ZONA_WAKTU);
+
+        if ($event->invoice->dibuat_oleh !== null) {
+            return 0;
+        }
 
         if ($sekarang->hour >= self::JAM_MULAI_SIANG && $sekarang->hour < self::JAM_AKHIR_SIANG) {
             return 0;

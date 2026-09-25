@@ -10,6 +10,7 @@ use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use RouterOS\Client;
 use RouterOS\Exceptions\StreamException;
 
@@ -17,6 +18,8 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
+    // Tes ini menguji MikrotikService langsung; job sampingan dari observer layanan tidak dijalankan.
+    Queue::fake();
     $this->service = new MikrotikService;
 });
 
@@ -72,7 +75,8 @@ test('createOrUpdatePppoeSecret melanjutkan ke update saat create gagal karena e
         fn () => [],
         fn () => [],
         fn () => ['after' => ['message' => 'failure: already have such entry']],
-        fn () => [['.id' => '*2', 'name' => 'user-idempotent-1']],
+        // Entry dibuat proses billing lain (race), jadi berkomentar UNMS:.
+        fn () => [['.id' => '*2', 'name' => 'user-idempotent-1', 'comment' => 'UNMS: S1 - Budi']],
         fn () => [],
     ]);
 

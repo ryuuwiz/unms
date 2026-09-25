@@ -118,7 +118,7 @@ class WahaDriver implements WhatsappGatewayDriverInterface
 
             return [
                 'success' => $isSuccess,
-                'status' => $isSuccess ? 'success' : 'failed',
+                'status' => $isSuccess ? 'success' : WhatsappClient::statusGagalHttp($response->status()),
                 'message' => $isSuccess ? 'Pesan berhasil dikirim via WAHA' : ($json['message'] ?? "HTTP {$response->status()}"),
                 'data' => $json,
             ];
