@@ -94,11 +94,42 @@
                         <flux:select.option value="{{ $kategori->id }}">{{ $kategori->kode }} — {{ $kategori->nama }}</flux:select.option>
                     @endforeach
                 </flux:select>
-                <flux:input wire:model="satuan" label="Satuan" placeholder="pcs / meter / unit" />
+                <flux:input wire:model="satuan" label="Satuan" placeholder="pcs / meter / unit" list="satuan-list" autocomplete="off" />
+                <datalist id="satuan-list">
+                    @foreach($satuanList as $s)
+                        <option value="{{ $s }}"></option>
+                    @endforeach
+                </datalist>
                 <flux:field>
-                    <flux:checkbox wire:model="dilacakPerUnit" label="Dilacak per unit (setiap unit punya kode & barcode sendiri)" />
+                    <flux:checkbox wire:model.live="dilacakPerUnit" label="Dilacak per unit (setiap unit punya kode & barcode sendiri)" />
                     <flux:description>Untuk modem/ONT. Tidak dapat diubah setelah barang memiliki mutasi.</flux:description>
                 </flux:field>
+
+                @if ($bolehStokAwal)
+                    @can('barang.masuk')
+                        <div class="grid grid-cols-2 gap-4">
+                            <flux:input type="number" min="0" wire:model.live.debounce.300ms="stokAwal" label="Stok Awal" />
+                            <flux:input type="date" wire:model="tanggalStokAwal" label="Tanggal Stok Awal" />
+                        </div>
+                        <flux:description>Stok yang sudah ada sebelum sistem dipakai. Hanya bisa diisi selama barang belum punya mutasi.</flux:description>
+
+                        @if ($dilacakPerUnit && $stokAwal > 0)
+                            <flux:select wire:model="kondisiId" label="Kondisi" placeholder="Pilih kondisi...">
+                                <flux:select.option value="">Pilih kondisi...</flux:select.option>
+                                @foreach($kondisis as $kondisi)
+                                    <flux:select.option value="{{ $kondisi->id }}">{{ $kondisi->kode }} — {{ $kondisi->nama }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:select wire:model="brandId" label="Brand (opsional)" placeholder="Tanpa brand">
+                                <flux:select.option value="">Tanpa brand</flux:select.option>
+                                @foreach($brands as $brand)
+                                    <flux:select.option value="{{ $brand->id }}">{{ $brand->kode }} — {{ $brand->nama }}</flux:select.option>
+                                @endforeach
+                            </flux:select>
+                            <flux:description>{{ $stokAwal }} unit berkode baru akan dibuat.</flux:description>
+                        @endif
+                    @endcan
+                @endif
             </div>
 
             <div class="flex justify-end gap-2">

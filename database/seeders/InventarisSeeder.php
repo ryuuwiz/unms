@@ -76,12 +76,12 @@ class InventarisSeeder extends Seeder
 
         // Pemakaian teknisi.
         $unitBaru = UnitBarang::where('jenis_barang_id', $router->id)->where('kode', 'like', 'MDM-NEW-BF-%')->orderBy('id')->take(3)->pluck('id')->all();
-        $keluar->execute($router, TipeMutasiBarang::Pemakaian, $tanggal(5), 0, $admin, 'PEMASANGAN BARU', $teknisi[0], unitIds: [$unitBaru[0], $unitBaru[1]]);
-        $keluar->execute($router, TipeMutasiBarang::Pemakaian, $tanggal(8), 0, $admin, 'PEMASANGAN BARU', $teknisi[$teknisi->count() > 1 ? 1 : 0], unitIds: [$unitBaru[2]]);
-        $keluar->execute($jenis['BF-KBL-1C'], TipeMutasiBarang::Pemakaian, $tanggal(5), 150, $admin, 'PEMASANGAN BARU', $teknisi[0]);
-        $keluar->execute($jenis['BF-RST-001'], TipeMutasiBarang::Pemakaian, $tanggal(5), 2, $admin, 'PEMASANGAN BARU', $teknisi[0]);
-        $keluar->execute($jenis['BF-PTC-001'], TipeMutasiBarang::Pemakaian, $tanggal(6), 3, $admin, 'TROUBLE', $teknisi[0]);
-        $keluar->execute($jenis['BF-KLP-001'], TipeMutasiBarang::Pemakaian, $tanggal(6), 40, $admin, 'PENYAMBUNGAN ODP', $teknisi[$teknisi->count() > 1 ? 1 : 0]);
+        $keluar->execute($router, TipeMutasiBarang::Pemakaian, $tanggal(5), 0, $admin, 'PEMASANGAN BARU', [$teknisi[0]], unitIds: [$unitBaru[0], $unitBaru[1]]);
+        $keluar->execute($router, TipeMutasiBarang::Pemakaian, $tanggal(8), 0, $admin, 'PEMASANGAN BARU', [$teknisi[$teknisi->count() > 1 ? 1 : 0]], unitIds: [$unitBaru[2]]);
+        $keluar->execute($jenis['BF-KBL-1C'], TipeMutasiBarang::Pemakaian, $tanggal(5), 150, $admin, 'PEMASANGAN BARU', [$teknisi[0]]);
+        $keluar->execute($jenis['BF-RST-001'], TipeMutasiBarang::Pemakaian, $tanggal(5), 2, $admin, 'PEMASANGAN BARU', [$teknisi[0]]);
+        $keluar->execute($jenis['BF-PTC-001'], TipeMutasiBarang::Pemakaian, $tanggal(6), 3, $admin, 'TROUBLE', [$teknisi[0]]);
+        $keluar->execute($jenis['BF-KLP-001'], TipeMutasiBarang::Pemakaian, $tanggal(6), 40, $admin, 'PENYAMBUNGAN ODP', [$teknisi[$teknisi->count() > 1 ? 1 : 0]]);
 
         // Barang datang cacat: dihapusbukukan tanpa teknisi.
         $keluar->execute($jenis['BF-SPL-1:8'], TipeMutasiBarang::Rusak, $tanggal(4), 1, $admin, 'DATANG KE ADAAN EROR/CACAT');

@@ -28,8 +28,11 @@
                 <flux:table.column>Kode Barang</flux:table.column>
                 <flux:table.column>Nama Barang</flux:table.column>
                 <flux:table.column align="end">Jumlah Keluar</flux:table.column>
-                <flux:table.column>Keterangan</flux:table.column>
+                <flux:table.column>Keperluan</flux:table.column>
                 <flux:table.column>Teknisi</flux:table.column>
+                @can('barang.hapus')
+                    <flux:table.column></flux:table.column>
+                @endcan
             </flux:table.columns>
             <flux:table.rows>
                 @forelse($mutasi as $baris)
@@ -45,19 +48,24 @@
                         <flux:table.cell>{{ $baris->jenisBarang->nama }}</flux:table.cell>
                         <flux:table.cell align="end">{{ number_format($baris->jumlah, 0, ',', '.') }} {{ $baris->jenisBarang->satuan }}</flux:table.cell>
                         <flux:table.cell>
-                            <div>{{ $baris->keterangan ?? '-' }}</div>
+                            <div>{{ $baris->keperluan ?? $baris->tipe->label() }}@if ($baris->tipe === \App\Enums\Barang\TipeMutasiBarang::Rusak) <flux:badge size="sm" color="red">Rusak</flux:badge>@endif</div>
                             <div class="text-xs text-zinc-500">
-                                {{ $baris->tipe->label() }}
+                                {{ $baris->keterangan }}
                                 @if ($baris->ticket)
                                     · <a href="{{ route('ticket.show', $baris->ticket) }}" class="text-blue-600 dark:text-blue-400 hover:underline" wire:navigate>{{ $baris->ticket->nomor_ticket }}</a>
                                 @endif
                             </div>
                         </flux:table.cell>
-                        <flux:table.cell>{{ $baris->teknisi->name ?? '-' }}</flux:table.cell>
+                        <flux:table.cell>{{ $baris->teknisi->pluck('name')->implode(', ') ?: '-' }}</flux:table.cell>
+                        @can('barang.hapus')
+                            <flux:table.cell align="end">
+                                <flux:button variant="ghost" size="sm" icon="trash" wire:click="hapus({{ $baris->id }})" wire:confirm="Hapus barang keluar ini? Status unit dikembalikan seperti sebelumnya." title="Hapus" />
+                            </flux:table.cell>
+                        @endcan
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="7" class="py-8 text-center text-zinc-500">Belum ada barang keluar pada bulan ini.</flux:table.cell>
+                        <flux:table.cell colspan="8" class="py-8 text-center text-zinc-500">Belum ada barang keluar pada bulan ini.</flux:table.cell>
                     </flux:table.row>
                 @endforelse
             </flux:table.rows>
@@ -80,11 +88,14 @@
                     <flux:description>Stok tersedia: {{ number_format((int) $stokTersedia, 0, ',', '.') }} {{ $jenisTerpilih->satuan }}</flux:description>
                 @endif
 
-                <flux:select wire:model.live="tipe" label="Tipe">
-                    @foreach($tipes as $t)
-                        <flux:select.option value="{{ $t->value }}">{{ $t->label() }}</flux:select.option>
+                <flux:input wire:model="keperluan" label="Keperluan" placeholder="mis. Pemasangan, Maintenance POP" list="keperluan-list" autocomplete="off" />
+                <datalist id="keperluan-list">
+                    @foreach($keperluanList as $k)
+                        <option value="{{ $k }}"></option>
                     @endforeach
-                </flux:select>
+                </datalist>
+
+                <flux:checkbox wire:model.live="rusak" label="Barang rusak / dihapusbukukan" />
 
                 <flux:input type="date" wire:model="tanggal" label="Tanggal" />
 
@@ -94,13 +105,14 @@
                     <flux:input type="number" min="1" wire:model="jumlah" :label="'Jumlah'.($jenisTerpilih ? ' ('.$jenisTerpilih->satuan.')' : '')" />
                 @endif
 
-                <flux:select wire:model="teknisiId" label="Teknisi Penerima" placeholder="Pilih teknisi...">
-                    <flux:select.option value="">Pilih teknisi...</flux:select.option>
-                    @foreach($teknisis as $teknisi)
-                        <flux:select.option value="{{ $teknisi->id }}">{{ $teknisi->name }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:error name="teknisiId" />
+                <flux:checkbox.group wire:model="teknisiIds" :label="'Teknisi Penerima'.($rusak ? ' (opsional)' : '')">
+                    <div class="grid grid-cols-2 gap-2">
+                        @foreach($teknisis as $teknisi)
+                            <flux:checkbox value="{{ $teknisi->id }}" :label="$teknisi->name" />
+                        @endforeach
+                    </div>
+                </flux:checkbox.group>
+                <flux:error name="teknisiIds" />
 
                 <flux:input wire:model="nomorTicket" label="Nomor Tiket (opsional)" placeholder="TCK-2026-000123" />
                 <flux:textarea wire:model="keterangan" label="Keterangan" rows="2" />

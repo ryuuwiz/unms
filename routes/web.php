@@ -266,7 +266,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/masuk', Barang\Masuk::class)->name('masuk');
             Route::get('/keluar', Barang\Keluar::class)->name('keluar');
             Route::get('/unit', Barang\Unit::class)->name('unit');
-            Route::get('/label', LabelBarangPdfController::class)->name('label');
+            Route::match(['get', 'post'], '/label', LabelBarangPdfController::class)->name('label');
         });
         Route::middleware('permission:barang.ubah')->group(function () {
             Route::get('/pengaturan', Barang\Pengaturan::class)->name('pengaturan');

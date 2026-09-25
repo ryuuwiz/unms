@@ -14,7 +14,7 @@ use Picqer\Barcode\BarcodeGeneratorPNG;
  */
 class LabelBarangPdfController extends Controller
 {
-    private const MAKS_LABEL = 500;
+    public const MAKS_LABEL = 500;
 
     public function __invoke(Request $request): Response
     {

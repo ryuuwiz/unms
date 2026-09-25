@@ -4,10 +4,20 @@
             <flux:heading size="xl">Unit Barang</flux:heading>
             <flux:subheading>Setiap unit barang yang dilacak (modem/ONT) beserta kode, status, dan label barcode.</flux:subheading>
         </div>
-        <flux:button icon="printer" target="_blank" :disabled="$dipilih === []"
-            :href="$dipilih === [] ? null : route('barang.label', ['unit' => $dipilih])">
-            Cetak Label ({{ count($dipilih) }})
-        </flux:button>
+        <div class="flex flex-wrap gap-2">
+            <flux:button wire:click="pilihSemua" icon="check-circle">Pilih Semua Hasil Filter</flux:button>
+            @if ($dipilih !== [])
+                <flux:button wire:click="batalPilih" variant="ghost">Batal Pilih</flux:button>
+            @endif
+            {{-- POST: ratusan ID unit tidak muat di query string. --}}
+            <form method="POST" action="{{ route('barang.label') }}" target="_blank">
+                @csrf
+                @foreach ($dipilih as $id)
+                    <input type="hidden" name="unit[]" value="{{ $id }}">
+                @endforeach
+                <flux:button type="submit" icon="printer" :disabled="$dipilih === []">Cetak Label ({{ count($dipilih) }})</flux:button>
+            </form>
+        </div>
     </div>
 
     <flux:card class="space-y-4 p-6">

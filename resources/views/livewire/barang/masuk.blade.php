@@ -2,7 +2,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <flux:heading size="xl">Barang Masuk</flux:heading>
-            <flux:subheading>Pembelian, saldo awal, dan pengembalian unit dari pelanggan.</flux:subheading>
+            <flux:subheading>Pembelian dan pengembalian unit dari pelanggan. Stok awal diisi di Data Barang.</flux:subheading>
         </div>
         @can('barang.masuk')
             <flux:button variant="primary" icon="plus" wire:click="openCreateModal">Catat Barang Masuk</flux:button>
@@ -33,6 +33,9 @@
                 <flux:table.column>Nama Barang</flux:table.column>
                 <flux:table.column align="end">Jumlah Masuk</flux:table.column>
                 <flux:table.column>Tipe</flux:table.column>
+                @can('barang.hapus')
+                    <flux:table.column></flux:table.column>
+                @endcan
             </flux:table.columns>
             <flux:table.rows>
                 @forelse($mutasi as $baris)
@@ -51,10 +54,15 @@
                             {{ $baris->tipe->label() }}
                             @if ($baris->keterangan)<div class="text-xs text-zinc-500">{{ $baris->keterangan }}</div>@endif
                         </flux:table.cell>
+                        @can('barang.hapus')
+                            <flux:table.cell align="end">
+                                <flux:button variant="ghost" size="sm" icon="trash" wire:click="hapus({{ $baris->id }})" wire:confirm="Hapus barang masuk ini? Unit baru dari mutasi ini ikut terhapus." title="Hapus" />
+                            </flux:table.cell>
+                        @endcan
                     </flux:table.row>
                 @empty
                     <flux:table.row>
-                        <flux:table.cell colspan="6" class="py-8 text-center text-zinc-500">Belum ada barang masuk pada bulan ini.</flux:table.cell>
+                        <flux:table.cell colspan="7" class="py-8 text-center text-zinc-500">Belum ada barang masuk pada bulan ini.</flux:table.cell>
                     </flux:table.row>
                 @endforelse
             </flux:table.rows>
@@ -74,18 +82,14 @@
                 </flux:select>
                 <flux:error name="jenisId" />
 
-                <flux:select wire:model.live="tipe" label="Tipe">
-                    @foreach($tipes as $t)
-                        <flux:select.option value="{{ $t->value }}">{{ $t->label() }}</flux:select.option>
-                    @endforeach
-                </flux:select>
-
                 <flux:input type="date" wire:model="tanggal" label="Tanggal" />
 
-                @if ($jenisTerpilih?->dilacak_per_unit && $tipe === \App\Enums\Barang\TipeMutasiBarang::Pengembalian->value)
-                    @include('livewire.barang.partials.pilih-unit', ['labelPilih' => 'Unit yang dikembalikan (berstatus Terpasang)'])
-                @else
-                    <flux:input type="number" min="1" wire:model="jumlah" :label="'Jumlah'.($jenisTerpilih ? ' ('.$jenisTerpilih->satuan.')' : '')" />
+                @if ($jenisTerpilih?->dilacak_per_unit)
+                    @include('livewire.barang.partials.pilih-unit', ['labelPilih' => 'Unit kembali dari pelanggan (opsional, berstatus Terpasang)'])
+                @endif
+
+                @if ($unitIds === [])
+                    <flux:input type="number" min="1" wire:model="jumlah" :label="'Jumlah'.($jenisTerpilih?->dilacak_per_unit ? ' unit baru' : '').($jenisTerpilih ? ' ('.$jenisTerpilih->satuan.')' : '')" />
                 @endif
 
                 @if ($jenisTerpilih?->dilacak_per_unit)
@@ -97,7 +101,7 @@
                     </flux:select>
                     <flux:error name="kondisi" />
 
-                    @if ($tipe !== \App\Enums\Barang\TipeMutasiBarang::Pengembalian->value)
+                    @if ($unitIds === [])
                         <flux:select wire:model="brandId" label="Brand (opsional)" placeholder="Tanpa brand">
                             <flux:select.option value="">Tanpa brand</flux:select.option>
                             @foreach($brands as $brand)

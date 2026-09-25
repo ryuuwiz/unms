@@ -20,9 +20,10 @@ use Illuminate\Validation\ValidationException;
 class CatatBarangKeluarAction
 {
     /**
-     * Pemakaian wajib menyebut teknisi penerima; stok tidak boleh negatif. Jenis dilacak wajib
-     * memilih unit spesifik ($unitIds) dan jumlah = banyaknya unit.
+     * Pemakaian wajib menyebut minimal satu teknisi penerima; stok tidak boleh negatif. Jenis dilacak
+     * wajib memilih unit spesifik ($unitIds) dan jumlah = banyaknya unit. Keperluan kosong = label tipe.
      *
+     * @param  iterable<User>  $teknisi
      * @param  list<int>  $unitIds
      *
      * @throws ValidationException
@@ -34,19 +35,26 @@ class CatatBarangKeluarAction
         int $jumlah,
         User $actor,
         ?string $keterangan = null,
-        ?User $teknisi = null,
+        iterable $teknisi = [],
         ?Ticket $ticket = null,
         array $unitIds = [],
+        ?string $keperluan = null,
     ): MutasiBarang {
+        $teknisi = collect($teknisi);
+
         if (! in_array($tipe, TipeMutasiBarang::keluar(), true)) {
             throw ValidationException::withMessages(['tipe' => 'Tipe mutasi bukan barang keluar.']);
         }
 
-        if ($tipe === TipeMutasiBarang::Pemakaian && (! $teknisi || ! $teknisi->hasRole('teknisi'))) {
-            throw ValidationException::withMessages(['teknisiId' => 'Teknisi penerima wajib dipilih.']);
+        if ($tipe === TipeMutasiBarang::Pemakaian && $teknisi->isEmpty()) {
+            throw ValidationException::withMessages(['teknisiIds' => 'Teknisi penerima wajib dipilih.']);
         }
 
-        return DB::transaction(function () use ($jenis, $tipe, $tanggal, $jumlah, $actor, $keterangan, $teknisi, $ticket, $unitIds) {
+        if ($teknisi->contains(fn (User $user) => ! $user->hasRole('teknisi'))) {
+            throw ValidationException::withMessages(['teknisiIds' => 'Penerima harus user berperan teknisi.']);
+        }
+
+        return DB::transaction(function () use ($jenis, $tipe, $tanggal, $jumlah, $actor, $keterangan, $teknisi, $ticket, $unitIds, $keperluan) {
             $jenis = JenisBarang::whereKey($jenis->id)->lockForUpdate()->firstOrFail();
 
             $units = new Collection;
@@ -79,11 +87,13 @@ class CatatBarangKeluarAction
                 'tipe' => $tipe,
                 'tanggal' => $tanggal->toDateString(),
                 'jumlah' => $jumlah,
+                'keperluan' => $keperluan ?: $tipe->label(),
                 'keterangan' => $keterangan,
-                'teknisi_id' => $teknisi?->id,
                 'ticket_id' => $ticket?->id,
                 'dicatat_oleh' => $actor->id,
             ]);
+
+            $mutasi->teknisi()->attach($teknisi->pluck('id')->unique()->all());
 
             if ($units->isNotEmpty()) {
                 UnitBarang::whereKey($units->modelKeys())->update([

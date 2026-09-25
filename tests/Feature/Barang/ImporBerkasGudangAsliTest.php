@@ -55,10 +55,13 @@ beforeEach(function () {
     $this->service = app(ImporInventarisService::class);
 });
 
-test('berkas gudang asli bisa diimpor; FERDY hanya muncul sebagai anggota tim sehingga tidak perlu dipetakan', function () {
+test('berkas gudang asli bisa diimpor; anggota tim FERDY dipetakan ke user FERDI', function () {
     $path = berkasGudangTerkoreksi();
 
-    $pratinjau = $this->service->pratinjau($path);
+    expect($this->service->pratinjau($path)['teknisi_tak_dikenal'])->toBe(['ferdy']);
+
+    $peta = ['ferdy' => $this->teknisi['FERDI']->id];
+    $pratinjau = $this->service->pratinjau($path, $peta);
     expect($pratinjau['galat_umum'])->toBe([])
         ->and($pratinjau['teknisi_tak_dikenal'])->toBe([]);
 
@@ -69,7 +72,7 @@ test('berkas gudang asli bisa diimpor; FERDY hanya muncul sebagai anggota tim se
     expect($galat)->toBe([])
         ->and($pratinjau['jumlah'])->toBe(['barang' => 44, 'masuk' => 2, 'keluar' => 54]);
 
-    $hasil = $this->service->simpan($path, $this->admin);
+    $hasil = $this->service->simpan($path, $this->admin, $peta);
     expect($hasil['disimpan'])->toBeTrue();
 
     $stok = fn (string $kode) => JenisBarang::where('kode', $kode)->firstOrFail()->stok();
@@ -87,11 +90,11 @@ test('berkas gudang asli bisa diimpor; FERDY hanya muncul sebagai anggota tim se
 
     // "DATANG KE ADAAN EROR/CACAT" oleh "All" = barang rusak tanpa teknisi.
     $rusak = MutasiBarang::where('tipe', TipeMutasiBarang::Rusak)->firstOrFail();
-    expect($rusak->jumlah)->toBe(9)->and($rusak->teknisi_id)->toBeNull();
+    expect($rusak->jumlah)->toBe(9)->and($rusak->teknisi)->toBeEmpty();
 
-    // Tim multi-orang: teknisi pertama sebagai penerima, tim lengkap di keterangan.
-    $tim = MutasiBarang::where('keterangan', 'like', '%Tim: RAFI,FERDY & ADNAN%')->firstOrFail();
-    expect($tim->teknisi_id)->toBe($this->teknisi['RAFI']->id);
+    // Tim multi-orang "RAFI,FERDY & ADNAN": semua anggota jadi teknisi penerima.
+    $idTim = collect(['RAFI', 'FERDI', 'ADNAN'])->map(fn (string $nama) => $this->teknisi[$nama]->id)->sort()->values()->all();
+    expect(MutasiBarang::with('teknisi')->get()->contains(fn (MutasiBarang $m) => $m->teknisi->pluck('id')->sort()->values()->all() === $idTim))->toBeTrue();
 });
 
 test('berkas asli tanpa koreksi menunjukkan kode ganda dan stok negatif sebagai galat', function () {
@@ -104,7 +107,7 @@ test('berkas asli tanpa koreksi menunjukkan kode ganda dan stok negatif sebagai 
         ->and($semuaGalat)->toContain('Stok BF-RJ45-B-U tidak cukup');
 });
 
-test('nama teknisi pertama yang tidak dikenal bisa dipetakan ke user teknisi', function () {
+test('nama anggota tim yang tidak dikenal bisa dipetakan ke user teknisi', function () {
     $path = berkasImpor([
         'Data Barang' => [['KODE BARANG', 'NAMA BARANG', 'STOK AWAL'], ['BF-RST-001', 'ROSET', 10]],
         'Barang Masuk' => [['NO', 'TANGGAL', 'KODE BARANG', 'NAMA BARANG', 'JUMLAH MASUK']],
@@ -116,5 +119,6 @@ test('nama teknisi pertama yang tidak dikenal bisa dipetakan ke user teknisi', f
     $hasil = $this->service->simpan($path, $this->admin, ['ferdy' => $this->teknisi['FERDI']->id]);
 
     expect($hasil['disimpan'])->toBeTrue()
-        ->and(MutasiBarang::where('tipe', TipeMutasiBarang::Pemakaian)->value('teknisi_id'))->toBe($this->teknisi['FERDI']->id);
+        ->and(MutasiBarang::where('tipe', TipeMutasiBarang::Pemakaian)->firstOrFail()->teknisi->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$this->teknisi['FERDI']->id, $this->teknisi['ADNAN']->id])->sort()->values()->all());
 });

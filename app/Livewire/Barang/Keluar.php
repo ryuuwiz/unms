@@ -3,6 +3,7 @@
 namespace App\Livewire\Barang;
 
 use App\Actions\Barang\CatatBarangKeluarAction;
+use App\Actions\Barang\HapusMutasiBarangAction;
 use App\Enums\Barang\ArahMutasiBarang;
 use App\Enums\Barang\StatusUnitBarang;
 use App\Enums\Barang\TipeMutasiBarang;
@@ -15,6 +16,7 @@ use Flux\Flux;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -44,13 +46,17 @@ class Keluar extends Component
 
     public ?int $jenisId = null;
 
-    public string $tipe = 'pemakaian';
+    public string $keperluan = '';
+
+    /** Barang rusak / dihapusbukukan: unit berstatus Rusak dan teknisi tidak wajib. */
+    public bool $rusak = false;
 
     public string $tanggal = '';
 
     public int $jumlah = 1;
 
-    public ?int $teknisiId = null;
+    /** @var list<int> */
+    public array $teknisiIds = [];
 
     public string $nomorTicket = '';
 
@@ -79,8 +85,7 @@ class Keluar extends Component
     public function openCreateModal(): void
     {
         $this->authorize('barang.keluar');
-        $this->reset(['jenisId', 'jumlah', 'teknisiId', 'nomorTicket', 'keterangan', 'unitIds', 'scanKode']);
-        $this->tipe = TipeMutasiBarang::Pemakaian->value;
+        $this->reset(['jenisId', 'jumlah', 'keperluan', 'rusak', 'teknisiIds', 'nomorTicket', 'keterangan', 'unitIds', 'scanKode']);
         $this->tanggal = Carbon::today()->toDateString();
         $this->resetValidation();
         $this->showModal = true;
@@ -92,14 +97,16 @@ class Keluar extends Component
 
         $this->validate([
             'jenisId' => ['required', 'integer', 'exists:jenis_barang,id'],
-            'tipe' => ['required', Rule::in(array_map(fn (TipeMutasiBarang $t) => $t->value, TipeMutasiBarang::keluar()))],
+            'keperluan' => ['required', 'string', 'max:100'],
+            'rusak' => ['boolean'],
             'tanggal' => ['required', 'date', 'before_or_equal:today'],
             'jumlah' => ['required', 'integer', 'min:1', 'max:100000'],
-            'teknisiId' => [Rule::requiredIf($this->tipe === TipeMutasiBarang::Pemakaian->value), 'nullable', 'integer', 'exists:users,id'],
+            'teknisiIds' => [Rule::requiredIf(! $this->rusak), 'array'],
+            'teknisiIds.*' => ['integer', 'exists:users,id'],
             'nomorTicket' => ['nullable', 'string', Rule::exists('ticket', 'nomor_ticket')],
             'keterangan' => ['nullable', 'string', 'max:500'],
         ], [
-            'teknisiId.required' => 'Teknisi penerima wajib dipilih.',
+            'teknisiIds.required' => 'Teknisi penerima wajib dipilih.',
             'nomorTicket.exists' => 'Nomor tiket tidak ditemukan.',
         ]);
 
@@ -108,18 +115,34 @@ class Keluar extends Component
 
         $mutasi = $action->execute(
             jenis: JenisBarang::findOrFail($this->jenisId),
-            tipe: TipeMutasiBarang::from($this->tipe),
+            tipe: $this->rusak ? TipeMutasiBarang::Rusak : TipeMutasiBarang::Pemakaian,
             tanggal: Carbon::parse($this->tanggal),
             jumlah: $this->jumlah,
             actor: $user,
             keterangan: trim($this->keterangan) ?: null,
-            teknisi: $this->teknisiId ? User::find($this->teknisiId) : null,
+            teknisi: User::whereKey($this->teknisiIds)->get(),
             ticket: trim($this->nomorTicket) !== '' ? Ticket::where('nomor_ticket', trim($this->nomorTicket))->first() : null,
             unitIds: $this->unitIds,
+            keperluan: trim($this->keperluan),
         );
 
         $this->showModal = false;
         Flux::toast(variant: 'success', text: "Barang keluar dicatat ({$mutasi->jumlah} {$mutasi->jenisBarang->satuan}).");
+    }
+
+    public function hapus(int $id, HapusMutasiBarangAction $action): void
+    {
+        $this->authorize('barang.hapus');
+
+        try {
+            $action->execute(MutasiBarang::where('arah', ArahMutasiBarang::Keluar)->findOrFail($id));
+        } catch (ValidationException $e) {
+            Flux::toast(variant: 'danger', text: $e->validator->errors()->first());
+
+            return;
+        }
+
+        Flux::toast(variant: 'success', text: 'Barang keluar dihapus.');
     }
 
     protected function statusUnitDipilih(): array
@@ -144,7 +167,7 @@ class Keluar extends Component
             ->when(trim($this->search) !== '', fn (Builder $q) => $q->whereHas('jenisBarang', fn (Builder $j) => $j
                 ->where('nama', 'like', '%'.trim($this->search).'%')
                 ->orWhere('kode', 'like', '%'.trim($this->search).'%')))
-            ->when($this->filterTeknisiId, fn (Builder $q) => $q->where('teknisi_id', $this->filterTeknisiId))
+            ->when($this->filterTeknisiId, fn (Builder $q) => $q->whereHas('teknisi', fn (Builder $t) => $t->whereKey($this->filterTeknisiId)))
             ->orderByDesc('tanggal')
             ->orderByDesc('id')
             ->paginate(20);
@@ -154,7 +177,7 @@ class Keluar extends Component
             'jenisList' => JenisBarang::query()->orderBy('nama')->get(),
             'jenisTerpilih' => $jenis,
             'stokTersedia' => $jenis?->stok(),
-            'tipes' => TipeMutasiBarang::keluar(),
+            'keperluanList' => MutasiBarang::query()->where('arah', ArahMutasiBarang::Keluar)->whereNotNull('keperluan')->distinct()->orderBy('keperluan')->pluck('keperluan'),
             'teknisis' => User::role('teknisi')->orderBy('name')->get(['id', 'name']),
             'unitTerpilih' => $this->unitTerpilih(),
             'unitKandidat' => $this->unitKandidat(),

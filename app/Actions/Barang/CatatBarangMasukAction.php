@@ -54,6 +54,7 @@ class CatatBarangMasukAction
             JenisBarang::whereKey($jenis->id)->lockForUpdate()->first();
 
             $units = new Collection;
+            $pivot = null;
 
             if ($jenis->dilacak_per_unit && $tipe === TipeMutasiBarang::Pengembalian) {
                 $units = UnitBarang::query()
@@ -68,6 +69,8 @@ class CatatBarangMasukAction
                 }
 
                 // Kode unit tetap; kondisinya saja yang berubah (CONTEXT.md "Status Unit Barang").
+                // Kondisi lama disimpan di pivot agar Penghapusan Mutasi bisa memulihkannya (ADR-0058).
+                $pivot = $units->mapWithKeys(fn (UnitBarang $unit) => [$unit->id => ['kondisi_sebelum_id' => $unit->kondisi_barang_id]])->all();
                 UnitBarang::whereKey($units->modelKeys())->update([
                     'status' => StatusUnitBarang::Dikembalikan,
                     'kondisi_barang_id' => $kondisi?->id,
@@ -118,7 +121,7 @@ class CatatBarangMasukAction
             ]);
 
             if ($units->isNotEmpty()) {
-                $mutasi->units()->attach($units->modelKeys());
+                $mutasi->units()->attach($pivot ?? $units->modelKeys());
             }
 
             return $mutasi;

@@ -3,6 +3,7 @@
 namespace App\Livewire\Barang;
 
 use App\Enums\Barang\StatusUnitBarang;
+use App\Http\Controllers\LabelBarangPdfController;
 use App\Models\JenisBarang;
 use App\Models\UnitBarang;
 use Illuminate\Database\Eloquent\Builder;
@@ -46,17 +47,36 @@ class Unit extends Component
         }
     }
 
-    public function render(): View
+    /**
+     * Pilih semua unit hasil filter di semua halaman (dibatasi batas cetak label).
+     */
+    public function pilihSemua(): void
     {
-        $units = UnitBarang::query()
-            ->with(['jenisBarang', 'kondisi'])
+        $this->dipilih = array_values($this->queryUnit()->limit(LabelBarangPdfController::MAKS_LABEL)->get(['id'])->map(fn (UnitBarang $unit): int => $unit->id)->all());
+    }
+
+    public function batalPilih(): void
+    {
+        $this->dipilih = [];
+    }
+
+    /**
+     * @return Builder<UnitBarang>
+     */
+    private function queryUnit(): Builder
+    {
+        return UnitBarang::query()
             ->when($this->jenisId, fn (Builder $q) => $q->where('jenis_barang_id', $this->jenisId))
             ->when(StatusUnitBarang::tryFrom($this->status), fn (Builder $q, StatusUnitBarang $status) => $q->where('status', $status))
             ->when(trim($this->search) !== '', fn (Builder $q) => $q->where(fn (Builder $w) => $w
                 ->where('kode', 'like', '%'.strtoupper(trim($this->search)).'%')
                 ->orWhere('serial_number', 'like', '%'.trim($this->search).'%')))
-            ->orderBy('kode')
-            ->paginate(50);
+            ->orderBy('kode');
+    }
+
+    public function render(): View
+    {
+        $units = $this->queryUnit()->with(['jenisBarang', 'kondisi'])->paginate(50);
 
         return view('livewire.barang.unit', [
             'units' => $units,

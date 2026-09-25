@@ -12,32 +12,35 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
- * Barang Masuk / Barang Keluar -- satu-satunya sumber angka stok (ADR-0057). Tidak diedit setelah tersimpan.
+ * Barang Masuk / Barang Keluar -- satu-satunya sumber angka stok (ADR-0057). Tidak diedit setelah tersimpan;
+ * boleh dihapus lewat HapusMutasiBarangAction (ADR-0058).
  *
  * @property int $id
  * @property int $jenis_barang_id
  * @property ArahMutasiBarang $arah
  * @property TipeMutasiBarang $tipe
+ * @property string|null $keperluan
  * @property Carbon $tanggal
  * @property int $jumlah
  * @property string|null $keterangan
- * @property int|null $teknisi_id
  * @property int|null $ticket_id
  * @property int|null $dicatat_oleh
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read JenisBarang $jenisBarang
- * @property-read User|null $teknisi
+ * @property-read Collection<int, User> $teknisi
  * @property-read Ticket|null $ticket
  * @property-read Collection<int, UnitBarang> $units
  */
-#[Fillable(['jenis_barang_id', 'arah', 'tipe', 'tanggal', 'jumlah', 'keterangan', 'teknisi_id', 'ticket_id', 'dicatat_oleh'])]
+#[Fillable(['jenis_barang_id', 'arah', 'tipe', 'tanggal', 'jumlah', 'keperluan', 'keterangan', 'ticket_id', 'dicatat_oleh'])]
 class MutasiBarang extends Model
 {
     /** @use HasFactory<MutasiBarangFactory> */
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $table = 'mutasi_barang';
 
@@ -62,12 +65,19 @@ class MutasiBarang extends Model
         return $this->belongsTo(JenisBarang::class, 'jenis_barang_id');
     }
 
-    /**
-     * @return BelongsTo<User, $this>
-     */
-    public function teknisi(): BelongsTo
+    public function getActivitylogOptions(): LogOptions
     {
-        return $this->belongsTo(User::class, 'teknisi_id');
+        return LogOptions::defaults()->useLogName('inventaris')->logFillable();
+    }
+
+    /**
+     * Teknisi penerima Barang Keluar; setara, tanpa penerima utama.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function teknisi(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'mutasi_barang_teknisi', 'mutasi_barang_id', 'user_id');
     }
 
     /**
@@ -83,6 +93,7 @@ class MutasiBarang extends Model
      */
     public function units(): BelongsToMany
     {
-        return $this->belongsToMany(UnitBarang::class, 'mutasi_barang_unit', 'mutasi_barang_id', 'unit_barang_id');
+        return $this->belongsToMany(UnitBarang::class, 'mutasi_barang_unit', 'mutasi_barang_id', 'unit_barang_id')
+            ->withPivot('kondisi_sebelum_id');
     }
 }

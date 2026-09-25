@@ -3,6 +3,7 @@
 namespace App\Livewire\Barang;
 
 use App\Actions\Barang\CatatBarangMasukAction;
+use App\Actions\Barang\HapusMutasiBarangAction;
 use App\Enums\Barang\ArahMutasiBarang;
 use App\Enums\Barang\StatusUnitBarang;
 use App\Enums\Barang\TipeMutasiBarang;
@@ -14,7 +15,7 @@ use App\Models\PengaturanPrefixRegistrasi;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -40,8 +41,6 @@ class Masuk extends Component
     public bool $showModal = false;
 
     public ?int $jenisId = null;
-
-    public string $tipe = 'pembelian';
 
     public string $tanggal = '';
 
@@ -71,7 +70,7 @@ class Masuk extends Component
             $this->resetPage();
         }
 
-        if (in_array($property, ['jenisId', 'tipe'], true)) {
+        if ($property === 'jenisId') {
             $this->unitIds = [];
         }
     }
@@ -80,7 +79,6 @@ class Masuk extends Component
     {
         $this->authorize('barang.masuk');
         $this->reset(['jenisId', 'jumlah', 'kondisiId', 'brandId', 'keterangan', 'unitIds', 'scanKode']);
-        $this->tipe = TipeMutasiBarang::Pembelian->value;
         $this->tanggal = Carbon::today()->toDateString();
         $this->resetValidation();
         $this->showModal = true;
@@ -92,7 +90,6 @@ class Masuk extends Component
 
         $this->validate([
             'jenisId' => ['required', 'integer', 'exists:jenis_barang,id'],
-            'tipe' => ['required', Rule::in(array_map(fn (TipeMutasiBarang $t) => $t->value, TipeMutasiBarang::masuk()))],
             'tanggal' => ['required', 'date', 'before_or_equal:today'],
             'jumlah' => ['required', 'integer', 'min:1', 'max:1000'],
             'kondisiId' => ['nullable', 'integer', 'exists:kondisi_barang,id'],
@@ -103,9 +100,10 @@ class Masuk extends Component
         $user = auth('web')->user();
         abort_unless($user !== null, 403);
 
+        // Tipe tidak dipilih staf: unit Terpasang yang dipindai = Pengembalian, selain itu Pembelian.
         $mutasi = $action->execute(
             jenis: JenisBarang::with('kategori')->findOrFail($this->jenisId),
-            tipe: TipeMutasiBarang::from($this->tipe),
+            tipe: $this->unitIds !== [] ? TipeMutasiBarang::Pengembalian : TipeMutasiBarang::Pembelian,
             tanggal: Carbon::parse($this->tanggal),
             jumlah: $this->jumlah,
             actor: $user,
@@ -118,6 +116,21 @@ class Masuk extends Component
         $this->mutasiBaruId = $mutasi->tipe !== TipeMutasiBarang::Pengembalian && $mutasi->units()->exists() ? $mutasi->id : null;
         $this->showModal = false;
         Flux::toast(variant: 'success', text: "Barang masuk dicatat ({$mutasi->jumlah} {$mutasi->jenisBarang->satuan}).");
+    }
+
+    public function hapus(int $id, HapusMutasiBarangAction $action): void
+    {
+        $this->authorize('barang.hapus');
+
+        try {
+            $action->execute(MutasiBarang::where('arah', ArahMutasiBarang::Masuk)->findOrFail($id));
+        } catch (ValidationException $e) {
+            Flux::toast(variant: 'danger', text: $e->validator->errors()->first());
+
+            return;
+        }
+
+        Flux::toast(variant: 'success', text: 'Barang masuk dihapus.');
     }
 
     protected function statusUnitDipilih(): array
@@ -150,7 +163,6 @@ class Masuk extends Component
             'mutasi' => $mutasi,
             'jenisList' => JenisBarang::query()->orderBy('nama')->get(),
             'jenisTerpilih' => $jenis,
-            'tipes' => TipeMutasiBarang::masuk(),
             'kondisis' => KondisiBarang::query()->orderBy('kode')->get(),
             'brands' => PengaturanPrefixRegistrasi::query()->where('is_active', true)->orderBy('kode')->get(),
             'unitTerpilih' => $this->unitTerpilih(),

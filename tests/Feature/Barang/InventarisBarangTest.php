@@ -68,12 +68,12 @@ test('barang masuk jenis dilacak meng-generate unit berkode urut per prefix dan 
 test('barang keluar tidak boleh membuat stok negatif dan pemakaian wajib teknisi', function () {
     $this->masuk->execute($this->kabel, TipeMutasiBarang::SaldoAwal, Carbon::today(), 100, $this->admin);
 
-    expect(fn () => $this->keluar->execute($this->kabel, TipeMutasiBarang::Pemakaian, Carbon::today(), 101, $this->admin, teknisi: $this->teknisi))
+    expect(fn () => $this->keluar->execute($this->kabel, TipeMutasiBarang::Pemakaian, Carbon::today(), 101, $this->admin, teknisi: [$this->teknisi]))
         ->toThrow(ValidationException::class)
         ->and(fn () => $this->keluar->execute($this->kabel, TipeMutasiBarang::Pemakaian, Carbon::today(), 10, $this->admin))
         ->toThrow(ValidationException::class);
 
-    $this->keluar->execute($this->kabel, TipeMutasiBarang::Pemakaian, Carbon::today(), 40, $this->admin, teknisi: $this->teknisi);
+    $this->keluar->execute($this->kabel, TipeMutasiBarang::Pemakaian, Carbon::today(), 40, $this->admin, teknisi: [$this->teknisi]);
     $this->keluar->execute($this->kabel, TipeMutasiBarang::Rusak, Carbon::today(), 5, $this->admin);
 
     expect($this->kabel->stok())->toBe(55);
@@ -82,12 +82,12 @@ test('barang keluar tidak boleh membuat stok negatif dan pemakaian wajib teknisi
 test('unit keluar jadi Terpasang, dikembalikan tetap berkode sama dengan kondisi PGT, lalu bisa keluar lagi', function () {
     $unit = $this->masuk->execute($this->modem, TipeMutasiBarang::Pembelian, Carbon::today(), 1, $this->admin, kondisi: $this->baru, brand: $this->bf)->units->first();
 
-    $this->keluar->execute($this->modem, TipeMutasiBarang::Pemakaian, Carbon::today(), 0, $this->admin, teknisi: $this->teknisi, unitIds: [$unit->id]);
+    $this->keluar->execute($this->modem, TipeMutasiBarang::Pemakaian, Carbon::today(), 0, $this->admin, teknisi: [$this->teknisi], unitIds: [$unit->id]);
     expect($unit->fresh()->status)->toBe(StatusUnitBarang::Terpasang)
         ->and($this->modem->stok())->toBe(0);
 
     // Unit terpasang tidak bisa dikeluarkan dua kali.
-    expect(fn () => $this->keluar->execute($this->modem, TipeMutasiBarang::Pemakaian, Carbon::today(), 0, $this->admin, teknisi: $this->teknisi, unitIds: [$unit->id]))
+    expect(fn () => $this->keluar->execute($this->modem, TipeMutasiBarang::Pemakaian, Carbon::today(), 0, $this->admin, teknisi: [$this->teknisi], unitIds: [$unit->id]))
         ->toThrow(ValidationException::class);
 
     $this->masuk->execute($this->modem, TipeMutasiBarang::Pengembalian, Carbon::today(), 0, $this->admin, kondisi: $this->pgt, unitIds: [$unit->id]);
@@ -104,9 +104,9 @@ test('unit keluar jadi Terpasang, dikembalikan tetap berkode sama dengan kondisi
 
 test('stok periode menghitung stok awal dari bulan sebelumnya, masuk, keluar, dan stok akhir', function () {
     $this->masuk->execute($this->kabel, TipeMutasiBarang::SaldoAwal, Carbon::create(2026, 8, 5), 100, $this->admin);
-    $this->keluar->execute($this->kabel, TipeMutasiBarang::Pemakaian, Carbon::create(2026, 8, 20), 30, $this->admin, teknisi: $this->teknisi);
+    $this->keluar->execute($this->kabel, TipeMutasiBarang::Pemakaian, Carbon::create(2026, 8, 20), 30, $this->admin, teknisi: [$this->teknisi]);
     $this->masuk->execute($this->kabel, TipeMutasiBarang::Pembelian, Carbon::create(2026, 9, 2), 50, $this->admin);
-    $this->keluar->execute($this->kabel, TipeMutasiBarang::Pemakaian, Carbon::create(2026, 9, 10), 25, $this->admin, teknisi: $this->teknisi);
+    $this->keluar->execute($this->kabel, TipeMutasiBarang::Pemakaian, Carbon::create(2026, 9, 10), 25, $this->admin, teknisi: [$this->teknisi]);
 
     $baris = JenisBarang::stokPeriode(Carbon::create(2026, 9, 1))->whereKey($this->kabel->id)->firstOrFail();
 
@@ -141,7 +141,8 @@ test('form barang keluar lewat pindai kode unit, dan teknisi tidak boleh mencata
         ->set('scanKode', 'mdm-new-bf-1')
         ->call('tambahUnit')
         ->assertSet('unitIds', [$unit->id])
-        ->set('teknisiId', $this->teknisi->id)
+        ->set('teknisiIds', [$this->teknisi->id])
+        ->set('keperluan', 'Pemasangan')
         ->set('keterangan', 'Pemasangan pelanggan baru')
         ->call('simpan')
         ->assertHasNoErrors();
@@ -209,7 +210,7 @@ test('InventarisSeeder membuat data contoh yang konsisten dan aman dijalankan ul
         ->and(UnitBarang::where('kode', 'like', 'MDM-PGT-%')->count())->toBe(2)
         ->and(UnitBarang::where('kode', 'MDM-NEW-BF-1')->value('status'))->toBe(StatusUnitBarang::Dikembalikan)
         ->and(JenisBarang::all()->every(fn (JenisBarang $j) => $j->stok() >= 0))->toBeTrue()
-        ->and(MutasiBarang::where('tipe', TipeMutasiBarang::Rusak)->whereNull('teknisi_id')->count())->toBe(1);
+        ->and(MutasiBarang::where('tipe', TipeMutasiBarang::Rusak)->whereDoesntHave('teknisi')->count())->toBe(1);
 
     $this->seed(InventarisSeeder::class);
     expect(MutasiBarang::count())->toBe($mutasiAwal);

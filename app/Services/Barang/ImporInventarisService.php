@@ -119,7 +119,7 @@ class ImporInventarisService
                             jumlah: $op['jumlah'],
                             actor: $actor,
                             keterangan: $op['keterangan'],
-                            teknisi: $op['teknisi_id'] ? User::find($op['teknisi_id']) : null,
+                            teknisi: User::whereKey($op['teknisi_ids'])->get(),
                             unitIds: $unitIds,
                         );
 
@@ -161,7 +161,7 @@ class ImporInventarisService
 
     /**
      * @param  array<string, int>  $petaTeknisi
-     * @return array{barang: array<string, array{baris: int, nama: string, kategori_id: int|null, satuan: string, dilacak: bool, stok_awal: int, stok_akhir_file: int|null}>, operasi: list<array{tanggal: Carbon, urutan: int, sheet: string, baris: int, jenis_kode: string, tipe: TipeMutasiBarang, jumlah: int, kode_unit: string|null, kondisi_id: int|null, brand_id: int|null, keterangan: string|null, teknisi_id: int|null}>, jumlah: array<string, int>}
+     * @return array{barang: array<string, array{baris: int, nama: string, kategori_id: int|null, satuan: string, dilacak: bool, stok_awal: int, stok_akhir_file: int|null}>, operasi: list<array{tanggal: Carbon, urutan: int, sheet: string, baris: int, jenis_kode: string, tipe: TipeMutasiBarang, jumlah: int, kode_unit: string|null, kondisi_id: int|null, brand_id: int|null, keterangan: string|null, teknisi_ids: list<int>}>, jumlah: array<string, int>}
      */
     private function rencanakan(string $path, array $petaTeknisi = []): array
     {
@@ -308,7 +308,7 @@ class ImporInventarisService
     /**
      * @param  list<array{baris: int, data: array<string, mixed>}>  $rows
      * @param  array<string, array{baris: int, nama: string, kategori_id: int|null, satuan: string, dilacak: bool, stok_awal: int, stok_akhir_file: int|null}>  $barang
-     * @return list<array{tanggal: Carbon, urutan: int, sheet: string, baris: int, jenis_kode: string, tipe: TipeMutasiBarang, jumlah: int, kode_unit: string|null, kondisi_id: int|null, brand_id: int|null, keterangan: string|null, teknisi_id: int|null}>
+     * @return list<array{tanggal: Carbon, urutan: int, sheet: string, baris: int, jenis_kode: string, tipe: TipeMutasiBarang, jumlah: int, kode_unit: string|null, kondisi_id: int|null, brand_id: int|null, keterangan: string|null, teknisi_ids: list<int>}>
      */
     private function bacaMutasi(array $rows, string $sheet, array $barang, ?Carbon $periode): array
     {
@@ -338,7 +338,7 @@ class ImporInventarisService
             }
 
             $tipe = TipeMutasiBarang::Pemakaian;
-            $teknisiId = null;
+            $teknisiIds = [];
 
             if ($keluar) {
                 // Barang datang cacat/rusak = dihapusbukukan, bukan dipakai teknisi.
@@ -346,26 +346,27 @@ class ImporInventarisService
                     $tipe = TipeMutasiBarang::Rusak;
                 }
 
+                // Semua anggota tim menjadi teknisi penerima (setara); "All" = tanpa teknisi tertentu.
                 $tim = $this->teks($row, ['teknis', 'tim_teknis', 'teknisi']);
-                $namaPertama = trim((preg_split('/\s*(?:,|&|\/|\bdan\b)\s*/i', $tim) ?: [''])[0]);
+                $namaTim = array_filter(
+                    array_map('trim', preg_split('/\s*(?:,|&|\/|\bdan\b)\s*/i', $tim) ?: []),
+                    fn (string $anggota) => $anggota !== '' && mb_strtolower($anggota) !== 'all',
+                );
 
-                if ($tim !== '' && mb_strtolower($namaPertama) !== 'all') {
-                    $kunci = mb_strtolower($namaPertama);
+                foreach ($namaTim as $anggota) {
+                    $kunci = mb_strtolower($anggota);
                     $teknisiId = $this->petaTeknisi[$kunci] ?? $teknisi[$kunci]->id ?? null;
 
                     if ($teknisiId === null) {
                         $this->teknisiTakDikenal[$kunci] = true;
-                        $this->galat($sheet, $baris, $label, "Teknisi \"{$namaPertama}\" tidak ditemukan sebagai user berperan teknisi; petakan di pratinjau atau buat user-nya.");
+                        $this->galat($sheet, $baris, $label, "Teknisi \"{$anggota}\" tidak ditemukan sebagai user berperan teknisi; petakan di pratinjau atau buat user-nya.");
+                    } else {
+                        $teknisiIds[] = $teknisiId;
                     }
                 }
 
-                if ($teknisiId === null && $tipe !== TipeMutasiBarang::Rusak && ($tim === '' || mb_strtolower($namaPertama) === 'all')) {
+                if ($namaTim === [] && $tipe !== TipeMutasiBarang::Rusak) {
                     $this->galat($sheet, $baris, $label, 'TEKNIS wajib diisi nama teknisi (hanya barang rusak/cacat yang boleh tanpa teknisi).');
-                }
-
-                // Tim lebih dari satu orang: teknisi pertama jadi penerima, tim lengkap dicatat di keterangan.
-                if ($tim !== '' && mb_strtolower($tim) !== mb_strtolower($namaPertama)) {
-                    $keterangan = trim($keterangan.' (Tim: '.$tim.')');
                 }
             } else {
                 $tipe = match (strtoupper(str_replace(['_', '-'], ' ', $this->teks($row, ['tipe'])))) {
@@ -445,7 +446,7 @@ class ImporInventarisService
                 $kodeUnit !== null ? 1 : (int) $jumlahKolom,
                 $kodeUnit, $kondisiId, $brandId,
                 $keterangan !== '' ? mb_substr($keterangan, 0, 500) : null,
-                $teknisiId,
+                array_values(array_unique($teknisiIds)),
             );
         }
 
@@ -619,7 +620,7 @@ class ImporInventarisService
      * Putar ulang mutasi kronologis: stok per barang tidak boleh negatif, unit hanya keluar bila
      * di gudang, pengembalian hanya untuk unit terpasang. Lalu cocokkan STOK AKHIR berkas.
      *
-     * @param  list<array{tanggal: Carbon, urutan: int, sheet: string, baris: int, jenis_kode: string, tipe: TipeMutasiBarang, jumlah: int, kode_unit: string|null, kondisi_id: int|null, brand_id: int|null, keterangan: string|null, teknisi_id: int|null}>  $operasi
+     * @param  list<array{tanggal: Carbon, urutan: int, sheet: string, baris: int, jenis_kode: string, tipe: TipeMutasiBarang, jumlah: int, kode_unit: string|null, kondisi_id: int|null, brand_id: int|null, keterangan: string|null, teknisi_ids: list<int>}>  $operasi
      * @param  array<string, array{baris: int, nama: string, kategori_id: int|null, satuan: string, dilacak: bool, stok_awal: int, stok_akhir_file: int|null}>  $barang
      */
     private function putarUlang(array $operasi, array $barang): void
@@ -672,16 +673,17 @@ class ImporInventarisService
     }
 
     /**
-     * @return array{tanggal: Carbon, urutan: int, sheet: string, baris: int, jenis_kode: string, tipe: TipeMutasiBarang, jumlah: int, kode_unit: string|null, kondisi_id: int|null, brand_id: int|null, keterangan: string|null, teknisi_id: int|null}
+     * @param  list<int>  $teknisiIds
+     * @return array{tanggal: Carbon, urutan: int, sheet: string, baris: int, jenis_kode: string, tipe: TipeMutasiBarang, jumlah: int, kode_unit: string|null, kondisi_id: int|null, brand_id: int|null, keterangan: string|null, teknisi_ids: list<int>}
      */
     private function operasi(
         Carbon $tanggal, int $urutan, string $sheet, int $baris, string $jenisKode, TipeMutasiBarang $tipe, int $jumlah,
-        ?string $kodeUnit = null, ?int $kondisiId = null, ?int $brandId = null, ?string $keterangan = null, ?int $teknisiId = null,
+        ?string $kodeUnit = null, ?int $kondisiId = null, ?int $brandId = null, ?string $keterangan = null, array $teknisiIds = [],
     ): array {
         return [
             'tanggal' => $tanggal, 'urutan' => $urutan, 'sheet' => $sheet, 'baris' => $baris, 'jenis_kode' => $jenisKode,
             'tipe' => $tipe, 'jumlah' => $jumlah, 'kode_unit' => $kodeUnit, 'kondisi_id' => $kondisiId, 'brand_id' => $brandId,
-            'keterangan' => $keterangan, 'teknisi_id' => $teknisiId,
+            'keterangan' => $keterangan, 'teknisi_ids' => $teknisiIds,
         ];
     }
 
