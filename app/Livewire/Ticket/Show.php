@@ -153,7 +153,8 @@ class Show extends Component
 
         $this->ticket->load([
             'pelanggan.perumahan.kelurahan.kecamatan.kota',
-            'pelanggan.dibuatOleh',
+            'pelanggan.dibuatOleh.roles',
+            'pelanggan.dibuatOleh.media',
             'layananPelanggan.paketLayanan.profilBandwidth',
             'layananPelanggan.router',
             'layananPelanggan.ipPubliks',

@@ -491,12 +491,23 @@
                         @endif
                     </div>
 
-                    <div class="pt-2 border-t border-zinc-100 dark:border-zinc-700/50">
-                        <span class="text-zinc-500 block">Sales Pendaftar Pelanggan:</span>
-                        <span class="font-semibold text-zinc-900 dark:text-white text-sm">
-                            {{ $ticket->pelanggan?->dibuatOleh?->name ?? '-' }}
-                        </span>
-                    </div>
+                    @php($sales = $ticket->salesPenanggungJawab())
+                    @if ($sales !== false)
+                        <div class="pt-2 border-t border-zinc-100 dark:border-zinc-700/50">
+                            <span class="text-zinc-500 block mb-1">Sales Penanggung Jawab:</span>
+                            <div class="flex items-center gap-2">
+                                @if ($sales)
+                                    <flux:avatar size="xs" :src="$sales->fotoProfilUrl()" :initials="$sales->initials()" />
+                                    <span class="font-semibold text-zinc-900 dark:text-white">{{ $sales->name }}</span>
+                                    @unless ($sales->isActive())
+                                        <flux:badge size="sm" color="zinc">Nonaktif</flux:badge>
+                                    @endunless
+                                @else
+                                    <span class="text-zinc-500 italic">Tanpa Sales</span>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
 
                     <div class="pt-2 border-t border-zinc-100 dark:border-zinc-700/50">
                         <span class="text-zinc-500 block mb-1">PIC Lapangan (Teknisi):</span>

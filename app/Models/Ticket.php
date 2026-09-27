@@ -301,6 +301,21 @@ class Ticket extends Model implements HasMedia
     }
 
     /**
+     * Sales Penanggung Jawab: pendaftar pelanggan ber-peran sales, hanya relevan untuk tiket
+     * Pemasangan & Pindah Alamat. false = kartu tidak ditampilkan; null = tampil "Tanpa Sales".
+     */
+    public function salesPenanggungJawab(): User|false|null
+    {
+        if (! in_array($this->jenis, [JenisTicket::Pemasangan, JenisTicket::PindahAlamat], true)) {
+            return false;
+        }
+
+        $pendaftar = $this->pelanggan?->dibuatOleh;
+
+        return $pendaftar?->hasRole('sales') ? $pendaftar : null;
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function dibuatOleh(): BelongsTo

@@ -58,7 +58,7 @@ class RolesAndPermissionsSeeder extends Seeder
             // RAB Kantor
             'rab.lihat', 'rab.kelola', 'rab.buka_kunci',
             // Pengguna & Peran
-            'pengguna.lihat', 'pengguna.buat', 'pengguna.ubah', 'pengguna.hapus',
+            'pengguna.lihat', 'pengguna.buat', 'pengguna.ubah', 'pengguna.hapus', 'pengguna.lihat_ktp',
             'peran.lihat', 'peran.buat', 'peran.ubah', 'peran.hapus',
             // WA Gateway (Fase 5)
             'wa_gateway.lihat', 'wa_gateway.buat', 'wa_gateway.ubah', 'wa_gateway.hapus',
@@ -109,7 +109,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'laporan.lihat', 'laporan.ekspor',
             'barang.lihat', 'barang.buat', 'barang.ubah', 'barang.hapus', 'barang.masuk', 'barang.keluar',
             'rab.lihat', 'rab.kelola',
-            'pengguna.lihat', 'pengguna.buat', 'pengguna.ubah',
+            'pengguna.lihat', 'pengguna.buat', 'pengguna.ubah', 'pengguna.lihat_ktp',
             'prefix_registrasi.lihat', 'prefix_registrasi.buat', 'prefix_registrasi.ubah',
         ]);
 

@@ -91,6 +91,10 @@ _Avoid_: Administration, Settings, Pengaturan
 Entitas akun staff internal yang memiliki akses login dan hak akses ke sistem NMS.
 _Avoid_: User, Staff Account, Member
 
+**KTP Staf**:
+Foto KTP milik Pengguna (staf internal), opsional, diunggah sendiri lewat Profil atau oleh admin saat onboarding. Diperlakukan setara KTP pelanggan: terenkripsi, hanya dilihat ber-watermark oleh pemiliknya dan admin, setiap akses tercatat. Pengguna tanpa KTP ditandai "KTP belum ada" di daftar Pengguna, tidak diblokir dari tugas apa pun.
+_Avoid_: KTP Karyawan Publik, KTP Wajib untuk Jadi PIC
+
 **Peran**:
 Kumpulan izin (permissions) yang diberikan kepada pengguna untuk membatasi akses fitur tertentu.
 _Technical Reference_: Spatie Permission (`spatie/laravel-permission`), Laravel Boost: `search-docs(packages=['spatie/laravel-permission'])`, Context7: `/spatie/laravel-permission`.
@@ -299,6 +303,10 @@ _Avoid_: Riwayat Bebas, Log Tiket Manual, Catatan Lepas
 **PIC (Person in Charge)**:
 Staf pengguna internal (User) yang ditugaskan secara formal untuk bertanggung jawab menyelesaikan suatu tiket.
 _Avoid_: Assignee, Petugas Lapangan Bebas, Pelaksana
+
+**Sales Penanggung Jawab**:
+Pengguna ber-peran Sales yang mendaftarkan pelanggan, ditampilkan (foto + nama) di tiket Pemasangan dan Pindah Alamat saja — tiket Gangguan dan Pencabutan hanya menampilkan PIC. Bila pendaftar bukan Sales, tiket menampilkan "Tanpa Sales"; Sales yang sudah nonaktif tetap ditampilkan dengan penanda Nonaktif (data historis). Bukan pembuat tiket.
+_Avoid_: Sales yang Menangani, Sales Pembuat Tiket, Sales Ditugaskan per Tiket
 
 **Divisi Tiket**:
 Satu atau lebih divisi internal (Admin, Customer Service, Sales, NOC, Teknisi) yang bertanggung jawab menangani sebuah tiket, disimpan dalam relasi many-to-many via pivot table `ticket_divisi`. Tiket lama bersumber portal untuk Gangguan otomatis ditugaskan ke [NOC, Teknisi] untuk mendukung koordinasi penjadwalan; Pencabutan dan Pindah Alamat ke [Teknisi]. Sejak alur Ticket Pemasangan (lihat Status Per-Divisi Tiket), pivot ini juga menyimpan status sign-off per divisi, tidak lagi sekadar penandaan keterlibatan.

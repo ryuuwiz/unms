@@ -18,6 +18,7 @@ use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -44,11 +45,20 @@ class User extends Authenticatable implements HasMedia, PasskeyUser
     use HasFactory, HasRoles, Impersonate, InteractsWithMedia, Notifiable, PasskeyAuthenticatable;
 
     /**
-     * Konfigurasi koleksi media: foto diri (1 file, menggantikan yang lama saat diunggah ulang).
+     * Konfigurasi koleksi media: foto diri (publik) dan KTP staf (disk privat, terenkripsi via CustomerDocumentService).
      */
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('foto_profil')->singleFile();
+        $this->addMediaCollection('ktp')->singleFile()->useDisk('local');
+    }
+
+    /**
+     * Berkas KTP staf, atau null jika belum diunggah.
+     */
+    public function getKtpMedia(): ?Media
+    {
+        return $this->getFirstMedia('ktp');
     }
 
     /**

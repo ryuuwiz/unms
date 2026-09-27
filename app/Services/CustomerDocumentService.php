@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\Pelanggan;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
+use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class CustomerDocumentService
@@ -18,7 +18,7 @@ class CustomerDocumentService
      * @param  array<string, mixed>  $customProperties
      */
     public function storeEncryptedMedia(
-        Pelanggan $pelanggan,
+        HasMedia $model,
         UploadedFile $file,
         string $collection,
         array $customProperties = []
@@ -41,7 +41,7 @@ class CustomerDocumentService
         $customProperties['original_size'] = $file->getSize();
 
         try {
-            $media = $pelanggan
+            $media = $model
                 ->addMedia($tempPath)
                 ->usingFileName($file->getClientOriginalName())
                 ->withCustomProperties($customProperties)

@@ -3,6 +3,7 @@
 namespace App\Livewire\Settings;
 
 use App\Concerns\ProfileValidationRules;
+use App\Services\CustomerDocumentService;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Title;
@@ -23,6 +24,9 @@ class Profile extends Component
 
     /** @var mixed */
     public $fotoProfil = null;
+
+    /** @var mixed */
+    public $fotoKtp = null;
 
     /**
      * Mount the component.
@@ -62,6 +66,24 @@ class Profile extends Component
         $this->fotoProfil = null;
 
         Flux::toast(variant: 'success', text: 'Foto profil berhasil diperbarui.');
+    }
+
+    /**
+     * Unggah/ganti KTP sendiri, disimpan terenkripsi di disk privat (singleFile mengganti yang lama).
+     */
+    public function uploadKtp(CustomerDocumentService $documentService): void
+    {
+        $this->validate([
+            'fotoKtp' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'fotoKtp.image' => 'KTP harus berupa berkas gambar (jpg, png, webp).',
+            'fotoKtp.max' => 'Ukuran foto KTP maksimal 2 MB.',
+        ]);
+
+        $documentService->storeEncryptedMedia(Auth::guard('web')->user(), $this->fotoKtp, 'ktp');
+        $this->fotoKtp = null;
+
+        Flux::toast(variant: 'success', text: 'KTP berhasil diunggah.');
     }
 
     /**

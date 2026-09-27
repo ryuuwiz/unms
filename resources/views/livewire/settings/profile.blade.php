@@ -16,6 +16,8 @@
             </form>
         </div>
 
+        <x-ktp-staf :user="auth()->user()" />
+
         <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
             <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
 

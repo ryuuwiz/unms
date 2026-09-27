@@ -4,6 +4,7 @@ namespace App\Livewire\Users;
 
 use App\Enums\UserStatus;
 use App\Models\User;
+use App\Services\CustomerDocumentService;
 use Flux\Flux;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -11,12 +12,15 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Spatie\Permission\Models\Role;
 
 #[Layout('layouts.app')]
 #[Title('Edit User')]
 class Edit extends Component
 {
+    use WithFileUploads;
+
     #[Locked]
     public int $userId;
 
@@ -32,6 +36,9 @@ class Edit extends Component
 
     /** Holds the generated password after a reset, cleared on navigate. */
     public string $generatedPassword = '';
+
+    /** @var mixed */
+    public $fotoKtp = null;
 
     public function mount(User $user): void
     {
@@ -68,6 +75,26 @@ class Edit extends Component
         Flux::toast(variant: 'success', text: 'User berhasil diperbarui.');
 
         $this->redirectRoute('users.index', navigate: true);
+    }
+
+    /**
+     * Unggah/ganti KTP staf atas nama user ini (onboarding oleh admin), disimpan terenkripsi.
+     */
+    public function uploadKtp(CustomerDocumentService $documentService): void
+    {
+        abort_unless(auth()->user()->can('pengguna.ubah'), 403);
+
+        $this->validate([
+            'fotoKtp' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'fotoKtp.image' => 'KTP harus berupa berkas gambar (jpg, png, webp).',
+            'fotoKtp.max' => 'Ukuran foto KTP maksimal 2 MB.',
+        ]);
+
+        $documentService->storeEncryptedMedia(User::findOrFail($this->userId), $this->fotoKtp, 'ktp');
+        $this->fotoKtp = null;
+
+        Flux::toast(variant: 'success', text: 'KTP berhasil diunggah.');
     }
 
     public function resetPassword(): void

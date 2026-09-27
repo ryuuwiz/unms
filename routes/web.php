@@ -5,6 +5,7 @@ use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\LabelBarangPdfController;
 use App\Http\Controllers\PelangganMediaController;
+use App\Http\Controllers\PenggunaMediaController;
 use App\Http\Controllers\RabPdfController;
 use App\Http\Controllers\Webhook\PaymentWebhookController;
 use App\Http\Controllers\Webhook\WhatsappWebhookController;
@@ -375,6 +376,7 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('permission:pengguna.ubah')->group(function () {
             Route::get('/{user}/edit', Users\Edit::class)->name('edit');
         });
+        Route::get('/{user}/ktp/preview', [PenggunaMediaController::class, 'previewKtp'])->name('ktp.preview');
         Route::middleware('permission:pengguna.lihat')->group(function () {
             Route::get('/', Users\Index::class)->name('index');
         });

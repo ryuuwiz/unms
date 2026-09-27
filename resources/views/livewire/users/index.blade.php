@@ -50,6 +50,9 @@
                         <div class="flex items-center gap-2">
                             <flux:avatar size="sm" :src="$user->fotoProfilUrl()" name="{{ $user->name }}" />
                             {{ $user->name }}
+                            @unless ($user->getKtpMedia())
+                                <flux:badge size="sm" color="amber">KTP belum ada</flux:badge>
+                            @endunless
                         </div>
                     </flux:table.cell>
                     <flux:table.cell class="text-zinc-500">{{ $user->email }}</flux:table.cell>

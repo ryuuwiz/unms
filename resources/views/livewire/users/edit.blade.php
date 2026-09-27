@@ -90,6 +90,10 @@
 
     <flux:separator />
 
+    <x-ktp-staf :user="$user" />
+
+    <flux:separator />
+
     {{-- Permissions Section --}}
     <div class="space-y-3">
         <div>
