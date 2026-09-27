@@ -44,6 +44,10 @@
 
     <flux:separator />
 
+    <x-foto-profil-upload :user="$user" />
+
+    <flux:separator />
+
     <form wire:submit="save" class="space-y-5">
 
         <flux:field>

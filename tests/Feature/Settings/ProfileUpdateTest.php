@@ -53,7 +53,6 @@ test('user can upload and replace their own foto profil', function () {
 
     $component = Livewire::test(Profile::class)
         ->set('fotoProfil', UploadedFile::fake()->image('foto1.jpg'))
-        ->call('uploadFotoProfil')
         ->assertHasNoErrors();
 
     expect($user->fresh()->fotoProfilUrl())->not->toBeNull();
@@ -62,7 +61,6 @@ test('user can upload and replace their own foto profil', function () {
     // Koleksi singleFile: unggah ulang mengganti foto lama, bukan menambah.
     $component
         ->set('fotoProfil', UploadedFile::fake()->image('foto2.jpg'))
-        ->call('uploadFotoProfil')
         ->assertHasNoErrors();
 
     $user->refresh();
@@ -77,7 +75,6 @@ test('foto profil harus berupa gambar dan maksimal 2MB', function () {
 
     Livewire::test(Profile::class)
         ->set('fotoProfil', UploadedFile::fake()->create('dokumen.pdf', 100))
-        ->call('uploadFotoProfil')
         ->assertHasErrors(['fotoProfil' => 'image']);
 });
 

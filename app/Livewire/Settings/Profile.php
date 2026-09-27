@@ -8,7 +8,6 @@ use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Title;
 use Livewire\Component;
-use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\WithFileUploads;
 
 #[Title('Profile settings')]
@@ -39,9 +38,9 @@ class Profile extends Component
     }
 
     /**
-     * Unggah/ganti foto diri. Koleksi singleFile otomatis mengganti foto lama.
+     * Unggah/ganti foto diri begitu berkas dipilih atau diseret (hook updated Livewire).
      */
-    public function uploadFotoProfil(): void
+    public function updatedFotoProfil(): void
     {
         $this->validate([
             'fotoProfil' => ['required', 'image', 'max:2048'],
@@ -50,22 +49,20 @@ class Profile extends Component
             'fotoProfil.max' => 'Ukuran foto maksimal 2 MB.',
         ]);
 
-        $user = Auth::guard('web')->user();
-
-        // Hapus eksplisit dulu -- jangan andalkan singleFile() otomatis, supaya tidak
-        // pernah menyisakan foto lama walau ada kuirk state Auth::guard('web')->user() antar request.
-        $user->clearMediaCollection('foto_profil');
-
-        $user->addMediaFromDisk(
-            FileUploadConfiguration::path($this->fotoProfil->getFilename(), false),
-            FileUploadConfiguration::disk()
-        )
-            ->usingFileName($this->fotoProfil->getClientOriginalName())
-            ->toMediaCollection('foto_profil');
-
+        Auth::guard('web')->user()->gantiFotoProfil($this->fotoProfil);
         $this->fotoProfil = null;
 
         Flux::toast(variant: 'success', text: 'Foto profil berhasil diperbarui.');
+    }
+
+    /**
+     * Hapus foto diri, avatar kembali ke inisial.
+     */
+    public function hapusFotoProfil(): void
+    {
+        Auth::guard('web')->user()->clearMediaCollection('foto_profil');
+
+        Flux::toast(variant: 'success', text: 'Foto profil dihapus.');
     }
 
     /**

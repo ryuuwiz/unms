@@ -16,6 +16,9 @@ use Illuminate\Support\Str;
 use Lab404\Impersonate\Models\Impersonate;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -54,6 +57,17 @@ class User extends Authenticatable implements HasMedia, PasskeyUser
     }
 
     /**
+     * Thumbnail avatar 128px khusus foto profil (KTP terenkripsi tidak boleh ikut dikonversi).
+     */
+    public function registerMediaConversions(?Media $media = null): void
+    {
+        $this->addMediaConversion('thumb')
+            ->performOnCollections('foto_profil')
+            ->nonQueued()
+            ->fit(Fit::Crop, 128, 128);
+    }
+
+    /**
      * Berkas KTP staf, atau null jika belum diunggah.
      */
     public function getKtpMedia(): ?Media
@@ -62,11 +76,33 @@ class User extends Authenticatable implements HasMedia, PasskeyUser
     }
 
     /**
-     * URL foto profil user, atau null jika belum pernah unggah.
+     * URL thumbnail foto profil (fallback ke foto asli untuk unggahan lama tanpa thumbnail), atau null jika belum ada foto.
      */
     public function fotoProfilUrl(): ?string
     {
-        return $this->getFirstMediaUrl('foto_profil') ?: null;
+        $media = $this->getFirstMedia('foto_profil');
+
+        if (! $media) {
+            return null;
+        }
+
+        return $media->hasGeneratedConversion('thumb') ? $media->getUrl('thumb') : $media->getUrl();
+    }
+
+    /**
+     * Ganti foto profil dengan berkas unggahan Livewire. Foto lama dihapus eksplisit, tidak mengandalkan
+     * singleFile() saja, agar tidak pernah tersisa foto lama walau ada kuirk state user antar request.
+     */
+    public function gantiFotoProfil(TemporaryUploadedFile $foto): void
+    {
+        $this->clearMediaCollection('foto_profil');
+
+        $this->addMediaFromDisk(
+            FileUploadConfiguration::path($foto->getFilename(), false),
+            FileUploadConfiguration::disk()
+        )
+            ->usingFileName($foto->getClientOriginalName())
+            ->toMediaCollection('foto_profil');
     }
 
     /**

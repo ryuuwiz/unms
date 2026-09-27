@@ -451,6 +451,32 @@ class Ticket extends Model implements HasMedia
     }
 
     /**
+     * Antrian Tiket Saya: tiket terbuka yang menunggu tindakan user. Teknisi: PIC dirinya; super_admin:
+     * semua; peran lain: tiket divisinya yang Status Per-Divisi-nya belum selesai.
+     *
+     * @param  Builder<Ticket>  $query
+     * @return Builder<Ticket>
+     */
+    public function scopeAntrianUntuk(Builder $query, User $user): Builder
+    {
+        $query->whereNotIn('status', [StatusTicket::Selesai, StatusTicket::Batal]);
+
+        if ($user->hasRole('teknisi')) {
+            return $query->where('pic_id', $user->id);
+        }
+
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        $divisi = $user->getRoleNames()->map(fn (string $role) => DivisiTicket::tryFrom($role))->filter()->all();
+
+        return $query->whereHas('divisis', fn (Builder $q) => $q
+            ->whereIn('ticket_divisi.divisi', $divisi)
+            ->where('ticket_divisi.status', '!=', StatusDivisiTicket::Selesai));
+    }
+
+    /**
      * Scope filter divisi.
      *
      * @param  Builder<Ticket>  $query

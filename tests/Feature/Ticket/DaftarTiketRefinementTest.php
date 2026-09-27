@@ -103,5 +103,5 @@ test('kartu dan tabel dirender; tel: selalu ada dan tautan Maps hanya bila pelan
         ->toContain('href="tel:081234567890"')
         ->toContain('href="tel:081300001111"')
         ->toContain('destination=-6.9,107.6')
-        ->and(substr_count($html, 'maps/dir/?api=1'))->toBe(2); // kartu + baris tabel milik satu pelanggan berkoordinat
+        ->and(substr_count($html, 'maps/dir/?api=1'))->toBe(1); // hanya kartu HP; tabel tanpa kolom aksi
 });

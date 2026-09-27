@@ -95,6 +95,10 @@ _Avoid_: User, Staff Account, Member
 Foto KTP milik Pengguna (staf internal), opsional, diunggah sendiri lewat Profil atau oleh admin saat onboarding. Diperlakukan setara KTP pelanggan: terenkripsi, hanya dilihat ber-watermark oleh pemiliknya dan admin, setiap akses tercatat. Pengguna tanpa KTP ditandai "KTP belum ada" di daftar Pengguna, tidak diblokir dari tugas apa pun.
 _Avoid_: KTP Karyawan Publik, KTP Wajib untuk Jadi PIC
 
+**Foto Profil**:
+Foto diri Pengguna (staf internal), opsional, satu per Pengguna. Diunggah sendiri lewat Profil atau oleh admin atas nama Pengguna lain. Ditampilkan di mana pun Pengguna muncul sebagai orang: PIC dan Sales Penanggung Jawab di tiket, daftar Pengguna, dan menu akun. Pengguna tanpa foto ditampilkan dengan inisial nama, tidak diblokir dari tugas apa pun. Pelanggan tidak punya Foto Profil.
+_Avoid_: Avatar Pelanggan, Foto Wajib untuk Jadi PIC
+
 **Peran**:
 Kumpulan izin (permissions) yang diberikan kepada pengguna untuk membatasi akses fitur tertentu.
 _Technical Reference_: Spatie Permission (`spatie/laravel-permission`), Laravel Boost: `search-docs(packages=['spatie/laravel-permission'])`, Context7: `/spatie/laravel-permission`.
@@ -389,7 +393,7 @@ Kartu Dashboard untuk Periode Tagihan bulan berjalan (siklus yang jatuh tempo pa
 _Avoid_: Tagihan Bulan Ini, Rekap Invoice
 
 **Tren Pendapatan Harian**:
-Grafik sumbu-ganda (*dual-axis*) di Dashboard, dari tanggal 1 sampai hari ini pada bulan berjalan: kurva nominal Pendapatan Diterima harian (sumbu primer) dan jumlah transaksi pembayaran harian (sumbu sekunder). Hari mendatang tidak digambar.
+Grafik sumbu-ganda (*dual-axis*) di Dashboard untuk 30 hari terakhir sampai hari ini (rentang bergulir, bukan bulan berjalan): kurva nominal Pendapatan Diterima harian (sumbu primer) dan jumlah transaksi pembayaran harian (sumbu sekunder). Hari mendatang tidak digambar.
 _Avoid_: Grafik Omzet Harian Lepas, Chart Transaksi Terpisah
 
 **Total Pelanggan**:
@@ -399,6 +403,18 @@ _Avoid_: Jumlah Member, Pelanggan Terkoneksi
 **Pelanggan Expired & Jatuh Tempo**:
 Daftar tindak lanjut harian di Dashboard yang berisi Layanan Expired ditambah layanan yang akan jatuh tempo dalam jendela Lead Time Penerbitan Invoice. Setiap baris adalah satu layanan (pelanggan dengan dua layanan muncul dua kali). Diurutkan: tanggal expired terlama, lalu nominal invoice terbuka terbesar, lalu nama pelanggan. Terlihat oleh semua staf yang berhak melihat Layanan Pelanggan.
 _Avoid_: Perlu Perhatian, Daftar Tunggakan, Antrean Isolir
+
+**Tagihan Terbuka per Pelanggan**:
+Daftar di Dashboard berisi 20 Pelanggan dengan total invoice terbuka (menunggu pembayaran atau kadaluarsa) terbesar, dijumlahkan lintas semua layanan dan periode milik pelanggan itu. Invoice yang sudah digabung ke invoice berikutnya tidak dihitung dua kali. Berbeda dari Pelanggan Expired & Jatuh Tempo: sudut pandangnya per pelanggan dan nominal, bukan per layanan dan tanggal.
+_Avoid_: Ringkasan Tagihan Pelanggan, Daftar Penunggak, Ringkasan Tagihan Periode
+
+**Antrian Tiket Saya**:
+Tiket terbuka (bukan Selesai atau Batal) yang menunggu tindakan Pengguna yang sedang login. Untuk Teknisi: tiket yang PIC-nya dirinya. Untuk peran lain: tiket yang ditugaskan ke divisinya dan Status Per-Divisi divisinya belum selesai.
+_Avoid_: Tiket Assigned, Tiket Saya (PIC) untuk non-Teknisi
+
+**Area Dashboard**:
+Kelompok widget Dashboard per bidang kerja: Admin (pelanggan dan keuangan), NOC & Infrastruktur, serta Ticketing & Support. Sebuah area tampil bila Pengguna berhak melihat minimal satu widget di dalamnya; area tidak terikat ke peran tertentu.
+_Avoid_: Dashboard per Role, Halaman Divisi
 
 **Siklus Tagihan**:
 Pengaturan bulanan yang dapat diubah admin berisi dua hari-dalam-bulan: Hari Jatuh Tempo (contoh: 10) dan Hari Terbit Invoice (contoh: 24). Invoice tiap layanan terbit pada Hari Terbit terakhir sebelum jatuh tempo (jatuh tempo tanggal 10 berarti terbit tanggal 24 bulan sebelumnya) dan jatuh tempo pada Hari Jatuh Tempo; tanggal expired layanan mengikuti Hari Jatuh Tempo saat pembayaran memperpanjang masa aktif. Perubahan pengaturan hanya berlaku pada invoice yang terbit sesudahnya dan pada perpanjangan berikutnya. Seluruh paket berdurasi tepat 1 bulan.

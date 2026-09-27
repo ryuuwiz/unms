@@ -4,12 +4,22 @@ use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
 use App\Enums\StatusPelanggan;
+use App\Enums\StatusRouter;
+use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\StatusDivisiTicket;
+use App\Enums\Ticket\StatusTicket;
+use App\Livewire\Dashboard\AreaAdmin;
+use App\Livewire\Dashboard\AreaNoc;
+use App\Livewire\Dashboard\AreaTiket;
 use App\Livewire\Dashboard as DashboardComponent;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\Pelanggan;
 use App\Models\Pembayaran;
 use App\Models\PengaturanSiklusTagihan;
+use App\Models\Perusahaan;
+use App\Models\Router;
+use App\Models\Ticket;
 use App\Models\User;
 use Database\Seeders\PerusahaanSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -19,6 +29,8 @@ use Livewire\Livewire;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    Livewire::withoutLazyLoading();
+
     $this->seed([
         RolesAndPermissionsSeeder::class,
         PerusahaanSeeder::class,
@@ -59,17 +71,19 @@ test('tamu diarahkan ke halaman login saat mengakses dashboard', function () {
         ->assertRedirect(route('login'));
 });
 
-test('super admin melihat judul, subjudul, dan seluruh blok ringkasan', function () {
+test('super admin disapa dan melihat ketiga area beserta seluruh blok ringkasan admin', function () {
     $this->actingAs($this->user)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertSee('Dashboard Operasional & Billing', false)
-        ->assertSee('Bulan berjalan · diperbarui '.now()->format('H:i'))
+        ->assertSee('Selamat datang kembali, '.$this->user->name)
+        ->assertSeeInOrder(['Ringkasan Pelanggan &amp; Keuangan', 'NOC &amp; Infrastruktur', 'Ticketing &amp; Support'], false)
+        ->assertSee('Tiket Hari Ini')
+        ->assertSee('Tagihan Terbuka per Pelanggan')
         ->assertSee('Total Pelanggan')
         ->assertSee('Pendapatan Hari Ini')
         ->assertSee('Pendapatan Bulan Ini')
         ->assertSee('Tagihan Periode')
-        ->assertSee('Pelanggan Expired & Jatuh Tempo', false)
+        ->assertSee('Pelanggan Expired & Jatuh Tempo')
         ->assertSee('Transaksi Terbaru')
         ->assertSee('Tren Pendapatan Harian');
 });
@@ -89,8 +103,8 @@ test('total pelanggan memisahkan aktif dari tidak aktif dan mengabaikan pelangga
     Pelanggan::factory()->create(['status' => StatusPelanggan::Expired]);
     Pelanggan::factory()->create(['status' => StatusPelanggan::BelumTerpasang]);
 
-    $pelanggan = Livewire::actingAs($this->user)
-        ->test(DashboardComponent::class)
+    $pelanggan = Livewire::withoutLazyLoading()->actingAs($this->user)
+        ->test(AreaAdmin::class)
         ->assertSee('2 aktif · 2 tidak aktif')
         ->instance()->pelanggan;
 
@@ -106,8 +120,8 @@ test('pendapatan hari ini dibanding kemarin dan bulan ini dibanding rentang hari
     ($this->bayar)('2026-08-10 09:00:00', 200000);
     ($this->bayar)('2026-08-25 09:00:00', 999000); // di luar rentang 1-19 bulan lalu
 
-    Livewire::actingAs($this->user)
-        ->test(DashboardComponent::class)
+    Livewire::withoutLazyLoading()->actingAs($this->user)
+        ->test(AreaAdmin::class)
         ->assertSee('Rp 40.000')
         ->assertSee('Kemarin: Rp 25.000')
         ->assertSee('Rp 365.000')
@@ -129,8 +143,8 @@ test('ringkasan tagihan periode memakai tarif siklus tanpa tunggakan dan tetap m
     $invoice(StatusInvoice::Dibatalkan, 900000);
     $invoice(StatusInvoice::Kadaluarsa, 200000, 0, now()->subMonth()->format('Y-m'));
 
-    Livewire::actingAs($this->user)
-        ->test(DashboardComponent::class)
+    Livewire::withoutLazyLoading()->actingAs($this->user)
+        ->test(AreaAdmin::class)
         ->assertSee('Rp 750.000') // ditagih
         ->assertSee('33.3%')
         ->assertSee('Lunas: Rp 250.000')
@@ -138,20 +152,24 @@ test('ringkasan tagihan periode memakai tarif siklus tanpa tunggakan dan tetap m
         ->assertSee('semua periode: Rp 450.000'); // menunggu 250rb + kadaluarsa 200rb
 });
 
-test('tren harian memuat pendapatan dan transaksi tanggal 1 sampai hari ini saja', function () {
+test('tren harian memuat pendapatan dan transaksi 30 hari terakhir sampai hari ini', function () {
     $this->travelTo(now()->setDate(2026, 9, 19)->setTime(12, 0));
 
+    ($this->bayar)('2026-08-20 09:00:00', 999000); // hari ke-31, di luar rentang
+    ($this->bayar)('2026-08-21 09:00:00', 20000);
     ($this->bayar)('2026-09-03 09:00:00', 100000);
     ($this->bayar)('2026-09-03 15:00:00', 50000);
-    ($this->bayar)('2026-09-05 09:00:00', 30000);
+    ($this->bayar)('2026-09-19 08:00:00', 30000);
 
-    $tren = Livewire::actingAs($this->user)->test(DashboardComponent::class)->instance()->tren;
+    $tren = Livewire::withoutLazyLoading()->actingAs($this->user)->test(AreaAdmin::class)->instance()->tren;
 
-    expect($tren['categories'])->toHaveCount(19)
-        ->and($tren['revenue'][2])->toBe(150000.0)
-        ->and($tren['transactions'][2])->toBe(2)
-        ->and($tren['revenue'][4])->toBe(30000.0)
-        ->and($tren['transactions'][3])->toBe(0);
+    expect($tren['categories'])->toHaveCount(30)
+        ->and($tren['revenue'][0])->toBe(20000.0)
+        ->and($tren['revenue'][13])->toBe(150000.0)
+        ->and($tren['transactions'][13])->toBe(2)
+        ->and($tren['transactions'][14])->toBe(0)
+        ->and($tren['revenue'][29])->toBe(30000.0)
+        ->and(array_sum($tren['revenue']))->toBe(200000.0);
 });
 
 test('transaksi terbaru menampilkan 5 pembayaran terakhir dan menaut ke invoice', function () {
@@ -159,8 +177,8 @@ test('transaksi terbaru menampilkan 5 pembayaran terakhir dan menaut ke invoice'
         $pembayaran = ($this->bayar)(now()->subDays(10 - $i)->toDateTimeString(), 100000 + ($i * 1000));
     }
 
-    Livewire::actingAs($this->user)
-        ->test(DashboardComponent::class)
+    Livewire::withoutLazyLoading()->actingAs($this->user)
+        ->test(AreaAdmin::class)
         ->assertSee('+Rp 106.000')
         ->assertSee('+Rp 102.000')
         ->assertDontSee('+Rp 101.000')
@@ -175,16 +193,17 @@ test('pelanggan expired memuat layanan dalam jendela dan mengurutkan yang paling
     ($this->buatLayanan)('Berhenti', StatusLayanan::Berhenti, -3);
     ($this->buatLayanan)('Jauh', StatusLayanan::Aktif, 30);
 
-    Livewire::actingAs($this->user)
-        ->test(DashboardComponent::class)
+    $perluPerhatian = Livewire::withoutLazyLoading()->actingAs($this->user)
+        ->test(AreaAdmin::class)
         ->assertSeeInOrder(['Lewat', 'Akan'])
         ->assertSee('1 sudah lewat · 1 jatuh tempo ≤ H-'.PengaturanSiklusTagihan::ambil()->leadDays())
         ->assertSee('Lewat 5 hari')
         ->assertSee('H-3')
         ->assertSee('Rp 350.000')
-        ->assertDontSee('Lawas')
-        ->assertDontSee('Berhenti')
-        ->assertDontSee('Jauh');
+        ->instance()->perluPerhatian;
+
+    // Lawas tetap muncul di Tagihan Terbuka per Pelanggan (invoice kadaluarsa), jadi dicek lewat datanya.
+    expect($perluPerhatian['daftar']->pluck('pelanggan.nama_depan')->all())->toBe(['Lewat', 'Akan']);
 });
 
 test('pelanggan expired dibatasi 8 baris dan menautkan ke daftar lengkap', function () {
@@ -192,8 +211,8 @@ test('pelanggan expired dibatasi 8 baris dan menautkan ke daftar lengkap', funct
         ($this->buatLayanan)("Pelanggan{$i}", StatusLayanan::Suspend, -$i);
     }
 
-    Livewire::actingAs($this->user)
-        ->test(DashboardComponent::class)
+    Livewire::withoutLazyLoading()->actingAs($this->user)
+        ->test(AreaAdmin::class)
         ->assertSee('Lihat semua 9')
         ->assertSee('Pelanggan9')
         ->assertDontSee('Pelanggan1 ')
@@ -201,8 +220,8 @@ test('pelanggan expired dibatasi 8 baris dan menautkan ke daftar lengkap', funct
 });
 
 test('menampilkan keadaan kosong saat tidak ada layanan yang perlu ditindaklanjuti', function () {
-    Livewire::actingAs($this->user)
-        ->test(DashboardComponent::class)
+    Livewire::withoutLazyLoading()->actingAs($this->user)
+        ->test(AreaAdmin::class)
         ->assertSee('Tidak ada layanan yang perlu ditindaklanjuti')
         ->assertDontSee('Lihat semua 0');
 });
@@ -211,10 +230,10 @@ test('peran tanpa izin keuangan hanya melihat total pelanggan dan pelanggan expi
     $staf = User::factory()->create();
     $staf->assignRole($peran);
 
-    Livewire::actingAs($staf)
-        ->test(DashboardComponent::class)
+    Livewire::withoutLazyLoading()->actingAs($staf)
+        ->test(AreaAdmin::class)
         ->assertSee('Total Pelanggan')
-        ->assertSee('Pelanggan Expired & Jatuh Tempo', false)
+        ->assertSee('Pelanggan Expired & Jatuh Tempo')
         ->assertDontSee('Pendapatan Hari Ini')
         ->assertDontSee('Pendapatan Bulan Ini')
         ->assertDontSee('Tagihan Periode')
@@ -223,7 +242,7 @@ test('peran tanpa izin keuangan hanya melihat total pelanggan dan pelanggan expi
 })->with(['noc', 'teknisi', 'sales']);
 
 test('menampilkan pesan kosong untuk peran tanpa izin apa pun', function () {
-    Livewire::actingAs(User::factory()->create())
+    Livewire::withoutLazyLoading()->actingAs(User::factory()->create())
         ->test(DashboardComponent::class)
         ->assertSee('Tidak ada ringkasan untuk peran Anda.')
         ->assertDontSee('Total Pelanggan');
@@ -233,15 +252,126 @@ test('baris menuju invoice terbuka terbaru, dan ke profil pelanggan bila tanpa i
     $layanan = ($this->buatLayanan)('Tautan', StatusLayanan::Suspend, -2, StatusInvoice::Kadaluarsa);
     $invoice = $layanan->invoices()->first();
 
-    Livewire::actingAs($this->user)
-        ->test(DashboardComponent::class)
+    Livewire::withoutLazyLoading()->actingAs($this->user)
+        ->test(AreaAdmin::class)
         ->assertSee(route('invoice.show', $invoice), false);
 
     $sales = User::factory()->create();
     $sales->assignRole('sales');
 
-    Livewire::actingAs($sales)
-        ->test(DashboardComponent::class)
+    Livewire::withoutLazyLoading()->actingAs($sales)
+        ->test(AreaAdmin::class)
         ->assertSee(route('pelanggan.show', $layanan->pelanggan_id), false)
         ->assertDontSee(route('invoice.show', $invoice), false);
+});
+
+test('tagihan terbuka per pelanggan menjumlahkan invoice terbuka lintas layanan dan mengurutkan terbesar dulu', function () {
+    $invoice = fn (Pelanggan $pelanggan, StatusInvoice $status, int $nominal) => Invoice::factory()->create([
+        'pelanggan_id' => $pelanggan->id,
+        'jumlah_setelah_promo' => $nominal,
+        'status' => $status,
+    ]);
+
+    $besar = Pelanggan::factory()->create(['nama_depan' => 'Besar']);
+    $invoice($besar, StatusInvoice::MenungguPembayaran, 300000);
+    $invoice($besar, StatusInvoice::Kadaluarsa, 200000);
+    $invoice($besar, StatusInvoice::Digabung, 900000); // sudah masuk ke invoice terbaru, tidak dihitung dua kali
+
+    $kecil = Pelanggan::factory()->create(['nama_depan' => 'Kecil']);
+    $invoice($kecil, StatusInvoice::MenungguPembayaran, 100000);
+
+    $lunas = Pelanggan::factory()->create(['nama_depan' => 'Lunas']);
+    $invoice($lunas, StatusInvoice::Lunas, 700000);
+
+    $daftar = Livewire::withoutLazyLoading()->actingAs($this->user)
+        ->test(AreaAdmin::class)
+        ->assertSeeInOrder(['Besar', 'Kecil'])
+        ->assertSee('2 invoice terbuka')
+        ->instance()->tagihanTerbuka;
+
+    expect($daftar->pluck('id')->all())->toBe([$besar->id, $kecil->id])
+        ->and((float) $daftar->first()->total_terbuka)->toBe(500000.0);
+});
+
+test('tiket hari ini menghitung tiket masuk hari ini dan tiket yang masih terbuka', function () {
+    Ticket::factory()->create(['status' => StatusTicket::Baru]);
+    Ticket::factory()->create(['status' => StatusTicket::Selesai]);
+    Ticket::factory()->create(['status' => StatusTicket::Diproses, 'created_at' => now()->subDays(3)]);
+
+    expect(Livewire::withoutLazyLoading()->actingAs($this->user)->test(AreaAdmin::class)->instance()->tiketHariIni)
+        ->toBe(['masuk' => 2, 'terbuka' => 2]);
+});
+
+test('antrian tiket: teknisi melihat tiket PIC-nya, divisi lain tiket divisinya yang belum selesai, super admin semua', function () {
+    $teknisi = User::factory()->create();
+    $teknisi->assignRole('teknisi');
+    $noc = User::factory()->create();
+    $noc->assignRole('noc');
+
+    $tiket = function (DivisiTicket $divisi, StatusDivisiTicket $statusDivisi, StatusTicket $status = StatusTicket::Baru, ?User $pic = null): Ticket {
+        $ticket = Ticket::factory()->create(['status' => $status, 'pic_id' => $pic?->id]);
+        $ticket->divisis()->create(['divisi' => $divisi, 'status' => $statusDivisi]);
+
+        return $ticket;
+    };
+
+    $milikTeknisi = $tiket(DivisiTicket::Teknisi, StatusDivisiTicket::Belum, StatusTicket::Diproses, $teknisi);
+    $nocBelum = $tiket(DivisiTicket::Noc, StatusDivisiTicket::Progress);
+    $nocSudah = $tiket(DivisiTicket::Noc, StatusDivisiTicket::Selesai);
+    $nocTiketSelesai = $tiket(DivisiTicket::Noc, StatusDivisiTicket::Belum, StatusTicket::Selesai);
+
+    $antrian = fn (User $user) => Livewire::withoutLazyLoading()->actingAs($user)->test(AreaTiket::class)->instance()->antrian->pluck('id')->sort()->values()->all();
+
+    expect($antrian($teknisi))->toBe([$milikTeknisi->id])
+        ->and($antrian($noc))->toBe([$nocBelum->id])
+        ->and($antrian($this->user))->toBe([$milikTeknisi->id, $nocBelum->id, $nocSudah->id])
+        ->and($nocTiketSelesai->id)->not->toBeIn($antrian($this->user));
+});
+
+test('tren tiket harian menghitung tiket masuk 30 hari terakhir yang boleh dilihat user', function () {
+    $teknisi = User::factory()->create();
+    $teknisi->assignRole('teknisi');
+
+    Ticket::factory()->create(['pic_id' => $teknisi->id]);
+    Ticket::factory()->create(['pic_id' => $teknisi->id, 'created_at' => now()->subDays(40)]);
+    Ticket::factory()->create(); // bukan PIC teknisi
+
+    $tren = Livewire::withoutLazyLoading()->actingAs($teknisi)->test(AreaTiket::class)->instance()->tren;
+
+    expect($tren['tiket'])->toHaveCount(30)
+        ->and(array_sum($tren['tiket']))->toBe(1)
+        ->and($tren['tiket'][29])->toBe(1);
+});
+
+test('ringkasan router menghitung online dan offline serta mendaftar router yang offline', function () {
+    Router::factory()->create(['nama_router' => 'RTR-HIDUP', 'status_koneksi' => StatusRouter::Online]);
+    Router::factory()->create(['nama_router' => 'RTR-MATI', 'status_koneksi' => StatusRouter::Offline]);
+    Router::factory()->create(['nama_router' => 'RTR-BARU', 'status_koneksi' => StatusRouter::Unknown]);
+
+    $router = Livewire::withoutLazyLoading()->actingAs($this->user)
+        ->test(AreaNoc::class)
+        ->assertSee('RTR-MATI')
+        ->assertSee('RTR-BARU')
+        ->assertDontSee('RTR-HIDUP')
+        ->instance()->router;
+
+    expect([$router['total'], $router['online'], $router['offline']])->toBe([3, 1, 2]);
+});
+
+test('area tampil sesuai izin: teknisi tanpa izin jaringan tidak melihat area NOC', function () {
+    $teknisi = User::factory()->create();
+    $teknisi->assignRole('teknisi');
+
+    Livewire::withoutLazyLoading()->actingAs($teknisi)
+        ->test(DashboardComponent::class)
+        ->assertSee('Ringkasan Pelanggan & Keuangan')
+        ->assertSee('Ticketing & Support')
+        ->assertDontSee('NOC & Infrastruktur');
+});
+
+test('footer halaman staf menampilkan nama brand perusahaan', function () {
+    $this->actingAs($this->user)
+        ->get(route('dashboard'))
+        ->assertSee('Made by MyArsyila')
+        ->assertSee(Perusahaan::default()->nama_brand);
 });

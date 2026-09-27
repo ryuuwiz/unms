@@ -40,6 +40,9 @@ class Edit extends Component
     /** @var mixed */
     public $fotoKtp = null;
 
+    /** @var mixed */
+    public $fotoProfil = null;
+
     public function mount(User $user): void
     {
         $this->userId = $user->id;
@@ -95,6 +98,58 @@ class Edit extends Component
         $this->fotoKtp = null;
 
         Flux::toast(variant: 'success', text: 'KTP berhasil diunggah.');
+    }
+
+    /**
+     * Unggah/ganti foto profil atas nama user ini oleh admin, begitu berkas dipilih atau diseret.
+     */
+    public function updatedFotoProfil(): void
+    {
+        abort_unless(auth()->user()->can('pengguna.ubah'), 403);
+
+        $this->validate([
+            'fotoProfil' => ['required', 'image', 'max:2048'],
+        ], [
+            'fotoProfil.image' => 'Foto harus berupa berkas gambar (jpg, png, webp).',
+            'fotoProfil.max' => 'Ukuran foto maksimal 2 MB.',
+        ]);
+
+        $user = User::findOrFail($this->userId);
+        $user->gantiFotoProfil($this->fotoProfil);
+        $this->fotoProfil = null;
+        $this->logFotoProfil($user, 'ganti_foto_profil', "Mengganti foto profil {$user->name}");
+
+        Flux::toast(variant: 'success', text: 'Foto profil berhasil diperbarui.');
+    }
+
+    /**
+     * Hapus foto profil user ini oleh admin, avatar kembali ke inisial.
+     */
+    public function hapusFotoProfil(): void
+    {
+        abort_unless(auth()->user()->can('pengguna.ubah'), 403);
+
+        $user = User::findOrFail($this->userId);
+        $user->clearMediaCollection('foto_profil');
+        $this->logFotoProfil($user, 'hapus_foto_profil', "Menghapus foto profil {$user->name}");
+
+        Flux::toast(variant: 'success', text: 'Foto profil dihapus.');
+    }
+
+    /**
+     * Catat perubahan foto profil Pengguna lain; perubahan foto sendiri tidak dicatat.
+     */
+    private function logFotoProfil(User $user, string $action, string $description): void
+    {
+        if ($user->is(auth()->user())) {
+            return;
+        }
+
+        activity()
+            ->performedOn($user)
+            ->causedBy(auth()->user())
+            ->withProperties(['action' => $action])
+            ->log($description);
     }
 
     public function resetPassword(): void

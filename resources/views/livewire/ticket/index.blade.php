@@ -175,9 +175,7 @@
                             </div>
                         </div>
 
-                        <div class="relative z-10 mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-700">
-                            @include('livewire.ticket.partials.aksi-cepat', ['tck' => $tck, 'ukuran' => 'base'])
-                        </div>
+                        @include('livewire.ticket.partials.aksi-cepat', ['tck' => $tck])
                     </div>
                 @endforeach
             </div>
@@ -194,25 +192,25 @@
                                 <th scope="col" class="px-4 py-3">Prioritas / Divisi</th>
                                 <th scope="col" class="px-4 py-3">SLA</th>
                                 <th scope="col" class="px-4 py-3">PIC</th>
-                                <th scope="col" class="px-4 py-3">Status</th>
-                                <th scope="col" class="px-4 py-3 text-right"><span class="sr-only">Aksi</span></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                             @foreach ($tickets as $tck)
-                                <tr wire:key="baris-{{ $tck->id }}" class="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-700/30 {{ $tck->isOverdue() ? 'bg-rose-50/50 dark:bg-rose-950/20' : '' }}">
+                                <tr wire:key="baris-{{ $tck->id }}" x-on:click="if (! $event.target.closest('a')) Livewire.navigate('{{ route('ticket.show', $tck) }}')" class="cursor-pointer transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-700/30 {{ $tck->isOverdue() ? 'bg-rose-50/50 dark:bg-rose-950/20' : '' }}">
                                     <td class="px-4 py-3 align-top">
                                         <a href="{{ route('ticket.show', $tck) }}" wire:navigate class="font-mono font-semibold text-zinc-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400">{{ $tck->nomor_ticket }}</a>
-                                        <div class="mt-1"><flux:badge size="sm" :color="$tck->jenis->color()" :icon="$tck->jenis->icon()">{{ $tck->jenis->label() }}</flux:badge></div>
-                                        @if ($tck->perlu_aktivasi_manual)
-                                            <div class="mt-1"><flux:badge size="xs" color="amber" icon="exclamation-circle">Perlu Aktivasi</flux:badge></div>
-                                        @endif
+                                        <div class="mt-1 flex flex-wrap gap-1">
+                                            <flux:badge size="sm" :color="$tck->status->color()">{{ $tck->status->label() }}</flux:badge>
+                                            <flux:badge size="sm" :color="$tck->jenis->color()" :icon="$tck->jenis->icon()">{{ $tck->jenis->label() }}</flux:badge>
+                                            @if ($tck->perlu_aktivasi_manual)
+                                                <flux:badge size="sm" color="amber" icon="exclamation-circle">Perlu Aktivasi</flux:badge>
+                                            @endif
+                                        </div>
                                         <div class="mt-1 text-xs text-zinc-500">{{ $tck->created_at->format('d/m/Y H:i') }}</div>
                                     </td>
 
                                     <td class="px-4 py-3 align-top">
                                         <div class="font-medium text-zinc-900 dark:text-white">{{ $tck->pelanggan?->identitasLengkap() ?? '-' }}</div>
-                                        <div class="text-xs text-zinc-500">{{ $tck->pelanggan?->no_hp }}</div>
                                         <div class="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
                                             @if ($tck->layananPelanggan)
                                                 <span class="font-mono">{{ $tck->layananPelanggan->ppp_username ?? 'Menunggu proses NOC' }}</span> · {{ strtoupper($tck->layananPelanggan->jenis_koneksi->value) }} · {{ $tck->layananPelanggan->site_id }}
@@ -235,19 +233,10 @@
 
                                     <td class="px-4 py-3 align-top">
                                         @if ($tck->pic)
-                                            <div class="flex items-center gap-1.5">
-                                                <flux:avatar size="xs" :name="$tck->pic->name" :initials="$tck->pic->initials()" />
-                                                <span class="max-w-[9rem] truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">{{ $tck->pic->name }}</span>
-                                            </div>
+                                            <span class="block max-w-[9rem] truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">{{ $tck->pic->name }}</span>
                                         @else
                                             <flux:badge size="sm" color="zinc" icon="user-minus">Belum ada PIC</flux:badge>
                                         @endif
-                                    </td>
-
-                                    <td class="px-4 py-3 align-top"><flux:badge size="sm" :color="$tck->status->color()">{{ $tck->status->label() }}</flux:badge></td>
-
-                                    <td class="px-4 py-3 align-top">
-                                        <div class="flex justify-end">@include('livewire.ticket.partials.aksi-cepat', ['tck' => $tck, 'ukuran' => 'sm'])</div>
                                     </td>
                                 </tr>
                             @endforeach
