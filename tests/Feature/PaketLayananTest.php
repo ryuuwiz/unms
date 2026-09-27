@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\MasaAktifSatuan;
 use App\Enums\StatusPaket;
 use App\Enums\UserStatus;
 use App\Livewire\PaketLayanan\Create;
@@ -133,4 +134,28 @@ test('can toggle status paket layanan', function () {
         ->call('toggleStatus', $paket->id);
 
     expect($paket->fresh()->status)->toBe(StatusPaket::Nonaktif);
+});
+
+test('harga paket ditampilkan per satu masa aktif penuh', function (int $nilai, MasaAktifSatuan $satuan, string $expected) {
+    $paket = PaketLayanan::factory()->make([
+        'harga' => 300000,
+        'masa_aktif_nilai' => $nilai,
+        'masa_aktif_satuan' => $satuan,
+    ]);
+
+    expect($paket->formattedHarga())->toBe($expected);
+})->with([
+    'satu bulan' => [1, MasaAktifSatuan::Bulan, 'Rp 300.000 / Bulan'],
+    'tiga bulan' => [3, MasaAktifSatuan::Bulan, 'Rp 300.000 / 3 Bulan'],
+    'tiga puluh hari' => [30, MasaAktifSatuan::Hari, 'Rp 300.000 / 30 Hari'],
+]);
+
+test('daftar paket mengurutkan paket aktif dulu lalu harga termurah', function () {
+    $nonaktifMurah = PaketLayanan::factory()->nonaktif()->create(['harga' => 50000, 'profil_bandwidth_id' => $this->profilBandwidth->id]);
+    $aktifMahal = PaketLayanan::factory()->create(['harga' => 300000, 'profil_bandwidth_id' => $this->profilBandwidth->id]);
+    $aktifMurah = PaketLayanan::factory()->create(['harga' => 100000, 'profil_bandwidth_id' => $this->profilBandwidth->id]);
+
+    Livewire::actingAs($this->salesUser)
+        ->test(Index::class)
+        ->assertViewHas('pakets', fn ($pakets) => $pakets->pluck('id')->all() === [$aktifMurah->id, $aktifMahal->id, $nonaktifMurah->id]);
 });

@@ -137,8 +137,8 @@ Pengenal unik titik instalasi layanan pelanggan (format `SITE-XXXXXXXX`).
 _Avoid_: Service ID, Lokasi ID
 
 **Paket Layanan**:
-Entitas katalog paket internet ISP yang menentukan profil bandwidth, tarif, dan masa aktif (hari/bulan).
-_Avoid_: Package, Product, Paket Data
+Entitas katalog paket internet ISP yang menentukan profil bandwidth, tarif, dan masa aktif (hari/bulan). Tarif berlaku untuk **satu masa aktif penuh**, bukan per satuan — paket 3 Bulan seharga Rp 300.000 ditulis `Rp 300.000 / 3 Bulan`, bukan `/ Bulan`.
+_Avoid_: Package, Product, Paket Data, Tarif per Satuan Masa Aktif
 
 **Profil Bandwidth**:
 Konfigurasi limit kecepatan transfer data (max limit upload/download, burst rate, priority) yang diinput dan disimpan dalam satuan standar Mbps, lalu otomatis dikonversi ke format numerik bits per second (bps) saat di-provision ke MikroTik RouterOS.

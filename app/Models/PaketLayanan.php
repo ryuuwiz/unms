@@ -121,11 +121,13 @@ class PaketLayanan extends Model
     }
 
     /**
-     * Format harga dalam Rupiah (misal: "Rp 250.000 / bln").
+     * Format harga per satu masa aktif penuh (misal: "Rp 250.000 / Bulan" atau "Rp 700.000 / 3 Bulan").
      */
     public function formattedHarga(): string
     {
-        return 'Rp '.number_format((float) $this->harga, 0, ',', '.').' / '.$this->masa_aktif_satuan->label();
+        $periode = $this->masa_aktif_nilai === 1 ? $this->masa_aktif_satuan->label() : $this->labelMasaAktif();
+
+        return 'Rp '.number_format((float) $this->harga, 0, ',', '.').' / '.$periode;
     }
 
     /**

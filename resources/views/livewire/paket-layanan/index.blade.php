@@ -29,111 +29,99 @@
         </flux:select>
     </div>
 
-    {{-- Tabel Paket --}}
-    <flux:table>
-        <flux:table.columns>
-            <flux:table.column>Nama Paket</flux:table.column>
-            <flux:table.column>Profil Bandwidth</flux:table.column>
-            <flux:table.column>Tarif</flux:table.column>
-            <flux:table.column>Masa Aktif</flux:table.column>
-            <flux:table.column>Status</flux:table.column>
-            <flux:table.column align="end">Aksi</flux:table.column>
-        </flux:table.columns>
-
-        <flux:table.rows>
-            @forelse ($pakets as $paket)
-                <flux:table.row :key="$paket->id">
-                    {{-- Nama Paket & Keterangan --}}
-                    <flux:table.cell>
-                        <div class="flex flex-col">
+    {{-- Hasil: kartu di HP, tabel dari md ke atas --}}
+    @if ($pakets->isEmpty())
+        <div class="flex flex-col items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-12 text-center text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800">
+            <flux:icon name="queue-list" class="size-8 text-zinc-300 dark:text-zinc-600" />
+            <p class="font-medium">Tidak ada paket layanan ditemukan.</p>
+            @if ($search || $filterStatus)
+                <p class="text-xs text-zinc-400">Coba ubah filter atau kata kunci pencarian.</p>
+            @endif
+        </div>
+    @else
+        {{-- Kartu (HP) --}}
+        <div class="space-y-3 md:hidden">
+            @foreach ($pakets as $paket)
+                <div wire:key="kartu-{{ $paket->id }}" @class(['relative rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-800', 'opacity-60' => $paket->status !== App\Enums\StatusPaket::Aktif])>
+                    <div class="flex items-start justify-between gap-2">
+                        @can('update', $paket)
+                            <a href="{{ route('paket-layanan.edit', $paket) }}" wire:navigate class="font-medium text-zinc-900 after:absolute after:inset-0 dark:text-zinc-100">{{ $paket->nama_paket }}</a>
+                        @else
                             <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $paket->nama_paket }}</span>
-                            @if ($paket->keterangan)
-                                <span class="max-w-md truncate text-xs text-zinc-500" title="{{ $paket->keterangan }}">
-                                    {{ $paket->keterangan }}
-                                </span>
-                            @endif
+                        @endcan
+                        <div class="relative z-10 flex shrink-0 items-center gap-1">
+                            <flux:badge size="sm" :color="$paket->status->color()">{{ $paket->status->label() }}</flux:badge>
+                            @include('livewire.paket-layanan.partials.aksi')
                         </div>
-                    </flux:table.cell>
+                    </div>
 
-                    {{-- Profil Bandwidth --}}
-                    <flux:table.cell>
-                        <div class="flex items-center gap-1.5">
-                            <flux:badge size="sm" color="sky">
-                                {{ $paket->profilBandwidth?->nama_bandwidth ?? '—' }}
-                            </flux:badge>
-                            @if ($paket->profilBandwidth)
-                                <span class="text-xs text-zinc-500">({{ $paket->profilBandwidth->labelKecepatan() }})</span>
-                            @endif
-                        </div>
-                    </flux:table.cell>
+                    <div class="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">
+                        {{ $paket->profilBandwidth?->labelKecepatan() ?? '—' }} · {{ $paket->formattedHarga() }}
+                    </div>
 
-                    {{-- Tarif --}}
-                    <flux:table.cell class="font-medium text-zinc-900 dark:text-zinc-100">
-                        {{ $paket->formattedHarga() }}
-                    </flux:table.cell>
+                    @if ($paket->keterangan)
+                        <p class="mt-1 truncate text-sm text-zinc-500">{{ $paket->keterangan }}</p>
+                    @endif
 
-                    {{-- Masa Aktif --}}
-                    <flux:table.cell class="text-sm text-zinc-600 dark:text-zinc-300">
-                        {{ $paket->labelMasaAktif() }}
-                    </flux:table.cell>
+                    @can('update', $paket)
+                        <p class="mt-1 text-xs text-zinc-400">Dipakai {{ $paket->layanans_count }} layanan</p>
+                    @endcan
+                </div>
+            @endforeach
+        </div>
 
-                    {{-- Status --}}
-                    <flux:table.cell>
-                        <flux:badge size="sm" :color="$paket->status->color()">
-                            {{ $paket->status->label() }}
-                        </flux:badge>
-                    </flux:table.cell>
+        {{-- Tabel (md ke atas) --}}
+        <div class="hidden md:block">
+            <flux:table>
+                <flux:table.columns>
+                    <flux:table.column>Paket</flux:table.column>
+                    <flux:table.column>Kecepatan</flux:table.column>
+                    <flux:table.column>Harga</flux:table.column>
+                    <flux:table.column>Status</flux:table.column>
+                    <flux:table.column class="w-12"><span class="sr-only">Aksi</span></flux:table.column>
+                </flux:table.columns>
 
-                    {{-- Aksi --}}
-                    <flux:table.cell align="end">
-                        <div class="flex items-center justify-end gap-1">
-                            @can('update', $paket)
-                                <flux:button
-                                    :href="route('paket-layanan.edit', $paket)"
-                                    wire:navigate
-                                    size="sm"
-                                    variant="ghost"
-                                    icon="pencil-square"
-                                    title="Edit Paket"
-                                />
+                <flux:table.rows>
+                    @foreach ($pakets as $paket)
+                        @php($bisaUbah = auth()->user()->can('update', $paket))
+                        <flux:table.row
+                            :key="$paket->id"
+                            :class="Arr::toCssClasses(['opacity-60' => $paket->status !== App\Enums\StatusPaket::Aktif, 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/30' => $bisaUbah])"
+                            data-href="{{ $bisaUbah ? route('paket-layanan.edit', $paket) : '' }}"
+                            x-on:click="$el.dataset.href && ! $event.target.closest('a, button, [data-flux-menu]') && Livewire.navigate($el.dataset.href)"
+                        >
+                            <flux:table.cell>
+                                <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ $paket->nama_paket }}</div>
+                                @if ($paket->keterangan)
+                                    <div class="max-w-xs truncate text-xs text-zinc-500" title="{{ $paket->keterangan }}">{{ $paket->keterangan }}</div>
+                                @endif
+                            </flux:table.cell>
 
-                                <flux:button
-                                    wire:click="toggleStatus({{ $paket->id }})"
-                                    size="sm"
-                                    variant="ghost"
-                                    :icon="$paket->status === App\Enums\StatusPaket::Aktif ? 'pause' : 'play'"
-                                    :title="$paket->status === App\Enums\StatusPaket::Aktif ? 'Nonaktifkan Paket' : 'Aktifkan Paket'"
-                                />
-                            @endcan
+                            <flux:table.cell>
+                                <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ $paket->profilBandwidth?->labelKecepatan() ?? '—' }}</div>
+                                <div class="text-xs text-zinc-500">{{ $paket->profilBandwidth?->nama_bandwidth }}</div>
+                            </flux:table.cell>
 
-                            @can('delete', $paket)
-                                <flux:button
-                                    wire:click="confirmDelete({{ $paket->id }})"
-                                    size="sm"
-                                    variant="ghost"
-                                    icon="trash"
-                                    class="text-red-600 hover:text-red-700 dark:text-red-400"
-                                    title="Hapus Paket"
-                                />
-                            @endcan
-                        </div>
-                    </flux:table.cell>
-                </flux:table.row>
-            @empty
-                <flux:table.row>
-                    <flux:table.cell colspan="6" class="py-12 text-center text-zinc-500">
-                        <div class="flex flex-col items-center gap-2">
-                            <flux:icon name="queue-list" class="size-8 text-zinc-300 dark:text-zinc-600" />
-                            <p class="font-medium">Tidak ada paket layanan ditemukan.</p>
-                            @if ($search || $filterStatus)
-                                <p class="text-xs text-zinc-400">Coba ubah filter atau kata kunci pencarian.</p>
-                            @endif
-                        </div>
-                    </flux:table.cell>
-                </flux:table.row>
-            @endforelse
-        </flux:table.rows>
-    </flux:table>
+                            <flux:table.cell class="font-medium whitespace-nowrap text-zinc-900 dark:text-zinc-100">
+                                {{ $paket->formattedHarga() }}
+                            </flux:table.cell>
+
+                            <flux:table.cell>
+                                <flux:badge size="sm" :color="$paket->status->color()">{{ $paket->status->label() }}</flux:badge>
+                                @if ($bisaUbah)
+                                    <div class="mt-1 text-xs text-zinc-400">Dipakai {{ $paket->layanans_count }} layanan</div>
+                                @endif
+                            </flux:table.cell>
+
+                            <flux:table.cell align="end">
+                                @include('livewire.paket-layanan.partials.aksi')
+                            </flux:table.cell>
+                        </flux:table.row>
+                    @endforeach
+                </flux:table.rows>
+            </flux:table>
+        </div>
+    @endif
 
     {{-- Pagination --}}
     @if ($pakets->hasPages())

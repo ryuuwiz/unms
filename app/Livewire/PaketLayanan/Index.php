@@ -77,9 +77,11 @@ class Index extends Component
     {
         $pakets = PaketLayanan::query()
             ->with('profilBandwidth')
+            ->withCount('layanans')
             ->when($this->search, fn ($q) => $q->search($this->search))
             ->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
-            ->latest()
+            ->orderByRaw('status = ? desc', [StatusPaket::Aktif->value])
+            ->orderBy('harga')
             ->paginate(15);
 
         return view('livewire.paket-layanan.index', [
