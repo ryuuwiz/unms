@@ -14,6 +14,7 @@ use App\Enums\StatusLayanan;
 use App\Enums\StatusOdpPort;
 use App\Enums\StatusRouter;
 use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Exceptions\DuplikatLayananAktifException;
@@ -875,6 +876,9 @@ class Show extends Component
             'aktivasiIpPools' => $aktivasiIpPools,
             'prosesIpPools' => $prosesIpPools,
             'paketLayananList' => $paketLayananList,
+            // Pemasangan lama tanpa layanan memakai alur yang sudah ditinggalkan -- tanpa Panduan Alur Tiket.
+            'panduan' => $this->ticket->jenis->panduan(),
+            'punyaPanduan' => $this->ticket->jenis !== JenisTicket::Pemasangan || $this->ticket->layanan_pelanggan_id,
         ]);
     }
 }

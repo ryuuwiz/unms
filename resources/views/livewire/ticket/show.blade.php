@@ -26,6 +26,12 @@
         </div>
 
         <div class="flex items-center gap-2 flex-wrap">
+            @if ($punyaPanduan)
+                <flux:modal.trigger name="panduan-alur">
+                    <flux:button variant="subtle" icon="book-open" size="sm">Panduan</flux:button>
+                </flux:modal.trigger>
+            @endif
+
             <flux:button wire:click="openCatatanModal" variant="subtle" icon="chat-bubble-left-ellipsis" size="sm">
                 Tambah Catatan
             </flux:button>
@@ -1036,4 +1042,55 @@
             </div>
         </form>
     </flux:modal>
+
+    {{-- Panduan Alur Tiket (lihat CONTEXT.md) --}}
+    @if ($punyaPanduan)
+        <flux:modal name="panduan-alur" variant="flyout" class="md:w-lg">
+            <div class="space-y-5">
+                <div>
+                    <flux:heading size="lg">Panduan Alur {{ $ticket->jenis->label() }}</flux:heading>
+                    <flux:text class="mt-1">Langkah kerja tiap divisi yang ditugaskan di tiket ini.</flux:text>
+                </div>
+
+                @if ($panduan['sebelum'])
+                    <div class="space-y-2">
+                        <flux:heading size="sm">Sebelum tiket ini</flux:heading>
+                        <ol class="list-decimal ps-5 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                            @foreach ($panduan['sebelum'] as $langkah)
+                                <li>{{ $langkah }}</li>
+                            @endforeach
+                        </ol>
+                    </div>
+                @endif
+
+                @foreach ($panduan['divisi'] as $divisiValue => $langkahDivisi)
+                    @php($divisi = \App\Enums\Ticket\DivisiTicket::from($divisiValue))
+                    @continue(! $ticket->divisis->contains('divisi', $divisi))
+                    {{-- Nilai DivisiTicket sama dengan nama peran, jadi bagian divisi milik user terbuka otomatis. --}}
+                    <details {{ auth()->user()->hasRole(['super_admin', $divisiValue]) ? 'open' : '' }} class="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                        <summary class="cursor-pointer font-semibold text-sm text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
+                            {{ $divisi->label() }}
+                            @if ($ticket->jenis === \App\Enums\Ticket\JenisTicket::Pemasangan)
+                                <flux:badge size="sm" :color="$ticket->statusDivisi($divisi)->color()">{{ $ticket->statusDivisi($divisi)->label() }}</flux:badge>
+                            @endif
+                        </summary>
+                        <ol class="list-decimal ps-5 mt-2 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                            @foreach ($langkahDivisi as $langkah)
+                                <li>{{ $langkah }}</li>
+                            @endforeach
+                        </ol>
+                    </details>
+                @endforeach
+
+                <div class="space-y-2">
+                    <flux:heading size="sm">Penutupan</flux:heading>
+                    <ol class="list-decimal ps-5 space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
+                        @foreach ($panduan['penutupan'] as $langkah)
+                            <li>{{ $langkah }}</li>
+                        @endforeach
+                    </ol>
+                </div>
+            </div>
+        </flux:modal>
+    @endif
 </div>
