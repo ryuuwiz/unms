@@ -75,7 +75,7 @@ test('admin can create layanan pelanggan komersial saja tanpa router/ip pool/ppp
         ->and($layanan->ppp_username)->toBeNull()
         ->and($layanan->ppp_password_terenkripsi)->toBeNull()
         ->and($layanan->status)->toBe(StatusLayanan::Proses)
-        ->and($layanan->site_id)->toStartWith('SITE-');
+        ->and($layanan->site_id)->toMatch('/^APP\d{8}$/');
 });
 
 test('membuka create tanpa permission layanan_pelanggan.buat ditolak', function () {

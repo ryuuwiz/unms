@@ -67,7 +67,7 @@ test('tanggal hingga sama persis dengan tanggal_expired setelah invoice dibayar'
     expect($deskripsi)->toEndWith('hingga '.$this->layanan->fresh()->tanggal_expired->toDateString());
 });
 
-test('brand jatuh ke brand perusahaan untuk prefix tak dikenal atau nonaktif', function () {
+test('brand jatuh ke brand perusahaan untuk prefix tak dikenal, prefix nonaktif tetap dipakai', function () {
     $brandPerusahaan = Perusahaan::default()->nama_brand;
 
     $this->pelanggan->update(['no_reg' => 'XYZ2409202601']);
@@ -76,7 +76,7 @@ test('brand jatuh ke brand perusahaan untuk prefix tak dikenal atau nonaktif', f
 
     $this->pelanggan->update(['no_reg' => 'BF2409202601']);
     PengaturanPrefixRegistrasi::where('kode', 'BF')->update(['is_active' => false]);
-    expect($this->builder->buat($invoice->fresh()))->toStartWith($brandPerusahaan.' (');
+    expect($this->builder->buat($invoice->fresh()))->toStartWith('BESTFIBER (');
 });
 
 test('invoice tanpa periode memakai teks tetap dengan keterangan', function () {

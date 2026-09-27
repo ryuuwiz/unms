@@ -5,7 +5,6 @@ namespace App\Services\PaymentGateway;
 use App\Actions\LayananPelanggan\PerpanjangMasaAktifAction;
 use App\Models\Invoice;
 use App\Models\PengaturanPrefixRegistrasi;
-use App\Models\Perusahaan;
 use App\Models\TemplateDeskripsiTagihan;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -72,7 +71,7 @@ class DeskripsiTagihanBuilder
             ?? Carbon::parse($invoice->tanggal_terbit);
 
         return [
-            'brand' => $this->brand($pelanggan?->no_reg),
+            'brand' => PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg),
             'site_id' => $layanan->site_id ?? '-',
             'bulan' => $bulan->translatedFormat('F Y'),
             'nama_paket_pelanggan' => $layanan?->paketLayanan->nama_paket ?? 'Layanan Internet',
@@ -86,19 +85,5 @@ class DeskripsiTagihanBuilder
             'jatuh_tempo' => Carbon::parse($invoice->tanggal_jatuh_tempo)->toDateString(),
             'keterangan' => $invoice->keterangan ?: 'Tagihan Internet',
         ];
-    }
-
-    /**
-     * Nama Prefix Registrasi aktif milik pelanggan (huruf awal `no_reg`), fallback brand perusahaan.
-     */
-    private function brand(?string $noReg): string
-    {
-        $kode = preg_match('/^[A-Za-z]+/', (string) $noReg, $cocok) ? strtoupper($cocok[0]) : null;
-
-        $nama = $kode
-            ? PengaturanPrefixRegistrasi::where('kode', $kode)->where('is_active', true)->value('nama')
-            : null;
-
-        return $nama ?: (Perusahaan::default()->nama_brand ?? config('app.name', 'GOBILLING'));
     }
 }

@@ -116,6 +116,10 @@ _Avoid_: Customer ID, Nomor Pelanggan, No Langganan, CUST-XXXXXX, No Reg Duplika
 Kode singkat (2-5 huruf kapital, contoh `BF` untuk Bestfiber, `ARS` untuk Arsyila) yang mewakili brand/unit bisnis dan menjadi awalan No. Registrasi pelanggan. Dikelola dinamis oleh staff lewat halaman Pengaturan Prefix Registrasi (tabel `pengaturan_prefix_registrasi`), dapat dinonaktifkan tanpa dihapus sehingga No. Registrasi lama yang sudah terbit tetap valid.
 _Avoid_: Kode Cabang Hardcode, Prefix Bebas Tanpa Kelola
 
+**Brand Pelanggan**:
+Merek ISP yang dilihat seorang pelanggan: nama (dan logo) Prefix Registrasi yang cocok dengan huruf awal No. Registrasi-nya, **termasuk prefix yang sudah dinonaktifkan** (nonaktif hanya berarti tidak bisa dipilih untuk registrasi baru). No. Registrasi yang tidak cocok dengan prefix mana pun jatuh ke brand Perusahaan. Satu-satunya brand yang tampil di setiap hal yang dilihat pelanggan (pesan WhatsApp, invoice PDF, deskripsi payment gateway) dan disebut di pesan staf tentang pelanggan itu. Brand hanya identitas merek (nama, logo); identitas legal, rekening, kontak, dan NPWP tetap satu milik Perusahaan. Semua brand dikirim dari Koneksi Gateway WhatsApp yang sama.
+_Avoid_: Brand Perusahaan untuk Pesan Pelanggan, Template WA per Brand, Nomor WA per Brand, Cabang
+
 **Format Identitas Pelanggan**:
 Format standar representasi identitas pelanggan untuk antarmuka staf backoffice dan selector sistem dengan susunan `[No. Reg]_[Nama Pelanggan]` (contoh: `WG2309202601_Budi Santoso`). Pada dropdown selector dilengkapi informasi sekunder di dalam kurung: `WG2309202601_Budi Santoso (0812xxxx • Cluster Melati)`.
 _Avoid_: Nama Saja Tanpa No Reg, No Reg Tanpa Nama, Format Strip Tak Beraturan (Gunakan Format Baku `No. Reg_Nama`)
@@ -133,8 +137,8 @@ Kredensial autentikasi PPPoE pelanggan yang di-generate sistem secara acak (8 ka
 _Avoid_: Password Manual Staf (kecuali mode Sudah Registrasi Mikrotik), Password Bebas, Plaintext Permanen di Halaman, Reveal Tanpa Audit, Password Digenerate Saat Registrasi Billing Dibuat
 
 **Site ID**:
-Pengenal unik titik instalasi layanan pelanggan (format `SITE-XXXXXXXX`).
-_Avoid_: Service ID, Lokasi ID
+Pengenal unik titik instalasi layanan pelanggan berformat `[KodePrefix]APP[8 digit acak]` (contoh: `BFAPP48291037`; tanpa kode bila No. Registrasi tidak cocok dengan prefix mana pun, mis. `APP48291037`). Boleh diketahui pelanggan (nomor rujukan ke CS). Tidak berubah setelah terbit, termasuk bila No. Registrasi pelanggan kemudian berganti prefix. Site ID lama berformat `SITE-XXXXXXXX` sudah diganti sekali ke format ini (penggantiannya tercatat di riwayat layanan); comment PPP Secret di router dan deskripsi link bayar gateway yang sudah terbit masih memuat Site ID lama sampai diperbarui secara alami.
+_Avoid_: Service ID, Lokasi ID, Site ID Mengikuti Perubahan Prefix
 
 **Paket Layanan**:
 Entitas katalog paket internet ISP yang menentukan profil bandwidth, tarif, dan masa aktif (hari/bulan). Tarif berlaku untuk **satu masa aktif penuh**, bukan per satuan — paket 3 Bulan seharga Rp 300.000 ditulis `Rp 300.000 / 3 Bulan`, bukan `/ Bulan`.
@@ -187,8 +191,16 @@ Entitas cluster, perumahan, atau kawasan pemukiman spesifik titik pemasangan ins
 _Avoid_: Residential, Cluster, Komplek
 
 **Invoice**:
-Dokumen tagihan pembayaran resmi atas layanan internet pelanggan dengan format penomoran yang menyertakan No. Registrasi pelanggan: `INV-[No.Reg]-[YYYYMM]-[Counter]` (contoh: `INV-BF2309202601-202608-01`).
-_Avoid_: Tagihan Bebas, Kuitansi (sebelum dibayar), Bill, Invoice Tanpa No Reg
+Dokumen tagihan pembayaran resmi atas layanan internet pelanggan dengan nomor berformat `[KodePrefix]INV-[YYYYMMDD][7 digit acak]` (contoh: `BFINV-202609274839201`): kode Prefix Registrasi milik pelanggan (kosong bila No. Registrasi tidak cocok dengan prefix mana pun, mis. `INV-202609274839201`), tanggal terbit, dan 7 digit acak yang diacak ulang bila bentrok. Nomor yang sudah terbit tidak pernah diubah (juga bila No. Registrasi pelanggan kemudian berganti prefix), sehingga invoice lama tetap berformat `INV-[No.Reg]-[YYYYMM]-[Counter]` (lihat ADR-0062).
+_Avoid_: Tagihan Bebas, Kuitansi (sebelum dibayar), Bill, Nomor Invoice Berurutan (mudah ditebak), Mengganti Nomor Invoice Lama
+
+**Masa Aktif Hingga**:
+Tanggal akhir masa aktif layanan yang dibeli sebuah invoice. Untuk invoice lunas, tanggal yang tercatat saat pelunasan memperpanjang masa aktif (tidak pernah dihitung ulang, karena masa aktif layanan sudah bergeser); untuk invoice yang masih terbuka, proyeksi bila dibayar sekarang. Invoice lunas dari sebelum pencatatan ini tidak punya Masa Aktif Hingga.
+_Avoid_: Menghitung Hingga dari Expired Layanan Saat Ini untuk Invoice Lunas
+
+**Invoice PDF**:
+Dokumen cetak invoice untuk pelanggan, satu versi untuk staf dan pelanggan, berkop Brand Pelanggan. Rinciannya satu baris per komponen tagihan (paket periode itu, setiap add-on IP Publik Dedicated tanpa alamatnya, dan Tunggakan Akumulatif) sehingga subtotal selalu sama dengan yang ditagih. Metode bayar gateway ditulis sebagai channel yang benar-benar dipakai (mis. "Virtual Account BCA"); Sales / Teller adalah staf yang mencatat pembayaran, atau "Otomatis (Payment Gateway)".
+_Avoid_: Username PPP/Router di Invoice, Qty = Jumlah Siklus Tunggakan, Invoice PDF Versi Staf
 
 **Periode Tagihan**:
 Identitas siklus bulan penagihan layanan (format `YYYY-MM`) yang memetakan kewajiban bayar langganan untuk satu siklus masa aktif dan menjamin batas 1 tagihan per layanan per siklus.
@@ -211,7 +223,7 @@ Kartu di halaman detail tiket (semua Jenis Ticket yang punya layanan) berisi PPP
 _Avoid_: Router Ganda di Kartu Layanan dan Blok Infrastruktur, Menyembunyikan Info Non-Rahasia di Tiket Selesai
 
 **Template Deskripsi Tagihan Gateway**:
-Master data teks `description` yang dikirim ke payment gateway (Xendit) saat menerbitkan link bayar sebuah invoice periodik (`periode_tagihan` terisi) — teks yang tampil di bagian atas halaman checkout hosted dan dashboard gateway. CRUD beberapa template dengan tepat satu default (izin `payment_gateway.*`), placeholder divalidasi saat simpan (placeholder tak dikenal / konten kosong ditolak). Placeholder: `{brand}`, `{site_id}`, `{bulan}` (nama bulan + tahun dari `periode_tagihan`, mis. "Oktober 2026"), `{nama_paket_pelanggan}`, `{hingga}` (tanggal masa aktif layanan setelah invoice ini dibayar, `YYYY-MM-DD`, dihitung dengan rumus yang sama persis dengan `PerpanjangMasaAktifAction`), `{no_invoice}`, `{nama_pelanggan}`, `{no_reg}`, `{total_tagihan}`, `{jatuh_tempo}`, `{keterangan}`. `{brand}` diambil dari nama Prefix Registrasi aktif milik pelanggan (huruf awal `no_reg`, apa adanya sesuai yang diketik di Pengaturan, mis. "BESTFIBER"), fallback ke `Perusahaan.nama_brand`; berbeda dari `{nama_brand}` WhatsApp yang selalu brand perusahaan. Invoice tanpa periode (tagihan pertama, manual) memakai teks tetap `{brand} - {keterangan} - Invoice {no_invoice}`; bila render kosong/gagal jatuh ke teks lama `Tagihan Internet UNMS Invoice {no_invoice}`; dipotong 255 karakter. Hanya berlaku untuk link bayar baru; link lama tidak berubah. `external_id` tidak diubah (dipakai pencocokan webhook). Nama bisnis di header checkout Xendit tidak bisa diatur lewat API (hanya dari profil bisnis akun Xendit).
+Master data teks `description` yang dikirim ke payment gateway (Xendit) saat menerbitkan link bayar sebuah invoice periodik (`periode_tagihan` terisi) — teks yang tampil di bagian atas halaman checkout hosted dan dashboard gateway. CRUD beberapa template dengan tepat satu default (izin `payment_gateway.*`), placeholder divalidasi saat simpan (placeholder tak dikenal / konten kosong ditolak). Placeholder: `{brand}`, `{site_id}`, `{bulan}` (nama bulan + tahun dari `periode_tagihan`, mis. "Oktober 2026"), `{nama_paket_pelanggan}`, `{hingga}` (tanggal masa aktif layanan setelah invoice ini dibayar, `YYYY-MM-DD`, dihitung dengan rumus yang sama persis dengan `PerpanjangMasaAktifAction`), `{no_invoice}`, `{nama_pelanggan}`, `{no_reg}`, `{total_tagihan}`, `{jatuh_tempo}`, `{keterangan}`. `{brand}` adalah Brand Pelanggan (nama apa adanya sesuai yang diketik di Pengaturan, mis. "BESTFIBER"), sama dengan `{nama_brand}` WhatsApp. Invoice tanpa periode (tagihan pertama, manual) memakai teks tetap `{brand} - {keterangan} - Invoice {no_invoice}`; bila render kosong/gagal jatuh ke teks lama `Tagihan Internet UNMS Invoice {no_invoice}`; dipotong 255 karakter. Hanya berlaku untuk link bayar baru; link lama tidak berubah. `external_id` tidak diubah (dipakai pencocokan webhook). Nama bisnis di header checkout Xendit tidak bisa diatur lewat API (hanya dari profil bisnis akun Xendit).
 _Avoid_: Mencampur dengan Template Pesan WhatsApp, Mengubah external_id demi Branding, Placeholder Tak Dikenal Lolos ke Halaman Checkout Pelanggan
 
 **Tunggakan Akumulatif**:
@@ -231,7 +243,7 @@ Program diskon (nominal / persentase) atau bonus durasi yang dapat diaplikasikan
 _Avoid_: Voucher Bebas, Potongan Informal
 
 **Portal Pelanggan**:
-Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time. Tetap satu monolit dengan aplikasi staf (ADR-0007), tapi dapat diakses lewat domain khususnya sendiri (`app.portal_domain`, mis. `portal.gobilling.id`) sekaligus tetap hidup di path lama `/portal/*` pada domain staf (dipertahankan permanen untuk tautan tagihan bertanda tangan yang sudah terkirim) -- lihat ADR-0049.
+Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time. Tetap satu monolit dengan aplikasi staf (ADR-0007), tapi dapat diakses lewat domain khususnya sendiri (`app.portal_domain`, mis. `portal.gobilling.id`) sekaligus tetap hidup di path lama `/portal/*` pada domain staf (dipertahankan permanen untuk tautan tagihan bertanda tangan yang sudah terkirim) -- lihat ADR-0049. Tidak menampilkan PPP Username/Password, router, atau alamat IP; tampilannya belum di-brand per Brand Pelanggan.
 _Avoid_: Client Area Bebas, Customer App Terpisah, Halaman Member, Portal Sebagai Aplikasi Terpisah
 
 **Akun Pelanggan**:
@@ -577,7 +589,7 @@ _Technical Reference_: Model `App\Models\Sysblas`, tabel `sysblas` (nama tabel w
 _Avoid_: Akun WhatsApp, Gateway WA Tunggal, WhatsApp Gateway (istilah lama yang salah kaprah dipakai untuk Template Pesan WhatsApp)
 
 **Template Pesan WhatsApp**:
-Master data isi teks pesan notifikasi otomatis (tagihan, konfirmasi pembayaran, tiket) berformat placeholder dinamis (`{nama_pelanggan}`, `{no_reg}`, dst.), independen dari Koneksi Gateway WhatsApp mana pun yang sedang dipakai untuk mengirimnya — mengelola *isi pesan*, bukan kredensial/koneksi.
+Master data isi teks pesan notifikasi otomatis (tagihan, konfirmasi pembayaran, tiket) berformat placeholder dinamis (`{nama_pelanggan}`, `{no_reg}`, dst.), independen dari Koneksi Gateway WhatsApp mana pun yang sedang dipakai untuk mengirimnya — mengelola *isi pesan*, bukan kredensial/koneksi. Satu template dipakai semua brand; `{nama_brand}` berisi Brand Pelanggan penerima (bukan brand Perusahaan). Pesan ke pelanggan tidak pernah memuat PPP Username/Password, router, atau alamat IP.
 _Technical Reference_: Model `App\Models\WaTemplate`, `App\Livewire\Settings\WhatsappSettings`, menu SysBlast > Template Pesan.
 _Avoid_: WhatsApp Gateway, Pengaturan WhatsApp Gateway
 

@@ -74,7 +74,6 @@
                 <span class="text-zinc-400 font-semibold uppercase tracking-wider">Rincian Layanan:</span>
                 <div class="font-bold text-sm text-zinc-900 dark:text-zinc-100">{{ $invoice->layananPelanggan?->paketLayanan?->nama_paket ?? 'Paket Internet' }}</div>
                 <div class="text-zinc-600 dark:text-zinc-400">Site ID: <span class="font-mono">{{ $invoice->layananPelanggan?->site_id }}</span></div>
-                <div class="text-zinc-600 dark:text-zinc-400">Username PPP: <span class="font-mono">{{ $invoice->layananPelanggan?->ppp_username }}</span></div>
                 <div class="text-zinc-600 dark:text-zinc-400">Bandwidth: {{ $invoice->layananPelanggan?->paketLayanan?->profilBandwidth?->nama_bandwidth ?? '-' }}</div>
             </div>
         </div>

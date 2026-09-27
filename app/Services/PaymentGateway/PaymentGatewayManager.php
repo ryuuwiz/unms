@@ -375,6 +375,9 @@ class PaymentGatewayManager
                     'provider_reference_id' => $paymentRef ?: $transaksi->provider_reference_id,
                     'xendit_reference_id' => $paymentRef ?: $transaksi->xendit_reference_id,
                     'payload_response' => $rawPayload,
+                    // Channel yang benar-benar dipakai membayar (link dibuat sebagai `invoice` generik).
+                    'channel' => GatewayChannel::tryFrom($channel) ?? $transaksi->channel,
+                    'channel_detail' => $channelDetail ?: $transaksi->channel_detail,
                 ]);
             }
 

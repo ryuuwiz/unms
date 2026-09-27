@@ -14,6 +14,7 @@ use App\Models\Pelanggan;
 use App\Models\PengaturanGateway;
 use App\Models\Router;
 use App\Models\TransaksiPaymentGateway;
+use App\Services\Billing\InvoiceCetak;
 use App\Services\PaymentGateway\Drivers\XenditDriver;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -165,6 +166,8 @@ test('proses pelunasan memperbarui status invoice, layanan, dan memancarkan even
     $this->layanan->refresh();
     expect($this->layanan->status)->toBe(StatusLayanan::Aktif)
         ->and($this->layanan->tanggal_expired?->toDateString())->toBe(now()->addMonthNoOverflow()->day(10)->toDateString());
+
+    expect(InvoiceCetak::dari($this->invoice->fresh())->metode)->toBe('Virtual Account BCA');
 
     Event::assertDispatched(InvoicePaidEvent::class);
 });

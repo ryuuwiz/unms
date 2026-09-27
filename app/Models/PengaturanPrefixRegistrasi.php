@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasLogo;
 use Database\Factories\PengaturanPrefixRegistrasiFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * @property int $id
@@ -18,12 +21,14 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read string|null $logo_url
+ * @property-read string|null $logo_base64
  */
 #[Fillable(['kode', 'nama', 'is_active'])]
-class PengaturanPrefixRegistrasi extends Model
+class PengaturanPrefixRegistrasi extends Model implements HasMedia
 {
     /** @use HasFactory<PengaturanPrefixRegistrasiFactory> */
-    use HasFactory, LogsActivity;
+    use HasFactory, HasLogo, InteractsWithMedia, LogsActivity;
 
     protected $table = 'pengaturan_prefix_registrasi';
 
@@ -57,5 +62,42 @@ class PengaturanPrefixRegistrasi extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
+    }
+
+    public function registerMediaCollections(): void
+    {
+        $this->addMediaCollection('logo')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']);
+    }
+
+    /**
+     * Prefix milik sebuah No. Registrasi (huruf awalnya), termasuk yang nonaktif -- lihat
+     * CONTEXT.md "Brand Pelanggan" dan ADR-0061.
+     */
+    public static function untukNoReg(?string $noReg): ?self
+    {
+        if (! preg_match('/^[A-Za-z]+/', (string) $noReg, $cocok)) {
+            return null;
+        }
+
+        return static::where('kode', strtoupper($cocok[0]))->first();
+    }
+
+    /**
+     * Kode prefix milik No. Registrasi untuk awalan nomor invoice dan Site ID; kosong bila tidak cocok.
+     */
+    public static function kodeUntuk(?string $noReg): string
+    {
+        return static::untukNoReg($noReg)->kode ?? '';
+    }
+
+    /**
+     * Nama Brand Pelanggan: nama prefix milik No. Registrasi, fallback brand Perusahaan.
+     */
+    public static function namaBrandUntuk(?string $noReg): string
+    {
+        return static::untukNoReg($noReg)?->nama
+            ?: (Perusahaan::default()->nama_brand ?: config('app.name', 'GOBILLING'));
     }
 }

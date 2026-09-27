@@ -130,7 +130,7 @@ class ProcessPaymentWebhookJob implements ShouldQueue
                 $invoice = Invoice::find((int) $callbackData->externalId);
             } else {
                 $invoice = Invoice::where('no_invoice', $callbackData->externalId)->first();
-                if (! $invoice && preg_match('/(INV-[\w-]+)/', $callbackData->externalId, $matches)) {
+                if (! $invoice && preg_match('/([A-Z]*INV-[\w-]+)/', $callbackData->externalId, $matches)) {
                     $invoice = Invoice::where('no_invoice', $matches[1])->first();
                 }
             }

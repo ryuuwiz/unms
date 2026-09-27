@@ -9,11 +9,16 @@ use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Livewire\WithFileUploads;
 
 #[Layout('layouts.app')]
 #[Title('Pengaturan Prefix Registrasi')]
 class PengaturanPrefixRegistrasi extends Component
 {
+    use WithFileUploads;
+
     public string $search = '';
 
     public bool $showModal = false;
@@ -25,6 +30,11 @@ class PengaturanPrefixRegistrasi extends Component
     public string $nama = '';
 
     public bool $is_active = true;
+
+    /** Logo Brand Pelanggan (ADR-0061), opsional. */
+    public ?TemporaryUploadedFile $logo = null;
+
+    public ?string $existing_logo_url = null;
 
     public function openCreateModal(): void
     {
@@ -40,6 +50,7 @@ class PengaturanPrefixRegistrasi extends Component
         $this->kode = $prefix->kode;
         $this->nama = $prefix->nama;
         $this->is_active = $prefix->is_active;
+        $this->existing_logo_url = $prefix->logo_url;
 
         $this->showModal = true;
     }
@@ -55,6 +66,7 @@ class PengaturanPrefixRegistrasi extends Component
             ],
             'nama' => ['required', 'string', 'max:100'],
             'is_active' => ['required', 'boolean'],
+            'logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
         ], [
             'kode.regex' => 'Kode prefix harus 2-5 huruf kapital (contoh: BF, ARS).',
         ]);
@@ -76,8 +88,27 @@ class PengaturanPrefixRegistrasi extends Component
             Flux::toast(variant: 'success', text: "Prefix '{$prefix->kode}' berhasil ditambahkan.");
         }
 
+        if ($this->logo) {
+            $prefix->addMediaFromDisk(
+                FileUploadConfiguration::path($this->logo->getFilename(), false),
+                FileUploadConfiguration::disk()
+            )
+                ->usingFileName($this->logo->getClientOriginalName())
+                ->toMediaCollection('logo');
+        }
+
         $this->showModal = false;
         $this->resetForm();
+    }
+
+    public function hapusLogo(): void
+    {
+        if ($this->editingId) {
+            PengaturanPrefixRegistrasiModel::findOrFail($this->editingId)->clearMediaCollection('logo');
+        }
+
+        $this->logo = null;
+        $this->existing_logo_url = null;
     }
 
     public function toggleStatus(int $id): void
@@ -95,6 +126,8 @@ class PengaturanPrefixRegistrasi extends Component
         $this->kode = '';
         $this->nama = '';
         $this->is_active = true;
+        $this->logo = null;
+        $this->existing_logo_url = null;
     }
 
     public function render(): View

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
+use Carbon\CarbonInterface;
 use Carbon\Exceptions\InvalidFormatException;
 use Database\Factories\InvoiceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -32,6 +33,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon $tanggal_terbit
  * @property Carbon $tanggal_jatuh_tempo
  * @property Carbon|null $tanggal_lunas
+ * @property Carbon|null $masa_aktif_hingga Snapshot tanggal_expired layanan setelah invoice ini dibayar
  * @property MetodePembayaran|null $metode_pembayaran
  * @property int|null $dibuat_oleh
  * @property int|null $dihapus_oleh
@@ -71,6 +73,7 @@ use Spatie\Activitylog\Support\LogOptions;
     'tanggal_terbit',
     'tanggal_jatuh_tempo',
     'tanggal_lunas',
+    'masa_aktif_hingga',
     'metode_pembayaran',
     'payment_gateway_url',
     'payment_gateway_id',
@@ -102,7 +105,7 @@ class Invoice extends Model
                         ->where('id', $invoice->layanan_pelanggan_id)
                         ->value('pelanggan_id');
                 }
-                $invoice->no_invoice = static::generateNoInvoice($pelangganId, $invoice->periode_tagihan);
+                $invoice->no_invoice = static::generateNoInvoice($pelangganId, $invoice->tanggal_terbit);
             }
         });
     }
@@ -135,6 +138,7 @@ class Invoice extends Model
             'tanggal_terbit' => 'date',
             'tanggal_jatuh_tempo' => 'date',
             'tanggal_lunas' => 'date',
+            'masa_aktif_hingga' => 'date',
             'payment_gateway_expired_at' => 'datetime',
             'xendit_expired_at' => 'datetime',
             'deleted_at' => 'datetime',
@@ -142,41 +146,18 @@ class Invoice extends Model
     }
 
     /**
-     * Generate nomor invoice menyertakan No. Registrasi Pelanggan: INV-[No.Reg]-[YYYYMM]-[Counter]
+     * Nomor invoice `[KodePrefix]INV-[YYYYMMDD][7 digit acak]` (ADR-0062), diacak ulang bila bentrok.
      */
-    public static function generateNoInvoice(?int $pelangganId = null, ?string $periodeTagihan = null): string
+    public static function generateNoInvoice(?int $pelangganId = null, ?CarbonInterface $tanggalTerbit = null): string
     {
-        $noReg = 'GENERAL';
+        $noReg = $pelangganId ? DB::table('pelanggan')->where('id', $pelangganId)->value('no_reg') : null;
+        $prefix = PengaturanPrefixRegistrasi::kodeUntuk($noReg).'INV-'.($tanggalTerbit ?? Carbon::today())->format('Ymd');
 
-        if ($pelangganId) {
-            $foundNoReg = DB::table('pelanggan')->where('id', $pelangganId)->value('no_reg');
-            if (! empty($foundNoReg)) {
-                $noReg = trim($foundNoReg);
-            }
-        }
+        do {
+            $noInvoice = $prefix.random_int(1000000, 9999999);
+        } while (DB::table('invoice')->where('no_invoice', $noInvoice)->exists());
 
-        if (! empty($periodeTagihan)) {
-            $period = str_replace('-', '', $periodeTagihan);
-        } else {
-            $period = Carbon::now()->format('Ym');
-        }
-
-        $prefix = "INV-{$noReg}-{$period}-";
-
-        $last = DB::table('invoice')
-            ->where('no_invoice', 'like', $prefix.'%')
-            ->orderByDesc('id')
-            ->lockForUpdate()
-            ->value('no_invoice');
-
-        if ($last) {
-            $lastNum = (int) substr($last, strlen($prefix));
-            $nextNum = $lastNum + 1;
-        } else {
-            $nextNum = 1;
-        }
-
-        return $prefix.str_pad((string) $nextNum, 2, '0', STR_PAD_LEFT);
+        return $noInvoice;
     }
 
     /**

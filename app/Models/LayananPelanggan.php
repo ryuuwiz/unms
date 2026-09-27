@@ -105,7 +105,9 @@ class LayananPelanggan extends Model
     {
         static::creating(function (LayananPelanggan $layanan) {
             if (empty($layanan->site_id)) {
-                $layanan->site_id = static::generateSiteId();
+                $layanan->site_id = static::generateSiteId(
+                    DB::table('pelanggan')->where('id', $layanan->pelanggan_id)->value('no_reg')
+                );
             }
         });
     }
@@ -408,13 +410,15 @@ class LayananPelanggan extends Model
     }
 
     /**
-     * Generate site_id unik (format: SITE-XXXXXXXX).
+     * Site ID unik `[KodePrefix]APP[8 digit acak]` (ADR-0062), diacak ulang bila bentrok.
      */
-    public static function generateSiteId(): string
+    public static function generateSiteId(?string $noReg = null): string
     {
+        $prefix = PengaturanPrefixRegistrasi::kodeUntuk($noReg).'APP';
+
         do {
-            $siteId = 'SITE-'.strtoupper(Str::random(8));
-        } while (static::where('site_id', $siteId)->exists());
+            $siteId = $prefix.random_int(10000000, 99999999);
+        } while (static::withTrashed()->where('site_id', $siteId)->exists());
 
         return $siteId;
     }

@@ -97,9 +97,25 @@
 
                 <flux:input
                     wire:model="nama"
-                    label="Nama / Keterangan"
-                    placeholder="Contoh: Bestfiber"
+                    label="Nama Brand"
+                    placeholder="Contoh: BESTFIBER"
+                    description="Tampil ke pelanggan di pesan WhatsApp, invoice, dan halaman pembayaran"
                 />
+
+                <flux:field>
+                    <flux:label>Logo Brand (opsional)</flux:label>
+                    <div class="flex items-center gap-4">
+                        <x-file-upload-preview :src="$logo?->temporaryUrl() ?: $existing_logo_url" target="logo"
+                            aspect="square" fit="contain" :deletable="(bool) ($existing_logo_url || $logo)"
+                            delete-action="hapusLogo"
+                            delete-confirm="Hapus logo brand ini?"
+                            delete-label="Hapus Logo" icon="photo" empty-text="Belum ada logo" alt="Preview Logo" />
+                        <input type="file" wire:model="logo" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                            class="block w-full text-sm text-zinc-600 dark:text-zinc-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 dark:file:bg-zinc-800 dark:file:text-zinc-300 cursor-pointer" />
+                    </div>
+                    <flux:description>PNG, JPG, SVG, WEBP (maks. 2MB). Dicetak di kop invoice.</flux:description>
+                    <flux:error name="logo" />
+                </flux:field>
 
                 <flux:field>
                     <flux:checkbox wire:model="is_active" label="Status Aktif" />

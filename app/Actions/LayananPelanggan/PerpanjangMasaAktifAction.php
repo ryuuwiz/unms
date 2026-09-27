@@ -28,10 +28,13 @@ class PerpanjangMasaAktifAction
      */
     public function execute(LayananPelanggan $layanan, Invoice $invoice, Carbon $dibayarPada): LayananPelanggan
     {
+        $hingga = $this->hitungExpiredBaru($layanan, $invoice, $dibayarPada)->toDateString();
+
         $layanan->update([
-            'tanggal_expired' => $this->hitungExpiredBaru($layanan, $invoice, $dibayarPada)->toDateString(),
+            'tanggal_expired' => $hingga,
             'status' => StatusLayanan::Aktif,
         ]);
+        $invoice->update(['masa_aktif_hingga' => $hingga]);
 
         return $layanan;
     }

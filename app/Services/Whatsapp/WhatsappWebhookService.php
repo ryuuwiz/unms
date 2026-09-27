@@ -10,6 +10,7 @@ use App\Enums\Wa\StatusAntrianWa;
 use App\Models\AntrianWaBlast;
 use App\Models\Invoice;
 use App\Models\Pelanggan;
+use App\Models\PengaturanPrefixRegistrasi;
 use App\Models\Sysblas;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
@@ -399,6 +400,8 @@ class WhatsappWebhookService
 
         // Kirim auto-reply jika ada pesan balasan
         if ($replyMessage) {
+            $replyMessage .= "\n\nSalam,\n".PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg);
+
             $this->whatsappService->antrikanPesanKustom(
                 noHp: $phone,
                 pesan: $replyMessage,

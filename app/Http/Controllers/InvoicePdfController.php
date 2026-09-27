@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Invoice;
+use App\Models\PengaturanPrefixRegistrasi;
 use App\Models\Perusahaan;
+use App\Services\Billing\InvoiceCetak;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -35,12 +37,15 @@ class InvoicePdfController extends Controller
 
         abort_unless($authorized, 403, 'Anda tidak memiliki akses untuk mencetak invoice ini.');
 
-        $invoice->load(['pelanggan', 'layananPelanggan.paketLayanan', 'layananPelanggan.router', 'promo', 'pembayarans']);
-        $perusahaan = Perusahaan::default();
+        $invoice->load(['pelanggan', 'layananPelanggan.paketLayanan', 'promo', 'pembayarans']);
+        $prefix = PengaturanPrefixRegistrasi::untukNoReg($invoice->pelanggan?->no_reg);
 
         $pdf = Pdf::loadView('pdf.invoice', [
             'invoice' => $invoice,
-            'perusahaan' => $perusahaan,
+            'perusahaan' => Perusahaan::default(),
+            'namaBrand' => PengaturanPrefixRegistrasi::namaBrandUntuk($invoice->pelanggan?->no_reg),
+            'logoBase64' => $prefix?->logo_base64,
+            'cetak' => InvoiceCetak::dari($invoice),
         ])->setPaper('a4', 'portrait');
 
         return $pdf->stream("Invoice-{$invoice->no_invoice}.pdf");

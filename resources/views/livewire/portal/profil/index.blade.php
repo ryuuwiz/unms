@@ -82,7 +82,6 @@
 
                     <div class="grid grid-cols-2 gap-2 pt-2 border-t border-zinc-200/60 dark:border-zinc-700/40 text-[11px] text-zinc-600 dark:text-zinc-400">
                         <div>Site ID: <span class="font-mono font-semibold">{{ $layanan->site_id }}</span></div>
-                        <div>PPP Username: <span class="font-mono font-semibold">{{ $layanan->ppp_username }}</span></div>
                         <div>Masa Aktif: <span>{{ $layanan->tanggal_expired ? \Carbon\Carbon::parse($layanan->tanggal_expired)->translatedFormat('d M Y') : '-' }}</span></div>
                         <div>Harga Paket: <span>Rp {{ number_format((float) $layanan->paketLayanan?->harga, 0, ',', '.') }}/bulan</span></div>
                     </div>

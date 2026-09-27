@@ -113,10 +113,6 @@
 
                             <div class="mt-4 space-y-1.5 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/60 p-3 rounded-xl">
                                 <div class="flex justify-between">
-                                    <span>Username PPP:</span>
-                                    <span class="font-mono font-semibold text-zinc-700 dark:text-zinc-300">{{ $layanan->ppp_username }}</span>
-                                </div>
-                                <div class="flex justify-between">
                                     <span>Masa Aktif Sampai:</span>
                                     <span class="font-semibold {{ $daysLeft !== null && $daysLeft <= 3 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-700 dark:text-zinc-300' }}">
                                         {{ $expired ? $expired->translatedFormat('d F Y') : '-' }}

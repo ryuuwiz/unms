@@ -1,5 +1,7 @@
 # ADR 0027: Format Nomor Invoice Terstruktur Menyertakan No. Registrasi Pelanggan
 
+> Status: digantikan oleh ADR-0062.
+
 ## Konteks
 Sebelumnya format nomor invoice menggunakan pola berurutan global `INV-YYYYMM-NNNNNN` (contoh: `INV-202608-000001`). Untuk mempermudah audit operasional, rekonsiliasi pembayaran manual maupun otomatis pada payment gateway, serta membedakan tagihan antar pelanggan secara instan, nomor invoice diwajibkan menyertakan identitas unik No. Registrasi (`no_reg`) pelanggan.
 

@@ -7,6 +7,7 @@ use App\Jobs\Wa\KirimWaBlastJob;
 use App\Models\AntrianWaBlast;
 use App\Models\Invoice;
 use App\Models\Pembayaran;
+use App\Models\PengaturanPrefixRegistrasi;
 use App\Models\Perusahaan;
 use App\Models\Sysblas;
 use App\Models\Ticket;
@@ -142,6 +143,7 @@ class WhatsappService
         return [
             'nama_pelanggan' => $pelanggan ? "{$pelanggan->nama_depan} {$pelanggan->nama_belakang}" : 'Pelanggan',
             'no_reg' => $pelanggan->no_reg ?? '-',
+            'nama_brand' => PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg),
             'no_invoice' => $invoice->no_invoice,
             'periode' => $invoice->periode_tagihan ?? Carbon::parse($invoice->tanggal_terbit)->format('m/Y'),
             'total_tagihan' => 'Rp '.number_format($invoice->jumlah_setelah_promo ?? $invoice->jumlah, 0, ',', '.'),
@@ -178,6 +180,7 @@ class WhatsappService
             'status_tiket' => $ticket->status->label(),
             'nama_pelanggan' => $pelanggan ? "{$pelanggan->nama_depan} {$pelanggan->nama_belakang}" : 'Pelanggan',
             'no_reg' => $pelanggan->no_reg ?? '-',
+            'nama_brand' => PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg),
             'no_hp_pelanggan' => $pelanggan->no_hp ?? '-',
             'alamat' => $alamat,
             'nama_pic' => $pic->name ?? 'Belum Ditugaskan',
@@ -207,7 +210,8 @@ class WhatsappService
     }
 
     /**
-     * Gabungkan parameter default data Perusahaan.
+     * Gabungkan parameter default data Perusahaan. `nama_brand` yang sudah diisi (Brand
+     * Pelanggan, ADR-0061) tidak ditimpa.
      *
      * @param  array<string, mixed>  $params
      * @return array<string, mixed>
@@ -217,13 +221,13 @@ class WhatsappService
         try {
             $perusahaan = Perusahaan::default();
             $params['nama_perusahaan'] = $perusahaan->nama_perusahaan ?? config('app.name', 'GOBILLING');
-            $params['nama_brand'] = $perusahaan->nama_brand ?? $params['nama_perusahaan'];
+            $params['nama_brand'] ??= $perusahaan->nama_brand ?? $params['nama_perusahaan'];
             $params['telepon_perusahaan'] = $perusahaan->telepon ?? '-';
             $params['whatsapp_perusahaan'] = $perusahaan->whatsapp ?? '-';
             $params['alamat_perusahaan'] = $perusahaan->alamat ?? '-';
         } catch (\Throwable) {
             $params['nama_perusahaan'] = config('app.name', 'GOBILLING');
-            $params['nama_brand'] = config('app.name', 'GOBILLING');
+            $params['nama_brand'] ??= config('app.name', 'GOBILLING');
             $params['telepon_perusahaan'] = '-';
             $params['whatsapp_perusahaan'] = '-';
             $params['alamat_perusahaan'] = '-';

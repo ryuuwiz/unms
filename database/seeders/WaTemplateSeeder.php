@@ -93,7 +93,7 @@ class WaTemplateSeeder extends Seeder
                 'kode' => 'tiket_penugasan_teknisi',
                 'nama' => 'Disposisi Penugasan Tiket (Ke Teknisi / PIC)',
                 'kategori' => KategoriTemplateWa::Tiket,
-                'konten' => "[DISPOSISI TIKET KERJA] Halo {nama_pic},\n\nAnda ditugaskan menangani tiket berikut:\nNomor: {nomor_tiket}\nJenis: {jenis_tiket} (Prioritas: {prioritas})\nPelanggan: {nama_pelanggan} ({no_hp_pelanggan})\nAlamat: {alamat}\nKendala: {deskripsi}\nTarget SLA: {sla_target}\n\nBuka Tiket: {link_tiket}",
+                'konten' => "[DISPOSISI TIKET KERJA] Halo {nama_pic},\n\nAnda ditugaskan menangani tiket berikut:\nNomor: {nomor_tiket}\nJenis: {jenis_tiket} (Prioritas: {prioritas})\nPelanggan: {nama_pelanggan} - {nama_brand} ({no_hp_pelanggan})\nAlamat: {alamat}\nKendala: {deskripsi}\nTarget SLA: {sla_target}\n\nBuka Tiket: {link_tiket}",
                 'keterangan' => 'Dikirimkan ke nomor WhatsApp staf teknisi saat ditugaskan menangani tiket.',
                 'is_aktif' => true,
             ],

@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasLogo;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\MediaLibrary\HasMedia;
@@ -62,7 +62,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 ])]
 class Perusahaan extends Model implements HasMedia
 {
-    use InteractsWithMedia, LogsActivity;
+    use HasLogo, InteractsWithMedia, LogsActivity;
 
     protected $table = 'perusahaan';
 
@@ -167,54 +167,6 @@ class Perusahaan extends Model implements HasMedia
         }
 
         return $perusahaan;
-    }
-
-    /**
-     * Get public URL for the company logo.
-     */
-    public function getLogoUrlAttribute(): ?string
-    {
-        if ($this->hasMedia('logo')) {
-            return $this->getFirstMediaUrl('logo');
-        }
-
-        return null;
-    }
-
-    /**
-     * Get Base64 encoded logo string for DomPDF.
-     */
-    public function getLogoBase64Attribute(): ?string
-    {
-        $media = $this->getFirstMedia('logo');
-        if (! $media) {
-            return null;
-        }
-
-        $content = $this->getLogoContent();
-        if ($content === null) {
-            return null;
-        }
-
-        $mime = $media->mime_type ?: 'image/png';
-
-        return 'data:'.$mime.';base64,'.base64_encode($content);
-    }
-
-    /**
-     * Ambil isi biner logo dari disk media (disk-agnostic: local, s3, dsb).
-     */
-    public function getLogoContent(): ?string
-    {
-        $media = $this->getFirstMedia('logo');
-        if (! $media) {
-            return null;
-        }
-
-        $disk = Storage::disk($media->disk);
-        $path = $media->getPathRelativeToRoot();
-
-        return $disk->exists($path) ? $disk->get($path) : null;
     }
 
     /**

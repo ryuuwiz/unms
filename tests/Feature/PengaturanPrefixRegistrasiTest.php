@@ -6,6 +6,8 @@ use App\Models\PengaturanPrefixRegistrasi as PengaturanPrefixRegistrasiModel;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -70,4 +72,22 @@ test('user tanpa permission prefix_registrasi.lihat tidak dapat mengakses halama
     $this->actingAs($teknisi)
         ->get(route('settings.prefix-registrasi'))
         ->assertForbidden();
+});
+
+test('admin dapat mengunggah dan menghapus logo brand prefix', function () {
+    Storage::fake('public');
+    $prefix = PengaturanPrefixRegistrasiModel::factory()->create(['kode' => 'BF']);
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(PengaturanPrefixRegistrasi::class)
+        ->call('openEditModal', $prefix->id)
+        ->set('logo', UploadedFile::fake()->image('logo.png'))
+        ->call('simpan')
+        ->assertHasNoErrors();
+
+    expect($prefix->fresh()->logo_base64)->toStartWith('data:image/png;base64,');
+
+    $component->call('openEditModal', $prefix->id)->call('hapusLogo');
+
+    expect($prefix->fresh()->hasMedia('logo'))->toBeFalse();
 });
