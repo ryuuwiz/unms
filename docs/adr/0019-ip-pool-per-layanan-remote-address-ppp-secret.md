@@ -1,6 +1,6 @@
 # ADR 0019: IP Pool per Layanan Pelanggan sebagai Remote-Address PPP Secret
 
-**Status**: Superseded oleh ADR-0051 (perilaku `local/remote-address` PPP Secret; isolasi jalur/segmentasi tetap berlaku)  
+**Status**: Superseded oleh ADR-0051 (perilaku `local/remote-address` PPP Secret; isolasi jalur/segmentasi tetap berlaku); pemilihan IP Pool manual per layanan dan segmentasi pool digantikan ADR-0060  
 **Date**: 2026-08-24
 
 ## Konteks

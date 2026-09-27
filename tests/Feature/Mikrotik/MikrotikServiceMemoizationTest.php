@@ -64,7 +64,6 @@ test('createOrUpdatePppoeSecret skips redundant profile sync for repeat secrets 
         'paket_layanan_id' => $paket->id,
         'ppp_username' => 'shared-user-a',
         'jenis_koneksi' => JenisKoneksi::IpStatic,
-        'ip_pool_id' => null,
         'ip_static' => '10.10.10.10',
         'status' => StatusLayanan::Aktif,
     ]);
@@ -73,7 +72,6 @@ test('createOrUpdatePppoeSecret skips redundant profile sync for repeat secrets 
         'paket_layanan_id' => $paket->id,
         'ppp_username' => 'shared-user-b',
         'jenis_koneksi' => JenisKoneksi::IpStatic,
-        'ip_pool_id' => null,
         'ip_static' => '10.10.10.11',
         'status' => StatusLayanan::Aktif,
     ]);

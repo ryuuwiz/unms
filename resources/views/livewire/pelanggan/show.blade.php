@@ -408,7 +408,7 @@
                         </summary>
                         <dl class="grid grid-cols-2 gap-x-6 gap-y-4 px-4 pb-5 sm:grid-cols-3 sm:px-6 lg:grid-cols-4">
                             @foreach ([
-                                'Profile' => $statusPpp['profile'] ?? $layanan->paketLayanan->profilBandwidth?->pppProfileName($layanan->profilePool()) ?? '—',
+                                'Profile' => $statusPpp['profile'] ?? $layanan->paketLayanan->profilBandwidth?->pppProfileName() ?? '—',
                                 'Service' => strtoupper($statusPpp['service'] ?? $layanan->jenis_koneksi?->value ?? 'pppoe'),
                                 'Uptime' => $statusPpp['uptime'] ?? '—',
                                 'Terakhir logout' => $statusPpp['last_logged_out'] ?? '—',

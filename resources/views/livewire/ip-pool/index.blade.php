@@ -52,9 +52,6 @@
                             <flux:badge size="sm" color="zinc">
                                 {{ $pool->router->nama_router }}
                             </flux:badge>
-                            @if ($pool->layanans_count > 0)
-                                <span class="text-[11px] text-zinc-500">{{ $pool->layanans_count }} layanan</span>
-                            @endif
                         </div>
                     </flux:table.cell>
 
@@ -171,7 +168,7 @@
 
             @if ($poolToDelete && ! $poolToDelete->canBeDeleted())
                 <flux:callout variant="danger" icon="exclamation-triangle">
-                    IP Pool ini masih digunakan oleh <strong>{{ $poolToDelete->layanans_count }}</strong> data layanan pelanggan. Pindahkan atau hapus layanan pelanggan terkait sebelum menghapus IP pool.
+                    IP Pool ini adalah pool terakhir di routernya yang masih dipakai layanan PPPoE dinamis. Tambahkan pool lain di router ini sebelum menghapusnya.
                 </flux:callout>
             @endif
 

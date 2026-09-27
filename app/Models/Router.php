@@ -7,6 +7,7 @@ use App\Models\Concerns\GracefullyDecryptsAttributes;
 use Database\Factories\RouterFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -104,6 +105,24 @@ class Router extends Model
     }
 
     /**
+     * Seluruh IP Pool router dalam urutan Rantai IP Pool Router (pool terlama lebih dulu, ADR-0060).
+     *
+     * @return Collection<int, IpPool>
+     */
+    public function rantaiIpPool(): Collection
+    {
+        return $this->ipPools->sortBy('id')->values();
+    }
+
+    /**
+     * Kepala Rantai IP Pool Router: pool yang dirujuk Profile PPP per Router; null bila router tanpa pool.
+     */
+    public function kepalaIpPool(): ?IpPool
+    {
+        return $this->rantaiIpPool()->first();
+    }
+
+    /**
      * Relasi ke semua layanan pelanggan yang terhubung ke router ini.
      *
      * @return HasMany<LayananPelanggan, $this>
@@ -139,8 +158,7 @@ class Router extends Model
      */
     public function canBeDeleted(): bool
     {
-        return ! $this->layanans()->withTrashed()->exists()
-            && ! $this->ipPools()->whereHas('layanans', fn ($q) => $q->withTrashed())->exists();
+        return ! $this->layanans()->withTrashed()->exists();
     }
 
     /**

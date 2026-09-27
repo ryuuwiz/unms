@@ -41,14 +41,9 @@ class PelangganSeeder extends Seeder
         $promoDiskon = Promo::where('kode_promo', 'DISKON20')->first();
         $promoHemat = Promo::where('kode_promo', 'HEMAT50RB')->first();
 
-        // Pastikan pool router tersedia secara idempoten
-        $poolRumah = IpPool::where('router_id', $router->id)->where('nama_pool', 'Pool-Rumah')->first();
-        $poolBisnis = IpPool::where('router_id', $router->id)->where('nama_pool', 'Pool-Bisnis')->first();
-
-        if (! $poolRumah || ! $poolBisnis) {
+        // Pastikan pool router tersedia secara idempoten; layanan memakai Rantai IP Pool Router.
+        if (IpPool::where('router_id', $router->id)->whereIn('nama_pool', ['Pool-Rumah', 'Pool-Bisnis'])->count() < 2) {
             $this->call(IpPoolSeeder::class);
-            $poolRumah = IpPool::where('router_id', $router->id)->where('nama_pool', 'Pool-Rumah')->first();
-            $poolBisnis = IpPool::where('router_id', $router->id)->where('nama_pool', 'Pool-Bisnis')->first();
         }
 
         if ($perumahans->isEmpty() || $paketList->isEmpty()) {
@@ -138,7 +133,7 @@ class PelangganSeeder extends Seeder
                 $availablePort = OdpPort::where('status', StatusOdpPort::Kosong)->first();
             }
 
-            // Tentukan paket layanan, jenis koneksi, dan alokasi IP Pool / IP Statis
+            // Tentukan paket layanan, jenis koneksi, dan IP Statis (IP Pool mengikuti profil paket)
             if ($item['tipe'] === TipePelanggan::Rumah) {
                 // Distribusi Residensial: ~60% Up To, ~40% Residensial 1:1 Dedicated
                 if ($index % 5 === 1 || $index % 5 === 3) {
@@ -148,7 +143,6 @@ class PelangganSeeder extends Seeder
                 }
 
                 $jenisKoneksi = JenisKoneksi::Pppoe;
-                $ipPoolId = $poolRumah?->id;
                 $ipStatic = null;
             } else {
                 // Jalur Dedicated: Paket Bisnis / Corporate
@@ -156,11 +150,9 @@ class PelangganSeeder extends Seeder
 
                 if ($index === 4 || $index === 7) {
                     $jenisKoneksi = JenisKoneksi::IpStatic;
-                    $ipPoolId = null;
                     $ipStatic = '10.0.1.'.(20 + $index);
                 } else {
                     $jenisKoneksi = JenisKoneksi::Pppoe;
-                    $ipPoolId = $poolBisnis?->id;
                     $ipStatic = null;
                 }
             }
@@ -179,7 +171,6 @@ class PelangganSeeder extends Seeder
                 [
                     'paket_layanan_id' => $paket->id,
                     'router_id' => $router->id,
-                    'ip_pool_id' => $ipPoolId,
                     'ppp_username' => $pppUsername,
                     'ppp_password_terenkripsi' => 'unms'.rand(1000, 9999),
                     'ip_static' => $ipStatic,

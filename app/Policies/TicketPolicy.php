@@ -160,7 +160,7 @@ class TicketPolicy
     }
 
     /**
-     * Apakah user boleh menjalankan Aktivasi Pemasangan (mengisi router/IP Pool/PPP username
+     * Apakah user boleh menjalankan Aktivasi Pemasangan (mengisi router/PPP username
      * pada layanan yang terhubung ke tiket ini) -- lihat CONTEXT.md "Aktivasi Pemasangan".
      */
     public function aktivasiPemasangan(User $user, Ticket $ticket): bool

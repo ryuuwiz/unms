@@ -39,8 +39,6 @@ class Edit extends Component
 
     public ?int $router_id = null;
 
-    public ?int $ip_pool_id = null;
-
     public ?string $ip_static = null;
 
     public ?int $ip_publik_id = null;
@@ -74,7 +72,6 @@ class Edit extends Component
         $this->pelangganNoReg = $layananPelanggan->pelanggan->no_reg;
         $this->paket_layanan_id = $layananPelanggan->paket_layanan_id;
         $this->router_id = $layananPelanggan->router_id;
-        $this->ip_pool_id = $layananPelanggan->ip_pool_id;
         $this->ip_static = $layananPelanggan->ip_static;
         $this->ip_publik_id = $layananPelanggan->ipPubliks()->value('id');
         $this->nama_site = $layananPelanggan->nama_site ?? '';
@@ -97,15 +94,20 @@ class Edit extends Component
 
         return [
             'paket_layanan_id' => ['required', 'integer', 'exists:paket_layanan,id'],
-            'router_id' => ['required', 'integer', 'exists:router,id'],
+            'router_id' => [
+                'required', 'integer', 'exists:router,id',
+                // PPPoE dinamis memakai Rantai IP Pool Router, tidak memilih pool (ADR-0060).
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($this->jenis_koneksi === 'pppoe' && ! IpPool::where('router_id', $value)->exists()) {
+                        $fail(IpPool::PESAN_ROUTER_TANPA_POOL);
+                    }
+                },
+            ],
             'jenis_koneksi' => ['required', 'string', 'in:pppoe,ip_static'],
             'nama_site' => ['nullable', 'string', 'max:100'],
             'alamat_pemasangan' => ['nullable', 'string', 'max:1000'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'ip_pool_id' => $this->jenis_koneksi === 'pppoe'
-                ? ['required', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)]
-                : ['nullable', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->router_id)],
             'ip_static' => [
                 $this->jenis_koneksi === 'ip_static' ? 'required' : 'nullable',
                 'ipv4',
@@ -138,46 +140,16 @@ class Edit extends Component
     }
 
     /**
-     * Auto-assign ip_pool_id jika router hanya memiliki 1 pool,
-     * atau reset ke null jika memiliki banyak/tanpa pool.
-     *
-     * Dipanggil otomatis oleh Livewire saat properti router_id berubah.
-     */
-    public function updatedRouterId(): void
-    {
-        if ($this->router_id) {
-            $pools = IpPool::where('router_id', $this->router_id)->get(['id']);
-            if ($pools->count() === 1) {
-                $this->ip_pool_id = $pools->first()->id;
-            } else {
-                $this->ip_pool_id = null;
-            }
-        } else {
-            $this->ip_pool_id = null;
-        }
-    }
-
-    /**
-     * Sesuaikan ketersediaan field IP Pool vs IP Statis saat jenis koneksi berubah.
+     * IP Publik hanya untuk PPPoE; IP Statis hanya untuk koneksi IP Static.
      *
      * Dipanggil otomatis oleh Livewire saat properti jenis_koneksi berubah.
      */
     public function updatedJenisKoneksi(): void
     {
-        if ($this->jenis_koneksi !== 'pppoe') {
-            $this->ip_publik_id = null;
-        }
-
         if ($this->jenis_koneksi === 'pppoe') {
             $this->ip_static = null;
-            if ($this->router_id) {
-                $pools = IpPool::where('router_id', $this->router_id)->get(['id']);
-                if ($pools->count() === 1) {
-                    $this->ip_pool_id = $pools->first()->id;
-                }
-            }
         } else {
-            $this->ip_pool_id = null;
+            $this->ip_publik_id = null;
         }
     }
 
@@ -188,8 +160,6 @@ class Edit extends Component
         $this->validate($this->rules(), [
             'router_id.required' => 'Router wajib dipilih.',
             'router_id.exists' => 'Router yang dipilih tidak valid.',
-            'ip_pool_id.required' => 'IP Pool wajib dipilih untuk koneksi PPPoE.',
-            'ip_pool_id.exists' => 'IP Pool yang dipilih tidak valid atau tidak terdaftar pada router terpilih.',
             'ip_static.required' => 'Alamat IP Statis wajib diisi untuk koneksi IP Static.',
             'ip_static.ipv4' => 'Format Alamat IP Statis tidak valid (contoh: 192.168.1.50).',
             'ppp_username.required' => 'Username PPP wajib diisi.',
@@ -205,7 +175,6 @@ class Edit extends Component
             'alamat_pemasangan' => $this->alamat_pemasangan ?: null,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
-            'ip_pool_id' => $this->jenis_koneksi === 'pppoe' ? $this->ip_pool_id : null,
             'ip_static' => $this->jenis_koneksi === 'ip_static' ? $this->ip_static : null,
             'ppp_username' => $this->ppp_username,
             'jenis_koneksi' => $this->jenis_koneksi,
@@ -285,9 +254,6 @@ class Edit extends Component
     public function render(): View
     {
         $routers = Router::orderBy('nama_router')->get();
-        $ipPools = $this->router_id
-            ? IpPool::where('router_id', $this->router_id)->orderBy('nama_pool')->get()
-            : collect();
         $ipPubliks = $this->router_id
             ? IpPublik::where('router_id', $this->router_id)
                 ->where(fn ($q) => $q->whereNull('layanan_pelanggan_id')->orWhere('layanan_pelanggan_id', $this->layananId))
@@ -299,7 +265,6 @@ class Edit extends Component
 
         return view('livewire.layanan-pelanggan.edit', compact(
             'routers',
-            'ipPools',
             'ipPubliks',
             'jenisKoneksi',
             'statuses',

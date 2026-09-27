@@ -58,6 +58,10 @@ class RemoveIpPoolFromRouterJob implements ShouldQueue
         }
 
         try {
+            // Rantai & profile dialihkan dulu dari pool ini agar RouterOS mau menghapusnya (ADR-0060).
+            $mikrotikService->syncRantaiIpPool($router);
+            $mikrotikService->syncAllBandwidthProfiles($router);
+
             $mikrotikService->removeIpPool(
                 $router,
                 $this->poolName,

@@ -103,8 +103,6 @@ class Show extends Component
 
     public ?int $aktivasiRouterId = null;
 
-    public ?int $aktivasiIpPoolId = null;
-
     // State Modal Proses Divisi (NOC / Admin / Customer Service) -- lihat CONTEXT.md
     // "Proses Divisi (NOC/Admin/Customer Service)".
     public bool $showProsesModal = false;
@@ -121,8 +119,6 @@ class Show extends Component
     public string $prosesPilihanPaket = 'bawaan';
 
     public ?int $prosesRouterId = null;
-
-    public ?int $prosesIpPoolId = null;
 
     public ?int $prosesPaketLayananId = null;
 
@@ -374,48 +370,36 @@ class Show extends Component
             return;
         }
 
-        $this->aktivasiRouterId = null;
-        $this->aktivasiIpPoolId = null;
-
         $onlineRouters = Router::where('status_koneksi', StatusRouter::Online)->get(['id']);
-        if ($onlineRouters->count() === 1) {
-            $this->aktivasiRouterId = $onlineRouters->first()->id;
-            $this->updatedAktivasiRouterId();
-        }
+        $this->aktivasiRouterId = $onlineRouters->count() === 1 ? $onlineRouters->first()->id : null;
 
         $this->showAktivasiModal = true;
     }
 
     /**
-     * Auto-select IP Pool jika router terpilih cuma punya 1 pool.
-     *
-     * Dipanggil otomatis oleh Livewire saat properti aktivasiRouterId berubah.
+     * Layanan PPPoE dinamis butuh router yang punya IP Pool (Rantai IP Pool Router); NOC tidak memilih pool (ADR-0060).
      */
-    public function updatedAktivasiRouterId(): void
+    private function validasiRouterPunyaPool(): \Closure
     {
-        if ($this->aktivasiRouterId) {
-            $pools = IpPool::where('router_id', $this->aktivasiRouterId)->get(['id']);
-            $this->aktivasiIpPoolId = $pools->count() === 1 ? $pools->first()->id : null;
-        } else {
-            $this->aktivasiIpPoolId = null;
-        }
+        return function (string $attribute, mixed $value, \Closure $fail): void {
+            if ($this->ticket->layananPelanggan?->jenis_koneksi === JenisKoneksi::Pppoe && ! IpPool::where('router_id', $value)->exists()) {
+                $fail(IpPool::PESAN_ROUTER_TANPA_POOL);
+            }
+        };
     }
 
     /**
-     * Aktivasi Pemasangan: isi router/IP Pool/PPP Username (satu-satunya pilihan manual asli
-     * ada di router -- lihat CONTEXT.md "Aktivasi Pemasangan"), lalu provisi ke MikroTik.
+     * Aktivasi Pemasangan: isi router/PPP Username (router satu-satunya pilihan manual; IP Pool
+     * dari Rantai IP Pool Router -- lihat CONTEXT.md "Aktivasi Pemasangan"), lalu provisi ke MikroTik.
      */
     public function prosesAktivasi(): void
     {
         $this->authorize('aktivasiPemasangan', $this->ticket);
 
         $this->validate([
-            'aktivasiRouterId' => ['required', 'integer', 'exists:router,id'],
-            'aktivasiIpPoolId' => ['required', 'integer', Rule::exists('ip_pool', 'id')->where('router_id', $this->aktivasiRouterId)],
+            'aktivasiRouterId' => ['required', 'integer', 'exists:router,id', $this->validasiRouterPunyaPool()],
         ], [
             'aktivasiRouterId.required' => 'Router wajib dipilih.',
-            'aktivasiIpPoolId.required' => 'IP Pool wajib dipilih.',
-            'aktivasiIpPoolId.exists' => 'IP Pool tidak valid atau bukan milik router terpilih.',
         ]);
 
         $layanan = $this->ticket->layananPelanggan;
@@ -443,7 +427,6 @@ class Show extends Component
         DB::transaction(function () use ($layanan, $pppUsername, $odpPortId) {
             $layanan->update([
                 'router_id' => $this->aktivasiRouterId,
-                'ip_pool_id' => $this->aktivasiIpPoolId,
                 'ppp_username' => $pppUsername,
                 'odp_port_id' => $odpPortId,
             ]);
@@ -629,34 +612,12 @@ class Show extends Component
         $this->prosesModeMikrotik = 'proses';
         $this->prosesPilihanPaket = 'bawaan';
         $this->prosesRouterId = $layanan?->router_id;
-        $this->prosesIpPoolId = $layanan?->ip_pool_id;
         $this->prosesPaketLayananId = $layanan?->paket_layanan_id;
         $this->prosesPppMode = 'auto';
         $this->prosesPppUsername = $layanan->ppp_username ?? '';
         $this->prosesPppPassword = '';
         $this->prosesUbahPaket = false;
         $this->showProsesModal = true;
-    }
-
-    /**
-     * IP Pool Proses NOC mengikuti router terpilih: pertahankan pool bila masih milik router itu,
-     * selain itu auto-select kalau router cuma punya 1 pool.
-     *
-     * Dipanggil otomatis oleh Livewire saat properti prosesRouterId berubah.
-     */
-    public function updatedProsesRouterId(): void
-    {
-        if (! $this->prosesRouterId) {
-            $this->prosesIpPoolId = null;
-
-            return;
-        }
-
-        $pools = IpPool::where('router_id', $this->prosesRouterId)->pluck('id');
-
-        if (! $pools->contains($this->prosesIpPoolId)) {
-            $this->prosesIpPoolId = $pools->count() === 1 ? $pools->first() : null;
-        }
     }
 
     /**
@@ -711,11 +672,9 @@ class Show extends Component
             $this->validate([
                 'prosesModeMikrotik' => ['required', 'in:proses,sudah'],
                 'prosesPilihanPaket' => ['required', 'in:bawaan,berbeda'],
-                'prosesRouterId' => ['required', 'integer', 'exists:router,id'],
-                'prosesIpPoolId' => [
-                    Rule::requiredIf($layanan->jenis_koneksi === JenisKoneksi::Pppoe),
-                    'nullable', 'integer',
-                    Rule::exists('ip_pool', 'id')->where('router_id', $this->prosesRouterId),
+                'prosesRouterId' => [
+                    'required', 'integer', 'exists:router,id',
+                    $this->validasiRouterPunyaPool(),
                 ],
                 'prosesPaketLayananId' => ['required', 'integer', 'exists:paket_layanan,id'],
                 'prosesPppMode' => ['required', 'in:auto,manual'],
@@ -726,15 +685,13 @@ class Show extends Component
                 ],
                 'prosesPppPassword' => [Rule::requiredIf($perluPasswordManual), 'nullable', 'string', 'max:64'],
             ], [
-                'prosesIpPoolId.required' => 'IP Pool wajib dipilih untuk koneksi PPPoE.',
-                'prosesIpPoolId.exists' => 'IP Pool tidak valid atau bukan milik router terpilih.',
                 'prosesPppUsername.required' => 'PPP Username manual wajib diisi.',
                 'prosesPppUsername.unique' => 'PPP Username sudah dipakai layanan lain.',
                 'prosesPppPassword.required' => 'Password PPP asli di router wajib diisi.',
             ]);
 
             $paketLayananId = $this->prosesPilihanPaket === 'bawaan' ? $layanan->paket_layanan_id : $this->prosesPaketLayananId;
-            app(UbahPaketLayananAction::class)->execute($layanan, $paketLayananId, $this->prosesRouterId, $this->prosesIpPoolId);
+            app(UbahPaketLayananAction::class)->execute($layanan, $paketLayananId, $this->prosesRouterId);
 
             if ($this->prosesPppMode === 'manual') {
                 $layanan->update(['ppp_username' => $this->prosesPppUsername]);
@@ -856,12 +813,6 @@ class Show extends Component
             : collect();
 
         $onlineRouters = Router::where('status_koneksi', StatusRouter::Online)->orderBy('nama_router')->get();
-        $aktivasiIpPools = $this->aktivasiRouterId
-            ? IpPool::where('router_id', $this->aktivasiRouterId)->orderBy('nama_pool')->get()
-            : collect();
-        $prosesIpPools = $this->prosesRouterId
-            ? IpPool::where('router_id', $this->prosesRouterId)->orderBy('nama_pool')->get()
-            : collect();
 
         // Paket Layanan aktif untuk dropdown "Paket Berbeda" (Proses NOC) / "Ubah Paket Layanan"
         // (Proses Admin) -- tidak difilter per-router, lihat CONTEXT.md "Proses Divisi".
@@ -873,8 +824,6 @@ class Show extends Component
             'odps' => $odps,
             'odpPorts' => $odpPorts,
             'onlineRouters' => $onlineRouters,
-            'aktivasiIpPools' => $aktivasiIpPools,
-            'prosesIpPools' => $prosesIpPools,
             'paketLayananList' => $paketLayananList,
             // Pemasangan lama tanpa layanan memakai alur yang sudah ditinggalkan -- tanpa Panduan Alur Tiket.
             'panduan' => $this->ticket->jenis->panduan(),

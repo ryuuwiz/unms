@@ -43,7 +43,7 @@ beforeEach(function () {
     $this->pelanggan = Pelanggan::factory()->create();
     $this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
     $this->router = Router::factory()->online()->create();
-    $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id]);
+    IpPool::factory()->create(['router_id' => $this->router->id, 'nama_pool' => 'Pool-Rumah']);
 });
 
 /**
@@ -102,7 +102,6 @@ test('Aktivasi Pemasangan meng-generate password 8 karakter alfanumerik dan meng
     Livewire::actingAs($this->noc)
         ->test(Show::class, ['ticket' => $ticket])
         ->set('aktivasiRouterId', $this->router->id)
-        ->set('aktivasiIpPoolId', $this->ipPool->id)
         ->call('prosesAktivasi')
         ->assertHasNoErrors();
 

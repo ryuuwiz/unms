@@ -92,13 +92,11 @@ class ProfilBandwidth extends Model
     }
 
     /**
-     * Nama PPP Profile di RouterOS. Tanpa pool: profile polos (rate-limit saja, untuk layanan
-     * dengan alamat literal di secret). Dengan pool: "{bandwidth}@{pool}" yang membawa
-     * local/remote-address (lihat CONTEXT.md "Profile PPP per Pool").
+     * Nama PPP Profile di RouterOS: satu per profil bandwidth di setiap router (CONTEXT.md "Profile PPP per Router").
      */
-    public function pppProfileName(?IpPool $pool = null): string
+    public function pppProfileName(): string
     {
-        return $pool ? "{$this->nama_bandwidth}@{$pool->nama_pool}" : $this->nama_bandwidth;
+        return $this->nama_bandwidth;
     }
 
     /**

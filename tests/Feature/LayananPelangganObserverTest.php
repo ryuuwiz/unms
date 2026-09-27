@@ -28,11 +28,10 @@ beforeEach(function () {
     $this->pelanggan = Pelanggan::factory()->create();
     $this->profil = ProfilBandwidth::factory()->create();
     $this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
-    $this->poolLama = IpPool::factory()->create(['router_id' => $this->routerLama->id]);
-    $this->poolBaru = IpPool::factory()->create(['router_id' => $this->routerBaru->id]);
+    $this->poolLama = IpPool::factory()->create(['router_id' => $this->routerLama->id, 'nama_pool' => 'Pool-Rumah', 'ip_network' => '10.0.0.0', 'cidr' => 24]);
+    $this->poolBaru = IpPool::factory()->create(['router_id' => $this->routerBaru->id, 'nama_pool' => 'Pool-Rumah']);
     $this->layanan = LayananPelanggan::factory()->create([
         'router_id' => $this->routerLama->id,
-        'ip_pool_id' => $this->poolLama->id,
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
         'status' => StatusLayanan::Aktif,
@@ -46,7 +45,6 @@ test('Observer dispatch CleanupPppSecretOnOldRouterJob when router_id changes', 
 
     $this->layanan->update([
         'router_id' => $this->routerBaru->id,
-        'ip_pool_id' => $this->poolBaru->id,
     ]);
 
     Queue::assertPushed(CleanupPppSecretOnOldRouterJob::class, function ($job) {
@@ -93,31 +91,29 @@ test('Observer does NOT dispatch cleanup when router_id does not change', functi
     Queue::fake();
 
     $this->layanan->update([
-        'ip_pool_id' => $this->poolLama->id,
+        'nama_site' => 'Site Baru',
     ]);
 
     Queue::assertNotPushed(CleanupPppSecretOnOldRouterJob::class);
 });
 
-test('Observer resets ip_pool_id to null when router_id changes', function () {
+test('IP Pool layanan adalah kepala Rantai IP Pool Router dan ikut pindah router', function () {
     Queue::fake();
 
-    $this->layanan->update([
-        'router_id' => $this->routerBaru->id,
-    ]);
+    expect($this->layanan->ipPool?->id)->toBe($this->poolLama->id);
 
-    expect($this->layanan->fresh()->ip_pool_id)->toBeNull();
+    $this->layanan->update(['router_id' => $this->routerBaru->id]);
+
+    expect($this->layanan->ipPool?->id)->toBe($this->poolBaru->id)
+        ->and($this->layanan->fresh()->ipPool?->id)->toBe($this->poolBaru->id);
 });
 
-test('Observer keeps ip_pool_id chosen in the same update that changes router_id', function () {
-    Queue::fake();
+test('kepala rantai adalah pool terlama di router, null bila router tanpa pool', function () {
+    IpPool::factory()->create(['router_id' => $this->routerLama->id, 'nama_pool' => 'Pool-Tambahan']);
+    expect($this->layanan->fresh()->ipPool?->id)->toBe($this->poolLama->id);
 
-    $this->layanan->update([
-        'router_id' => $this->routerBaru->id,
-        'ip_pool_id' => $this->poolBaru->id,
-    ]);
-
-    expect($this->layanan->fresh()->ip_pool_id)->toBe($this->poolBaru->id);
+    IpPool::where('router_id', $this->routerLama->id)->delete();
+    expect($this->layanan->fresh()->ipPool)->toBeNull();
 });
 
 test('Observer dispatch UpdatePppoeProfileJob when paket_layanan_id changes', function () {
@@ -148,27 +144,24 @@ test('Observer does NOT dispatch UpdatePppoeProfileJob when paket_layanan_id is 
 
 test('resolveRemoteAddress returns ip_static when present', function () {
     $this->layanan->ip_static = '192.168.1.100';
-    $this->layanan->ip_pool_id = $this->poolLama->id;
 
     expect($this->layanan->resolveRemoteAddress())->toBe('192.168.1.100');
 });
 
 test('resolveRemoteAddress is null for dynamic PPPoE even with a pool -- RouterOS allocates from the profile pool', function () {
     $this->layanan->ip_static = null;
-    $this->layanan->ip_pool_id = $this->poolLama->id;
     $this->layanan->ip_dynamic = '10.0.0.2';
-    $this->layanan->setRelation('ipPool', $this->poolLama);
 
     expect($this->layanan->resolveRemoteAddress())->toBeNull()
         ->and($this->layanan->usesLiteralAddress())->toBeFalse()
-        ->and($this->layanan->profilePool()?->id)->toBe($this->poolLama->id);
+        ->and($this->layanan->ipPool?->id)->toBe($this->poolLama->id);
 });
 
 test('resolveRemoteAddress returns null when neither ip_static nor a pool is set', function () {
     $this->layanan->ip_static = null;
-    $this->layanan->ip_pool_id = null;
     $this->layanan->ip_dynamic = null;
-    $this->layanan->setRelation('ipPool', null);
+    IpPool::where('router_id', $this->routerLama->id)->delete();
+    $this->layanan->unsetRelation('router');
 
     expect($this->layanan->resolveRemoteAddress())->toBeNull();
 });
@@ -184,34 +177,28 @@ test('IpPool getGatewayAddress returns first host of ip_network', function () {
 });
 
 test('resolveLocalAddress is null for dynamic PPPoE (gateway lives on the profile)', function () {
-    $this->poolLama->ip_network = '10.0.0.0';
     $this->layanan->ip_static = null;
-    $this->layanan->ip_pool_id = $this->poolLama->id;
-    $this->layanan->setRelation('ipPool', $this->poolLama);
 
     expect($this->layanan->resolveLocalAddress())->toBeNull();
 });
 
-test('resolveLocalAddress returns gateway of related ipPool for a literal ip_static', function () {
-    $this->poolLama->ip_network = '10.0.0.0';
+test('resolveLocalAddress returns gateway of router pool chain head for a literal ip_static', function () {
     $this->layanan->ip_static = '10.0.0.50';
-    $this->layanan->ip_pool_id = $this->poolLama->id;
-    $this->layanan->setRelation('ipPool', $this->poolLama);
 
     expect($this->layanan->resolveLocalAddress())->toBe('10.0.0.1');
 });
 
 test('resolveLocalAddress calculates subnet gateway when ip_static is present without ipPool', function () {
-    $this->layanan->ip_pool_id = null;
-    $this->layanan->setRelation('ipPool', null);
+    IpPool::where('router_id', $this->routerLama->id)->delete();
+    $this->layanan->unsetRelation('router');
     $this->layanan->ip_static = '10.0.1.25';
 
     expect($this->layanan->resolveLocalAddress())->toBe('10.0.1.1');
 });
 
 test('resolveLocalAddress returns null when neither ipPool nor ip_static exists', function () {
-    $this->layanan->ip_pool_id = null;
-    $this->layanan->setRelation('ipPool', null);
+    IpPool::where('router_id', $this->routerLama->id)->delete();
+    $this->layanan->unsetRelation('router');
     $this->layanan->ip_static = null;
 
     expect($this->layanan->resolveLocalAddress())->toBeNull();

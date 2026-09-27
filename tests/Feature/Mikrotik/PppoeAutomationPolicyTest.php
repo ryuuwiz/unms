@@ -136,7 +136,9 @@ test('ganti username layanan aktif memprovisi ulang dengan kick, layanan Proses 
 
     Queue::fake();
     $layanan->updateQuietly(['status' => StatusLayanan::Aktif]);
-    $layanan->update(['ip_pool_id' => null]);
+    IpPool::where('router_id', $layanan->router_id)->delete();
+    $layanan = $layanan->fresh();
+    $layanan->update(['ppp_username' => $layanan->pelanggan->no_reg.'_76543']);
     Queue::assertNotPushed(ProvisionPppoeAccountJob::class);
 });
 
@@ -254,7 +256,6 @@ test('router dengan IP Publik terpasang tidak dapat dihapus', function () {
 test('memindahkan layanan PPPoE ke router lain mewajibkan pool tujuan lalu memprovisi ulang layanan aktif', function () {
     $lama = Router::factory()->online()->create();
     $tujuan = Router::factory()->online()->create();
-    $pool = IpPool::factory()->create(['router_id' => $tujuan->id]);
     $layanan = LayananPelanggan::factory()->create(['router_id' => $lama->id, 'status' => StatusLayanan::Aktif]);
 
     $komponen = Livewire::actingAs($this->admin)->test(RouterIndex::class)
@@ -265,11 +266,12 @@ test('memindahkan layanan PPPoE ke router lain mewajibkan pool tujuan lalu mempr
     expect(Router::find($lama->id))->not->toBeNull()
         ->and($layanan->fresh()->router_id)->toBe($lama->id);
 
-    $komponen->set('targetPoolId', $pool->id)->call('deleteRouter');
+    $pool = IpPool::factory()->create(['router_id' => $tujuan->id]);
+    $komponen->call('deleteRouter');
 
     expect(Router::find($lama->id))->toBeNull()
         ->and($layanan->fresh()->router_id)->toBe($tujuan->id)
-        ->and($layanan->fresh()->ip_pool_id)->toBe($pool->id);
+        ->and($layanan->fresh()->ipPool?->id)->toBe($pool->id);
     Queue::assertPushed(ProvisionPppoeAccountJob::class, fn ($job) => $job->layanan->is($layanan));
 });
 

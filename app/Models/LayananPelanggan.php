@@ -10,6 +10,7 @@ use App\Models\Concerns\GracefullyDecryptsAttributes;
 use Database\Factories\LayananPelangganFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,7 +29,6 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property PriceMode $price_mode
  * @property float|null $price_custom
  * @property int|null $router_id
- * @property int|null $ip_pool_id
  * @property string $site_id
  * @property string|null $nama_site
  * @property string|null $ppp_username
@@ -52,7 +52,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property-read Pelanggan|null $pelanggan Null bila Pelanggan di-soft-delete
  * @property-read PaketLayanan|null $paketLayanan Null bila Paket di-soft-delete
  * @property-read Router|null $router
- * @property-read IpPool|null $ipPool
+ * @property-read IpPool|null $ipPool Kepala Rantai IP Pool Router layanan.
  * @property-read OdpPort|null $odpPort
  */
 #[Fillable([
@@ -61,7 +61,6 @@ use Spatie\Activitylog\Support\LogOptions;
     'price_mode',
     'price_custom',
     'router_id',
-    'ip_pool_id',
     'site_id',
     'nama_site',
     'ppp_username',
@@ -165,13 +164,20 @@ class LayananPelanggan extends Model
     }
 
     /**
-     * Relasi ke IP Pool yang digunakan sebagai remote-address PPP Secret.
+     * Kepala Rantai IP Pool Router layanan (ADR-0060): pool yang dirujuk Profile PPP per Router, bukan
+     * pool yang dipilih. Relasi router yang sudah dimuat dibuang bila router_id berubah agar tidak basi.
      *
-     * @return BelongsTo<IpPool, $this>
+     * @return Attribute<IpPool|null, never>
      */
-    public function ipPool(): BelongsTo
+    protected function ipPool(): Attribute
     {
-        return $this->belongsTo(IpPool::class, 'ip_pool_id');
+        return Attribute::get(function (): ?IpPool {
+            if ($this->relationLoaded('router') && $this->getRelation('router')?->getKey() != $this->router_id) {
+                $this->unsetRelation('router');
+            }
+
+            return $this->router?->kepalaIpPool();
+        })->withoutObjectCaching();
     }
 
     /**
@@ -212,7 +218,7 @@ class LayananPelanggan extends Model
 
     /**
      * Apakah alamat sesi ditetapkan literal di PPP Secret (IP Publik atau IP Statis), bukan oleh
-     * pool RouterOS lewat Profile PPP per Pool.
+     * pool RouterOS lewat Profile PPP per Router.
      */
     public function usesLiteralAddress(): bool
     {
@@ -220,18 +226,10 @@ class LayananPelanggan extends Model
     }
 
     /**
-     * Pool yang dipakai untuk memilih PPP Profile: null bila alamat literal (profile polos).
-     */
-    public function profilePool(): ?IpPool
-    {
-        return $this->usesLiteralAddress() ? null : $this->ipPool;
-    }
-
-    /**
      * Tentukan nilai remote-address yang harus dikirim ke PPP Secret RouterOS.
      *
      * Prioritas: IP Publik Dedicated → ip_static → null. Null berarti PPPoE dinamis: secret dibiarkan
-     * tanpa remote-address dan RouterOS mengalokasikan IP dari pool lewat Profile PPP per Pool
+     * tanpa remote-address dan RouterOS mengalokasikan IP dari Rantai IP Pool Router lewat Profile PPP per Router
      * (lihat CONTEXT.md). Nama pool TIDAK BOLEH dikirim sebagai remote-address di `/ppp/secret` --
      * RouterOS menolaknya; nama pool hanya valid di `/ppp/profile`.
      */
@@ -252,7 +250,7 @@ class LayananPelanggan extends Model
      * Tentukan nilai local-address (Gateway) yang harus dikirim ke PPP Secret RouterOS.
      *
      * Null untuk PPPoE dinamis (gateway dibawa profile). Untuk IP Publik: gateway inventaris.
-     * Untuk IP Statis: Gateway dari IP Pool terkait, atau Subnet Gateway dari ip_static.
+     * Untuk IP Statis: Gateway kepala Rantai IP Pool Router, atau Subnet Gateway dari ip_static.
      */
     public function resolveLocalAddress(): ?string
     {

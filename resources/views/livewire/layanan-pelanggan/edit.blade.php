@@ -34,33 +34,7 @@
             </flux:field>
         </div>
 
-        @if ($router_id && $ipPools->isEmpty() && $jenis_koneksi === 'pppoe')
-            <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300">
-                <div class="flex items-center gap-2 font-medium">
-                    <flux:icon name="exclamation-triangle" class="size-4 text-amber-600 dark:text-amber-400" />
-                    <span>Router ini belum memiliki IP Pool aktif.</span>
-                </div>
-                <p class="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                    Buat IP Pool di menu <strong>Jaringan & Infrastruktur &rarr; IP Pool</strong> untuk router ini terlebih dahulu, atau gunakan opsi IP Static.
-                </p>
-            </div>
-        @endif
-
         @if ($jenis_koneksi === 'pppoe')
-            <flux:field>
-                <flux:label>IP Pool <span class="text-zinc-400 font-normal">(Remote Address PPPoE)</span></flux:label>
-                <flux:select wire:model.live="ip_pool_id" placeholder="Pilih IP Pool..." :disabled="! $router_id || $ipPools->isEmpty()">
-                    <flux:select.option value="">-- Pilih IP Pool --</flux:select.option>
-                    @foreach ($ipPools as $pool)
-                        <flux:select.option value="{{ $pool->id }}">
-                            {{ $pool->nama_pool }} ({{ $pool->ip_network }}/{{ $pool->cidr }})
-                        </flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:description>Pool ini menentukan alokasi IP pelanggan di MikroTik. RouterOS yang membagikan IP lewat Profile PPP per Pool; alamat sesi tampil di halaman pelanggan.</flux:description>
-                <flux:error name="ip_pool_id" />
-            </flux:field>
-
             <flux:field>
                 <flux:label>IP Publik Dedicated <span class="text-zinc-400 font-normal">(add-on berbayar)</span></flux:label>
                 <flux:select wire:model.live="ip_publik_id" :disabled="! $router_id">

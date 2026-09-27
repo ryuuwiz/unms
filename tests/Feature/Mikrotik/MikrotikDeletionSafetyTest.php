@@ -141,8 +141,10 @@ test('cleanOrphanedPppSecrets berhenti di batas hapus per eksekusi dan melaporka
 function layananUntukRekonsiliasi(Router $router, StatusLayanan $status, string $username): LayananPelanggan
 {
     [, $layanan] = layananPppoeDinamis();
-    $pool = IpPool::where('router_id', $router->id)->first() ?? tap(IpPool::find($layanan->ip_pool_id))->update(['router_id' => $router->id]);
-    $layanan->updateQuietly(['router_id' => $router->id, 'ip_pool_id' => $pool->id, 'status' => $status, 'ppp_username' => $username]);
+    if (! IpPool::where('router_id', $router->id)->exists()) {
+        IpPool::where('router_id', $layanan->router_id)->update(['router_id' => $router->id]);
+    }
+    $layanan->updateQuietly(['router_id' => $router->id, 'status' => $status, 'ppp_username' => $username]);
 
     return $layanan->fresh();
 }
@@ -161,7 +163,7 @@ test('rekonsiliasi menghapus secret layanan Berhenti dengan jejak, tapi tidak pe
     $suspend = layananUntukRekonsiliasi($this->router, StatusLayanan::Suspend, 'nunggak_22222');
     [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [
         ['.id' => '*1', 'name' => 'lama_11111', 'comment' => 'UNMS: x', 'profile' => 'P10'],
-        ['.id' => '*2', 'name' => 'nunggak_22222', 'comment' => 'UNMS: y', 'profile' => 'P10@'.$suspend->ipPool->nama_pool, 'disabled' => 'true', 'password' => $suspend->ppp_password_terenkripsi],
+        ['.id' => '*2', 'name' => 'nunggak_22222', 'comment' => 'UNMS: y', 'profile' => 'P10', 'disabled' => 'true', 'password' => $suspend->ppp_password_terenkripsi],
     ]]);
 
     $hasil = $this->service->autoRecoverPppSecrets($this->router->fresh(), $client);
@@ -196,7 +198,7 @@ test('rekonsiliasi tidak menghapus secret Berhenti yang dilindungi komentar NOC:
 
 test('rekonsiliasi hanya menghapus duplikat bernama sama untuk username terdaftar, dan menghormati batas hapus', function () {
     $layanan = layananUntukRekonsiliasi($this->router, StatusLayanan::Aktif, 'budi_11111');
-    $sinkron = ['profile' => 'P10@'.$layanan->ipPool->nama_pool, 'password' => $layanan->ppp_password_terenkripsi, 'disabled' => 'false'];
+    $sinkron = ['profile' => 'P10', 'password' => $layanan->ppp_password_terenkripsi, 'disabled' => 'false'];
     [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [
         ['.id' => '*1', 'name' => 'budi_11111', 'comment' => 'UNMS: a'] + $sinkron,
         ['.id' => '*2', 'name' => 'budi_11111', 'comment' => 'UNMS: a'] + $sinkron,   // duplikat terdaftar

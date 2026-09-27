@@ -54,7 +54,7 @@ enum JenisTicket: string
                     ],
                     DivisiTicket::Noc->value => [
                         'Tunggu status Teknisi minimal On Progress (ODP + foto pemasangan sudah ada).',
-                        'Klik "Aktivasi Pemasangan": pilih Router dan IP Pool; PPP username dibuat otomatis dan layanan jadi Aktif.',
+                        'Klik "Aktivasi Pemasangan": pilih Router (IP Pool diatur otomatis); PPP username dibuat otomatis dan layanan jadi Aktif.',
                         'Bila provisioning ke MikroTik gagal, klik "Provisi Ulang".',
                         'Klik "Proses NOC", pilih Selesai, dan isi Catatan Proses.',
                     ],
@@ -115,7 +115,7 @@ enum JenisTicket: string
                 ],
                 'divisi' => [
                     DivisiTicket::Noc->value => [
-                        'Bila lokasi baru berbeda segmen jaringan, sesuaikan router/IP Pool lewat Edit layanan.',
+                        'Bila lokasi baru berbeda segmen jaringan, sesuaikan router lewat Edit layanan (IP Pool diatur otomatis).',
                         'Catat perubahan lewat "Tambah Catatan".',
                     ],
                     DivisiTicket::Teknisi->value => [

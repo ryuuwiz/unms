@@ -33,8 +33,6 @@ class Index extends Component
 
     public ?int $targetRouterId = null;
 
-    public ?int $targetPoolId = null;
-
     public bool $confirmForceDelete = false;
 
     public function updatingSearch(): void
@@ -52,7 +50,6 @@ class Index extends Component
         $this->deletingId = $id;
         $firstOther = Router::where('id', '!=', $id)->first();
         $this->targetRouterId = $firstOther?->id;
-        $this->targetPoolId = null;
         $this->confirmForceDelete = false;
 
         $this->modal('confirm-delete-router')->show();
@@ -62,7 +59,6 @@ class Index extends Component
     {
         $this->deletingId = null;
         $this->targetRouterId = null;
-        $this->targetPoolId = null;
         $this->confirmForceDelete = false;
     }
 
@@ -90,10 +86,7 @@ class Index extends Component
             return;
         }
 
-        $hasLayanans = $router->layanans()->withTrashed()->exists()
-            || $router->ipPools()->whereHas('layanans', fn ($q) => $q->withTrashed())->exists();
-
-        if ($hasLayanans) {
+        if ($router->layanans()->withTrashed()->exists()) {
             $otherRoutersCount = Router::where('id', '!=', $router->id)->count();
 
             // Jika admin memilih untuk force delete atau tidak ada router lain yang tersedia
@@ -102,10 +95,6 @@ class Index extends Component
                     LayananPelanggan::withTrashed()
                         ->where('router_id', $router->id)
                         ->forceDelete();
-
-                    LayananPelanggan::withTrashed()
-                        ->whereIn('ip_pool_id', $router->ipPools()->pluck('id'))
-                        ->update(['ip_pool_id' => null]);
 
                     $router->ipPools()->delete();
                     $router->jobLogs()->delete();
@@ -131,14 +120,11 @@ class Index extends Component
                 return;
             }
 
-            // Layanan PPPoE dinamis wajib punya IP Pool di router tujuan (tanpa pool provisi selalu ditolak).
-            $targetPools = IpPool::where('router_id', $targetRouter->id)->pluck('id');
+            // Layanan PPPoE dinamis memakai Rantai IP Pool Router tujuan (ADR-0060); tanpa pool provisi selalu ditolak.
             $butuhPool = $router->layanans()->where('jenis_koneksi', JenisKoneksi::Pppoe->value)->exists();
 
-            if ($butuhPool && ! $targetPools->contains($this->targetPoolId)) {
-                Flux::toast(variant: 'danger', text: $targetPools->isEmpty()
-                    ? "Router tujuan {$targetRouter->nama_router} belum memiliki IP Pool. Buat IP Pool terlebih dahulu."
-                    : 'Pilih IP Pool di router tujuan untuk layanan PPPoE yang dipindahkan.');
+            if ($butuhPool && ! IpPool::where('router_id', $targetRouter->id)->exists()) {
+                Flux::toast(variant: 'danger', text: "Router tujuan {$targetRouter->nama_router} belum memiliki IP Pool. Buat IP Pool untuk router tersebut terlebih dahulu.");
 
                 return;
             }
@@ -149,14 +135,7 @@ class Index extends Component
                 LayananPelanggan::withTrashed()
                     ->where('router_id', $router->id)
                     ->get()
-                    ->each(fn (LayananPelanggan $layanan) => $layanan->update([
-                        'router_id' => $targetRouter->id,
-                        'ip_pool_id' => $layanan->jenis_koneksi === JenisKoneksi::Pppoe ? $this->targetPoolId : null,
-                    ]));
-
-                LayananPelanggan::withTrashed()
-                    ->whereIn('ip_pool_id', $router->ipPools()->pluck('id'))
-                    ->update(['ip_pool_id' => null]);
+                    ->each(fn (LayananPelanggan $layanan) => $layanan->update(['router_id' => $targetRouter->id]));
 
                 $router->ipPools()->delete();
                 $router->jobLogs()->delete();
@@ -172,10 +151,6 @@ class Index extends Component
         }
 
         DB::transaction(function () use ($router) {
-            LayananPelanggan::withTrashed()
-                ->whereIn('ip_pool_id', $router->ipPools()->pluck('id'))
-                ->update(['ip_pool_id' => null]);
-
             $router->ipPools()->delete();
             $router->jobLogs()->delete();
             $router->delete();
@@ -275,7 +250,6 @@ class Index extends Component
             'statuses' => StatusRouter::cases(),
             'routerToDelete' => $routerToDelete,
             'otherRouters' => $otherRouters,
-            'targetPools' => $this->targetRouterId ? IpPool::where('router_id', $this->targetRouterId)->orderBy('nama_pool')->get() : collect(),
         ]);
     }
 }

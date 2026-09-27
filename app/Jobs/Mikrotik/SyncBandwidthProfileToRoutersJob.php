@@ -90,13 +90,11 @@ class SyncBandwidthProfileToRoutersJob implements ShouldBeUnique, ShouldQueue
                 ]);
 
                 try {
-                    $mikrotikService->ensurePppProfile($router, $this->profil);
-
-                    // Profile PPP per Pool merujuk nama pool, jadi pool harus sudah ada di router lebih dulu.
-                    foreach ($router->ipPools as $pool) {
-                        $mikrotikService->syncIpPool($router, $pool);
-                        $mikrotikService->ensurePppProfile($router, $this->profil, null, $pool);
+                    // Profile PPP per Router merujuk kepala Rantai IP Pool Router, jadi kepala harus sudah ada di router.
+                    if ($kepalaPool = $router->kepalaIpPool()) {
+                        $mikrotikService->syncIpPool($router, $kepalaPool);
                     }
+                    $mikrotikService->ensurePppProfile($router, $this->profil);
 
                     $log->update([
                         'status' => MikrotikJobStatus::Success,

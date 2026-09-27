@@ -813,7 +813,7 @@
             </div>
 
             <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                Pilih Router & IP Pool. Username PPP akan digenerate otomatis oleh sistem.
+                Pilih Router. IP Pool dan Username PPP diatur otomatis oleh sistem.
             </p>
 
             <flux:field>
@@ -825,17 +825,6 @@
                     @endforeach
                 </flux:select>
                 <flux:error name="aktivasiRouterId" />
-            </flux:field>
-
-            <flux:field>
-                <flux:label>IP Pool</flux:label>
-                <flux:select wire:model="aktivasiIpPoolId" placeholder="Pilih IP Pool..." :disabled="! $aktivasiRouterId">
-                    <flux:select.option value="">-- Pilih IP Pool --</flux:select.option>
-                    @foreach ($aktivasiIpPools as $pool)
-                        <flux:select.option value="{{ $pool->id }}">{{ $pool->nama_pool }} ({{ $pool->ip_network }}/{{ $pool->cidr }})</flux:select.option>
-                    @endforeach
-                </flux:select>
-                <flux:error name="aktivasiIpPoolId" />
             </flux:field>
 
             <div class="flex justify-end gap-2 pt-2">
@@ -898,19 +887,6 @@
                         </flux:select>
                         <flux:error name="prosesRouterId" />
                     </flux:field>
-
-                    @if ($ticket->layananPelanggan?->jenis_koneksi === \App\Enums\JenisKoneksi::Pppoe)
-                        <flux:field>
-                            <flux:label>IP Pool</flux:label>
-                            <flux:select wire:model="prosesIpPoolId" placeholder="Pilih IP Pool..." :disabled="! $prosesRouterId">
-                                <flux:select.option value="">-- Pilih IP Pool --</flux:select.option>
-                                @foreach ($prosesIpPools as $pool)
-                                    <flux:select.option value="{{ $pool->id }}">{{ $pool->nama_pool }} ({{ $pool->ip_network }}/{{ $pool->cidr }})</flux:select.option>
-                                @endforeach
-                            </flux:select>
-                            <flux:error name="prosesIpPoolId" />
-                        </flux:field>
-                    @endif
 
                     @if ($prosesPilihanPaket === 'berbeda')
                         <flux:field>

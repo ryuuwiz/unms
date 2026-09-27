@@ -124,7 +124,6 @@ function layananPppoeDinamis(): array
         'router_id' => $router->id,
         'pelanggan_id' => $pelanggan->id,
         'paket_layanan_id' => $paket->id,
-        'ip_pool_id' => $pool->id,
         'jenis_koneksi' => JenisKoneksi::Pppoe,
         'ip_static' => null,
         'ppp_username' => "{$pelanggan->no_reg}_12345",

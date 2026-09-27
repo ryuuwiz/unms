@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\JenisKoneksi;
 use App\Livewire\IpPool\Create;
 use App\Livewire\IpPool\Edit;
 use App\Livewire\IpPool\Index;
@@ -8,6 +9,7 @@ use App\Models\IpPublik;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
+use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\User;
 use App\Services\Mikrotik\MikrotikService;
@@ -95,13 +97,12 @@ test('cannot delete ip pool with existing customer service relations', function 
     ]);
 
     $pelanggan = Pelanggan::factory()->create();
-    $paket = PaketLayanan::factory()->create();
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
 
     LayananPelanggan::factory()->create([
         'pelanggan_id' => $pelanggan->id,
         'paket_layanan_id' => $paket->id,
         'router_id' => $router->id,
-        'ip_pool_id' => $pool->id,
     ]);
 
     Livewire::actingAs($this->superAdmin)
@@ -123,13 +124,12 @@ test('cannot reassign ip pool to another router while it has existing customer s
     ]);
 
     $pelanggan = Pelanggan::factory()->create();
-    $paket = PaketLayanan::factory()->create();
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
 
     LayananPelanggan::factory()->create([
         'pelanggan_id' => $pelanggan->id,
         'paket_layanan_id' => $paket->id,
         'router_id' => $router->id,
-        'ip_pool_id' => $pool->id,
     ]);
 
     Livewire::actingAs($this->superAdmin)
@@ -139,6 +139,32 @@ test('cannot reassign ip pool to another router while it has existing customer s
         ->assertHasNoErrors();
 
     expect($pool->fresh()->router_id)->toBe($router->id);
+});
+
+test('pool yang dipakai layanan PPPoE tetap bisa di-rename', function () {
+    $pool = IpPool::factory()->create(['nama_pool' => 'Pool-Rumah']);
+    LayananPelanggan::factory()->create(['router_id' => $pool->router_id, 'jenis_koneksi' => JenisKoneksi::Pppoe]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Edit::class, ['pool' => $pool])
+        ->set('nama_pool', 'Pool-Home')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect($pool->fresh()->nama_pool)->toBe('Pool-Home');
+});
+
+test('pool bukan terakhir di router berlayanan PPPoE dapat dihapus', function () {
+    $pool = IpPool::factory()->create();
+    IpPool::factory()->create(['router_id' => $pool->router_id]);
+    LayananPelanggan::factory()->create(['router_id' => $pool->router_id, 'jenis_koneksi' => JenisKoneksi::Pppoe]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->call('confirmDelete', $pool->id)
+        ->call('deleteIpPool');
+
+    expect(IpPool::find($pool->id))->toBeNull();
 });
 
 test('can reassign ip pool without existing customer service relations to another router', function () {

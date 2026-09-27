@@ -619,7 +619,7 @@ class Show extends Component
             'perumahan.kelurahan.kecamatan.kota',
             'layanans.paketLayanan.profilBandwidth',
             'layanans.router',
-            'layanans.ipPool',
+            'layanans.router.ipPools',
             'layanans.ipPubliks',
             'layanans.odpPort.odp',
             'media',

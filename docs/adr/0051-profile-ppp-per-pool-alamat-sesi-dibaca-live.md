@@ -1,6 +1,6 @@
 # ADR 0051: Profile PPP per Pool, Secret Dinamis Tanpa Alamat, Alamat Sesi Dibaca Live
 
-**Status**: Accepted — menggantikan ADR-0019, 0022, 0033, 0044.
+**Status**: Accepted — menggantikan ADR-0019, 0022, 0033, 0044. Poin 1 (Profile per Bandwidth × Pool) digantikan ADR-0060.
 
 ## Konteks
 ADR-0044 membuat UNMS mengalokasikan IP literal sendiri (`ip_dynamic`, `allocateDynamicIp()`) karena `/ppp/secret` menolak nama pool di `remote-address`, dan menolak opsi pool di PPP Profile sebab satu profile per profil bandwidth dipakai bersama semua pool router. Akibatnya UNMS menjadi pemegang state alokasi IP yang sebenarnya dimiliki RouterOS: bisa drift terhadap `/ip/pool/used` dan `/ppp/active`, dan nilai `local/remote-address` harus terus direkonsiliasi ke setiap secret.

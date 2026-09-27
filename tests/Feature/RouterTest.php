@@ -13,6 +13,7 @@ use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
+use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\User;
 use App\Services\Mikrotik\MikrotikService;
@@ -245,9 +246,9 @@ test('can delete router and move its layanans to another router', function () {
     $routerB = Router::factory()->create(['nama_router' => 'ROUTER_B']);
 
     $pelanggan = Pelanggan::factory()->create();
-    $paket = PaketLayanan::factory()->create();
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
 
-    $poolB = IpPool::factory()->create(['router_id' => $routerB->id]);
+    $poolB = IpPool::factory()->create(['router_id' => $routerB->id, 'nama_pool' => 'Pool-Rumah']);
 
     $layanan = LayananPelanggan::factory()->create([
         'pelanggan_id' => $pelanggan->id,
@@ -259,14 +260,13 @@ test('can delete router and move its layanans to another router', function () {
         ->test(Index::class)
         ->call('confirmDelete', $routerA->id)
         ->set('targetRouterId', $routerB->id)
-        ->set('targetPoolId', $poolB->id)
         ->call('deleteRouter')
         ->assertSet('deletingId', null)
         ->assertHasNoErrors();
 
     expect(Router::find($routerA->id))->toBeNull()
         ->and($layanan->fresh()->router_id)->toBe($routerB->id)
-        ->and($layanan->fresh()->ip_pool_id)->toBe($poolB->id);
+        ->and($layanan->fresh()->ipPool?->id)->toBe($poolB->id);
 
     // Secret di router lama dibersihkan lewat antrean.
     Queue::assertPushed(CleanupPppSecretOnOldRouterJob::class, fn (CleanupPppSecretOnOldRouterJob $job) => $job->oldRouterId === $routerA->id);

@@ -65,7 +65,7 @@ beforeEach(function () {
     ]);
 
     $this->router = Router::factory()->online()->create();
-    $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id]);
+    $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id, 'nama_pool' => 'Pool-Rumah']);
 
     $this->odp = Odp::factory()->create();
     $this->odpPort = OdpPort::factory()->create(['odp_id' => $this->odp->id]);
@@ -176,12 +176,11 @@ test('non-noc tanpa permission aktivasi tidak bisa menjalankan Aktivasi Pemasang
     Livewire::actingAs($this->teknisi)
         ->test(Show::class, ['ticket' => $ticket->fresh()])
         ->set('aktivasiRouterId', $this->router->id)
-        ->set('aktivasiIpPoolId', $this->ipPool->id)
         ->call('prosesAktivasi')
         ->assertForbidden();
 });
 
-test('NOC dapat menjalankan Aktivasi Pemasangan: mengisi router, ip pool, ppp username, dan mengikat port ODP', function () {
+test('NOC dapat menjalankan Aktivasi Pemasangan: mengisi router (ip pool dari profil), ppp username, dan mengikat port ODP', function () {
     $ticket = buatTicketPemasangan($this->admin, $this->pelanggan, $this->layanan, $this->teknisi);
 
     Livewire::actingAs($this->teknisi)
@@ -194,13 +193,12 @@ test('NOC dapat menjalankan Aktivasi Pemasangan: mengisi router, ip pool, ppp us
     Livewire::actingAs($this->noc)
         ->test(Show::class, ['ticket' => $ticket->fresh()])
         ->set('aktivasiRouterId', $this->router->id)
-        ->set('aktivasiIpPoolId', $this->ipPool->id)
         ->call('prosesAktivasi')
         ->assertHasNoErrors();
 
     $this->layanan->refresh();
     expect($this->layanan->router_id)->toBe($this->router->id)
-        ->and($this->layanan->ip_pool_id)->toBe($this->ipPool->id)
+        ->and($this->layanan->ipPool?->id)->toBe($this->ipPool->id)
         ->and($this->layanan->ppp_username)->not->toBeNull()
         ->and($this->layanan->ppp_username)->toMatch('/^'.preg_quote($this->pelanggan->no_reg, '/').'_[0-9]{5}$/')
         ->and($this->layanan->odp_port_id)->toBe($this->odpPort->id);
@@ -232,7 +230,6 @@ test('aktivasi ditolak jika pelanggan sudah punya layanan aktif dengan router da
     Livewire::actingAs($this->noc)
         ->test(Show::class, ['ticket' => $ticket->fresh()])
         ->set('aktivasiRouterId', $this->router->id)
-        ->set('aktivasiIpPoolId', $this->ipPool->id)
         ->call('prosesAktivasi')
         ->assertHasErrors(['aktivasiRouterId']);
 
@@ -264,7 +261,6 @@ test('alur lengkap: keempat divisi selesai memicu status ticket otomatis Selesai
     Livewire::actingAs($this->noc)
         ->test(Show::class, ['ticket' => $ticket->fresh()])
         ->set('aktivasiRouterId', $this->router->id)
-        ->set('aktivasiIpPoolId', $this->ipPool->id)
         ->call('prosesAktivasi')
         ->assertHasNoErrors();
 
@@ -328,7 +324,6 @@ test('Aktivasi yang gagal karena router tak terjangkau mengantrekan provisi ulan
     Livewire::actingAs($this->noc)
         ->test(Show::class, ['ticket' => $ticket->fresh()])
         ->set('aktivasiRouterId', $this->router->id)
-        ->set('aktivasiIpPoolId', $this->ipPool->id)
         ->call('prosesAktivasi')
         ->assertHasNoErrors()
         ->assertSee('Provisi ke router gagal')
@@ -356,7 +351,6 @@ test('Aktivasi yang gagal karena galat data tidak mengantrekan retry yang pasti 
     Livewire::actingAs($this->noc)
         ->test(Show::class, ['ticket' => $ticket->fresh()])
         ->set('aktivasiRouterId', $this->router->id)
-        ->set('aktivasiIpPoolId', $this->ipPool->id)
         ->call('prosesAktivasi');
 
     Queue::assertNotPushed(ProvisionPppoeAccountJob::class);

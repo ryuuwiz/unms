@@ -132,8 +132,7 @@ test('IP publik terpakai tidak dapat dihapus dari inventaris', function () {
 });
 
 test('menetapkan IP publik menyalin harga, mengubah secret jadi literal, dan memutus sesi', function () {
-    $pool = IpPool::factory()->create(['router_id' => $this->router->id]);
-    $layanan = LayananPelanggan::factory()->create(['router_id' => $this->router->id, 'ip_pool_id' => $pool->id]);
+    $layanan = LayananPelanggan::factory()->create(['router_id' => $this->router->id]);
     $ip = IpPublik::factory()->create(['router_id' => $this->router->id, 'harga_bulanan' => 60000, 'gateway' => '203.0.113.1']);
 
     app(TetapkanIpPublikAction::class)->execute($ip, $layanan);
@@ -142,7 +141,6 @@ test('menetapkan IP publik menyalin harga, mengubah secret jadi literal, dan mem
     expect((float) $ip->fresh()->harga_ditagih)->toBe(60000.0)
         ->and($layanan->resolveRemoteAddress())->toBe($ip->alamat_ip)
         ->and($layanan->resolveLocalAddress())->toBe('203.0.113.1')
-        ->and($layanan->profilePool())->toBeNull()
         ->and($layanan->hargaTambahan())->toBe(60000.0);
 
     Queue::assertPushed(ProvisionPppoeAccountJob::class, fn ($job) => $job->kickActive && $job->layanan->is($layanan));
@@ -212,8 +210,8 @@ test('layanan dihapus melepas IP publik', function () {
 });
 
 test('form edit layanan menetapkan dan melepas IP publik', function () {
-    $pool = IpPool::factory()->create(['router_id' => $this->router->id]);
-    $layanan = LayananPelanggan::factory()->create(['router_id' => $this->router->id, 'ip_pool_id' => $pool->id, 'ip_static' => null]);
+    IpPool::factory()->create(['router_id' => $this->router->id]);
+    $layanan = LayananPelanggan::factory()->create(['router_id' => $this->router->id, 'ip_static' => null]);
     $ip = IpPublik::factory()->create(['router_id' => $this->router->id, 'harga_bulanan' => 40000]);
 
     Livewire::actingAs($this->admin)

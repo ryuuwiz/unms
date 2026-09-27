@@ -36,12 +36,6 @@ class LayananPelangganObserver
                     'Layanan dipindah ke router lain',
                 );
             }
-
-            // Reset ip_pool_id karena pool milik router lama tidak berlaku di router baru,
-            // kecuali pool baru dipilih pada penyimpanan yang sama (mis. form Edit).
-            if (! $layanan->isDirty('ip_pool_id')) {
-                $layanan->ip_pool_id = null;
-            }
         }
 
         // 2. Jika ppp_username berubah pada router yang sama: hapus username lama
@@ -74,12 +68,12 @@ class LayananPelangganObserver
             UpdatePppoeProfileJob::dispatch($layanan);
         }
 
-        // Username/router/pool/IP statis berubah: secret lama sudah dibersihkan (updating), jadi provisi ulang
+        // Username/router/IP statis berubah: secret lama sudah dibersihkan (updating), jadi provisi ulang
         // sekarang + putus sesi agar tidak ada jendela outage sampai rekonsiliasi 15 menit. Tanpa IP Pool
-        // (PPPoE) provisi pasti ditolak, jadi ditunda sampai staf mengisinya.
+        // turunan (PPPoE) provisi pasti ditolak, jadi ditunda sampai router/profil punya pool yang cocok.
         if (! $layanan->trashed()
-            && $layanan->wasChanged(['ppp_username', 'router_id', 'ip_pool_id', 'ip_static'])
-            && ($layanan->ip_pool_id || $layanan->jenis_koneksi === JenisKoneksi::IpStatic)) {
+            && $layanan->wasChanged(['ppp_username', 'router_id', 'ip_static'])
+            && ($layanan->ipPool || $layanan->jenis_koneksi === JenisKoneksi::IpStatic)) {
             TetapkanIpPublikAction::reprovision($layanan);
         }
     }

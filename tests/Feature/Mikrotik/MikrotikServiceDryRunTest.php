@@ -37,7 +37,6 @@ test('autoRecoverPppSecrets dryRun=true logs remote-address drift as a change wi
         'paket_layanan_id' => $paket->id,
         'ppp_username' => 'dry-run-user',
         'ppp_password_terenkripsi' => 'secret123',
-        'ip_pool_id' => null,
         'ip_static' => '10.20.30.5',
         'status' => StatusLayanan::Aktif,
     ]);
@@ -95,7 +94,6 @@ test('autoRecoverPppSecrets dryRun=true logs disabled-state drift without toggli
         'paket_layanan_id' => $paket->id,
         'ppp_username' => 'dry-run-suspend-user',
         'ppp_password_terenkripsi' => 'secret123',
-        'ip_pool_id' => null,
         'ip_static' => '10.20.30.5',
         'status' => StatusLayanan::Suspend,
     ]);
@@ -145,7 +143,6 @@ test('autoRecoverPppSecrets defaults to dryRun=false and keeps existing real-wri
         'paket_layanan_id' => $paket->id,
         'ppp_username' => 'real-run-user',
         'ppp_password_terenkripsi' => 'secret123',
-        'ip_pool_id' => null,
         'ip_static' => '10.20.30.5',
         'status' => StatusLayanan::Aktif,
     ]);

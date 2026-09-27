@@ -110,6 +110,10 @@ class SyncIpPoolToRouterJob implements ShouldBeUnique, ShouldQueue
         try {
             $result = $mikrotikService->syncIpPool($router, $this->ipPool);
 
+            // Pool baru/diubah bisa menggeser Rantai IP Pool Router dan kepalanya yang dirujuk profile (ADR-0060).
+            $mikrotikService->syncRantaiIpPool($router);
+            $mikrotikService->syncAllBandwidthProfiles($router);
+
             $log->update([
                 'status' => MikrotikJobStatus::Success,
                 'finished_at' => Carbon::now(),

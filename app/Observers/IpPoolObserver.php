@@ -8,11 +8,13 @@ use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
 use App\Models\IpPool;
 use App\Models\Router;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Bus;
 
 class IpPoolObserver
 {
     /**
-     * Handle the IpPool "saved" event.
+     * Sinkronkan pool (dan Rantai IP Pool Router) ke router. Rename bebas (ADR-0060): pool bernama lama baru
+     * dibersihkan setelah pool baru, rantai, dan profile menunjuk nama baru.
      */
     public function saved(IpPool $ipPool): void
     {
@@ -22,9 +24,17 @@ class IpPoolObserver
 
         $router = $ipPool->router;
 
-        if ($router->status_koneksi === StatusRouter::Online) {
-            SyncIpPoolToRouterJob::dispatch($ipPool);
+        if ($router->status_koneksi !== StatusRouter::Online) {
+            return;
         }
+
+        $jobs = [new SyncIpPoolToRouterJob($ipPool)];
+
+        if ($ipPool->wasChanged('nama_pool') && ! $ipPool->wasChanged('router_id')) {
+            $jobs[] = new RemoveIpPoolFromRouterJob($ipPool->router_id, (string) $ipPool->getOriginal('nama_pool'), Auth::id() ?? 'system:tanpa-user', 'IP Pool di-rename');
+        }
+
+        Bus::chain($jobs)->dispatch();
     }
 
     /**
@@ -38,7 +48,7 @@ class IpPoolObserver
     }
 
     /**
-     * Pool dihapus (hanya mungkin bila tidak dipakai layanan): bersihkan pool, queue, dan profile per pool di router.
+     * Pool dihapus: rantai & profile dialihkan, lalu pool, queue, dan profile lama `*@{pool}` dibersihkan di router.
      */
     public function deleted(IpPool $ipPool): void
     {

@@ -11,15 +11,14 @@ class UbahPaketLayananAction
      * oleh modal Proses ADMIN (hanya paket) dan Proses NOC (paket + router) -- lihat CONTEXT.md
      * "Proses Divisi (NOC/Admin/Customer Service)". Re-provisioning profil MikroTik terpicu
      * otomatis lewat LayananPelangganObserver::updated() saat paket_layanan_id berubah, jadi
-     * tidak ada logic MikroTik di sini. IP Pool ikut disimpan pada update yang sama agar tidak
-     * di-reset observer saat router berpindah (pool router lama tidak berlaku di router baru).
+     * tidak ada logic MikroTik di sini. IP Pool ikut berpindah sendiri karena mengikuti
+     * Rantai IP Pool Router (ADR-0060).
      */
-    public function execute(LayananPelanggan $layanan, int $paketLayananId, ?int $routerId = null, ?int $ipPoolId = null): LayananPelanggan
+    public function execute(LayananPelanggan $layanan, int $paketLayananId, ?int $routerId = null): LayananPelanggan
     {
         $layanan->update(array_filter([
             'paket_layanan_id' => $paketLayananId,
             'router_id' => $routerId,
-            'ip_pool_id' => $ipPoolId,
         ], fn ($v) => $v !== null));
 
         return $layanan->fresh();

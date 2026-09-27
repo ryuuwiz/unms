@@ -304,26 +304,26 @@ class MikrotikService
     /**
      * Pastikan PPP Profile untuk profil bandwidth tertentu telah tersedia di RouterOS.
      *
-     * Dengan $pool, profile bernama "{bandwidth}@{pool}" dan membawa local-address (gateway pool) +
-     * remote-address (nama pool) sehingga RouterOS yang mengalokasikan IP (lihat CONTEXT.md
-     * "Profile PPP per Pool"). Pool harus sudah ada di `/ip/pool` router sebelum profile ini dipakai.
+     * Satu profile "{bandwidth}" per router yang membawa local-address (gateway) + remote-address (nama)
+     * kepala Rantai IP Pool Router, sehingga RouterOS yang mengalokasikan IP (CONTEXT.md "Profile PPP per
+     * Router"). Kepala rantai harus sudah ada di `/ip/pool` router sebelum profile ini dipakai.
      *
      * @throws MikrotikException
      */
-    public function ensurePppProfile(Router $router, ProfilBandwidth $profil, ?Client $client = null, ?IpPool $pool = null): string
+    public function ensurePppProfile(Router $router, ProfilBandwidth $profil, ?Client $client = null): string
     {
         if (empty($profil->nama_bandwidth)) {
             throw new MikrotikException('Nama profil bandwidth di UNMS kosong. Sinkronisasi PPP Profile dibatalkan.');
         }
 
-        $profileName = $profil->pppProfileName($pool);
+        $profileName = $profil->pppProfileName();
         $cacheKey = "{$router->id}:{$profileName}";
 
         if (isset($this->ensuredProfileCache[$cacheKey])) {
             return $profileName;
         }
 
-        $attributes = $this->pppProfileAttributes($profil, $pool);
+        $attributes = $this->pppProfileAttributes($profil, $router->ipPools()->orderBy('id')->first());
 
         try {
             $client = $client ?? $this->getClient($router);
@@ -452,26 +452,21 @@ class MikrotikService
                 throw new MikrotikException("Layanan {$username} tidak memiliki paket layanan atau profil bandwidth yang valid di UNMS. Provisi dibatalkan.");
             }
 
-            // 3. Strict Guard: Pastikan IP Pool terdefinisi untuk PPPoE dinamis dan terdaftar pada router yang sama
-            if ($layanan->jenis_koneksi === JenisKoneksi::Pppoe) {
-                if (! $layanan->ipPool) {
-                    throw new MikrotikException("Layanan {$username} dengan jenis koneksi PPPoE wajib memiliki alokasi IP Pool yang valid dari router terkait. Buka Edit layanan dan pilih IP Pool milik router {$router->nama_router}, lalu provisi ulang.");
-                }
-
-                if ($layanan->ipPool->router_id !== $router->id) {
-                    throw new MikrotikException("Layanan {$username} memiliki IP Pool '{$layanan->ipPool->nama_pool}' yang terdaftar pada router lain, bukan {$router->nama_router}. Perbaiki alokasi IP Pool layanan sebelum provisi.");
-                }
+            // 3. Strict Guard: PPPoE dinamis butuh Rantai IP Pool Router (ADR-0060) -- router tanpa pool tidak bisa mengalokasikan IP
+            $kepalaPool = $router->ipPools()->orderBy('id')->first();
+            if ($layanan->jenis_koneksi === JenisKoneksi::Pppoe && ! $kepalaPool) {
+                throw new MikrotikException("Router {$router->nama_router} belum punya IP Pool untuk layanan PPPoE {$username}. Buat IP Pool untuk router ini di menu IP Pool, lalu provisi ulang.");
             }
 
             $client = $client ?? $this->getClient($router);
 
-            // 4. Auto-Ensure IP Pool di RouterOS -- harus ada sebelum Profile PPP per Pool merujuknya.
-            if ($layanan->ipPool && $layanan->ipPool->router_id === $router->id) {
-                $this->syncIpPool($router, $layanan->ipPool, $client);
+            // 4. Auto-Ensure kepala rantai di RouterOS -- harus ada sebelum Profile PPP per Router merujuknya.
+            if ($kepalaPool) {
+                $this->syncIpPool($router, $kepalaPool, $client);
             }
 
-            // 5. Profile: per pool untuk PPPoE dinamis (RouterOS yang mengalokasikan IP), polos untuk alamat literal.
-            $profileName = $this->ensurePppProfile($router, $profil, $client, $layanan->profilePool());
+            // 5. Profile per Router: PPPoE dinamis mendapat IP dari rantai, alamat literal di secret menimpanya.
+            $profileName = $this->ensurePppProfile($router, $profil, $client);
 
             $pelangganNama = $layanan->pelanggan ? $layanan->pelanggan->nama_depan.' '.$layanan->pelanggan->nama_belakang : 'Pelanggan';
             $comment = "UNMS: {$layanan->site_id} - {$pelangganNama}";
@@ -666,7 +661,7 @@ class MikrotikService
             }
 
             $client = $client ?? $this->getClient($router);
-            $profileName = $this->ensurePppProfile($router, $profil, $client, $layanan->profilePool());
+            $profileName = $this->ensurePppProfile($router, $profil, $client);
 
             $findQuery = (new Query('/ppp/secret/print'))->where('name', $username);
             $existing = $client->query($findQuery)->read();
@@ -1040,6 +1035,32 @@ class MikrotikService
     }
 
     /**
+     * Rangkai seluruh IP Pool router lewat `next-pool` (Rantai IP Pool Router, ADR-0060): tiap pool menunjuk
+     * pool berikutnya menurut urutan pembuatan, pool terakhir `none`. Pool yang belum ada di router dilewati.
+     *
+     * @throws MikrotikException
+     */
+    public function syncRantaiIpPool(Router $router, ?Client $client = null): void
+    {
+        try {
+            $client = $client ?? $this->getClient($router);
+            // Bukan pluck('.id'): kunci bertitik dibaca sebagai path bersarang.
+            $idByName = collect($client->query(new Query('/ip/pool/print'))->read())
+                ->mapWithKeys(fn (array $pool) => [$pool['name'] ?? '' => $pool['.id'] ?? null]);
+            $rantai = $router->ipPools()->orderBy('id')->pluck('nama_pool')
+                ->filter(fn (string $nama) => isset($idByName[$nama]))
+                ->values();
+
+            foreach ($rantai as $i => $nama) {
+                $setQuery = (new Query('/ip/pool/set'))->equal('.id', $idByName[$nama])->equal('next-pool', $rantai[$i + 1] ?? 'none');
+                $this->assertNoTrap($client->query($setQuery)->read(), "rantai pool {$nama}");
+            }
+        } catch (Throwable $e) {
+            throw new MikrotikException("Gagal menyusun rantai IP Pool di router {$router->nama_router}: {$e->getMessage()}", (int) $e->getCode(), $e);
+        }
+    }
+
+    /**
      * Sinkronisasikan konfigurasi IP Pool & Simple Queue ke RouterOS.
      *
      * @return array<string, mixed>
@@ -1259,7 +1280,7 @@ class MikrotikService
         }
 
         // 3. Ambil seluruh layanan pelanggan UNMS yang terhubung ke router ini
-        $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan', 'ipPool', 'ipPubliks'])
+        $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan', 'router.ipPools', 'ipPubliks'])
             ->where('router_id', $router->id)
             ->whereIn('status', [StatusLayanan::Aktif, StatusLayanan::Suspend, StatusLayanan::Proses])
             ->get();
@@ -1286,7 +1307,7 @@ class MikrotikService
                 continue; // Lewati jika tidak ada profil bandwidth yang valid di UNMS
             }
 
-            $expectedProfile = $profil->pppProfileName($layanan->profilePool());
+            $expectedProfile = $profil->pppProfileName();
             $expectedPassword = (string) $layanan->ppp_password_terenkripsi;
             $expectedRemoteAddress = (string) ($layanan->resolveRemoteAddress() ?? '');
             $expectedLocalAddress = (string) ($layanan->resolveLocalAddress() ?? '');
@@ -1563,8 +1584,8 @@ class MikrotikService
     }
 
     /**
-     * Sinkronisasikan seluruh profil bandwidth yang ada di UNMS ke RouterOS: profile polos
-     * (alamat literal) dan satu Profile PPP per Pool untuk setiap IP Pool router ini.
+     * Sinkronisasikan seluruh profil bandwidth yang ada di UNMS ke RouterOS: satu Profile PPP per Router
+     * untuk setiap profil, merujuk kepala Rantai IP Pool Router (ADR-0060).
      *
      * @return array{total: int, synced: int, errors: array<string>}
      *
@@ -1573,7 +1594,7 @@ class MikrotikService
     public function syncAllBandwidthProfiles(Router $router, ?Client $client = null): array
     {
         $profils = ProfilBandwidth::all();
-        $pools = $router->ipPools;
+        $kepalaPool = $router->ipPools()->orderBy('id')->first();
         $synced = 0;
         $errors = [];
 
@@ -1585,18 +1606,7 @@ class MikrotikService
             ];
         }
 
-        /** @var array<int, array{ProfilBandwidth, IpPool|null}> $targets */
-        $targets = [];
-        foreach ($profils as $profil) {
-            if (empty($profil->nama_bandwidth)) {
-                continue;
-            }
-
-            $targets[] = [$profil, null];
-            foreach ($pools as $pool) {
-                $targets[] = [$profil, $pool];
-            }
-        }
+        $targets = $profils->filter(fn (ProfilBandwidth $profil) => ! empty($profil->nama_bandwidth));
 
         try {
             $client = $client ?? $this->getClient($router);
@@ -1613,9 +1623,9 @@ class MikrotikService
             }
 
             // 2. Sinkronisasikan profil UNMS ke RouterOS
-            foreach ($targets as [$profil, $pool]) {
-                $profileName = $profil->pppProfileName($pool);
-                $attributes = $this->pppProfileAttributes($profil, $pool);
+            foreach ($targets as $profil) {
+                $profileName = $profil->pppProfileName();
+                $attributes = $this->pppProfileAttributes($profil, $kepalaPool);
 
                 try {
                     if (isset($existingByName[$profileName])) {
@@ -1673,18 +1683,18 @@ class MikrotikService
             }
         } catch (Throwable $e) {
             // Fallback ke pemanggilan per-profil jika bulk query mengalami kendala
-            foreach ($targets as [$profil, $pool]) {
+            foreach ($targets as $profil) {
                 try {
-                    $this->ensurePppProfile($router, $profil, $client, $pool);
+                    $this->ensurePppProfile($router, $profil, $client);
                     $synced++;
                 } catch (Throwable $pe) {
-                    $errors[] = "Gagal sinkron profil {$profil->pppProfileName($pool)}: {$pe->getMessage()}";
+                    $errors[] = "Gagal sinkron profil {$profil->pppProfileName()}: {$pe->getMessage()}";
                 }
             }
         }
 
         return [
-            'total' => count($targets),
+            'total' => $targets->count(),
             'synced' => $synced,
             'errors' => $errors,
         ];
@@ -1875,6 +1885,12 @@ class MikrotikService
                 }
             }
 
+            try {
+                $this->syncRantaiIpPool($router, $client);
+            } catch (Throwable $e) {
+                $poolErrors[] = $e->getMessage();
+            }
+
             $poolResult = [
                 'total' => $ipPools->count(),
                 'synced' => $poolSynced,
@@ -1886,7 +1902,7 @@ class MikrotikService
 
             // 4. Sinkronisasi PPP Secrets & Status Layanan Pelanggan
             if ($force) {
-                $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan', 'ipPool', 'ipPubliks'])
+                $layanans = LayananPelanggan::with(['paketLayanan.profilBandwidth', 'pelanggan', 'router.ipPools', 'ipPubliks'])
                     ->where('router_id', $router->id)
                     ->get();
 

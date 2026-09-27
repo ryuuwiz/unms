@@ -205,6 +205,8 @@ test('SyncIpPoolToRouterJob syncs pool and logs success', function () {
             Mockery::on(fn ($p) => $p->id === $pool->id)
         )
         ->andReturn(['status' => 'success']);
+    $mockService->shouldReceive('syncRantaiIpPool')->once();
+    $mockService->shouldReceive('syncAllBandwidthProfiles')->once()->andReturn(['total' => 0, 'synced' => 0, 'errors' => []]);
 
     $job = new SyncIpPoolToRouterJob($pool);
     $job->handle($mockService);

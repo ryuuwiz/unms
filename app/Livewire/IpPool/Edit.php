@@ -94,20 +94,7 @@ class Edit extends Component
         $this->validate();
 
         if ($this->router_id !== $pool->router_id && ! $pool->canBeDeleted()) {
-            $count = $pool->layanans()->withTrashed()->count();
-            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} masih digunakan oleh {$count} layanan pelanggan dan tidak dapat dipindahkan ke router lain.");
-
-            return;
-        }
-
-        // Nama dan network/CIDR menjadi nama Profile PPP per Pool, remote-address, dan gateway di router;
-        // mengubahnya saat dipakai layanan meninggalkan pool/profile ganda dan risiko IP ganda.
-        if (! $pool->canBeDeleted() && (
-            $this->nama_pool !== $pool->nama_pool
-            || $this->ip_network !== $pool->ip_network
-            || (int) $this->cidr !== (int) $pool->cidr
-        )) {
-            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} sedang dipakai layanan pelanggan: nama dan network/CIDR tidak dapat diubah. Buat pool baru lalu pindahkan layanannya.");
+            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} adalah pool terakhir di router ini yang masih dipakai layanan PPPoE dinamis dan tidak dapat dipindahkan ke router lain. Tambahkan pool lain di router ini terlebih dahulu.");
 
             return;
         }

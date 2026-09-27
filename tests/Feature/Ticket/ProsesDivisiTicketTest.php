@@ -45,14 +45,13 @@ beforeEach(function () {
     $this->paketLain = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
 
     $this->router = Router::factory()->online()->create();
-    $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id]);
+    $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id, 'nama_pool' => 'Pool-Rumah']);
 
     $this->layanan = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
         'status' => StatusLayanan::Aktif,
         'router_id' => $this->router->id,
-        'ip_pool_id' => $this->ipPool->id,
         'ppp_username' => 'sudah_ada_123',
     ]);
 
@@ -109,9 +108,9 @@ test('NOC memproses tiket: pilih Proses Registrasi Mikrotik memanggil RouterOS d
     expect(MikrotikJobLog::where('status', MikrotikJobStatus::Success)->count())->toBe(1);
 });
 
-test('NOC memilih router baru ikut menyimpan IP Pool sehingga provisi menerima layanan dengan IP Pool router tsb', function () {
+test('NOC memilih router baru dan IP Pool ikut berpindah ke rantai pool router tsb', function () {
     $routerBaru = Router::factory()->online()->create();
-    $poolBaru = IpPool::factory()->create(['router_id' => $routerBaru->id]);
+    $poolBaru = IpPool::factory()->create(['router_id' => $routerBaru->id, 'nama_pool' => 'Pool-Rumah']);
 
     $mockService = Mockery::mock(MikrotikService::class);
     $this->app->instance(MikrotikService::class, $mockService);
@@ -132,19 +131,17 @@ test('NOC memilih router baru ikut menyimpan IP Pool sehingga provisi menerima l
         ->call('openProsesModal', DivisiTicket::Noc->value)
         ->set('prosesModeMikrotik', 'proses')
         ->set('prosesRouterId', $routerBaru->id)
-        ->assertSet('prosesIpPoolId', $poolBaru->id)
         ->set('prosesCatatan', 'Pindah router karena gangguan.')
         ->call('prosesDivisiSubmit')
         ->assertHasNoErrors();
 
     expect($this->layanan->fresh())
         ->router_id->toBe($routerBaru->id)
-        ->ip_pool_id->toBe($poolBaru->id);
+        ->and($this->layanan->fresh()->ipPool?->id)->toBe($poolBaru->id);
 });
 
-test('NOC wajib memilih IP Pool milik router terpilih untuk layanan PPPoE', function () {
+test('Proses NOC ditolak bila router terpilih belum punya IP Pool', function () {
     $routerLain = Router::factory()->online()->create();
-    $poolRouterLain = IpPool::factory()->create(['router_id' => $routerLain->id]);
 
     $mockService = Mockery::mock(MikrotikService::class);
     $this->app->instance(MikrotikService::class, $mockService);
@@ -155,8 +152,9 @@ test('NOC wajib memilih IP Pool milik router terpilih untuk layanan PPPoE', func
         ->call('openProsesModal', DivisiTicket::Noc->value)
         ->set('prosesCatatan', 'Registrasi PPP di router.');
 
-    $component->set('prosesIpPoolId', null)->call('prosesDivisiSubmit')->assertHasErrors(['prosesIpPoolId' => 'required']);
-    $component->set('prosesIpPoolId', $poolRouterLain->id)->call('prosesDivisiSubmit')->assertHasErrors(['prosesIpPoolId' => 'exists']);
+    $component->set('prosesRouterId', $routerLain->id)->call('prosesDivisiSubmit')->assertHasErrors(['prosesRouterId']);
+
+    expect($this->layanan->fresh()->router_id)->toBe($this->router->id);
 });
 
 test('NOC memilih Paket Berbeda mengubah paket layanan lewat UbahPaketLayananAction', function () {

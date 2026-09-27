@@ -50,7 +50,7 @@ beforeEach(function () {
         'masa_aktif_satuan' => 'bulan',
     ]);
     $this->router = Router::factory()->online()->create();
-    $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id]);
+    $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id, 'nama_pool' => 'Pool-Rumah']);
 });
 
 test('admin can create layanan pelanggan komersial saja tanpa router/ip pool/ppp username', function () {
@@ -72,7 +72,6 @@ test('admin can create layanan pelanggan komersial saja tanpa router/ip pool/ppp
 
     expect($layanan)->not->toBeNull()
         ->and($layanan->router_id)->toBeNull()
-        ->and($layanan->ip_pool_id)->toBeNull()
         ->and($layanan->ppp_username)->toBeNull()
         ->and($layanan->ppp_password_terenkripsi)->toBeNull()
         ->and($layanan->status)->toBe(StatusLayanan::Proses)
@@ -119,13 +118,12 @@ test('admin dapat mengedit layanan meskipun router terkait sedang offline', func
         'nama_router' => 'Router-Offline-Edit',
         'status_koneksi' => StatusRouter::Offline,
     ]);
-    $offlinePool = IpPool::factory()->create(['router_id' => $offlineRouter->id]);
+    IpPool::factory()->create(['router_id' => $offlineRouter->id, 'nama_pool' => 'Pool-Rumah']);
 
     $layanan = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
         'router_id' => $offlineRouter->id,
-        'ip_pool_id' => $offlinePool->id,
         'jenis_koneksi' => JenisKoneksi::Pppoe,
         'ppp_username' => "{$this->pelanggan->no_reg}_00001",
     ]);
@@ -149,7 +147,6 @@ test('admin can edit layanan pelanggan and switch to ip_static', function () {
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
         'router_id' => $this->router->id,
-        'ip_pool_id' => $this->ipPool->id,
         'jenis_koneksi' => JenisKoneksi::Pppoe,
         'ppp_username' => "{$this->pelanggan->no_reg}_00001",
     ]);
@@ -164,31 +161,30 @@ test('admin can edit layanan pelanggan and switch to ip_static', function () {
 
     $layanan->refresh();
     expect($layanan->jenis_koneksi)->toBe(JenisKoneksi::IpStatic)
-        ->and($layanan->ip_static)->toBe('10.20.30.40')
-        ->and($layanan->ip_pool_id)->toBeNull();
+        ->and($layanan->ip_static)->toBe('10.20.30.40');
 
     // Alamat berubah: provisi ulang diantrekan.
     Queue::assertPushed(ProvisionPppoeAccountJob::class);
 });
 
-test('validasi gagal jika ip_pool_id dari router lain dipilih pada edit', function () {
+test('validasi gagal bila router tujuan belum punya IP Pool pada edit layanan PPPoE', function () {
     $routerLain = Router::factory()->online()->create();
-    $poolRouterLain = IpPool::factory()->create(['router_id' => $routerLain->id]);
 
     $layanan = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
         'router_id' => $this->router->id,
-        'ip_pool_id' => $this->ipPool->id,
         'jenis_koneksi' => JenisKoneksi::Pppoe,
         'ppp_username' => "{$this->pelanggan->no_reg}_00001",
     ]);
 
     Livewire::actingAs($this->admin)
         ->test(Edit::class, ['layananPelanggan' => $layanan])
-        ->set('ip_pool_id', $poolRouterLain->id)
+        ->set('router_id', $routerLain->id)
         ->call('save')
-        ->assertHasErrors(['ip_pool_id']);
+        ->assertHasErrors(['router_id']);
+
+    expect($layanan->fresh()->router_id)->toBe($this->router->id);
 });
 
 test('admin can regenerate ppp password and it is revealed once on the edit page', function () {

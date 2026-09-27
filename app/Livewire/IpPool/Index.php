@@ -52,8 +52,7 @@ class Index extends Component
 
         if (! $pool->canBeDeleted()) {
             $this->deletingId = null;
-            $count = $pool->layanans()->withTrashed()->count();
-            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} masih digunakan oleh {$count} layanan pelanggan dan tidak dapat dihapus.");
+            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} adalah pool terakhir di router ini yang masih dipakai layanan PPPoE dinamis dan tidak dapat dihapus. Tambahkan pool lain di router ini terlebih dahulu.");
 
             return;
         }
@@ -82,7 +81,6 @@ class Index extends Component
     {
         $pools = IpPool::query()
             ->with('router')
-            ->withCount('layanans')
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('nama_pool', 'like', "%{$this->search}%")
                     ->orWhere('ip_network', 'like', "%{$this->search}%");
@@ -102,7 +100,7 @@ class Index extends Component
         }
 
         $poolToDelete = $this->deletingId
-            ? IpPool::withCount('layanans')->find($this->deletingId)
+            ? IpPool::find($this->deletingId)
             : null;
 
         return view('livewire.ip-pool.index', [

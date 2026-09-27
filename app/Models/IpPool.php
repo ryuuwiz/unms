@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\JenisKoneksi;
 use Database\Factories\IpPoolFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -27,7 +27,6 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Router $router
- * @property-read Collection<int, LayananPelanggan> $layanans
  */
 #[Fillable([
     'router_id',
@@ -44,6 +43,8 @@ use Illuminate\Support\Carbon;
 ])]
 class IpPool extends Model
 {
+    public const PESAN_ROUTER_TANPA_POOL = 'Router ini belum punya IP Pool untuk layanan PPPoE. Buat IP Pool untuk router ini di menu IP Pool.';
+
     /** @use HasFactory<IpPoolFactory> */
     use HasFactory;
 
@@ -72,16 +73,6 @@ class IpPool extends Model
     public function router(): BelongsTo
     {
         return $this->belongsTo(Router::class, 'router_id');
-    }
-
-    /**
-     * Relasi ke seluruh layanan pelanggan yang menggunakan IP Pool ini.
-     *
-     * @return HasMany<LayananPelanggan, $this>
-     */
-    public function layanans(): HasMany
-    {
-        return $this->hasMany(LayananPelanggan::class, 'ip_pool_id');
     }
 
     /**
@@ -115,11 +106,13 @@ class IpPool extends Model
     }
 
     /**
-     * Periksa apakah IP Pool aman untuk dihapus (tidak digunakan oleh layanan pelanggan).
+     * Pool boleh dihapus/dipindah router kecuali ia pool terakhir di router yang masih punya layanan
+     * PPPoE dinamis (Rantai IP Pool Router, ADR-0060). Pool lain disambung ulang di rantai.
      */
     public function canBeDeleted(): bool
     {
-        return ! $this->layanans()->withTrashed()->exists();
+        return static::where('router_id', $this->router_id)->whereKeyNot($this->id)->exists()
+            || ! LayananPelanggan::where('router_id', $this->router_id)->where('jenis_koneksi', JenisKoneksi::Pppoe)->exists();
     }
 
     /**
