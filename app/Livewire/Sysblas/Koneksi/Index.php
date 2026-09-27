@@ -405,65 +405,36 @@ class Index extends Component
 
     public function startSession(int $id): void
     {
-        $sysblas = Sysblas::findOrFail($id);
-        $client = $sysblas->makeClient();
-        $result = $client->startSession();
-
-        if ($result['success']) {
-            Flux::toast(variant: 'success', text: "Session '{$sysblas->session_name}' berhasil dijalankan.");
-        } else {
-            Flux::toast(variant: 'danger', text: "Gagal start session: {$result['message']}");
-        }
-
-        if ($this->showQrModal && $this->qrSysblasId === $id) {
-            $this->refreshQrStatus();
-        }
+        $this->runSessionAction($id, 'startSession', 'berhasil dijalankan', 'start');
     }
 
     public function stopSession(int $id): void
     {
-        $sysblas = Sysblas::findOrFail($id);
-        $client = $sysblas->makeClient();
-        $result = $client->stopSession();
-
-        if ($result['success']) {
-            Flux::toast(variant: 'success', text: "Session '{$sysblas->session_name}' berhasil dihentikan.");
-        } else {
-            Flux::toast(variant: 'danger', text: "Gagal stop session: {$result['message']}");
-        }
-
-        if ($this->showQrModal && $this->qrSysblasId === $id) {
-            $this->refreshQrStatus();
-        }
+        $this->runSessionAction($id, 'stopSession', 'berhasil dihentikan', 'stop');
     }
 
     public function restartSession(int $id): void
     {
-        $sysblas = Sysblas::findOrFail($id);
-        $client = $sysblas->makeClient();
-        $result = $client->restartSession();
-
-        if ($result['success']) {
-            Flux::toast(variant: 'success', text: "Session '{$sysblas->session_name}' berhasil direstart.");
-        } else {
-            Flux::toast(variant: 'danger', text: "Gagal restart session: {$result['message']}");
-        }
-
-        if ($this->showQrModal && $this->qrSysblasId === $id) {
-            $this->refreshQrStatus();
-        }
+        $this->runSessionAction($id, 'restartSession', 'berhasil direstart', 'restart');
     }
 
     public function logoutSession(int $id): void
     {
+        $this->runSessionAction($id, 'logoutSession', 'berhasil logout', 'logout');
+    }
+
+    /**
+     * @param  'startSession'|'stopSession'|'restartSession'|'logoutSession'  $clientMethod
+     */
+    private function runSessionAction(int $id, string $clientMethod, string $successText, string $actionLabel): void
+    {
         $sysblas = Sysblas::findOrFail($id);
-        $client = $sysblas->makeClient();
-        $result = $client->logoutSession();
+        $result = $sysblas->makeClient()->{$clientMethod}();
 
         if ($result['success']) {
-            Flux::toast(variant: 'success', text: "Session '{$sysblas->session_name}' berhasil logout.");
+            Flux::toast(variant: 'success', text: "Session '{$sysblas->session_name}' {$successText}.");
         } else {
-            Flux::toast(variant: 'danger', text: "Gagal logout session: {$result['message']}");
+            Flux::toast(variant: 'danger', text: "Gagal {$actionLabel} session: {$result['message']}");
         }
 
         if ($this->showQrModal && $this->qrSysblasId === $id) {

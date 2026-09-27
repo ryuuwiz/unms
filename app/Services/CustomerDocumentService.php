@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
@@ -74,7 +75,7 @@ class CustomerDocumentService
 
         try {
             return Crypt::decryptString($encryptedContent);
-        } catch (\Throwable $e) {
+        } catch (DecryptException) {
             // Fallback jika berkas disimpan tanpa enkripsi sebelumnya
             return $encryptedContent;
         }

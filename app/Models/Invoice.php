@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
+use Carbon\Exceptions\InvalidFormatException;
 use Database\Factories\InvoiceFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -401,7 +402,7 @@ class Invoice extends Model
 
         try {
             return Carbon::createFromFormat('Y-m', $this->periode_tagihan)->translatedFormat('F Y');
-        } catch (\Throwable) {
+        } catch (InvalidFormatException) {
             return $this->periode_tagihan;
         }
     }

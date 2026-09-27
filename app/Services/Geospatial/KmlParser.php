@@ -91,7 +91,7 @@ class KmlParser
             libxml_use_internal_errors(true);
             $xml = new SimpleXMLElement($cleanXml ?: $kmlContent);
             libxml_clear_errors();
-        } catch (\Throwable) {
+        } catch (\Exception) {
             return ['points' => [], 'polygons' => []];
         }
 

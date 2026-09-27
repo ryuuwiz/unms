@@ -259,8 +259,8 @@ class XenditDriver extends AbstractPaymentDriver
                 if (! empty($v3Result) && ! isset($v3Result['error'])) {
                     return $v3Result;
                 }
-            } catch (Exception) {
-                // Abaikan error fallback
+            } catch (Exception $fallbackError) {
+                Log::warning("Fallback V3 cek status Xendit {$xenditId} gagal: ".$fallbackError->getMessage());
             }
 
             Log::error("Gagal cek status invoice Xendit {$xenditId}: ".$e->getMessage());

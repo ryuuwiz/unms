@@ -6,5 +6,28 @@
   "env": {
     "ANTHROPIC_BASE_URL": "http://127.0.0.1:8787/p/your-project",
     "ENABLE_TOOL_SEARCH": "true"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "php \"$CLAUDE_PROJECT_DIR/vendor/bin/sloppy\" hook post-edit"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "php \"$CLAUDE_PROJECT_DIR/vendor/bin/sloppy\" hook stop"
+          }
+        ]
+      }
+    ]
   }
 }

@@ -375,7 +375,11 @@ class MikrotikService
                         try {
                             $client->query((new Query('/ppp/profile/remove'))->equal('.id', $existing[$i]['.id']))->read();
                         } catch (Throwable $e) {
-                            // Lanjutkan jika duplikat sekunder sudah terhapus
+                            Log::warning('Gagal menghapus duplikat PPP profile, dilewati.', [
+                                'router_id' => $router->id,
+                                'profile_name' => $profileName,
+                                'error' => $e->getMessage(),
+                            ]);
                         }
                     }
                 }
@@ -560,7 +564,11 @@ class MikrotikService
                             ->equal('value-name', 'remote-address');
                         $client->query($unsetQuery)->read();
                     } catch (Throwable $e) {
-                        // Lanjutkan jika remote-address sudah tidak ada
+                        Log::warning('Gagal unset remote-address PPP secret, dilewati.', [
+                            'router_id' => $router->id,
+                            'username' => $username,
+                            'error' => $e->getMessage(),
+                        ]);
                     }
                 }
 
@@ -572,7 +580,11 @@ class MikrotikService
                             ->equal('value-name', 'local-address');
                         $client->query($unsetQuery)->read();
                     } catch (Throwable $e) {
-                        // Lanjutkan jika local-address sudah tidak ada
+                        Log::warning('Gagal unset local-address PPP secret, dilewati.', [
+                            'router_id' => $router->id,
+                            'username' => $username,
+                            'error' => $e->getMessage(),
+                        ]);
                     }
                 }
 
@@ -593,7 +605,11 @@ class MikrotikService
                                     $layanan->id,
                                 );
                             } catch (Throwable $e) {
-                                // Lanjutkan jika duplikat sekunder sudah terhapus
+                                Log::warning('Gagal menghapus duplikat PPP secret, dilewati.', [
+                                    'router_id' => $router->id,
+                                    'username' => $username,
+                                    'error' => $e->getMessage(),
+                                ]);
                             }
                         }
                     }
@@ -1067,7 +1083,11 @@ class MikrotikService
                             try {
                                 $client->query((new Query('/ip/pool/remove'))->equal('.id', $existingPool[$i]['.id']))->read();
                             } catch (Throwable $e) {
-                                // Lanjutkan jika duplikat sekunder sudah terhapus
+                                Log::warning('Gagal menghapus duplikat IP pool, dilewati.', [
+                                    'router_id' => $router->id,
+                                    'pool_name' => $poolName,
+                                    'error' => $e->getMessage(),
+                                ]);
                             }
                         }
                     }
@@ -1178,7 +1198,11 @@ class MikrotikService
             try {
                 $this->syncIpPool($router, $pool, $client);
             } catch (Throwable $e) {
-                // Lanjutkan jika sinkronisasi pool terhambat
+                Log::warning('Sinkronisasi IP pool gagal saat auto-recover, dilewati.', [
+                    'router_id' => $router->id,
+                    'ip_pool_id' => $pool->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
@@ -1620,8 +1644,12 @@ class MikrotikService
                                 if (isset($entries[$i]['.id'])) {
                                     try {
                                         $client->query((new Query('/ppp/profile/remove'))->equal('.id', $entries[$i]['.id']))->read();
-                                    } catch (Throwable) {
-                                        // Lanjutkan jika duplikat sekunder sudah terhapus
+                                    } catch (Throwable $e) {
+                                        Log::warning('Gagal menghapus duplikat PPP profile, dilewati.', [
+                                            'router_id' => $router->id,
+                                            'profile_name' => $profileName,
+                                            'error' => $e->getMessage(),
+                                        ]);
                                     }
                                 }
                             }
@@ -1824,8 +1852,11 @@ class MikrotikService
             $client = null;
             try {
                 $client = $this->getClient($router);
-            } catch (Throwable) {
-                // Fallback for mocked environments or unreachable router
+            } catch (Throwable $e) {
+                Log::warning('Koneksi router gagal, provisi dilanjutkan tanpa client.', [
+                    'router_id' => $router->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
 
             // 1. Health & Resource Check
@@ -2022,7 +2053,12 @@ class MikrotikService
                     }
 
                     return $used;
-                } catch (Throwable) {
+                } catch (Throwable $e) {
+                    Log::warning('Gagal membaca pemakaian IP pool.', [
+                        'router_id' => $router->id,
+                        'error' => $e->getMessage(),
+                    ]);
+
                     return null;
                 }
             }
