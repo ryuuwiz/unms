@@ -19,8 +19,11 @@ use Illuminate\Support\Carbon;
 use Throwable;
 
 /**
- * Ping router tiap 10 dtk (mikrotik:ping). Log & Notifikasi NOC hanya saat status berubah
- * online <-> offline; pulih dari offline memicu RecoverPppRouterJob.
+ * Ping router tiap 20 dtk (mikrotik:ping). Log & lonceng NOC hanya saat status berubah
+ * online <-> offline; pulih dari offline memicu RecoverPppRouterJob. Tanpa WhatsApp --
+ * router yang flapping bisa membuat banyak pesan WA berturut-turut ke NOC/super_admin
+ * dalam sehari (tiap flip = log baru, tidak ter-dedup) dan berisiko membuat nomor gateway
+ * WA kena banned; lonceng in-app tetap cukup untuk kejadian ini.
  */
 class PingRouterJob implements ShouldBeUnique, ShouldQueue
 {
@@ -79,7 +82,7 @@ class PingRouterJob implements ShouldBeUnique, ShouldQueue
                 'finished_at' => Carbon::now(),
             ]);
 
-            $notifikasiNoc->kirim($log, whatsapp: true);
+            $notifikasiNoc->kirim($log);
         }
 
         if ($online) {

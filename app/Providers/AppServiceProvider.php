@@ -10,7 +10,6 @@ use App\Listeners\HandleLayananStatusChangedListener;
 use App\Listeners\KirimNotifikasiInvoiceTerbitListener;
 use App\Listeners\LogImpersonationActivity;
 use App\Listeners\RecordLastLoginAt;
-use App\Listeners\TriggerEmailNotifikasiListener;
 use App\Listeners\TriggerMikrotikAktivasiStubListener;
 use App\Listeners\TriggerWaNotifikasiStubListener;
 use App\Models\IpPool;
@@ -94,7 +93,6 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(InvoicePaidEvent::class, CatatLogPembayaranListener::class);
         Event::listen(InvoicePaidEvent::class, TriggerMikrotikAktivasiStubListener::class);
         Event::listen(InvoicePaidEvent::class, TriggerWaNotifikasiStubListener::class);
-        Event::listen(InvoicePaidEvent::class, TriggerEmailNotifikasiListener::class);
         Event::listen(InvoiceTerbitEvent::class, KirimNotifikasiInvoiceTerbitListener::class);
         Event::listen(LayananPelangganStatusChangedEvent::class, HandleLayananStatusChangedListener::class);
         Event::subscribe(LogImpersonationActivity::class);

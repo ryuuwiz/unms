@@ -176,10 +176,11 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('permission:invoice.buat')->group(function () {
             Route::get('/create/{pelanggan?}', Invoice\Create::class)->name('create');
         });
-        Route::get('/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('cetak');
+        Route::get('/{invoice}/cetak', [InvoicePdfController::class, 'cetak'])->name('cetak')->withTrashed();
         Route::middleware('permission:invoice.lihat')->group(function () {
             Route::get('/', Invoice\Index::class)->name('index');
-            Route::get('/{invoice}', Invoice\Show::class)->name('show');
+            // withTrashed: invoice dibatalkan disoft-delete (lihat CONTEXT.md "Pembatalan Invoice") tapi harus tetap bisa dilihat staf untuk audit trail.
+            Route::get('/{invoice}', Invoice\Show::class)->name('show')->withTrashed();
         });
     });
 

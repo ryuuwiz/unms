@@ -16,14 +16,12 @@ use App\Models\ProfilBandwidth;
 use App\Models\Promo;
 use App\Models\Router;
 use App\Models\User;
-use App\Notifications\InvoiceReminderNotification;
 use App\Services\Billing\BillingService;
 use App\Services\Whatsapp\WhatsappClient;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Database\Seeders\WaTemplateSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
 use Spatie\Activitylog\Models\Activity;
@@ -129,6 +127,34 @@ test('admin can cancel or delete an unpaid invoice', function () {
 
     expect(Invoice::find($invoice->id))->toBeNull()
         ->and(Invoice::withTrashed()->find($invoice->id)->status)->toBe(StatusInvoice::Dibatalkan);
+});
+
+test('invoice yang sudah dibatalkan tetap bisa dilihat dan dicetak staf, tidak 404', function () {
+    $invoice = Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'status' => StatusInvoice::Dibatalkan,
+    ]);
+    $invoice->delete();
+
+    $this->actingAs($this->adminUser)->get(route('invoice.show', $invoice))->assertOk();
+    $this->actingAs($this->adminUser)->get(route('invoice.cetak', $invoice))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
+test('invoice yang dibatalkan tetap muncul di daftar invoice untuk staf', function () {
+    $invoice = Invoice::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'status' => StatusInvoice::Dibatalkan,
+    ]);
+    $invoice->delete();
+
+    Livewire::actingAs($this->adminUser)
+        ->test(Index::class)
+        ->set('status', StatusInvoice::Dibatalkan->value)
+        ->assertSee($invoice->no_invoice);
 });
 
 test('user with invoice.cetak permission can download pdf', function () {
@@ -259,27 +285,6 @@ test('database allows creating new invoice for same period if previous invoice w
     expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->where('periode_tagihan', $period)->count())->toBe(2);
 });
 
-test('super_admin dapat mengirim uji coba tagihan via email', function () {
-    Notification::fake();
-
-    $invoice = Invoice::factory()->create([
-        'pelanggan_id' => $this->pelanggan->id,
-        'layanan_pelanggan_id' => $this->layanan->id,
-    ]);
-
-    Livewire::actingAs($this->superAdmin)
-        ->test(Show::class, ['invoice' => $invoice])
-        ->set('testEmail', 'test-tagihan@example.com')
-        ->call('kirimUjiCobaTagihan')
-        ->assertHasNoErrors();
-
-    Notification::assertSentOnDemand(
-        InvoiceReminderNotification::class,
-        fn ($notification, $channels, $notifiable) => $notifiable->routes['mail'] === 'test-tagihan@example.com'
-            && $notification->invoice->id === $invoice->id
-    );
-});
-
 test('super_admin dapat mengirim uji coba tagihan via whatsapp', function () {
     $this->seed(WaTemplateSeeder::class);
     Queue::fake([KirimWaBlastJob::class]);
@@ -313,12 +318,12 @@ test('non-super_admin tidak dapat mengirim uji coba tagihan', function () {
 
     Livewire::actingAs($this->adminUser)
         ->test(Show::class, ['invoice' => $invoice])
-        ->set('testEmail', 'test-tagihan@example.com')
+        ->set('testPhone', '081234567890')
         ->call('kirimUjiCobaTagihan')
         ->assertForbidden();
 });
 
-test('form uji coba tagihan menolak jika email dan nomor whatsapp kosong', function () {
+test('form uji coba tagihan menolak jika nomor whatsapp kosong', function () {
     $invoice = Invoice::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'layanan_pelanggan_id' => $this->layanan->id,
@@ -327,7 +332,7 @@ test('form uji coba tagihan menolak jika email dan nomor whatsapp kosong', funct
     Livewire::actingAs($this->superAdmin)
         ->test(Show::class, ['invoice' => $invoice])
         ->call('kirimUjiCobaTagihan')
-        ->assertHasErrors(['testEmail', 'testPhone']);
+        ->assertHasErrors(['testPhone']);
 });
 
 test('halaman tambah invoice dibuka dari detail pelanggan mengunci pelanggan terpilih', function () {

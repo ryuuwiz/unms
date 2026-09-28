@@ -24,7 +24,15 @@ class InvoicePolicy
 
     public function delete(User $user, Invoice $invoice): bool
     {
-        return $user->can('invoice.hapus');
+        return $user->can('invoice.batalkan');
+    }
+
+    /**
+     * Hapus permanen (forceDelete) invoice -- lihat CONTEXT.md "Penghapusan Permanen Invoice".
+     */
+    public function hapusPermanen(User $user, Invoice $invoice): bool
+    {
+        return $user->can('invoice.hapus_permanen');
     }
 
     /**

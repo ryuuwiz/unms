@@ -230,16 +230,12 @@
                     <flux:icon name="beaker" class="size-5 text-purple-600 dark:text-purple-400" />
                     Uji Coba Notifikasi Tagihan
                 </flux:heading>
-                <flux:subheading>Kirim contoh notifikasi tagihan ini ke email dan/atau nomor WhatsApp tujuan untuk memastikan template terkirim dengan benar.</flux:subheading>
+                <flux:subheading>Kirim contoh notifikasi tagihan ini ke nomor WhatsApp tujuan untuk memastikan template terkirim dengan benar.</flux:subheading>
             </div>
 
             <form wire:submit="kirimUjiCobaTagihan" class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                 <div>
-                    <flux:input wire:model="testEmail" label="Email Tujuan (Opsional)" type="email" placeholder="nama@contoh.com" />
-                    <flux:error name="testEmail" />
-                </div>
-                <div>
-                    <flux:input wire:model="testPhone" label="No. WhatsApp Tujuan (Opsional)" placeholder="0812xxxxxxx" />
+                    <flux:input wire:model="testPhone" label="No. WhatsApp Tujuan" placeholder="0812xxxxxxx" />
                     <flux:error name="testPhone" />
                 </div>
 

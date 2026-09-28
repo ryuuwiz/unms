@@ -13,6 +13,7 @@ use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Jobs\Mikrotik\RecoverPppRouterJob;
 use App\Jobs\Mikrotik\SyncBandwidthProfileToRoutersJob;
 use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
+use App\Models\AntrianWaBlast;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
@@ -218,10 +219,10 @@ test('SyncIpPoolToRouterJob syncs pool and logs success', function () {
         ->and($log->status)->toBe(MikrotikJobStatus::Success);
 });
 
-test('PingRouterJob hanya mencatat dan memberi tahu NOC saat status router berubah', function () {
+test('PingRouterJob hanya mencatat dan memberi tahu NOC saat status router berubah, tanpa WhatsApp', function () {
     Notification::fake();
     Queue::fake([RecoverPppRouterJob::class]);
-    $noc = User::factory()->create();
+    $noc = User::factory()->create(['phone' => '081234567890']);
     $noc->assignRole('noc');
 
     $offline = fn () => Mockery::mock(MikrotikService::class)->shouldReceive('testConnection')
@@ -251,6 +252,8 @@ test('PingRouterJob hanya mencatat dan memberi tahu NOC saat status router berub
         ->toBe([MikrotikJobStatus::Failed, MikrotikJobStatus::Success]);
     Notification::assertSentToTimes($noc, MikrotikJobNotification::class, 2);
     Queue::assertPushed(RecoverPppRouterJob::class, 1);
+    // Router flapping tidak boleh mengantrikan WA ke NOC -- lihat CONTEXT.md "Notifikasi NOC".
+    expect(AntrianWaBlast::where('jenis', "noc_mikrotik_u{$noc->id}")->count())->toBe(0);
 });
 
 test('RecoverPppRouterJob runs autoRecoverPppSecrets on mikrotik-low queue', function () {

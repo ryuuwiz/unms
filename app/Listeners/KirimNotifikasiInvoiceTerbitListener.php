@@ -3,14 +3,13 @@
 namespace App\Listeners;
 
 use App\Events\InvoiceTerbitEvent;
-use App\Notifications\InvoiceTerbitNotification;
 use App\Services\Whatsapp\WhatsappService;
 use DateTimeInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Kirim Notifikasi Invoice Terbit (WhatsApp + email) -- lihat CONTEXT.md dan ADR-0056.
+ * Kirim Notifikasi Invoice Terbit (WhatsApp) -- lihat CONTEXT.md dan ADR-0056.
  */
 class KirimNotifikasiInvoiceTerbitListener implements ShouldQueue
 {
@@ -70,14 +69,6 @@ class KirimNotifikasiInvoiceTerbitListener implements ShouldQueue
                 );
             } catch (\Throwable $e) {
                 Log::error("Gagal mengantrikan WA invoice terbit {$invoice->no_invoice}: ".$e->getMessage());
-            }
-        }
-
-        if (! empty($pelanggan->email)) {
-            try {
-                $pelanggan->notify(new InvoiceTerbitNotification($invoice, $params));
-            } catch (\Throwable $e) {
-                Log::error("Gagal mengirim email invoice terbit {$invoice->no_invoice}: ".$e->getMessage());
             }
         }
     }

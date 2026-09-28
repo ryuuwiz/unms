@@ -32,7 +32,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'layanan_pelanggan.lihat', 'layanan_pelanggan.buat', 'layanan_pelanggan.ubah', 'layanan_pelanggan.hapus',
             'layanan_pelanggan.lihat_ppp_password', 'layanan_pelanggan.aktivasi',
             // Invoice & Pembayaran (Fase 2)
-            'invoice.lihat', 'invoice.buat', 'invoice.hapus', 'invoice.void_lunas', 'invoice.cetak',
+            'invoice.lihat', 'invoice.buat', 'invoice.batalkan', 'invoice.void_lunas', 'invoice.hapus_permanen', 'invoice.cetak',
             'siklus_tagihan.ubah',
             'pembayaran.catat', 'pembayaran.lihat',
             // Router & IP Pool
@@ -94,7 +94,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'pelanggan.lihat_ktp', 'pelanggan.lihat_dokumen', 'pelanggan.unggah_dokumen', 'pelanggan.hapus_dokumen',
             'layanan_pelanggan.lihat', 'layanan_pelanggan.buat', 'layanan_pelanggan.ubah', 'layanan_pelanggan.hapus',
             'layanan_pelanggan.aktivasi',
-            'invoice.lihat', 'invoice.buat', 'invoice.hapus', 'invoice.cetak',
+            'invoice.lihat', 'invoice.buat', 'invoice.batalkan', 'invoice.cetak',
             'siklus_tagihan.ubah',
             'pembayaran.catat', 'pembayaran.lihat',
             'router.lihat', 'router.buat', 'router.ubah', 'router.hapus',

@@ -11,7 +11,8 @@ use Throwable;
 
 /**
  * Notifikasi NOC -- lihat CONTEXT.md "Notifikasi NOC". Lonceng untuk user noc & super_admin;
- * WhatsApp hanya untuk kejadian genting (gagal provisi, router offline/online).
+ * WhatsApp hanya untuk kejadian genting (gagal provisi permanen per pelanggan). Router
+ * online/offline sengaja tidak lewat WhatsApp -- lihat PingRouterJob.
  */
 class NotifikasiNoc
 {

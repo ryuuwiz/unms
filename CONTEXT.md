@@ -211,12 +211,16 @@ Batas waktu H+1 (satu hari) dari tanggal mulai layanan untuk melunasi invoice pe
 _Avoid_: Grace Period Bebas, Menyamakan dengan Hari Jatuh Tempo Siklus Tagihan, Isolir Manual Invoice Pertama
 
 **Pembatalan Invoice**:
-Tindakan perubahan status invoice menjadi `dibatalkan` oleh sistem atau staf berwenang yang menggugurkan kewajiban bayar tanpa menghapus riwayat audit trail (misal akibat koreksi tagihan ganda atau perubahan paket).
+Tindakan perubahan status invoice menjadi `dibatalkan` oleh sistem atau staf berwenang (izin `invoice.batalkan`, default `admin` & `super_admin`) yang menggugurkan kewajiban bayar tanpa menghapus riwayat audit trail (misal akibat koreksi tagihan ganda atau perubahan paket). Berbeda dari Penghapusan Permanen Invoice, yang benar-benar menghancurkan baris datanya.
 _Avoid_: Hapus Tagihan Manual, Void Bebas, Delete Invoice
 
 **Pembatalan Invoice Lunas**:
 Void invoice berstatus `lunas` (izin `invoice.void_lunas`, default hanya `super_admin`, alasan wajib) beserta rollback-nya: Pembayaran di-soft-delete sehingga keluar dari laporan, `tanggal_expired` layanan dikurangi sebanyak yang ditambahkan pelunasan itu (siklus digabung + bonus promo, disesuaikan ke Hari Jatuh Tempo), invoice yang tadinya digabung dilepas jadi `kadaluarsa`, dan layanan `aktif` yang masa aktifnya jadi lewat langsung di-suspend (PPP ikut disable). Invoice jadi `dibatalkan` + soft-delete; semuanya tercatat di audit trail. Hanya untuk pelunasan manual/transfer dan hanya pembayaran **terakhir** sebuah layanan (perpanjangan lebih baru bertumpuk di atasnya); pelunasan lewat payment gateway ditolak karena uangnya sudah diterima dan harus di-refund di gateway. Pemakaian promo tidak dikembalikan (sama seperti pembatalan invoice belum lunas).
 _Avoid_: Hapus Invoice Lunas Tanpa Rollback, Membatalkan Pembayaran Lama di Tengah Riwayat, Void Pembayaran Gateway dari UI
+
+**Penghapusan Permanen Invoice**:
+Penghapusan sungguhan (`forceDelete`) sebuah invoice dari database, berbeda dari Pembatalan Invoice yang hanya mengubah status dan tetap menyimpan riwayat. Izin `invoice.hapus_permanen`, default hanya `super_admin`, alasan wajib dan dicatat ke audit trail sebelum baris dihapus (satu-satunya jejak yang tersisa setelahnya). Hanya berlaku untuk invoice yang sudah berstatus `dibatalkan` DAN tidak pernah punya riwayat Pembayaran (termasuk yang sudah soft-delete) atau Transaksi Payment Gateway sama sekali -- dijamin di level database lewat foreign key `restrictOnDelete` pada kedua tabel itu, sehingga invoice yang pernah dibayar atau pernah punya link pembayaran gateway tidak bisa dihapus permanen walau sudah dibatalkan.
+_Avoid_: Menghapus Invoice yang Pernah Dibayar, Force Delete Tanpa Alasan, Mengubah Restrict Jadi Cascade di `pembayaran`/`transaksi_payment_gateway`
 
 **Informasi Layanan di Tiket**:
 Kartu di halaman detail tiket (semua Jenis Ticket yang punya layanan) berisi PPP Username, PPP Password (aturan reveal: lihat PPP Password Credential), Site ID, Router (nama + IP), Jenis Koneksi (PPPoE/IP Static) beserta IP Statis dan IP Publik Dedicated bila ada, Paket & Bandwidth, dan Status Layanan. Semua kecuali password terlihat oleh siapa pun yang boleh membuka tiket (Teknisi: PIC), pada status tiket apa pun; field yang belum diisi NOC tampil "Menunggu proses NOC". Alamat Sesi PPP dinamis tidak ditampilkan (dibaca live dari router).
@@ -260,7 +264,7 @@ Tautan resmi sesi pembayaran terkelola dari payment gateway aktif (`payment_gate
 _Avoid_: Custom Checkout URL, Link Bayar Bebas, Xendit URL Saja
 
 **Halaman Tagihan Mandiri**:
-Halaman tunggal tanpa autentikasi/login yang dituju oleh tautan pada notifikasi WhatsApp/email pengingat tagihan, berisi rincian satu Invoice dan satu tombol yang mengarah ke Link Pembayaran Gateway. Berbeda dari Portal Pelanggan (yang mencakup banyak halaman dan wajib login): halaman ini diakses via signed URL bertanggal kedaluwarsa yang mengikat ke satu Invoice spesifik, tanpa form perbandingan biaya custom internal apa pun. Pelanggan yang sudah login ke Portal Pelanggan tetap dapat mencapai halaman yang sama via sesi login sebagai jalur kedua.
+Halaman tunggal tanpa autentikasi/login yang dituju oleh tautan pada notifikasi WhatsApp pengingat tagihan, berisi rincian satu Invoice dan satu tombol yang mengarah ke Link Pembayaran Gateway. Berbeda dari Portal Pelanggan (yang mencakup banyak halaman dan wajib login): halaman ini diakses via signed URL bertanggal kedaluwarsa yang mengikat ke satu Invoice spesifik, tanpa form perbandingan biaya custom internal apa pun. Pelanggan yang sudah login ke Portal Pelanggan tetap dapat mencapai halaman yang sama via sesi login sebagai jalur kedua.
 _Avoid_: Portal Pelanggan Saja, Halaman Bayar Terpisah, Custom Checkout Form, Kartu Estimasi Biaya Internal
 
 **Log Webhook**:
@@ -621,25 +625,20 @@ _Technical Reference_: `wa:proses-antrian` (`App\Console\Commands\ProsesAntrianW
 _Avoid_: Batch Sender Kedua, Jalur Kirim Paralel
 
 **Pengingat Tagihan Otomatis**:
-Sistem pengingat tagihan terjadwal (`invoice:kirim-pengingat`) yang berjalan setiap jam untuk mengevaluasi aturan pengingat aktif dan mengirimkan notifikasi berformat template dinamis dengan link pembayaran ke dua kanal sekaligus: WhatsApp (antrean `wa-blast` Horizon dengan perlindungan pembatasan laju) dan Email (notification queue standar, langsung ke `Pelanggan.email` jika terisi).
-_Avoid_: Pengiriman Manual Satu Per Satu, Blast Tanpa Antrean Terisolasi, Pengingat WhatsApp Saja
+Sistem pengingat tagihan terjadwal (`invoice:kirim-pengingat`) yang berjalan setiap jam untuk mengevaluasi aturan pengingat aktif dan mengirimkan notifikasi berformat template dinamis dengan link pembayaran lewat WhatsApp (antrean `wa-blast` Horizon dengan perlindungan pembatasan laju). Sebelumnya juga lewat email; dihapus karena WhatsApp sudah mencakup peristiwa yang sama dan menjaga satu kanal lebih mudah dipantau risiko volumenya.
+_Avoid_: Pengiriman Manual Satu Per Satu, Blast Tanpa Antrean Terisolasi, Mengirim Ulang Lewat Email
 
 **Notifikasi NOC**:
-Pemberitahuan ke user berperan NOC dan super admin tentang hasil integrasi MikroTik. Lonceng di aplikasi menampilkan hasil aksi per pelanggan (provisi, un-isolir, ganti profil berhasil/gagal) serta perubahan status router online/offline. WhatsApp hanya untuk kejadian genting: aksi per pelanggan yang gagal permanen dan router berubah online/offline. Isolir massal yang berhasil tidak diberitahukan; tidak ada notifikasi per sesi PPPoE pelanggan naik/turun.
-_Avoid_: Notifikasi Tersimpan Tanpa Tampilan, WhatsApp untuk Setiap Keberhasilan, Notifikasi Sesi PPPoE
+Pemberitahuan ke user berperan NOC dan super admin tentang hasil integrasi MikroTik. Lonceng di aplikasi menampilkan hasil aksi per pelanggan (provisi, un-isolir, ganti profil berhasil/gagal) serta perubahan status router online/offline. WhatsApp hanya untuk kejadian genting: aksi per pelanggan yang gagal permanen. Router online/offline sengaja TIDAK lewat WhatsApp (hanya lonceng) — tiap flip status membuat log baru yang tidak ter-dedup per hari, sehingga router yang flapping bisa memicu banyak pesan WA berturut-turut dan berisiko nomor gateway WA kena banned. Isolir massal yang berhasil tidak diberitahukan; tidak ada notifikasi per sesi PPPoE pelanggan naik/turun.
+_Avoid_: Notifikasi Tersimpan Tanpa Tampilan, WhatsApp untuk Setiap Keberhasilan, Notifikasi Sesi PPPoE, WhatsApp untuk Router Online/Offline
 
 **Notifikasi Invoice Terbit**:
-Pesan tagihan baru (rincian + tautan pembayaran bertanda tangan) yang dikirim ke pelanggan begitu sebuah Invoice dibuat — tagihan pertama saat Data Registrasi Billing dibuat, tagihan periodik oleh `invoice:generate`, maupun invoice manual (biaya instalasi, denda) — lewat WhatsApp (template `invoice_terbit`, antrean `wa-blast`) dan email ke `Pelanggan.email` bila terisi. Dipicu event `InvoiceTerbitEvent` dari `BillingService` setelah transaksi commit, bukan observer model, sehingga seeder/factory tidak mengirim pesan. Hanya batch `invoice:generate` (invoice tanpa pembuat) yang dibuat di luar jendela siang (07:00–20:00 WIB) ditunda ke 08:30 berikutnya; invoice buatan admin (tagihan pertama, manual) selalu langsung dikirim karena pelanggan biasanya sedang dilayani. Pesan yang menunggu giliran Jeda Antar-Pesan tidak dianggap gagal; galat gateway sementara (timeout, 5xx) dicoba ulang hingga 2 jam, lalu dianggap gagal dan tercatat di log WhatsApp. Tanpa opt-out per invoice; pelanggan tanpa no. HP valid dilewati + log; kegagalan kirim tidak pernah menggagalkan pembuatan invoice. Terpisah dari Pengingat Tagihan Otomatis (aturan H-3/H-1/H0/tunggakan tetap apa adanya dan bisa tumpang-tindih dengan pesan ini; admin boleh menonaktifkan aturan H-3).
-_Avoid_: Observer Invoice::created (memicu pesan dari seeder/factory), Mengandalkan Aturan H-3 sebagai Notifikasi Terbit (tagihan pertama jatuh tempo H+1 sehingga tidak pernah cocok), Pesan Malam Hari Tanpa Penundaan
+Pesan tagihan baru (rincian + tautan pembayaran bertanda tangan) yang dikirim ke pelanggan begitu sebuah Invoice dibuat — tagihan pertama saat Data Registrasi Billing dibuat, tagihan periodik oleh `invoice:generate`, maupun invoice manual (biaya instalasi, denda) — lewat WhatsApp (template `invoice_terbit`, antrean `wa-blast`). Dipicu event `InvoiceTerbitEvent` dari `BillingService` setelah transaksi commit, bukan observer model, sehingga seeder/factory tidak mengirim pesan. Hanya batch `invoice:generate` (invoice tanpa pembuat) yang dibuat di luar jendela siang (07:00–20:00 WIB) ditunda ke 08:30 berikutnya; invoice buatan admin (tagihan pertama, manual) selalu langsung dikirim karena pelanggan biasanya sedang dilayani. Pesan yang menunggu giliran Jeda Antar-Pesan tidak dianggap gagal; galat gateway sementara (timeout, 5xx) dicoba ulang hingga 2 jam, lalu dianggap gagal dan tercatat di log WhatsApp. Tanpa opt-out per invoice; pelanggan tanpa no. HP valid dilewati + log; kegagalan kirim tidak pernah menggagalkan pembuatan invoice. Terpisah dari Pengingat Tagihan Otomatis (aturan H-3/H-1/H0/tunggakan tetap apa adanya dan bisa tumpang-tindih dengan pesan ini; admin boleh menonaktifkan aturan H-3).
+_Avoid_: Observer Invoice::created (memicu pesan dari seeder/factory), Mengandalkan Aturan H-3 sebagai Notifikasi Terbit (tagihan pertama jatuh tempo H+1 sehingga tidak pernah cocok), Pesan Malam Hari Tanpa Penundaan, Email Invoice Terbit (dihapus)
 
 **Gateway WA Bermasalah**:
 Keadaan ketika gateway WhatsApp (WAHA/GOWA) menolak autentikasi (401/403) atau tidak terjangkau (timeout, 5xx), sehingga semua pesan ke pelanggan gagal. Admin dan super admin diberi tahu lewat lonceng maksimal sekali per jam per gateway. Kegagalan per nomor (nomor tidak valid/tidak terdaftar) bukan Gateway WA Bermasalah; cukup terlihat di halaman Antrian WA dan log WhatsApp.
 _Avoid_: Lonceng untuk Setiap Pesan Gagal
-
-**Notifikasi Email Invoice**:
-Email transaksional yang dikirim ke `Pelanggan.email` (bukan email akun Portal Pelanggan) untuk tiga peristiwa: invoice terbit, pengingat jatuh tempo tagihan, dan konfirmasi pembayaran lunas, berisi link ke halaman invoice Portal Pelanggan tanpa lampiran PDF. Dikirim via SMTP Mailpit di lingkungan lokal; dilewati (skip + log) jika pelanggan tidak memiliki email.
-_Technical Reference_: `App\Notifications\InvoiceReminderNotification`, `App\Notifications\InvoicePaymentConfirmedNotification`
-_Avoid_: SMS Gateway (dihapus, tidak pernah diimplementasikan), Email ke Akun Portal Pelanggan
 
 
 **Ekspor Data Layanan**:

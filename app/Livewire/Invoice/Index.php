@@ -3,6 +3,7 @@
 namespace App\Livewire\Invoice;
 
 use App\Actions\Invoice\BatalkanInvoiceLunasAction;
+use App\Actions\Invoice\HapusPermanenInvoiceAction;
 use App\Enums\StatusInvoice;
 use App\Models\Invoice;
 use Flux\Flux;
@@ -28,6 +29,10 @@ class Index extends Component
     public ?int $deletingId = null;
 
     public string $keteranganHapus = '';
+
+    public ?int $permanentDeleteId = null;
+
+    public string $alasanHapusPermanen = '';
 
     public function updatedSearch(): void
     {
@@ -108,11 +113,45 @@ class Index extends Component
         Flux::toast(variant: 'success', text: "Invoice lunas {$invoice->no_invoice} dibatalkan; pembayaran dan masa aktif layanan dikembalikan.");
     }
 
+    public function confirmHapusPermanen(int $id): void
+    {
+        $this->permanentDeleteId = $id;
+        $this->alasanHapusPermanen = '';
+    }
+
+    public function hapusPermanenInvoice(): void
+    {
+        if (! $this->permanentDeleteId) {
+            return;
+        }
+
+        $invoice = Invoice::withTrashed()->findOrFail($this->permanentDeleteId);
+        $this->authorize('hapusPermanen', $invoice);
+
+        $this->validate(
+            ['alasanHapusPermanen' => ['required', 'string', 'min:5', 'max:500']],
+            ['alasanHapusPermanen.required' => 'Alasan hapus permanen wajib diisi.', 'alasanHapusPermanen.min' => 'Alasan minimal 5 karakter.'],
+        );
+
+        try {
+            app(HapusPermanenInvoiceAction::class)->execute($invoice, auth('web')->user(), $this->alasanHapusPermanen);
+        } catch (\Exception $e) {
+            Flux::toast(variant: 'danger', text: $e->getMessage(), duration: 10000);
+            $this->permanentDeleteId = null;
+
+            return;
+        }
+
+        $this->permanentDeleteId = null;
+
+        Flux::toast(variant: 'success', text: "Invoice {$invoice->no_invoice} berhasil dihapus permanen.");
+    }
+
     public function render(): View
     {
         $this->authorize('viewAny', Invoice::class);
 
-        $invoices = Invoice::query()
+        $invoices = Invoice::withTrashed()
             ->with(['pelanggan', 'layananPelanggan.paketLayanan', 'promo'])
             ->when($this->search, fn ($q) => $q->search($this->search))
             ->when($this->status, fn ($q) => $this->status === 'belum_dibayar'

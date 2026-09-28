@@ -13,14 +13,12 @@ use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\User;
 use App\Models\WaTemplate;
-use App\Notifications\InvoiceTerbitNotification;
 use App\Services\Billing\BillingService;
 use App\Services\Whatsapp\WhatsappService;
 use Database\Seeders\WaTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
@@ -61,9 +59,8 @@ test('ketiga jalur pembuatan invoice memancarkan InvoiceTerbitEvent, seeding lan
     Event::assertDispatchedTimes(InvoiceTerbitEvent::class, 3);
 });
 
-test('listener mengantrikan WA bertemplate invoice_terbit dengan tautan bayar dan mengirim email', function () {
+test('listener mengantrikan WA bertemplate invoice_terbit dengan tautan bayar', function () {
     Queue::fake();
-    Notification::fake();
     $invoice = Invoice::factory()->create(['pelanggan_id' => $this->pelanggan->id, 'layanan_pelanggan_id' => $this->layanan->id]);
 
     jalankanListenerInvoiceTerbit($invoice);
@@ -74,19 +71,6 @@ test('listener mengantrikan WA bertemplate invoice_terbit dengan tautan bayar da
         ->and($antrian->pesan)->toContain($invoice->no_invoice)
         ->and($antrian->pesan)->toContain('/tagihan/'.$invoice->id)
         ->and($antrian->pesan)->not->toContain('{');
-
-    Notification::assertSentTo($this->pelanggan, InvoiceTerbitNotification::class);
-});
-
-test('email invoice terbit dirender tanpa placeholder yang hilang', function () {
-    $invoice = Invoice::factory()->create(['pelanggan_id' => $this->pelanggan->id, 'layanan_pelanggan_id' => $this->layanan->id]);
-    $whatsapp = app(WhatsappService::class);
-    $params = $whatsapp->mergeCompanyParams($whatsapp->buildInvoiceParams($invoice));
-
-    $mail = (new InvoiceTerbitNotification($invoice, $params))->toMail($this->pelanggan);
-
-    expect($mail->subject)->toContain($invoice->no_invoice)
-        ->and($mail->actionUrl)->toBe($params['link_pembayaran']);
 });
 
 test('pengiriman ditunda ke 08:30 WIB di luar jendela siang dan langsung di dalamnya', function () {
@@ -115,15 +99,13 @@ test('invoice buatan admin (tagihan pertama, manual) langsung dikirim walau mala
     Carbon::setTestNow();
 });
 
-test('pelanggan tanpa no HP dilewati, no HP tidak valid tercatat Gagal, email tetap terkirim', function () {
+test('pelanggan tanpa no HP dilewati, no HP tidak valid tercatat Gagal', function () {
     Queue::fake();
-    Notification::fake();
 
     $this->pelanggan->update(['no_hp' => '']);
     $invoice = Invoice::factory()->create(['pelanggan_id' => $this->pelanggan->id]);
     jalankanListenerInvoiceTerbit($invoice);
     expect(AntrianWaBlast::count())->toBe(0);
-    Notification::assertSentTo($this->pelanggan, InvoiceTerbitNotification::class);
 
     $this->pelanggan->update(['no_hp' => '123']);
     jalankanListenerInvoiceTerbit($invoice->fresh());
@@ -134,7 +116,6 @@ test('kegagalan kirim WA tidak menggagalkan pembuatan invoice', function () {
     $mock = Mockery::mock(WhatsappService::class)->makePartial();
     $mock->shouldReceive('antrikanPesan')->andThrow(new RuntimeException('gateway mati'));
     $this->app->instance(WhatsappService::class, $mock);
-    Notification::fake();
 
     $invoice = $this->billing->generateManualInvoice($this->layanan, 50000, 'Denda');
 
@@ -144,7 +125,6 @@ test('kegagalan kirim WA tidak menggagalkan pembuatan invoice', function () {
 
 test('kirim ulang pada hari yang sama tidak menggandakan antrean WA', function () {
     Queue::fake();
-    Notification::fake();
     $invoice = Invoice::factory()->create(['pelanggan_id' => $this->pelanggan->id]);
 
     jalankanListenerInvoiceTerbit($invoice);
