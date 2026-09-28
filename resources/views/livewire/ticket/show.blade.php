@@ -600,7 +600,7 @@
                         <span class="text-zinc-500 block mb-1">PIC Lapangan (Teknisi):</span>
                         <div class="flex items-center gap-2">
                             @if ($ticket->pic)
-                                <flux:avatar size="xs" :src="$ticket->pic->fotoProfilUrl()" :initials="$ticket->pic->initials()" />
+                                <flux:avatar size="xl" circle :src="$ticket->pic->fotoProfilUrl()" />
                             @endif
                             <span class="font-semibold text-zinc-900 dark:text-white">
                                 {{ $ticket->pic?->name ?? 'Belum Ditugaskan' }}
