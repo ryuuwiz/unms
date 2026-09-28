@@ -17,6 +17,7 @@ use App\Models\Router;
 use App\Models\RouterPaket;
 use App\Support\PppDeletionContext;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -1696,6 +1697,33 @@ class MikrotikService
     public function syncPaketProfiles(Router $router, ?Client $client = null): array
     {
         $routerPakets = $router->routerPakets()->with(['router', 'ipPool', 'paketLayanan.profilBandwidth'])->get();
+
+        return $this->syncRouterPaketProfiles($router, $routerPakets, $router->ip_pool_isolir_id !== null, $client);
+    }
+
+    /**
+     * Sinkronisasikan hanya PPP Profile paket yang memakai IP Pool ini, plus profile ISOLIR bila pool ini
+     * adalah IP Pool Isolir router (ADR-0063). Dipakai saat cuma satu pool berubah (SyncIpPoolToRouterJob)
+     * agar router dengan banyak paket tidak perlu me-resync seluruh profilnya untuk satu perubahan pool.
+     *
+     * @return array{total: int, synced: int, errors: array<string>}
+     */
+    public function syncPaketProfilesUsingPool(Router $router, IpPool $ipPool, ?Client $client = null): array
+    {
+        $routerPakets = $router->routerPakets()
+            ->where('ip_pool_id', $ipPool->id)
+            ->with(['router', 'ipPool', 'paketLayanan.profilBandwidth'])
+            ->get();
+
+        return $this->syncRouterPaketProfiles($router, $routerPakets, $router->ip_pool_isolir_id === $ipPool->id, $client);
+    }
+
+    /**
+     * @param  Collection<int, RouterPaket>  $routerPakets
+     * @return array{total: int, synced: int, errors: array<string>}
+     */
+    private function syncRouterPaketProfiles(Router $router, Collection $routerPakets, bool $sertakanIsolir, ?Client $client): array
+    {
         $synced = 0;
         $errors = [];
 
@@ -1709,8 +1737,7 @@ class MikrotikService
         }
 
         // Profile ISOLIR disiapkan lebih dulu agar isolir tidak menunggu dibuat (CONTEXT.md "Isolir").
-        $adaIsolir = $router->ip_pool_isolir_id !== null;
-        if ($adaIsolir) {
+        if ($sertakanIsolir) {
             try {
                 $this->ensureIsolirProfile($router, $client);
                 $synced++;
@@ -1720,7 +1747,7 @@ class MikrotikService
         }
 
         return [
-            'total' => $routerPakets->count() + (int) $adaIsolir,
+            'total' => $routerPakets->count() + (int) $sertakanIsolir,
             'synced' => $synced,
             'errors' => $errors,
         ];

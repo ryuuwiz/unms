@@ -205,7 +205,7 @@ test('SyncIpPoolToRouterJob syncs pool and logs success', function () {
             Mockery::on(fn ($p) => $p->id === $pool->id)
         )
         ->andReturn(['status' => 'success']);
-    $mockService->shouldReceive('syncPaketProfiles')->once()->andReturn(['total' => 0, 'synced' => 0, 'errors' => []]);
+    $mockService->shouldReceive('syncPaketProfilesUsingPool')->once()->andReturn(['total' => 0, 'synced' => 0, 'errors' => []]);
 
     $job = new SyncIpPoolToRouterJob($pool);
     $job->handle($mockService);

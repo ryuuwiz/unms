@@ -148,6 +148,24 @@ test('syncPaketProfiles syncs one profile per Router Paket of that router only',
         ->and($names)->toBe(['=name=P10']);
 });
 
+test('syncPaketProfilesUsingPool only syncs paket profiles that use the given pool, not the whole router', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    daftarkanRouterPaket($layanan);
+    $poolLain = IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Lain']);
+    $paketLain = PaketLayanan::factory()->create(['nama_paket' => 'P20', 'profil_bandwidth_id' => ProfilBandwidth::factory()->create(['nama_bandwidth' => 'P20'])->id]);
+    RouterPaket::create(['paket_layanan_id' => $paketLain->id, 'router_id' => $router->id, 'ip_pool_id' => $poolLain->id]);
+    [$client, $sent] = fakeRouterOs();
+
+    $res = $this->service->syncPaketProfilesUsingPool($router->fresh(), $layanan->ipPool, $client);
+
+    $names = collect($sent)->filter(fn ($q) => $q->getEndpoint() === '/ppp/profile/add')
+        ->map(fn ($q) => collect($q->getAttributes())->first(fn ($w) => str_starts_with($w, '=name=')))
+        ->values()->all();
+
+    expect($res)->toMatchArray(['total' => 1, 'synced' => 1, 'errors' => []])
+        ->and($names)->toBe(['=name=P10']);
+});
+
 test('syncIpPool dismantles the old pool chain by setting next-pool to none', function () {
     $router = Router::factory()->online()->create();
     $pool = IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-A']);

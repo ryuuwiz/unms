@@ -110,8 +110,10 @@ class SyncIpPoolToRouterJob implements ShouldBeUnique, ShouldQueue
         try {
             $result = $mikrotikService->syncIpPool($router, $this->ipPool);
 
-            // Profile paket merujuk pool ini (local-address `.1`, remote-address nama pool, ADR-0063).
-            $mikrotikService->syncPaketProfiles($router);
+            // Hanya profile paket yang memakai pool ini, bukan seluruh router (ADR-0063): router dengan
+            // banyak paket bisa punya banyak profile, dan me-resync semuanya di sini untuk satu perubahan
+            // pool pernah membuat job ini melebihi WithoutOverlapping::expireAfter(60) di atas.
+            $mikrotikService->syncPaketProfilesUsingPool($router, $this->ipPool);
 
             $log->update([
                 'status' => MikrotikJobStatus::Success,

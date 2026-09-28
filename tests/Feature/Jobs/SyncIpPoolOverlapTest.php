@@ -86,7 +86,7 @@ test('runs the sync once the router lock is free', function () {
     $mockService->shouldReceive('syncIpPool')
         ->once()
         ->andReturn(['status' => 'success']);
-    $mockService->shouldReceive('syncPaketProfiles')->andReturn(['total' => 0, 'synced' => 0, 'errors' => []]);
+    $mockService->shouldReceive('syncPaketProfilesUsingPool')->andReturn(['total' => 0, 'synced' => 0, 'errors' => []]);
     app()->instance(MikrotikService::class, $mockService);
 
     SyncIpPoolToRouterJob::dispatch($pool);
