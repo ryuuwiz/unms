@@ -248,7 +248,7 @@ class Ticket extends Model implements HasMedia
 
     /**
      * Gate Aktivasi Pemasangan (lihat CONTEXT.md "Aktivasi Pemasangan"): Teknisi minimal
-     * Progress, ODP+Port sudah dipilih, dan minimal 1 foto pemasangan sudah diunggah.
+     * Progress (atau Selesai), ODP+Port sudah dipilih, dan minimal 1 foto bukti (pemasangan/speedtest) sudah diunggah.
      */
     public function siapDiaktivasi(): bool
     {
@@ -264,12 +264,13 @@ class Ticket extends Model implements HasMedia
             return false;
         }
 
-        return $this->getMedia('foto_pemasangan')->isNotEmpty();
+        return $this->getMedia('foto_pemasangan')->isNotEmpty()
+            || $this->getMedia('foto_speedtest')->isNotEmpty();
     }
 
     /**
-     * Gate Teknisi menandai divisi-nya Selesai: bukti tahap akhir (speedtest, tanda tangan
-     * MOU, foto bersama pelanggan & teknisi) sudah lengkap diunggah.
+     * Gate Teknisi menandai divisi-nya Selesai: Port ODP sudah dipilih, bukti foto
+     * speedtest dan tanda tangan MOU sudah lengkap diunggah (foto bersama & foto pemasangan opsional).
      */
     public function siapTeknisiSelesai(): bool
     {
@@ -277,9 +278,12 @@ class Ticket extends Model implements HasMedia
             return false;
         }
 
+        if (! $this->pemasangan?->odp_port_id) {
+            return false;
+        }
+
         return $this->getMedia('foto_speedtest')->isNotEmpty()
-            && $this->getMedia('foto_tanda_tangan_mou')->isNotEmpty()
-            && $this->getMedia('foto_bersama_pelanggan_teknisi')->isNotEmpty();
+            && $this->getMedia('foto_tanda_tangan_mou')->isNotEmpty();
     }
 
     /**

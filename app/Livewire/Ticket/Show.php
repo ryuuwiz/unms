@@ -429,41 +429,35 @@ class Show extends Component
     }
 
     /**
-     * Progress lapangan tahap 1 Teknisi: pilih ODP+Port dan unggah foto bukti pemasangan.
-     * Boleh dipanggil berkali-kali (unggah foto tambahan) tanpa meregresi status divisi.
+     * Simpan ODP dan Port ODP yang dipilih Teknisi.
      */
-    public function simpanProgressLapangan(): void
+    protected function simpanOdpPortTeknisi(): bool
     {
-        $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
-
         $this->validate([
             'odp_id' => ['required', 'integer', 'exists:odp,id'],
             'odp_port_id' => ['required', 'integer', Rule::exists('odp_port', 'id')->where('odp_id', $this->odp_id)],
-            'fotoPemasangan.*' => ['image', 'max:5120'],
         ], [
             'odp_id.required' => 'ODP wajib dipilih.',
             'odp_port_id.required' => 'Port ODP wajib dipilih.',
             'odp_port_id.exists' => 'Port yang dipilih tidak valid atau bukan milik ODP terpilih.',
-            'fotoPemasangan.*.image' => 'Setiap foto harus berupa berkas gambar (jpg, png, webp).',
-            'fotoPemasangan.*.max' => 'Ukuran tiap foto maksimal 5 MB.',
         ]);
 
         $pemasangan = $this->ticket->pemasangan;
         if ($pemasangan?->status_usulan_odp === StatusUsulanOdp::Menunggu) {
             $this->addError('odp_id', 'Validasi Usulan ODP dulu (setujui atau ganti) sebelum memilih port.');
 
-            return;
+            return false;
         }
         if ($pemasangan?->status_usulan_odp === StatusUsulanOdp::Disetujui && $this->odp_id !== $pemasangan->odp_usulan_id) {
             $this->addError('odp_id', 'Usulan ODP sudah disetujui; port harus dari ODP tersebut.');
 
-            return;
+            return false;
         }
         $dipesanOleh = TicketPemasangan::portDipesan($this->ticket->id)[$this->odp_port_id] ?? null;
         if ($dipesanOleh) {
             $this->addError('odp_port_id', "Port sudah dipesan tiket {$dipesanOleh}.");
 
-            return;
+            return false;
         }
 
         TicketPemasangan::updateOrCreate(
@@ -471,13 +465,86 @@ class Show extends Component
             ['odp_port_id' => $this->odp_port_id],
         );
 
-        foreach ($this->fotoPemasangan as $foto) {
-            $this->ticket->addMediaFromDisk(
-                FileUploadConfiguration::path($foto->getFilename(), false),
-                FileUploadConfiguration::disk()
-            )->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_pemasangan');
+        return true;
+    }
+
+    /**
+     * Unggah foto-foto teknisi yang masih tertunda di Livewire temporary upload.
+     */
+    protected function uploadPendingFotoTeknisi(): void
+    {
+        $rules = [];
+        if (! empty($this->fotoPemasangan)) {
+            $rules['fotoPemasangan.*'] = ['image', 'max:5120'];
         }
-        $this->fotoPemasangan = [];
+        if (! empty($this->fotoSpeedtest)) {
+            $rules['fotoSpeedtest.*'] = ['image', 'max:5120'];
+        }
+        if ($this->fotoMou) {
+            $rules['fotoMou'] = ['image', 'max:5120'];
+        }
+        if (! empty($this->fotoBersama)) {
+            $rules['fotoBersama.*'] = ['image', 'max:5120'];
+        }
+
+        if (! empty($rules)) {
+            $this->validate($rules, [
+                'fotoPemasangan.*.image' => 'Setiap foto pemasangan harus berupa berkas gambar (jpg, png, webp).',
+                'fotoPemasangan.*.max' => 'Ukuran foto pemasangan maksimal 5 MB.',
+                'fotoSpeedtest.*.image' => 'Foto speedtest harus berupa berkas gambar (jpg, png, webp).',
+                'fotoSpeedtest.*.max' => 'Ukuran foto speedtest maksimal 5 MB.',
+                'fotoMou.image' => 'Foto MOU harus berupa berkas gambar (jpg, png, webp).',
+                'fotoMou.max' => 'Ukuran foto MOU maksimal 5 MB.',
+                'fotoBersama.*.image' => 'Foto bersama harus berupa berkas gambar (jpg, png, webp).',
+                'fotoBersama.*.max' => 'Ukuran foto bersama maksimal 5 MB.',
+            ]);
+
+            foreach ($this->fotoPemasangan as $foto) {
+                $this->ticket->addMediaFromDisk(
+                    FileUploadConfiguration::path($foto->getFilename(), false),
+                    FileUploadConfiguration::disk()
+                )->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_pemasangan');
+            }
+            $this->fotoPemasangan = [];
+
+            foreach ($this->fotoSpeedtest as $foto) {
+                $this->ticket->addMediaFromDisk(
+                    FileUploadConfiguration::path($foto->getFilename(), false),
+                    FileUploadConfiguration::disk()
+                )->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_speedtest');
+            }
+            $this->fotoSpeedtest = [];
+
+            if ($this->fotoMou) {
+                $this->ticket->addMediaFromDisk(
+                    FileUploadConfiguration::path($this->fotoMou->getFilename(), false),
+                    FileUploadConfiguration::disk()
+                )->usingFileName($this->fotoMou->getClientOriginalName())->toMediaCollection('foto_tanda_tangan_mou');
+                $this->fotoMou = null;
+            }
+
+            foreach ($this->fotoBersama as $foto) {
+                $this->ticket->addMediaFromDisk(
+                    FileUploadConfiguration::path($foto->getFilename(), false),
+                    FileUploadConfiguration::disk()
+                )->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_bersama_pelanggan_teknisi');
+            }
+            $this->fotoBersama = [];
+        }
+    }
+
+    /**
+     * Progress lapangan Teknisi: simpan pilihan ODP+Port dan unggah berkas bukti foto.
+     */
+    public function simpanProgressLapangan(): void
+    {
+        $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
+
+        if (! $this->simpanOdpPortTeknisi()) {
+            return;
+        }
+
+        $this->uploadPendingFotoTeknisi();
 
         if ($this->ticket->statusDivisi(DivisiTicket::Teknisi) === StatusDivisiTicket::Belum) {
             app(UbahStatusDivisiTicketAction::class)->execute(
@@ -488,7 +555,7 @@ class Show extends Component
             );
         }
 
-        Flux::toast(variant: 'success', text: 'Progress lapangan berhasil disimpan.');
+        Flux::toast(variant: 'success', text: 'Progress pengerjaan lapangan berhasil disimpan.');
         $this->loadTicket();
     }
 
@@ -663,38 +730,9 @@ class Show extends Component
     {
         $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
 
-        $this->validate([
-            'fotoSpeedtest.*' => ['image', 'max:5120'],
-            'fotoMou' => ['nullable', 'image', 'max:5120'],
-            'fotoBersama.*' => ['image', 'max:5120'],
-        ]);
+        $this->uploadPendingFotoTeknisi();
 
-        foreach ($this->fotoSpeedtest as $foto) {
-            $this->ticket->addMediaFromDisk(
-                FileUploadConfiguration::path($foto->getFilename(), false),
-                FileUploadConfiguration::disk()
-            )->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_speedtest');
-        }
-
-        if ($this->fotoMou) {
-            $this->ticket->addMediaFromDisk(
-                FileUploadConfiguration::path($this->fotoMou->getFilename(), false),
-                FileUploadConfiguration::disk()
-            )->usingFileName($this->fotoMou->getClientOriginalName())->toMediaCollection('foto_tanda_tangan_mou');
-        }
-
-        foreach ($this->fotoBersama as $foto) {
-            $this->ticket->addMediaFromDisk(
-                FileUploadConfiguration::path($foto->getFilename(), false),
-                FileUploadConfiguration::disk()
-            )->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_bersama_pelanggan_teknisi');
-        }
-
-        $this->fotoSpeedtest = [];
-        $this->fotoMou = null;
-        $this->fotoBersama = [];
-
-        Flux::toast(variant: 'success', text: 'Foto bukti tahap akhir berhasil diunggah.');
+        Flux::toast(variant: 'success', text: 'Foto bukti berhasil disimpan.');
         $this->loadTicket();
     }
 
@@ -704,7 +742,7 @@ class Show extends Component
      * UbahStatusDivisiTicketAction dan CONTEXT.md "Status Per-Divisi Tiket".
      *
      * Dipakai HANYA oleh divisi Teknisi (tombol "Tandai Selesai" tetap ada di sana karena
-     * digate oleh siapTeknisiSelesai(), bukti foto tahap akhir). NOC/Admin/Customer Service
+     * digate oleh siapTeknisiSelesai(), bukti foto kerja). NOC/Admin/Customer Service
      * memakai modal "Proses {Divisi}" (lihat openProsesModal()/prosesDivisiSubmit()) yang
      * juga mewajibkan Catatan Proses -- lihat CONTEXT.md "Proses Divisi (NOC/Admin/Customer
      * Service)".
@@ -714,10 +752,31 @@ class Show extends Component
         $divisi = DivisiTicket::from($divisiValue);
         $this->authorize('ubahStatusDivisi', [$this->ticket, $divisi]);
 
-        if ($divisi === DivisiTicket::Teknisi && ! $this->ticket->siapTeknisiSelesai()) {
-            Flux::toast(variant: 'danger', text: 'Lengkapi foto speedtest, tanda tangan MOU, dan foto bersama sebelum menandai Teknisi selesai.');
+        if ($divisi === DivisiTicket::Teknisi) {
+            // Simpan ODP port jika baru dipilih di komponen
+            if ($this->odp_id && $this->odp_port_id && $this->ticket->pemasangan?->odp_port_id !== $this->odp_port_id) {
+                if (! $this->simpanOdpPortTeknisi()) {
+                    return;
+                }
+            }
 
-            return;
+            // Simpan foto yang masih tertunda di upload Livewire
+            $this->uploadPendingFotoTeknisi();
+            $this->loadTicket();
+
+            if (! $this->ticket->siapTeknisiSelesai()) {
+                if (! $this->ticket->pemasangan?->odp_port_id) {
+                    Flux::toast(variant: 'danger', text: 'Pilih dan simpan Port ODP sebelum menandai Teknisi selesai.');
+                } elseif ($this->ticket->getMedia('foto_speedtest')->isEmpty()) {
+                    Flux::toast(variant: 'danger', text: 'Unggah foto speedtest sebelum menandai Teknisi selesai.');
+                } elseif ($this->ticket->getMedia('foto_tanda_tangan_mou')->isEmpty()) {
+                    Flux::toast(variant: 'danger', text: 'Unggah foto tanda tangan MOU sebelum menandai Teknisi selesai.');
+                } else {
+                    Flux::toast(variant: 'danger', text: 'Lengkapi port ODP, foto speedtest, dan foto MOU sebelum menandai Teknisi selesai.');
+                }
+
+                return;
+            }
         }
 
         try {

@@ -135,9 +135,14 @@ class WhatsappService
         // Tautan checkout tanpa login: signed URL, bukan xendit_invoice_url langsung -- agar
         // pelanggan selalu mendarat di halaman rincian tagihan kami dulu (bisa sinkronisasi
         // status & tampilkan rincian biaya) sebelum diarahkan ke payment gateway.
+        // Masa berlaku diselaraskan dengan tanggal jatuh tempo + 3 hari grace period (atau 30 hari bila belum ada).
         // Lihat AuthorizesInvoiceAccess::authorizeAksesTagihan().
+        $expiresAt = $invoice->tanggal_jatuh_tempo
+            ? Carbon::parse($invoice->tanggal_jatuh_tempo)->endOfDay()->addDays(3)
+            : now()->addDays(30);
+
         $linkBayar = $invoice->id
-            ? URL::signedRoute('portal.invoice.show', ['invoice' => $invoice->id], now()->addDays(30))
+            ? URL::signedRoute('portal.invoice.show', ['invoice' => $invoice->id], $expiresAt)
             : url('/');
 
         return [

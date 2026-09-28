@@ -207,9 +207,14 @@
                     @endforeach
                 </div>
 
-                <!-- Teknisi Tahap 1: ODP+Port & Foto Pemasangan -->
-                <div class="pt-4 border-t border-zinc-100 dark:border-zinc-700/60 space-y-3">
-                    <h4 class="text-sm font-bold text-zinc-800 dark:text-zinc-200">Progress Lapangan Teknisi (Tahap 1)</h4>
+                <!-- Pengerjaan Lapangan Teknisi (ODP, Port, dan Bukti Foto) -->
+                <div class="pt-4 border-t border-zinc-100 dark:border-zinc-700/60 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-sm font-bold text-zinc-800 dark:text-zinc-200">Pengerjaan Lapangan Teknisi</h4>
+                        @if ($ticket->statusDivisi(\App\Enums\Ticket\DivisiTicket::Teknisi) === \App\Enums\Ticket\StatusDivisiTicket::Selesai)
+                            <flux:badge size="sm" color="green" icon="check-circle">Pengerjaan Teknisi Selesai</flux:badge>
+                        @endif
+                    </div>
 
                     @php($usulan = $ticket->pemasangan)
                     @if ($usulan?->status_usulan_odp)
@@ -239,57 +244,99 @@
 
                     @can('ubahStatusDivisi', [$ticket, \App\Enums\Ticket\DivisiTicket::Teknisi])
                         @if ($usulan?->status_usulan_odp !== \App\Enums\Ticket\StatusUsulanOdp::Menunggu)
-                        <form wire:submit="simpanProgressLapangan" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <flux:field>
-                                <flux:label>ODP</flux:label>
-                                <flux:select wire:model.live="odp_id" placeholder="Pilih ODP...">
-                                    <flux:select.option value="">-- Pilih ODP --</flux:select.option>
-                                    @foreach ($odps as $odp)
-                                        <flux:select.option value="{{ $odp->id }}">{{ $odp->nama_odp }}</flux:select.option>
-                                    @endforeach
-                                </flux:select>
-                                <flux:error name="odp_id" />
-                            </flux:field>
-
-                            <flux:field>
-                                <flux:label>Port ODP</flux:label>
-                                <flux:select wire:model="odp_port_id" placeholder="Pilih Port..." :disabled="! $odp_id">
-                                    <flux:select.option value="">-- Pilih Port --</flux:select.option>
-                                    @foreach ($odpPorts as $port)
-                                        @if (isset($portDipesan[$port->id]))
-                                            <flux:select.option value="{{ $port->id }}" disabled>Port {{ $port->nomor_port }} — Dipesan oleh {{ $portDipesan[$port->id] }}</flux:select.option>
-                                        @else
-                                            <flux:select.option value="{{ $port->id }}">Port {{ $port->nomor_port }}</flux:select.option>
-                                        @endif
-                                    @endforeach
-                                </flux:select>
-                                <flux:error name="odp_port_id" />
-                            </flux:field>
-
-                            <div class="sm:col-span-2">
+                        <form wire:submit="simpanProgressLapangan" class="space-y-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <flux:field>
-                                    <flux:label>Foto Bukti Pemasangan (bisa lebih dari satu)</flux:label>
-                                    <input type="file" wire:model="fotoPemasangan" multiple accept="image/*" class="block w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-                                    <flux:error name="fotoPemasangan.*" />
+                                    <flux:label>ODP <span class="text-red-500">*</span></flux:label>
+                                    <flux:select wire:model.live="odp_id" placeholder="Pilih ODP...">
+                                        <flux:select.option value="">-- Pilih ODP --</flux:select.option>
+                                        @foreach ($odps as $odp)
+                                            <flux:select.option value="{{ $odp->id }}">{{ $odp->nama_odp }}</flux:select.option>
+                                        @endforeach
+                                    </flux:select>
+                                    <flux:error name="odp_id" />
+                                </flux:field>
+
+                                <flux:field>
+                                    <flux:label>Port ODP <span class="text-red-500">*</span></flux:label>
+                                    <flux:select wire:model="odp_port_id" placeholder="Pilih Port..." :disabled="! $odp_id">
+                                        <flux:select.option value="">-- Pilih Port --</flux:select.option>
+                                        @foreach ($odpPorts as $port)
+                                            @if (isset($portDipesan[$port->id]))
+                                                <flux:select.option value="{{ $port->id }}" disabled>Port {{ $port->nomor_port }} — Dipesan oleh {{ $portDipesan[$port->id] }}</flux:select.option>
+                                            @else
+                                                <flux:select.option value="{{ $port->id }}">Port {{ $port->nomor_port }}</flux:select.option>
+                                            @endif
+                                        @endforeach
+                                    </flux:select>
+                                    <flux:error name="odp_port_id" />
                                 </flux:field>
                             </div>
 
-                            <div class="sm:col-span-2">
-                                <flux:button type="submit" size="sm" variant="primary">Simpan Progress</flux:button>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <flux:field>
+                                    <flux:label>Foto Speedtest <span class="text-red-500">* (wajib untuk selesai)</span></flux:label>
+                                    <input type="file" wire:model="fotoSpeedtest" multiple accept="image/*" class="block w-full text-xs text-zinc-500" />
+                                    <flux:error name="fotoSpeedtest.*" />
+                                </flux:field>
+
+                                <flux:field>
+                                    <flux:label>Foto Tanda Tangan MOU <span class="text-red-500">* (wajib untuk selesai)</span></flux:label>
+                                    <input type="file" wire:model="fotoMou" accept="image/*" class="block w-full text-xs text-zinc-500" />
+                                    <flux:error name="fotoMou" />
+                                </flux:field>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <flux:field>
+                                    <flux:label>Foto Bukti Pemasangan / Kabel (opsional)</flux:label>
+                                    <input type="file" wire:model="fotoPemasangan" multiple accept="image/*" class="block w-full text-xs text-zinc-500" />
+                                    <flux:error name="fotoPemasangan.*" />
+                                </flux:field>
+
+                                <flux:field>
+                                    <flux:label>Foto Bersama Pelanggan & Teknisi (opsional)</flux:label>
+                                    <input type="file" wire:model="fotoBersama" multiple accept="image/*" class="block w-full text-xs text-zinc-500" />
+                                    <flux:error name="fotoBersama.*" />
+                                </flux:field>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-2 pt-1">
+                                <flux:button type="submit" size="sm" variant="subtle" icon="document-check">
+                                    Simpan Progress
+                                </flux:button>
+                                @if ($ticket->statusDivisi(\App\Enums\Ticket\DivisiTicket::Teknisi) !== \App\Enums\Ticket\StatusDivisiTicket::Selesai)
+                                    <flux:button type="button" size="sm" variant="primary" icon="check" wire:click="tandaiDivisiSelesai('teknisi')" wire:confirm="Tandai pengerjaan Teknisi selesai? Foto dan Port akan disimpan otomatis.">
+                                        Tandai Teknisi Selesai
+                                    </flux:button>
+                                @endif
                             </div>
                         </form>
                         @endif
                     @endcan
 
-                    @if ($ticket->getMedia('foto_pemasangan')->isNotEmpty())
-                        <div class="flex flex-wrap gap-2 pt-2">
-                            @foreach ($ticket->getMedia('foto_pemasangan') as $media)
-                                <a href="{{ $media->getUrl() }}" target="_blank">
-                                    <img src="{{ $media->getUrl() }}" class="h-20 w-20 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700" />
-                                </a>
-                            @endforeach
-                        </div>
-                    @endif
+                    <!-- Galeri Foto yang Sudah Diunggah -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2">
+                        @foreach ([
+                            'foto_speedtest' => 'Speedtest',
+                            'foto_tanda_tangan_mou' => 'Tanda Tangan MOU',
+                            'foto_pemasangan' => 'Foto Pemasangan',
+                            'foto_bersama_pelanggan_teknisi' => 'Foto Bersama',
+                        ] as $collection => $label)
+                            <div>
+                                <span class="text-zinc-500 block mb-1 font-medium">{{ $label }}</span>
+                                <div class="flex flex-wrap gap-1">
+                                    @forelse ($ticket->getMedia($collection) as $media)
+                                        <a href="{{ $media->getUrl() }}" target="_blank">
+                                            <img src="{{ $media->getUrl() }}" class="h-14 w-14 object-cover rounded border border-zinc-200 dark:border-zinc-700 hover:opacity-90" />
+                                        </a>
+                                    @empty
+                                        <span class="text-zinc-400 italic">Belum ada</span>
+                                    @endforelse
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
 
                 <!-- Aktivasi Pemasangan (NOC) -->
@@ -323,58 +370,11 @@
                                 Aktivasi Pemasangan
                             </flux:button>
                             @if (! $ticket->siapDiaktivasi())
-                                <p class="text-xs text-zinc-500 mt-1">Belum bisa diaktivasi: Teknisi harus memilih ODP+Port dan mengunggah minimal 1 foto pemasangan dulu.</p>
+                                <p class="text-xs text-zinc-500 mt-1">Belum bisa diaktivasi: Teknisi harus memilih ODP+Port dan mengunggah minimal 1 foto bukti dulu.</p>
                             @endif
                         @endcan
                     @endif
                 </div>
-
-                <!-- Teknisi Tahap 2: Bukti Akhir (setelah Aktivasi) -->
-                @if ($ticket->pemasangan?->sudahDiaktivasi())
-                    <div class="pt-4 border-t border-zinc-100 dark:border-zinc-700/60 space-y-3">
-                        <h4 class="text-sm font-bold text-zinc-800 dark:text-zinc-200">Bukti Akhir Teknisi (Tahap 2)</h4>
-
-                        @can('ubahStatusDivisi', [$ticket, \App\Enums\Ticket\DivisiTicket::Teknisi])
-                            <form wire:submit="simpanFotoTahapDua" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <flux:field>
-                                    <flux:label>Foto Speedtest</flux:label>
-                                    <input type="file" wire:model="fotoSpeedtest" multiple accept="image/*" class="block w-full text-xs text-zinc-500" />
-                                    <flux:error name="fotoSpeedtest.*" />
-                                </flux:field>
-                                <flux:field>
-                                    <flux:label>Foto Tanda Tangan MOU</flux:label>
-                                    <input type="file" wire:model="fotoMou" accept="image/*" class="block w-full text-xs text-zinc-500" />
-                                    <flux:error name="fotoMou" />
-                                </flux:field>
-                                <flux:field>
-                                    <flux:label>Foto Bersama Pelanggan & Teknisi</flux:label>
-                                    <input type="file" wire:model="fotoBersama" multiple accept="image/*" class="block w-full text-xs text-zinc-500" />
-                                    <flux:error name="fotoBersama.*" />
-                                </flux:field>
-                                <div class="sm:col-span-3">
-                                    <flux:button type="submit" size="sm" variant="primary">Simpan Bukti</flux:button>
-                                </div>
-                            </form>
-                        @endcan
-
-                        <div class="grid grid-cols-3 gap-3 text-xs">
-                            @foreach (['foto_speedtest' => 'Speedtest', 'foto_tanda_tangan_mou' => 'Tanda Tangan MOU', 'foto_bersama_pelanggan_teknisi' => 'Foto Bersama'] as $collection => $label)
-                                <div>
-                                    <span class="text-zinc-500 block mb-1">{{ $label }}</span>
-                                    <div class="flex flex-wrap gap-1">
-                                        @forelse ($ticket->getMedia($collection) as $media)
-                                            <a href="{{ $media->getUrl() }}" target="_blank">
-                                                <img src="{{ $media->getUrl() }}" class="h-14 w-14 object-cover rounded border border-zinc-200 dark:border-zinc-700" />
-                                            </a>
-                                        @empty
-                                            <span class="text-zinc-400 italic">Belum ada</span>
-                                        @endforelse
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
             </div>
         @endif
 
