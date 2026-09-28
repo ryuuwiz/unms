@@ -86,6 +86,41 @@ test('kml parser extracts points with auto perumahan and capacity', function () 
     expect($result['polygons'][0]['nama'])->toBe('Area Coverage Lavender');
 });
 
+test('kml parser extracts points from a KMZ (zip) archive using content only, without a local file path', function () {
+    // Regresi: Livewire\Odp\Index::parseUploadedFile() dulu memanggil parse($content, $filePath) dengan
+    // $filePath dari TemporaryUploadedFile::getRealPath() -- itu cuma path lokal yang valid saat disk upload
+    // Livewire local; di disk s3 (produksi, lihat .ai/rules/livewire-uploads.md) getRealPath() balikin path
+    // relatif yang tidak ada di filesystem lokal, jadi ZipArchive::open()-nya gagal. Parser harus tetap bisa
+    // mengekstrak KMZ hanya dari isi (content) tanpa filePath sama sekali.
+    $kmlSample = <<<'XML'
+    <?xml version="1.0" encoding="UTF-8"?>
+    <kml xmlns="http://www.opengis.net/kml/2.2">
+      <Document>
+        <Placemark>
+          <name>ODP-KMZ-01</name>
+          <Point>
+            <coordinates>106.845600,-6.208800,0</coordinates>
+          </Point>
+        </Placemark>
+      </Document>
+    </kml>
+    XML;
+
+    $kmzPath = tempnam(sys_get_temp_dir(), 'kmz_test_').'.kmz';
+    $zip = new ZipArchive;
+    $zip->open($kmzPath, ZipArchive::CREATE);
+    $zip->addFromString('doc.kml', $kmlSample);
+    $zip->close();
+    $kmzContent = file_get_contents($kmzPath);
+    unlink($kmzPath);
+
+    $parser = new KmlParser;
+    $result = $parser->parse($kmzContent);
+
+    expect($result['points'])->toHaveCount(1)
+        ->and($result['points'][0]['nama'])->toBe('ODP-KMZ-01');
+});
+
 test('geojson parser extracts points with auto perumahan and capacity', function () {
     $geoJsonSample = json_encode([
         'type' => 'FeatureCollection',

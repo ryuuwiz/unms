@@ -143,11 +143,17 @@ class Index extends Component
             return;
         }
 
-        $filePath = $this->importFile->getRealPath();
         $extension = strtolower($this->importFile->getClientOriginalExtension());
-        $content = file_get_contents($filePath);
 
-        if ($content === false) {
+        // TemporaryUploadedFile::get() baca lewat disk Livewire (local atau S3); getRealPath()+file_get_contents()
+        // hanya berhasil pada disk local karena di S3 ia balikin path relatif yang tidak ada di filesystem lokal.
+        try {
+            $content = $this->importFile->get();
+        } catch (\Throwable $e) {
+            $content = '';
+        }
+
+        if ($content === '') {
             Flux::toast(variant: 'danger', text: 'Gagal membaca berkas unggahan.');
 
             return;
@@ -155,7 +161,9 @@ class Index extends Component
 
         if (in_array($extension, ['kml', 'kmz'], true) || str_starts_with($content, 'PK') || str_starts_with(trim($content), '<')) {
             $parser = app(KmlParser::class);
-            $result = $parser->parse($content, $filePath);
+            // Tanpa filePath: KmlParser menulis ZIP-nya sendiri ke tempnam() lokal untuk ZipArchive -- aman
+            // untuk disk manapun, beda dengan getRealPath() yang cuma valid di disk local.
+            $result = $parser->parse($content);
             $this->parsedOdps = $result['points'];
             $this->parsedPolygons = $result['polygons'];
         } else {

@@ -8,13 +8,17 @@ use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
 use App\Models\IpPool;
 use App\Models\Router;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Bus;
 
 class IpPoolObserver
 {
     /**
      * Sinkronkan pool (dan Rantai IP Pool Router) ke router. Rename bebas (ADR-0060): pool bernama lama baru
      * dibersihkan setelah pool baru, rantai, dan profile menunjuk nama baru.
+     *
+     * Dispatch lewat SyncIpPoolToRouterJob::dispatch()->chain(...), bukan Bus::chain(...)->dispatch(): Bus::chain()
+     * memanggil Dispatcher::dispatch() langsung dan tidak pernah mengecek ShouldBeUnique (hanya PendingDispatch yang
+     * mengeceknya) -- setiap saved() akan mengantrikan job baru tanpa dedupe uniqueId()/uniqueFor(), bertentangan
+     * dengan docblock job itu sendiri.
      */
     public function saved(IpPool $ipPool): void
     {
@@ -28,13 +32,13 @@ class IpPoolObserver
             return;
         }
 
-        $jobs = [new SyncIpPoolToRouterJob($ipPool)];
+        $chain = [];
 
         if ($ipPool->wasChanged('nama_pool') && ! $ipPool->wasChanged('router_id')) {
-            $jobs[] = new RemoveIpPoolFromRouterJob($ipPool->router_id, (string) $ipPool->getOriginal('nama_pool'), Auth::id() ?? 'system:tanpa-user', 'IP Pool di-rename');
+            $chain[] = new RemoveIpPoolFromRouterJob($ipPool->router_id, (string) $ipPool->getOriginal('nama_pool'), Auth::id() ?? 'system:tanpa-user', 'IP Pool di-rename');
         }
 
-        Bus::chain($jobs)->dispatch();
+        SyncIpPoolToRouterJob::dispatch($ipPool)->chain($chain);
     }
 
     /**
