@@ -217,13 +217,12 @@ test('isolir atau suspend pada layanan A menonaktifkan PPP secret layanan A di M
     ]);
 
     $mikrotikMock = Mockery::mock(MikrotikService::class);
-    // Hanya Layanan Home yang di-disable di router
-    $mikrotikMock->shouldReceive('disablePppoeSecret')
+    // Hanya Layanan Home yang diisolir di router
+    $mikrotikMock->shouldReceive('isolirPppoeSecret')
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            Mockery::on(fn ($l) => $l->ppp_username === 'BF2408202601_00001'),
-            true
+            Mockery::on(fn ($l) => $l->ppp_username === 'BF2408202601_00001')
         )
         ->andReturn(true);
 
@@ -231,7 +230,7 @@ test('isolir atau suspend pada layanan A menonaktifkan PPP secret layanan A di M
 
     // Eksekusi isolir pada layanan Home
     $layananHome->update(['status' => StatusLayanan::Suspend]);
-    $mikrotikMock->disablePppoeSecret($this->router, $layananHome, true);
+    $mikrotikMock->isolirPppoeSecret($this->router, $layananHome);
 
     expect($layananHome->fresh()->status)->toBe(StatusLayanan::Suspend)
         ->and($layananOffice->fresh()->status)->toBe(StatusLayanan::Aktif);

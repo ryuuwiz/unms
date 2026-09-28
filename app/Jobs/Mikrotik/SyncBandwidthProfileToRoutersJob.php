@@ -52,7 +52,10 @@ class SyncBandwidthProfileToRoutersJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(MikrotikService $mikrotikService): void
     {
-        $routers = Router::where('status_koneksi', StatusRouter::Online)->get();
+        // Hanya router yang menjual paket berprofil bandwidth ini (Router Paket, ADR-0063).
+        $routers = Router::where('status_koneksi', StatusRouter::Online)
+            ->whereHas('routerPakets.paketLayanan', fn ($query) => $query->where('profil_bandwidth_id', $this->profil->id))
+            ->get();
 
         if ($routers->isEmpty()) {
             return;
@@ -90,11 +93,12 @@ class SyncBandwidthProfileToRoutersJob implements ShouldBeUnique, ShouldQueue
                 ]);
 
                 try {
-                    // Profile PPP per Router merujuk kepala Rantai IP Pool Router, jadi kepala harus sudah ada di router.
-                    if ($kepalaPool = $router->kepalaIpPool()) {
-                        $mikrotikService->syncIpPool($router, $kepalaPool);
+                    $routerPakets = $router->routerPakets()
+                        ->whereHas('paketLayanan', fn ($query) => $query->where('profil_bandwidth_id', $this->profil->id))
+                        ->get();
+                    foreach ($routerPakets as $routerPaket) {
+                        $mikrotikService->ensurePaketProfile($routerPaket);
                     }
-                    $mikrotikService->ensurePppProfile($router, $this->profil);
 
                     $log->update([
                         'status' => MikrotikJobStatus::Success,

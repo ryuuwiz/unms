@@ -78,7 +78,7 @@ class MikrotikSyncProfilesCommand extends Command
             $this->line("Proses router: <comment>{$router->nama_router}</comment> ({$router->ip_address}:{$router->port})...");
 
             try {
-                $result = $mikrotikService->syncAllBandwidthProfiles($router);
+                $result = $mikrotikService->syncPaketProfiles($router);
 
                 $this->info("  ✅ Sukses: {$result['synced']}/{$result['total']} profil tersinkronisasi ke {$router->nama_router}");
 

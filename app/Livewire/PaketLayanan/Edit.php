@@ -4,8 +4,10 @@ namespace App\Livewire\PaketLayanan;
 
 use App\Enums\MasaAktifSatuan;
 use App\Enums\StatusPaket;
+use App\Jobs\Mikrotik\SyncRouterPaketJob;
 use App\Models\PaketLayanan;
 use App\Models\ProfilBandwidth;
+use App\Models\RouterPaket;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -84,6 +86,8 @@ class Edit extends Component
         $this->authorize('update', $paket);
         $this->validate();
 
+        $namaLama = $paket->nama_paket;
+
         $paket->update([
             'nama_paket' => $this->nama_paket,
             'profil_bandwidth_id' => $this->profil_bandwidth_id,
@@ -93,6 +97,11 @@ class Edit extends Component
             'keterangan' => $this->keterangan ?: null,
             'status' => $this->status,
         ]);
+
+        // Profile PPP paket di setiap Router Paket membawa nama & rate-limit paket (ADR-0063).
+        if ($paket->wasChanged(['nama_paket', 'profil_bandwidth_id'])) {
+            $paket->routerPakets->each(fn (RouterPaket $routerPaket) => SyncRouterPaketJob::dispatch($routerPaket, $namaLama));
+        }
 
         Flux::toast(variant: 'success', text: "Paket {$paket->nama_paket} berhasil diperbarui.");
         $this->redirectRoute('paket-layanan.index', navigate: true);

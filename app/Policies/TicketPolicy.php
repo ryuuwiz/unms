@@ -40,11 +40,20 @@ class TicketPolicy
     }
 
     /**
-     * Determine whether the user can create tickets.
+     * Determine whether the user can create tickets. Pencabutan hanya boleh dibuat Admin
+     * (dan super_admin) -- lihat CONTEXT.md "Pencabutan".
      */
-    public function create(User $user): bool
+    public function create(User $user, ?JenisTicket $jenis = null): bool
     {
-        return $user->can('ticket.buat');
+        if (! $user->can('ticket.buat')) {
+            return false;
+        }
+
+        if ($jenis === JenisTicket::Pencabutan) {
+            return $user->hasRole(['super_admin', 'admin']);
+        }
+
+        return true;
     }
 
     /**
@@ -157,6 +166,34 @@ class TicketPolicy
             DivisiTicket::CustomerService => $user->hasRole('customer_service'),
             default => false,
         };
+    }
+
+    /**
+     * Proses NOC pada tiket Pencabutan: hapus PPP Secret di router -- lihat CONTEXT.md "Pencabutan".
+     */
+    public function hapusSecretPencabutan(User $user, Ticket $ticket): bool
+    {
+        if (! $user->can('ticket.ubah') || $ticket->jenis !== JenisTicket::Pencabutan) {
+            return false;
+        }
+
+        return $user->hasRole(['super_admin', 'admin', 'noc']);
+    }
+
+    /**
+     * Teknisi mencabut perangkat dan melepas port ODP pada tiket Pencabutan -- lihat CONTEXT.md "Pencabutan".
+     */
+    public function lepasPortOdpPencabutan(User $user, Ticket $ticket): bool
+    {
+        if (! $user->can('ticket.ubah') || $ticket->jenis !== JenisTicket::Pencabutan) {
+            return false;
+        }
+
+        if ($user->hasRole(['super_admin', 'admin'])) {
+            return true;
+        }
+
+        return $user->hasRole('teknisi') && $ticket->pic_id === $user->id;
     }
 
     /**

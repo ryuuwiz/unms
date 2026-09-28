@@ -56,24 +56,11 @@
                 </flux:field>
             </div>
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <flux:field>
-                    <flux:label>NIK (16 Digit) <span class="text-zinc-400 font-normal">(opsional, terenkripsi)</span>
-                    </flux:label>
-                    <flux:input wire:model="nik" maxlength="16" placeholder="3201xxxxxxxxxxxx" />
-                    <flux:error name="nik" />
-                </flux:field>
-
-                <flux:field>
-                    <flux:label>Status Pelanggan</flux:label>
-                    <flux:select wire:model="status">
-                        @foreach ($statuses as $st)
-                            <flux:select.option value="{{ $st->value }}">{{ $st->label() }}</flux:select.option>
-                        @endforeach
-                    </flux:select>
-                    <flux:error name="status" />
-                </flux:field>
-            </div>
+            <flux:field>
+                <flux:label>NIK (16 Digit) <span class="text-zinc-400 font-normal">(terenkripsi)</span></flux:label>
+                <flux:input wire:model="nik" maxlength="16" inputmode="numeric" required placeholder="3201xxxxxxxxxxxx" />
+                <flux:error name="nik" />
+            </flux:field>
         </div>
 
         <flux:separator />
@@ -150,6 +137,8 @@
                     placeholder="Alamat lengkap lokasi pemasangan perangkat ISP..." />
                 <flux:error name="alamat_lengkap" />
             </flux:field>
+
+            <x-map-picker lat="latitude" lng="longitude" />
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <flux:field>

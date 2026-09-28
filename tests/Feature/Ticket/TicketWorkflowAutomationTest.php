@@ -96,6 +96,8 @@ it('menghentikan layanan terkait saat tiket Pencabutan selesai, termasuk oleh NO
         'status' => StatusTicket::MenungguKonfirmasi,
         'pelanggan_id' => $pelanggan->id,
         'layanan_pelanggan_id' => $dicabut->id,
+        'secret_dihapus_pada' => now(),
+        'secret_dihapus_oleh' => $this->noc->id,
     ]);
 
     app(UbahStatusTicketAction::class)->execute($ticket, StatusTicket::Selesai, $this->noc);

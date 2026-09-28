@@ -1,10 +1,12 @@
 <?php
 
 use App\Actions\Ticket\UbahStatusTicketAction;
+use App\Enums\StatusLayanan;
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\UserStatus;
 use App\Exceptions\TransisiStatusTidakValidException;
+use App\Models\LayananPelanggan;
 use App\Models\Pelanggan;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
@@ -14,6 +16,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
@@ -158,4 +161,39 @@ test('sales can only cancel tickets they created', function () {
     // Other ticket -> AuthorizationException
     expect(fn () => $this->action->execute($ticketOther, StatusTicket::Batal, $this->salesUser, 'Coba batalkan'))
         ->toThrow(AuthorizationException::class);
+});
+
+test('tiket Pencabutan tidak bisa Selesai sebelum PPP Secret dihapus, dan layanan tetap Aktif', function () {
+    $layanan = LayananPelanggan::factory()->create(['pelanggan_id' => $this->pelanggan->id, 'status' => StatusLayanan::Aktif]);
+    $ticket = Ticket::factory()->create([
+        'jenis' => JenisTicket::Pencabutan,
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $layanan->id,
+        'status' => StatusTicket::MenungguKonfirmasi,
+    ]);
+
+    expect(fn () => $this->action->execute($ticket, StatusTicket::Selesai, $this->nocUser))
+        ->toThrow(InvalidArgumentException::class);
+
+    expect($ticket->fresh()->status)->toBe(StatusTicket::MenungguKonfirmasi)
+        ->and($layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
+});
+
+test('tiket Pencabutan bisa Selesai setelah PPP Secret dihapus, dan menghentikan layanan', function () {
+    Queue::fake();
+
+    $layanan = LayananPelanggan::factory()->create(['pelanggan_id' => $this->pelanggan->id, 'status' => StatusLayanan::Aktif]);
+    $ticket = Ticket::factory()->create([
+        'jenis' => JenisTicket::Pencabutan,
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $layanan->id,
+        'status' => StatusTicket::MenungguKonfirmasi,
+        'secret_dihapus_pada' => now(),
+        'secret_dihapus_oleh' => $this->nocUser->id,
+    ]);
+
+    $this->action->execute($ticket, StatusTicket::Selesai, $this->nocUser);
+
+    expect($ticket->fresh()->status)->toBe(StatusTicket::Selesai)
+        ->and($layanan->fresh()->status)->toBe(StatusLayanan::Berhenti);
 });

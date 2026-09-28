@@ -212,6 +212,7 @@ test('layanan dihapus melepas IP publik', function () {
 test('form edit layanan menetapkan dan melepas IP publik', function () {
     IpPool::factory()->create(['router_id' => $this->router->id]);
     $layanan = LayananPelanggan::factory()->create(['router_id' => $this->router->id, 'ip_static' => null]);
+    daftarkanRouterPaket($layanan);
     $ip = IpPublik::factory()->create(['router_id' => $this->router->id, 'harga_bulanan' => 40000]);
 
     Livewire::actingAs($this->admin)

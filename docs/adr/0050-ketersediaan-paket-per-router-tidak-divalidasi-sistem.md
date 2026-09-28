@@ -1,5 +1,7 @@
 # ADR 0050: Ketersediaan Paket Layanan per Router Tidak Divalidasi Sistem
 
+> Status: digantikan oleh ADR-0063.
+
 ## Konteks
 Modal "Proses NOC" (lihat CONTEXT.md "Proses Divisi (NOC/Admin/Customer Service)") menambahkan opsi "Paket Berbeda" yang membiarkan NOC memilih Paket Layanan lain untuk suatu Data Registrasi Billing sambil menentukan Router-nya sendiri. Sebuah Paket Layanan (kombinasi Profil Bandwidth) secara teori bisa saja tidak benar-benar dikonfigurasi di RouterOS pada router yang dipilih (mis. profil PPP untuk paket itu belum pernah disinkronkan ke router X karena paket itu memang dijual khusus di router Y).
 

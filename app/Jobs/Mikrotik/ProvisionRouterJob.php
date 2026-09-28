@@ -30,8 +30,7 @@ class ProvisionRouterJob implements ShouldQueue
 
     public function __construct(
         public Router $router,
-        public bool $force = false,
-        public bool $cleanOrphans = false
+        public bool $force = false
     ) {
         $this->onQueue('mikrotik-low');
     }
@@ -54,11 +53,7 @@ class ProvisionRouterJob implements ShouldQueue
 
     public function handle(MikrotikService $mikrotikService): void
     {
-        $mikrotikService->provisionRouterFull(
-            router: $this->router,
-            force: $this->force,
-            cleanOrphans: $this->cleanOrphans
-        );
+        $mikrotikService->provisionRouterFull(router: $this->router, force: $this->force);
     }
 
     public function failed(?Throwable $exception): void

@@ -71,6 +71,32 @@
                                 </flux:select.option>
                             @endforeach
                         </flux:select>
+                        <flux:error name="layanan_pelanggan_id" />
+                    </div>
+                @endif
+
+                <!-- Usulan ODP (Ticket Pemasangan yang merujuk layanan) -->
+                @if ($butuhUsulanOdp)
+                    <div class="space-y-2">
+                        <flux:label>Usulan ODP</flux:label>
+                        @if ($layananTanpaKoordinat)
+                            <flux:callout variant="warning" icon="map-pin">
+                                <flux:callout.text>Layanan ini belum punya koordinat. Lengkapi koordinat layanan dulu agar ODP terdekat bisa dicari.</flux:callout.text>
+                            </flux:callout>
+                        @elseif ($kandidatUsulanOdp->isEmpty())
+                            <flux:callout variant="secondary" icon="information-circle">
+                                <flux:callout.text>Tidak ada ODP berport kosong dalam radius {{ \App\Models\Odp::RADIUS_PELANGGAN_METER }} meter. Tiket dibuat tanpa Usulan ODP; Teknisi memilih ODP sendiri setelah survei.</flux:callout.text>
+                            </flux:callout>
+                        @else
+                            <flux:radio.group wire:model="odp_usulan_id" variant="cards" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                @foreach ($kandidatUsulanOdp as $odp)
+                                    <flux:radio value="{{ $odp->id }}" label="{{ $odp->nama_odp }}"
+                                        description="{{ round((float) $odp->jarak) }} m • {{ $odp->port_tersedia_count }} port kosong" />
+                                @endforeach
+                            </flux:radio.group>
+                            <flux:description>Pilih ODP terdekat untuk pemasangan. Teknisi akan memvalidasi sebelum memilih port.</flux:description>
+                        @endif
+                        <flux:error name="odp_usulan_id" />
                     </div>
                 @endif
             </div>

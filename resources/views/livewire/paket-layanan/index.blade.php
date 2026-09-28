@@ -45,7 +45,7 @@
                 <div wire:key="kartu-{{ $paket->id }}" @class(['relative rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-800', 'opacity-60' => $paket->status !== App\Enums\StatusPaket::Aktif])>
                     <div class="flex items-start justify-between gap-2">
                         @can('update', $paket)
-                            <a href="{{ route('paket-layanan.edit', $paket) }}" wire:navigate class="font-medium text-zinc-900 after:absolute after:inset-0 dark:text-zinc-100">{{ $paket->nama_paket }}</a>
+                            <a href="{{ route('paket-layanan.show', $paket) }}" wire:navigate class="font-medium text-zinc-900 after:absolute after:inset-0 dark:text-zinc-100">{{ $paket->nama_paket }}</a>
                         @else
                             <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $paket->nama_paket }}</span>
                         @endcan
@@ -87,7 +87,7 @@
                         <flux:table.row
                             :key="$paket->id"
                             :class="Arr::toCssClasses(['opacity-60' => $paket->status !== App\Enums\StatusPaket::Aktif, 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/30' => $bisaUbah])"
-                            data-href="{{ $bisaUbah ? route('paket-layanan.edit', $paket) : '' }}"
+                            data-href="{{ route('paket-layanan.show', $paket) }}"
                             x-on:click="$el.dataset.href && ! $event.target.closest('a, button, [data-flux-menu]') && Livewire.navigate($el.dataset.href)"
                         >
                             <flux:table.cell>

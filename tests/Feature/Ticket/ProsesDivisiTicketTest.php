@@ -17,6 +17,7 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Mikrotik\MikrotikService;
@@ -46,6 +47,8 @@ beforeEach(function () {
 
     $this->router = Router::factory()->online()->create();
     $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id, 'nama_pool' => 'Pool-Rumah']);
+    RouterPaket::create(['paket_layanan_id' => $this->paket->id, 'router_id' => $this->router->id, 'ip_pool_id' => $this->ipPool->id]);
+    RouterPaket::create(['paket_layanan_id' => $this->paketLain->id, 'router_id' => $this->router->id, 'ip_pool_id' => $this->ipPool->id]);
 
     $this->layanan = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
@@ -108,9 +111,10 @@ test('NOC memproses tiket: pilih Proses Registrasi Mikrotik memanggil RouterOS d
     expect(MikrotikJobLog::where('status', MikrotikJobStatus::Success)->count())->toBe(1);
 });
 
-test('NOC memilih router baru dan IP Pool ikut berpindah ke rantai pool router tsb', function () {
+test('NOC memilih router baru dan IP Pool ikut berpindah ke pool Router Paket router tsb', function () {
     $routerBaru = Router::factory()->online()->create();
     $poolBaru = IpPool::factory()->create(['router_id' => $routerBaru->id, 'nama_pool' => 'Pool-Rumah']);
+    RouterPaket::create(['paket_layanan_id' => $this->paket->id, 'router_id' => $routerBaru->id, 'ip_pool_id' => $poolBaru->id]);
 
     $mockService = Mockery::mock(MikrotikService::class);
     $this->app->instance(MikrotikService::class, $mockService);
@@ -140,7 +144,7 @@ test('NOC memilih router baru dan IP Pool ikut berpindah ke rantai pool router t
         ->and($this->layanan->fresh()->ipPool?->id)->toBe($poolBaru->id);
 });
 
-test('Proses NOC ditolak bila router terpilih belum punya IP Pool', function () {
+test('Proses NOC ditolak bila router terpilih belum terdaftar untuk paket layanan', function () {
     $routerLain = Router::factory()->online()->create();
 
     $mockService = Mockery::mock(MikrotikService::class);

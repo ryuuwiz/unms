@@ -94,7 +94,7 @@ class Edit extends Component
         $this->validate();
 
         if ($this->router_id !== $pool->router_id && ! $pool->canBeDeleted()) {
-            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} adalah pool terakhir di router ini yang masih dipakai layanan PPPoE dinamis dan tidak dapat dipindahkan ke router lain. Tambahkan pool lain di router ini terlebih dahulu.");
+            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} masih dipakai paket di router ini dan tidak dapat dipindahkan. Ganti pool paket tersebut di Detail Paket terlebih dahulu.");
 
             return;
         }

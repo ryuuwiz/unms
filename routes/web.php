@@ -154,6 +154,7 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::middleware('permission:paket_layanan.lihat')->group(function () {
             Route::get('/', PaketLayanan\Index::class)->name('index');
+            Route::get('/{paketLayanan}', PaketLayanan\Show::class)->name('show');
         });
     });
 

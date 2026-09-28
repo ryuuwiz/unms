@@ -2,17 +2,21 @@
 
 namespace App\Livewire\Ticket;
 
+use App\Enums\StatusOdpPort;
 use App\Enums\StatusPelanggan;
 use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\PrioritasTicket;
 use App\Enums\Ticket\StatusTicket;
+use App\Enums\Ticket\StatusUsulanOdp;
 use App\Enums\Ticket\SumberTicket;
 use App\Livewire\Concerns\HasSearchableOptions;
 use App\Models\LayananPelanggan;
+use App\Models\Odp;
 use App\Models\Pelanggan;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
+use App\Models\TicketPemasangan;
 use App\Models\User;
 use App\Notifications\TicketDiassignNotification;
 use App\Services\Whatsapp\WhatsappService;
@@ -41,6 +45,9 @@ class Create extends Component
     public ?int $pelanggan_id = null;
 
     public ?int $layanan_pelanggan_id = null;
+
+    /** Usulan ODP -- lihat CONTEXT.md "Usulan ODP". */
+    public ?int $odp_usulan_id = null;
 
     public string $prioritas = 'sedang';
 
@@ -79,6 +86,7 @@ class Create extends Component
 
     public function updatedJenis(): void
     {
+        $this->odp_usulan_id = null;
         $this->autoSetDivisi();
     }
 
@@ -90,6 +98,7 @@ class Create extends Component
 
     public function updatedLayananPelangganId(): void
     {
+        $this->odp_usulan_id = null;
         $this->autoSetDivisi();
     }
 
@@ -120,7 +129,8 @@ class Create extends Component
             JenisTicket::Pemasangan->value => $this->layanan_pelanggan_id
                 ? array_map(fn ($d) => $d->value, Ticket::DIVISI_WAJIB_PEMASANGAN)
                 : [DivisiTicket::Teknisi->value],
-            JenisTicket::Pencabutan->value => [DivisiTicket::Teknisi->value, DivisiTicket::CustomerService->value],
+            // NOC menghapus PPP Secret, Teknisi mencabut perangkat & melepas port ODP -- CONTEXT.md "Pencabutan".
+            JenisTicket::Pencabutan->value => [DivisiTicket::Noc->value, DivisiTicket::Teknisi->value],
             JenisTicket::PindahAlamat->value => [DivisiTicket::Noc->value, DivisiTicket::Teknisi->value],
             default => [DivisiTicket::Teknisi->value],
         };
@@ -128,7 +138,7 @@ class Create extends Component
 
     public function save(): void
     {
-        $this->authorize('create', Ticket::class);
+        $this->authorize('create', [Ticket::class, JenisTicket::tryFrom($this->jenis)]);
 
         // Pemasangan yang merujuk layanan wajib keempat divisi -- paksa di server, jangan
         // percaya state checkbox client (lihat autoSetDivisi() dan CONTEXT.md "Status Per-Divisi Tiket").
@@ -158,11 +168,33 @@ class Create extends Component
             'fotoKendala.max' => 'Ukuran foto maksimal 5 MB.',
         ]);
 
+        $layananUsulan = $this->layananUntukUsulanOdp();
+        $kandidatOdp = new Collection;
+
+        if ($layananUsulan) {
+            if ($layananUsulan->latitude === null || $layananUsulan->longitude === null) {
+                $this->addError('layanan_pelanggan_id', 'Layanan ini belum punya koordinat. Lengkapi koordinat layanan dulu agar ODP terdekat bisa dicari.');
+
+                return;
+            }
+
+            $kandidatOdp = $this->kandidatUsulanOdp($layananUsulan);
+
+            if ($kandidatOdp->isNotEmpty()) {
+                $this->validate([
+                    'odp_usulan_id' => ['required', 'integer', Rule::in($kandidatOdp->modelKeys())],
+                ], [
+                    'odp_usulan_id.required' => 'Pilih Usulan ODP dari ODP terdekat.',
+                    'odp_usulan_id.in' => 'Usulan ODP harus salah satu ODP terdekat yang masih punya port kosong.',
+                ]);
+            }
+        }
+
         $authUserId = Auth::id();
         /** @var User $authUser */
         $authUser = Auth::user();
 
-        $ticket = DB::transaction(function () use ($authUserId) {
+        $ticket = DB::transaction(function () use ($authUserId, $layananUsulan, $kandidatOdp) {
             $ticket = Ticket::create([
                 'jenis' => $this->jenis,
                 'pelanggan_id' => $this->pelanggan_id,
@@ -180,11 +212,27 @@ class Create extends Component
             $divisiRows = array_map(fn (string $d) => ['ticket_id' => $ticket->id, 'divisi' => $d], $this->divisis);
             DB::table('ticket_divisi')->insert($divisiRows);
 
+            $catatanUsulan = '';
+            if ($layananUsulan) {
+                $adaKandidat = $kandidatOdp->isNotEmpty();
+
+                TicketPemasangan::create([
+                    'ticket_id' => $ticket->id,
+                    'odp_usulan_id' => $adaKandidat ? $this->odp_usulan_id : null,
+                    'status_usulan_odp' => $adaKandidat ? StatusUsulanOdp::Menunggu : null,
+                    'tanpa_odp_dalam_jangkauan' => ! $adaKandidat,
+                ]);
+
+                $catatanUsulan = $adaKandidat
+                    ? ' Usulan ODP: '.$kandidatOdp->find($this->odp_usulan_id)?->nama_odp.' (menunggu validasi Teknisi).'
+                    : ' Tanpa ODP dalam jangkauan; Teknisi memilih ODP sendiri.';
+            }
+
             TicketHistori::create([
                 'ticket_id' => $ticket->id,
                 'status_lama' => null,
                 'status_baru' => StatusTicket::Baru,
-                'catatan' => 'Tiket baru dibuat.'.($this->pic_id ? ' PIC ditugaskan pada saat pembuatan.' : ''),
+                'catatan' => 'Tiket baru dibuat.'.($this->pic_id ? ' PIC ditugaskan pada saat pembuatan.' : '').$catatanUsulan,
                 'oleh_pengguna_id' => $authUserId,
             ]);
 
@@ -258,8 +306,43 @@ class Create extends Component
         $this->redirectRoute('ticket.show', $ticket, navigate: true);
     }
 
+    /**
+     * Usulan ODP hanya untuk Ticket Pemasangan yang merujuk layanan (CONTEXT.md "Usulan ODP").
+     */
+    protected function layananUntukUsulanOdp(): ?LayananPelanggan
+    {
+        if ($this->jenis !== JenisTicket::Pemasangan->value || ! $this->layanan_pelanggan_id) {
+            return null;
+        }
+
+        return LayananPelanggan::find($this->layanan_pelanggan_id);
+    }
+
+    /**
+     * Maksimal 3 ODP Terdekat dari koordinat layanan yang masih punya port kosong dan tidak Dipesan.
+     *
+     * @return Collection<int, Odp>
+     */
+    protected function kandidatUsulanOdp(LayananPelanggan $layanan): Collection
+    {
+        $portDipesan = array_keys(TicketPemasangan::portDipesan());
+
+        return Odp::query()
+            ->terdekat((float) $layanan->latitude, (float) $layanan->longitude, Odp::RADIUS_PELANGGAN_METER)
+            ->withCount(['ports as port_tersedia_count' => fn ($query) => $query
+                ->where('status', StatusOdpPort::Kosong)
+                ->whereNotIn('id', $portDipesan)])
+            ->get()
+            ->where('port_tersedia_count', '>', 0)
+            ->take(3)
+            ->values();
+    }
+
     public function render(): View
     {
+        $layananUsulan = $this->layananUntukUsulanOdp();
+        $layananTanpaKoordinat = $layananUsulan && ($layananUsulan->latitude === null || $layananUsulan->longitude === null);
+
         /** @var Collection<int, LayananPelanggan> $layanans */
         $layanans = $this->pelanggan_id
             ? LayananPelanggan::query()
@@ -282,10 +365,13 @@ class Create extends Component
 
         return view('livewire.ticket.create', [
             'layanans' => $layanans,
+            'butuhUsulanOdp' => (bool) $layananUsulan,
+            'layananTanpaKoordinat' => $layananTanpaKoordinat,
+            'kandidatUsulanOdp' => $layananUsulan && ! $layananTanpaKoordinat ? $this->kandidatUsulanOdp($layananUsulan) : new Collection,
             'staffList' => $staffList,
             'selectedPelanggan' => $selectedPelanggan,
             'prioritasEnum' => $prioritasEnum,
-            'jenisList' => JenisTicket::cases(),
+            'jenisList' => array_filter(JenisTicket::cases(), fn (JenisTicket $j) => Auth::user()->can('create', [Ticket::class, $j])),
             'prioritasList' => PrioritasTicket::cases(),
             'divisiList' => DivisiTicket::cases(),
         ]);

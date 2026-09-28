@@ -26,8 +26,7 @@ class DisablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
     public int $uniqueFor = 300;
 
     public function __construct(
-        public LayananPelanggan $layanan,
-        public bool $disconnectActive = true
+        public LayananPelanggan $layanan
     ) {
         $this->onQueue('mikrotik-high');
         $this->tandaiWaktuDispatch();
@@ -76,7 +75,7 @@ class DisablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
                 'job_type' => MikrotikJobType::DisablePppoe,
                 'status' => MikrotikJobStatus::Dilewati,
                 'attempt_count' => $this->attempts(),
-                'payload' => ['username' => $this->layanan->ppp_username, 'disconnect_active' => $this->disconnectActive],
+                'payload' => ['username' => $this->layanan->ppp_username],
                 'error_message' => "Router {$router->nama_router} diketahui offline; percobaan dilewati, akan disinkronkan otomatis oleh siklus rekonsiliasi berikutnya.",
                 'finished_at' => Carbon::now(),
             ]);
@@ -90,14 +89,11 @@ class DisablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
             'job_type' => MikrotikJobType::DisablePppoe,
             'status' => MikrotikJobStatus::Pending,
             'attempt_count' => $this->attempts(),
-            'payload' => [
-                'username' => $this->layanan->ppp_username,
-                'disconnect_active' => $this->disconnectActive,
-            ],
+            'payload' => ['username' => $this->layanan->ppp_username],
         ]);
 
         try {
-            $mikrotikService->disablePppoeSecret($router, $this->layanan, $this->disconnectActive);
+            $mikrotikService->isolirPppoeSecret($router, $this->layanan);
 
             $log->update([
                 'status' => MikrotikJobStatus::Success,

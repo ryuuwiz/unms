@@ -1,6 +1,6 @@
 # ADR 0059: Antrean Aksi Pelanggan Terpisah dari Rekonsiliasi, dan Secret Manual NOC Tidak Diambil Alih
 
-**Status**: Accepted
+**Status**: Accepted — keputusan 3 (kepemilikan dari komentar `UNMS:`) digantikan ADR-0063 (kepemilikan dari nama).
 
 ## Konteks
 NOC melaporkan PPP Secret pelanggan baru tidak masuk ke router, tanpa notifikasi, dan pemulihan terlalu lambat (target < 10 detik). Penyebabnya:

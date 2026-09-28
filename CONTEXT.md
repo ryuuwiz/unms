@@ -157,7 +157,7 @@ Entitas perangkat MikroTik RouterOS sebagai pengendali layanan dan bandwidth, di
 _Avoid_: Switch, Gateway Umum
 
 **IP Pool**:
-Blok alokasi alamat IP (Network, CIDR, Range IP) yang terikat pada Router untuk distribusi IP pelanggan PPPoE dinamis. Satu-satunya tempat pool dipilih adalah menu IP Pool (memilih Router pemiliknya); tidak ada staf yang memilih pool untuk layanan, paket, atau profil. Nama pool unik per Router (bukan global), dan Range IP tidak boleh beririsan dengan pool lain pada Router yang sama. Semua pool pada satu Router membentuk Rantai IP Pool Router.
+Blok alokasi alamat IP (Network, CIDR, Range IP) yang terikat pada Router untuk distribusi IP pelanggan PPPoE dinamis. Pool dipilih untuk sebuah paket di satu router lewat Router Paket; tidak ada staf yang memilih pool per pelanggan. Alamat `.1` (network + 1) selalu milik MikroTik dan tidak boleh berada di rentang. Nama pool unik per Router (bukan global), Range IP tidak boleh beririsan dengan pool lain pada Router yang sama, dan pool tidak dirangkai antar-pool. Pool yang dipakai Router Paket tidak bisa dihapus atau dipindah router.
 _Avoid_: Subnet Bebas, DHCP Range, Dropdown Pilih IP Pool
 
 **Antrean Prioritas MikroTik (`mikrotik-high`)**:
@@ -300,7 +300,7 @@ Admin membuat Data Registrasi Billing (komersial, status `PROSES`, tagihan perta
 _Avoid_: Ticket Pemasangan Dibuat Sebelum Data Registrasi Billing, Aktivasi Otomatis Tanpa NOC, Invoice Otomatis Saat Tiket Selesai
 
 **Status Pelanggan**:
-Diturunkan dari seluruh Data Registrasi Billing pelanggan: `Aktif` jika ada layanan Aktif; `Expired` jika tidak ada yang Aktif tetapi ada yang Suspend; `Off` jika semua Berhenti. Selama belum ada layanan Aktif, tahap pemasangan (`BelumTerpasang`, `ReqPemasangan`, `PemasanganSelesai`) dikendalikan tiket Pemasangan.
+Diturunkan dari seluruh Data Registrasi Billing pelanggan: `Aktif` jika ada layanan Aktif; `Expired` jika tidak ada yang Aktif tetapi ada yang Suspend; `Off` jika semua Berhenti. Selama belum ada layanan Aktif, tahap pemasangan (`BelumTerpasang`, `ReqPemasangan`, `PemasanganSelesai`) dikendalikan tiket Pemasangan. Pelanggan baru selalu `BelumTerpasang`; staf tidak memilih status saat pendaftaran.
 _Avoid_: Status Manual per Layanan, Status Pelanggan Mengikuti Satu Layanan Saja
 
 **Riwayat Tiket**:
@@ -333,11 +333,11 @@ Kolom `status` (`belum` / `progress` / `selesai`) pada pivot `ticket_divisi`, sa
 _Avoid_: Status Tiket Tunggal untuk Pemasangan, Urutan NOC→CS→Admin Dipaksa Tanpa Alasan, Admin Selesai Sebelum Pelanggan Bayar
 
 **Aktivasi Pemasangan**:
-Aksi NOC di dalam Ticket Pemasangan, khusus pengisian **pertama kali** (`layanan_pelanggan_id` masih tanpa router), yang mengisi router gateway pada Data Registrasi Billing yang masih `PROSES`, lalu memicu provisioning PPP Secret ke MikroTik dan mengubah layanan jadi `Aktif`. Hanya Router yang **dipilih manual oleh NOC** (topologi jaringan/lokasi customer tidak bisa diturunkan dari paket; satu paket ritel dijual lintas-router). IP Pool **tidak dipilih siapa pun** — layanan memakai Rantai IP Pool Router terpilih; bila router itu belum punya pool sama sekali, aktivasi ditolak. PPP Username Credential tetap auto-generate. Berbeda dari tombol "Provisi" di daftar layanan (`Index.php::provisionLayanan()`) yang cuma retry provisioning untuk layanan yang router/PPP-nya sudah terisi. Profil Bandwidth ditampilkan read-only **hanya di modal ini** (mengikuti paket sejak pendaftaran, tidak bisa diganti saat pengisian pertama kali) — aturan read-only ini TIDAK berlaku lagi begitu layanan sudah pernah diaktivasi: perubahan router/paket berikutnya (misalnya Gangguan yang butuh pindah router) lewat modal Proses NOC, lihat "Proses Divisi (NOC/Admin/Customer Service)".
+Aksi NOC di dalam Ticket Pemasangan, khusus pengisian **pertama kali** (`layanan_pelanggan_id` masih tanpa router), yang mengisi router gateway pada Data Registrasi Billing yang masih `PROSES`, lalu memicu provisioning PPP Secret ke MikroTik dan mengubah layanan jadi `Aktif`. Hanya Router yang **dipilih manual oleh NOC** (topologi jaringan/lokasi customer tidak bisa diturunkan dari paket; satu paket ritel dijual lintas-router). IP Pool **tidak dipilih NOC** — layanan memakai pool Router Paket paketnya di router terpilih; hanya router yang terdaftar sebagai Router Paket untuk paket itu yang bisa dipilih. PPP Username Credential tetap auto-generate. Berbeda dari tombol "Provisi" di daftar layanan (`Index.php::provisionLayanan()`) yang cuma retry provisioning untuk layanan yang router/PPP-nya sudah terisi. Profil Bandwidth ditampilkan read-only **hanya di modal ini** (mengikuti paket sejak pendaftaran, tidak bisa diganti saat pengisian pertama kali) — aturan read-only ini TIDAK berlaku lagi begitu layanan sudah pernah diaktivasi: perubahan router/paket berikutnya (misalnya Gangguan yang butuh pindah router) lewat modal Proses NOC, lihat "Proses Divisi (NOC/Admin/Customer Service)".
 _Avoid_: Router Diturunkan Otomatis dari Paket, NOC Memilih IP Pool, Mengganti Profil Bandwidth Saat Aktivasi, Memakai Modal Aktivasi Pemasangan untuk Perubahan Router/Paket Setelah Layanan Aktif
 
 **Proses Divisi (NOC/Admin/Customer Service)**:
-Modal tunggal "Proses {Divisi}" yang menggantikan pola lama "Tandai Divisi Selesai" untuk divisi NOC, Admin, dan Customer Service (Teknisi tetap memakai tombol "Tandai Selesai" + form Progress Lapangan/Foto Tahap 2 karena digate bukti foto, bukan catatan bebas). Hanya tersedia di Ticket Pemasangan yang mengacu ke layanan; Gangguan, Pencabutan, dan Pindah Alamat diselesaikan lewat perubahan status tiket keseluruhan (Ubah Status), bukan sign-off per divisi. Field "Status Ticket" di dalamnya sebenarnya adalah Status Per-Divisi Tiket milik divisi itu sendiri (On Progress/Selesai), ditambah opsi terpisah "Cancel" yang membatalkan tiket keseluruhan (`StatusTicket::Batal` lewat `UbahStatusTicketAction`), bukan status per-divisi. Field teknis (Mode Registrasi Mikrotik, Router, Paket — IP Pool tidak dipilih, lihat "Rantai IP Pool Router") hanya tampil kalau tiket sudah punya `layanan_pelanggan_id` dan aksinya relevan (mis. Gangguan yang perlu re-provision router pada layanan yang sudah `Aktif` — inilah beda utamanya dengan Aktivasi Pemasangan yang khusus pengisian pertama kali). Field "Catatan Proses" wajib diisi, menyatu dalam satu baris Histori Tiket yang sama dengan perubahan status divisi (bukan modal "Tambah Catatan" terpisah, yang tetap ada untuk update informal).
+Modal tunggal "Proses {Divisi}" yang menggantikan pola lama "Tandai Divisi Selesai" untuk divisi NOC, Admin, dan Customer Service (Teknisi tetap memakai tombol "Tandai Selesai" + form Progress Lapangan/Foto Tahap 2 karena digate bukti foto, bukan catatan bebas). Hanya tersedia di Ticket Pemasangan yang mengacu ke layanan; Gangguan, Pencabutan, dan Pindah Alamat diselesaikan lewat perubahan status tiket keseluruhan (Ubah Status), bukan sign-off per divisi. Field "Status Ticket" di dalamnya sebenarnya adalah Status Per-Divisi Tiket milik divisi itu sendiri (On Progress/Selesai), ditambah opsi terpisah "Cancel" yang membatalkan tiket keseluruhan (`StatusTicket::Batal` lewat `UbahStatusTicketAction`), bukan status per-divisi. Field teknis (Mode Registrasi Mikrotik, Router, Paket — IP Pool tidak dipilih, lihat "Router Paket") hanya tampil kalau tiket sudah punya `layanan_pelanggan_id` dan aksinya relevan (mis. Gangguan yang perlu re-provision router pada layanan yang sudah `Aktif` — inilah beda utamanya dengan Aktivasi Pemasangan yang khusus pengisian pertama kali). Field "Catatan Proses" wajib diisi, menyatu dalam satu baris Histori Tiket yang sama dengan perubahan status divisi (bukan modal "Tambah Catatan" terpisah, yang tetap ada untuk update informal).
 _Avoid_: Memisah Modal per Aksi Teknis, Catatan Proses sebagai Modal Terpisah dari Perubahan Status Divisi, Opsi Cancel Mengubah Status Per-Divisi
 
 **Mode Registrasi Mikrotik**:
@@ -457,28 +457,36 @@ Pemeriksaan `Router.status_koneksi` (hasil `mikrotik:ping` tiap 10 detik) di awa
 _Avoid_: Menganggap Dilewati sebagai Gagal, Notifikasi Kegagalan untuk Router yang Memang Mati, Skip Permanen Tanpa Percobaan Ulang
 
 **Orphaned Secret (PPP Secret Tak Terkelola)**:
-Akun PPP Secret yang terdeteksi ada di RouterOS namun tidak memiliki rekaman di database UNMS (misal akun manual NOC atau sisa instalasi lama). Penjadwal hanya **mengaudit** (melaporkan), tidak pernah menghapus, karena NOC membuat secret manual yang sah. Penghapusan hanya lewat CLI eksplisit (`--clean-orphans`), hanya untuk secret berkomentar `UNMS:`, tidak untuk secret berkomentar `MANUAL:`/`NOC:`/`SYSTEM:`/`WHITELIST:` atau akun sistem, dan dibatasi jumlahnya per eksekusi.
-_Avoid_: Hapus Buta Akun Router, Rogue User Tanpa Log, Pola Nama sebagai Penanda Kepemilikan, Penghapusan Orphan Terjadwal
+Akun PPP Secret di RouterOS yang namanya tidak cocok dengan username PPP layanan mana pun di router itu. Tanpa penanda di router, orphan tidak bisa dibedakan dari secret manual NOC, jadi sistem tidak pernah menghapusnya dan tidak menyediakan pembersihan orphan; ia hanya bisa dilaporkan.
+_Avoid_: Hapus Buta Akun Router, Pembersihan Orphan, Comment sebagai Penanda Kepemilikan
 
 **Secret Milik Billing / Secret Manual NOC**:
-Kepemilikan PPP Secret di router ditentukan komentarnya. Secret Milik Billing berkomentar `UNMS:` dan hanya itu yang boleh dibuat ulang, diubah, diisolir, dibuka, atau dihapus oleh sistem. Secret lain adalah Secret Manual NOC dan tidak pernah disentuh sistem, termasuk bila namanya sama dengan username PPP sebuah layanan: provisi/isolir layanan itu gagal dengan pesan jelas dan Notifikasi NOC, sampai NOC mengganti komentarnya menjadi `UNMS:` (menyerahkannya ke billing) atau username layanan diubah.
-_Avoid_: Mengambil Alih Secret Bernama Sama, Menimpa Secret Manual NOC, Kepemilikan dari Pola Nama
+Kepemilikan objek di router ditentukan namanya, bukan komentar: secret milik billing bila namanya sama dengan username PPP sebuah layanan di router itu; profile dan pool milik billing bila namanya sama dengan data billing. Selain itu (secret/profile manual NOC, `default`) tidak pernah disentuh sistem. Konfigurasi yang dibuat billing di router tidak diberi komentar; komentar `UNMS:` lama dikosongkan saat rekonsiliasi.
+_Avoid_: Comment `UNMS:` sebagai Penanda Kepemilikan, Menyentuh Objek Router yang Namanya Tidak Ada di Billing
 
 **Penghapusan PPP Secret**:
-Satu-satunya jalur yang boleh menghapus secret di router. Wajib membawa jejak input (siapa: user ID atau `system:<sumber>`, dan alasan), menolak username kosong dan secret dilindungi, dicatat di Job Log beserta snapshot secret tanpa password, dan dibatasi `MIKROTIK_MAX_DELETES_PER_RUN` (default 10) per router per eksekusi. Pemicu yang sah: layanan **Berhenti** (input admin/NOC lewat tiket Pencabutan atau ubah status), pindah router, ganti username, layanan dihapus, atau CLI eksplisit. **Isolir (Suspend) tidak pernah menghapus.**
-_Avoid_: Hapus Otomatis Tanpa Input, Penghapusan Tanpa Alasan atau Actor, Isolir Berujung Hapus
+Satu-satunya jalur yang boleh menghapus secret di router. Wajib membawa jejak input (siapa dan alasan), menolak username kosong, dicatat di Job Log beserta snapshot secret tanpa password. Pemicu yang sah: **Proses NOC pada tiket Pencabutan** (sebelum layanan Berhenti), pindah router, ganti username, atau layanan dihapus. **Isolir tidak pernah menghapus**, dan data pelanggan serta layanan di billing tidak pernah ikut dihapus.
+_Avoid_: Hapus Otomatis Tanpa Input, Penghapusan Tanpa Alasan atau Actor, Isolir Berujung Hapus, Berhenti Tanpa Tiket Pencabutan
 
 **IP Pool & Router Gateway Layanan**:
-Layanan PPPoE dinamis hanya terikat ke satu Router Gateway (dipilih staf); IP-nya dialokasikan RouterOS dari Rantai IP Pool Router itu, bukan dari pool yang dipilih. Pindah router berarti pindah rantai (berlaku saat sesi reconnect). IP Statis dan IP Publik Dedicated memakai alamat literal di PPP Secret; gateway IP Statis diambil dari gateway kepala rantai router itu bila ada, selain itu dari subnet `ip_static`. Jika sistem hanya memiliki 1 Router Online aktif, router itu dipilih otomatis.
-_Avoid_: Memilih IP Pool per Layanan, Pool per Paket/Profil, Cross-Router IP Pool Selection, Nama Pool sebagai Remote Address di PPP Secret (RouterOS menolaknya; nama pool hanya valid di Profile PPP)
+Layanan PPPoE hanya terikat ke satu Router (dipilih NOC dari Router Paket paketnya); IP-nya dialokasikan RouterOS dari pool Router Paket itu lewat profile, tidak pernah oleh billing. Billing tidak menampilkan local-address; IP pelanggan dibaca dari sesi aktif. Pindah router atau paket berlaku saat sesi reconnect. IP Statis dan IP Publik Dedicated memakai alamat literal di PPP Secret yang menimpa alamat profile.
+_Avoid_: Billing Mengalokasikan IP, Memilih IP Pool per Layanan, Menampilkan Local Address, Nama Pool sebagai Remote Address di PPP Secret (RouterOS menolaknya; nama pool hanya valid di Profile PPP)
 
-**Rantai IP Pool Router**:
-Seluruh IP Pool pada satu Router dirangkai berurutan menurut waktu pembuatan (pool terlama jadi kepala) lewat `next-pool` RouterOS: bila satu pool habis, RouterOS otomatis mengalokasikan dari pool berikutnya. Pool hanya berfungsi sebagai kapasitas alamat router, tanpa segmentasi pelanggan. Dikelola sepenuhnya oleh sistem di belakang layar. Rename pool bebas (rantai disinkronkan ulang); hapus pool ditolak hanya bila itu pool terakhir di router yang masih punya layanan PPPoE dinamis, selain itu rantai disambung ulang dan sesi yang memegang IP pool terhapus mendapat IP baru saat reconnect.
-_Avoid_: Segmentasi Pool per Tipe Pelanggan, Pool Profil Bandwidth, Pool Dipilih Manual, Urutan Rantai Diatur Manual
+**Isolir**:
+Layanan yang ditangguhkan (status `Suspend`: masa aktif habis, invoice pertama belum dibayar, atau isolir manual admin) dipindahkan PPP Secret-nya ke satu profile `ISOLIR` di router lalu sesinya diputus agar pelanggan tersambung ulang ke profile itu. Secret tidak pernah di-*disable*. Buka isolir mengembalikan secret ke profile paketnya dan memutus sesi lagi. Profile `ISOLIR` dibuat oleh billing. Router tanpa IP Pool Isolir tidak bisa mengisolir: aksinya gagal dan NOC diberi tahu. Secret yang masih ter-*disable* (cara isolir lama) diaktifkan kembali oleh rekonsiliasi.
+_Avoid_: Disable Secret untuk Isolir, Profile EXPIRED Terpisah, Menghapus Secret saat Isolir
 
-**Profile PPP per Router**:
-Satu Profile PPP `{nama_bandwidth}` per Profil Bandwidth pada setiap Router, membawa `rate-limit`, `local-address` (gateway kepala Rantai IP Pool Router) dan `remote-address` (nama kepala rantai). Dipakai semua layanan di router itu: PPPoE dinamis mendapat IP dari rantai; IP Statis dan IP Publik Dedicated menimpa alamat profile dengan alamat literal di PPP Secret. Profile lama `{bandwidth}@{pool}` yang tertinggal di router tidak dihapus sistem.
-_Avoid_: Profile per Kombinasi Bandwidth × Pool, Local/Remote Address Literal di Secret Dinamis, Menghapus Profile Lama Otomatis
+**Pencabutan**:
+Satu-satunya jalan layanan menjadi `Berhenti`: tiket Pencabutan yang hanya dibuat Admin (dan super_admin), ditangani NOC (menghapus PPP Secret di router) dan Teknisi (mencabut perangkat dan melepas port ODP). Tiket tidak bisa Selesai sebelum penghapusan secret berhasil; saat Selesai layanan otomatis Berhenti. Data pelanggan dan layanan tetap tersimpan untuk jejak pelanggan bermasalah, dan layanan Berhenti tidak lagi ditagih: invoice yang masih terbuka tetap tercatat sebagai tunggakan, tetapi pengingat WhatsApp dan link bayarnya dihentikan.
+_Avoid_: Berhenti dari Form Edit Layanan, Menghapus Data Pelanggan saat Pencabutan
+
+**Router Paket**:
+Pasangan Paket Layanan dengan Router yang boleh menjualnya, beserta satu IP Pool milik router itu dan deskripsi opsional, dikelola di Detail Paket oleh pemegang izin ubah paket dan NOC. Setiap Router Paket membuat satu PPP Profile bernama sama dengan paket di router itu: `rate-limit` dari Profil Bandwidth paket, `local-address` = `.1` pool terpilih (alamat MikroTik), `remote-address` = pool terpilih (MikroTik yang membagikan IP pelanggan). NOC hanya bisa memilih router yang sudah menjadi Router Paket untuk paket layanan itu. Router Paket tidak bisa dihapus selama masih ada layanan (selain Berhenti) memakai paket itu di router itu. Tidak ada rantai antar-pool; pool penuh ditangani dengan mengganti pool Router Paket.
+_Avoid_: Rantai IP Pool (next-pool), Profile per Profil Bandwidth, NOC Memilih Pool per Pelanggan, Router Bebas untuk Paket Apa Saja
+
+**IP Pool Isolir**:
+Satu IP Pool per router yang dipilih di data Router untuk profile `ISOLIR` (local-address `.1` pool itu, remote-address pool itu). Pool ini tidak boleh dipakai Router Paket dan tidak bisa dihapus selama menjadi IP Pool Isolir. Firewall redirect pelanggan isolir ke halaman bayar dikonfigurasi manual oleh NOC, bukan billing.
+_Avoid_: Billing Membuat Firewall Redirect, Pool Isolir Dipakai untuk Paket
 
 **Alamat Sesi PPP**:
 IP yang benar-benar dipegang pelanggan dinamis saat ini. Dialokasikan oleh RouterOS (bukan UNMS) dan dibaca live dari `/ppp/active` (per pelanggan) serta `/ip/pool/used` (pemakaian pool), dengan cache singkat. UNMS tidak menyimpan atau menetapkan alamat ini; kolom `ip_dynamic` tidak lagi ditulis.
@@ -489,7 +497,7 @@ Pengalokasian alamat IPv4 statis dedicated (kolom `ip_static` di `layanan_pelang
 _Avoid_: IP Statis Tanpa Validasi IPv4, Alokasi Statis Tak Tercatat di Database
 
 **IP Publik Dedicated**:
-Add-on berbayar berupa satu alamat IPv4 publik dari inventaris milik sebuah Router, ditetapkan ke satu Layanan Pelanggan PPPoE dan ditagih bulanan bersama tagihan paket. Alamatnya menjadi `remote-address` literal pada PPP Secret (bersama gateway inventaris sebagai `local-address`) yang menimpa alamat Profile PPP per Router. Berstatus `tersedia` atau `terpakai`, dipegang layanan selama `Suspend`, dan dilepas otomatis saat layanan `Berhenti`/dihapus. Alamatnya tidak boleh berada di dalam rentang IP Pool mana pun pada router yang sama. Penetapan atau pelepasan memutus sesi aktif agar berlaku segera. Harga bulanan disalin (snapshot) ke baris inventaris saat penetapan.
+Add-on berbayar berupa satu alamat IPv4 publik dari inventaris milik sebuah Router, ditetapkan ke satu Layanan Pelanggan PPPoE dan ditagih bulanan bersama tagihan paket. Alamatnya menjadi `remote-address` literal pada PPP Secret (bersama gateway inventaris sebagai `local-address`) yang menimpa alamat profile paket. Berstatus `tersedia` atau `terpakai`, dipegang layanan selama `Suspend`, dan dilepas otomatis saat layanan `Berhenti`/dihapus. Alamatnya tidak boleh berada di dalam rentang IP Pool mana pun pada router yang sama. Penetapan atau pelepasan memutus sesi aktif agar berlaku segera. Harga bulanan disalin (snapshot) ke baris inventaris saat penetapan.
 _Avoid_: Memakai `ip_static` untuk IP Publik, Paket yang Sudah Termasuk IP Publik, Jenis Koneksi Baru untuk IP Publik, Prorata Otomatis Add-on
 
 **Cleanup PPP Secret Lama (Router Migration Cleanup)**:
@@ -501,7 +509,7 @@ Dukungan di mana satu pelanggan (entitas `Pelanggan`) dapat memiliki banyak laya
 _Avoid_: Akumulasi Invoice Tanpa Rincian Site, Isolir Global Seluruh Layanan Pelanggan, Duplikasi Pelanggan untuk Multi-Lokasi
 
 **Manajemen Local & Remote Address PPP Secret**:
-Untuk PPPoE dinamis, `local-address` dan `remote-address` pada PPP Secret sengaja dikosongkan; keduanya dibawa Profile PPP per Router. Hanya IP Statis dan IP Publik Dedicated yang mengisi `remote-address` literal (dan `local-address` gateway) di secret. Tetap ada *auto-ensure* IP Pool sebelum provisi, validasi relasi router ketat (*scoped validation*), dan rekonsiliasi periodik dengan *auto-healing* yang juga mengosongkan nilai literal lama pada secret dinamis.
+Untuk PPPoE dinamis, `local-address` dan `remote-address` pada PPP Secret sengaja dikosongkan; keduanya dibawa profile paket (Router Paket). Hanya IP Statis dan IP Publik Dedicated yang mengisi `remote-address` literal (dan `local-address` gateway) di secret. Tetap ada *auto-ensure* IP Pool sebelum provisi, validasi relasi router ketat (*scoped validation*), dan rekonsiliasi periodik dengan *auto-healing* yang juga mengosongkan nilai literal lama pada secret dinamis.
 _Avoid_: Local/Remote Address Literal di Secret PPPoE Dinamis, Provisi PPPoE Tanpa IP Pool
 
 **ODP (Optical Distribution Point)**:
@@ -517,8 +525,12 @@ Penghapusan (permanen, satuan maupun massal lewat pilihan baris / "pilih semua h
 _Avoid_: Tombol Kosongkan Seluruh Tabel ODP, Melepas Port Layanan Diam-diam
 
 **Port ODP**:
-Slot fisik terminasi pada perangkat ODP yang melacak status pemakaian (*kosong, terpakai, rusak*) dan terikat 1:1 dengan satu entitas Layanan Pelanggan (Data Registrasi Billing).
-_Avoid_: Colokan Kabel, Slot ODP Lepas
+Slot fisik terminasi pada perangkat ODP yang melacak status pemakaian (*kosong, terpakai, rusak*) dan terikat 1:1 dengan satu entitas Layanan Pelanggan (Data Registrasi Billing). Port Kosong yang sudah dipilih Teknisi pada Ticket Pemasangan lain yang masih terbuka dianggap **Dipesan**: tidak bisa dipilih tiket lain dan ditampilkan "Dipesan oleh {nomor tiket}" di pilihan port Teknisi. Dipesan bukan status tersimpan; ia hilang sendiri saat tiket Batal, dan menjadi Terpakai saat Aktivasi Pemasangan.
+_Avoid_: Colokan Kabel, Slot ODP Lepas, Status Port Dipesan Tersimpan
+
+**Usulan ODP**:
+ODP yang dipilih pembuat Ticket Pemasangan (siapa pun perannya) saat membuat tiket yang merujuk layanan, hanya dari ODP Terdekat terhadap koordinat layanan itu yang masih punya port kosong. Wajib diisi bila ada kandidat; bila tidak ada ODP berport kosong dalam jangkauan, tiket tetap dibuat dengan tanda "Tanpa ODP dalam jangkauan" dan Teknisi memilih ODP sendiri. Layanan tanpa koordinat harus dilengkapi koordinatnya dulu. Berstatus `Menunggu Validasi Teknisi` sampai Teknisi menanganinya: `Disetujui` (Teknisi memakai ODP itu) atau `Diganti Teknisi` (Teknisi menolak dengan alasan tercatat di Histori Tiket dan memilih ODP lain sendiri, tanpa kembali ke pembuat tiket). Teknisi baru boleh memilih Port ODP setelah usulan berstatus `Disetujui` atau `Diganti Teknisi`. Hanya menentukan ODP, bukan port. Validasi memakai izin yang sama dengan progress lapangan Teknisi. Tiket Pemasangan tanpa layanan dan tiket lama tanpa Usulan ODP tetap memakai alur lama (Teknisi memilih ODP bebas).
+_Avoid_: Sales Memilih Port, Penolakan Dikembalikan ke Sales, Usulan ODP di Luar Toleransi ODP Terdekat
 
 **Peta Jaringan (Data Maps)**:
 Antarmuka visualisasi spasial interaktif berbasis Leaflet.js dan OpenStreetMap yang memetakan persebaran 4 layer entitas (Pelanggan, Layanan/Site, Perumahan, ODP) dengan dukungan toggle filter layer independen dan marker clustering untuk menangani ribuan titik secara ringan dan responsif.

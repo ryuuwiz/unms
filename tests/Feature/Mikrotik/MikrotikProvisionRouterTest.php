@@ -19,7 +19,6 @@ use App\Models\User;
 use App\Notifications\MikrotikJobNotification;
 use App\Observers\IpPoolObserver;
 use App\Services\Mikrotik\MikrotikService;
-use App\Support\PppDeletionContext;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -41,7 +40,7 @@ beforeEach(function () {
 
     $this->pelanggan = Pelanggan::factory()->create();
     $this->profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Home-20M']);
-    $this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
+    $this->paket = PaketLayanan::factory()->create(['nama_paket' => 'Home-20M', 'profil_bandwidth_id' => $this->profil->id]);
     $this->layanan = LayananPelanggan::factory()->create([
         'router_id' => $this->router->id,
         'pelanggan_id' => $this->pelanggan->id,
@@ -49,6 +48,7 @@ beforeEach(function () {
         'ppp_username' => 'BF2308202601_00001',
         'status' => StatusLayanan::Aktif,
     ]);
+    daftarkanRouterPaket($this->layanan);
 });
 
 test('provisionRouterFull executes complete pipeline and logs success', function () {
@@ -70,7 +70,7 @@ test('provisionRouterFull executes complete pipeline and logs success', function
         )
         ->andReturn(['status' => 'success']);
 
-    $mockService->shouldReceive('syncAllBandwidthProfiles')
+    $mockService->shouldReceive('syncPaketProfiles')
         ->once()
         ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any())
         ->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
@@ -86,15 +86,13 @@ test('provisionRouterFull executes complete pipeline and logs success', function
             'errors' => [],
         ]);
 
-    $mockService->shouldReceive('cleanOrphanedPppSecrets')
+    $mockService->shouldReceive('auditOrphanedPppSecrets')
         ->once()
-        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), false, Mockery::any(), null)
+        ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any())
         ->andReturn([
             'total_checked' => 1,
             'orphans_count' => 0,
             'orphans' => [],
-            'deleted' => 0,
-            'mode' => 'audit_only',
             'errors' => [],
         ]);
 
@@ -118,7 +116,6 @@ test('ProvisionRouterJob handles async execution and triggers service', function
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            false,
             false
         )
         ->andReturn(['status' => 'success']);
@@ -159,7 +156,6 @@ test('mikrotik:provisi-router command runs successfully', function () {
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            false,
             false
         )
         ->andReturn([
@@ -181,14 +177,14 @@ test('mikrotik:provisi-router command runs successfully', function () {
 test('mikrotik:provisi-router command with --async dispatches RecoverPppRouterJob to queue', function () {
     Queue::fake();
 
-    $this->artisan('mikrotik:provisi-router', ['--async' => true, '--clean-orphans' => true])
+    $this->artisan('mikrotik:provisi-router', ['--async' => true, '--audit-orphans' => true])
         ->expectsOutputToContain('Mendispatch job provisi & recovery')
         ->expectsOutputToContain('Seluruh job recovery & provisi router berhasil dimasukkan ke antrean')
         ->assertSuccessful();
 
     Queue::assertPushed(RecoverPppRouterJob::class, function ($job) {
         return $job->router->id === $this->router->id
-            && $job->cleanOrphans === true
+            && $job->auditOrphans === true
             && $job->force === false;
     });
 });
@@ -248,13 +244,13 @@ test('autoRecoverPppSecrets removes duplicate secrets in RouterOS', function () 
 
     $mockService = Mockery::mock(MikrotikService::class)->makePartial();
     $mockService->shouldReceive('getClient')->andReturn($mockClient);
-    $mockService->shouldReceive('syncAllBandwidthProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
+    $mockService->shouldReceive('syncPaketProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
 
     // Simulasikan kembalikan 2 entri secret dengan nama yang sama (duplikat) di RouterOS
     $mockClient->shouldReceive('query')->andReturnSelf();
     $mockClient->shouldReceive('read')->andReturn([
-        ['.id' => '*1', 'name' => 'BF2308202601_00001', 'comment' => 'UNMS: S1 - Budi', 'profile' => 'Home-20M', 'disabled' => 'false'],
-        ['.id' => '*2', 'name' => 'BF2308202601_00001', 'comment' => 'UNMS: S1 - Budi', 'profile' => 'Home-20M', 'disabled' => 'false'],
+        ['.id' => '*1', 'name' => 'BF2308202601_00001', 'profile' => 'Home-20M', 'disabled' => 'false'],
+        ['.id' => '*2', 'name' => 'BF2308202601_00001', 'profile' => 'Home-20M', 'disabled' => 'false'],
     ]);
 
     $stats = $mockService->autoRecoverPppSecrets($this->router);
@@ -263,19 +259,17 @@ test('autoRecoverPppSecrets removes duplicate secrets in RouterOS', function () 
         ->and($stats['already_synced'])->toBe(1);
 });
 
-test('cleanOrphanedPppSecrets does not delete secret if registered concurrently in database', function () {
+test('auditOrphanedPppSecrets does not report a secret registered in the database', function () {
     $mockClient = Mockery::mock(Client::class);
 
     $mockService = Mockery::mock(MikrotikService::class)->makePartial();
     $mockService->shouldReceive('getClient')->andReturn($mockClient);
 
-    // MikroTik has a secret
     $mockClient->shouldReceive('query')->andReturnSelf();
     $mockClient->shouldReceive('read')->andReturn([
-        ['.id' => '*10', 'name' => 'BF2308202601_99999', 'comment' => 'UNMS: Test Layanan', 'profile' => 'Home-20M', 'disabled' => 'false'],
+        ['.id' => '*10', 'name' => 'BF2308202601_99999', 'profile' => 'Home-20M', 'disabled' => 'false'],
     ]);
 
-    // LayananPelanggan exists in DB (simulating concurrent registration)
     LayananPelanggan::factory()->create([
         'router_id' => $this->router->id,
         'pelanggan_id' => $this->pelanggan->id,
@@ -284,8 +278,5 @@ test('cleanOrphanedPppSecrets does not delete secret if registered concurrently 
         'status' => StatusLayanan::Aktif,
     ]);
 
-    $stats = $mockService->cleanOrphanedPppSecrets($this->router, executeDelete: true, context: PppDeletionContext::system('test', 'uji'));
-
-    expect($stats['deleted'])->toBe(0)
-        ->and($stats['orphans_count'])->toBe(0);
+    expect($mockService->auditOrphanedPppSecrets($this->router)['orphans_count'])->toBe(0);
 });

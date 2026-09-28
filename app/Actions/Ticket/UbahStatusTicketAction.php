@@ -55,6 +55,11 @@ class UbahStatusTicketAction
             }
         }
 
+        // 3b. Gate Selesai tiket Pencabutan: PPP Secret wajib sudah dihapus (CONTEXT.md "Pencabutan").
+        if ($statusBaru === StatusTicket::Selesai && $ticket->jenis === JenisTicket::Pencabutan && ! $ticket->secretSudahDihapus()) {
+            throw new InvalidArgumentException('Tiket Pencabutan belum bisa Selesai: PPP Secret belum dihapus lewat Proses NOC.');
+        }
+
         $statusLama = $ticket->status;
 
         // 4. Eksekusi mutasi dalam database transaction

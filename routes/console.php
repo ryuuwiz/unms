@@ -21,8 +21,8 @@ Schedule::command('mikrotik:provisi-router --async')
     ->runInBackground();
 
 // Master Nightly Reconciliation & Orphaned Secrets AUDIT (Asynchronous per-router queue).
-// Sengaja --audit-orphans, bukan --clean-orphans: penjadwal tidak pernah menghapus PPP Secret karena ada
-// secret buatan NOC yang tidak terdaftar di billing. Penghapusan orphan hanya lewat CLI eksplisit.
+// Orphan hanya diaudit, tidak pernah dihapus: tanpa komentar penanda, orphan tidak bisa dibedakan dari
+// secret buatan NOC (ADR-0063).
 Schedule::command('mikrotik:provisi-router --async --audit-orphans')
     ->dailyAt('03:00')
     ->withoutOverlapping(60)

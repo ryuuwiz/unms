@@ -10,6 +10,7 @@ use App\DTO\PaymentGateway\PingConnectionResult;
 use App\Enums\GatewayChannel;
 use App\Enums\MetodePembayaran;
 use App\Enums\StatusInvoice;
+use App\Enums\StatusLayanan;
 use App\Enums\StatusTransaksiGateway;
 use App\Enums\StatusWebhookLog;
 use App\Events\InvoicePaidEvent;
@@ -204,6 +205,11 @@ class PaymentGatewayManager
         $invoice->refresh();
 
         if ($invoice->isLunas()) {
+            return null;
+        }
+
+        // Layanan Berhenti (Pencabutan Selesai) tidak lagi ditagih -- link bayar dihentikan, CONTEXT.md "Pencabutan".
+        if ($invoice->layananPelanggan?->status === StatusLayanan::Berhenti) {
             return null;
         }
 

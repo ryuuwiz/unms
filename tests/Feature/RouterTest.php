@@ -15,6 +15,7 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Models\User;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -240,7 +241,7 @@ test('can delete router with unused ip pools and job logs from index', function 
         ->and(MikrotikJobLog::find($jobLog->id))->toBeNull();
 });
 
-test('can delete router and move its layanans to another router', function () {
+test('can delete router and move its layanans to another router registered for their paket', function () {
     Queue::fake([CleanupPppSecretOnOldRouterJob::class, ProvisionPppoeAccountJob::class]);
     $routerA = Router::factory()->create(['nama_router' => 'ROUTER_A']);
     $routerB = Router::factory()->create(['nama_router' => 'ROUTER_B']);
@@ -249,6 +250,7 @@ test('can delete router and move its layanans to another router', function () {
     $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
 
     $poolB = IpPool::factory()->create(['router_id' => $routerB->id, 'nama_pool' => 'Pool-Rumah']);
+    RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $routerB->id, 'ip_pool_id' => $poolB->id]);
 
     $layanan = LayananPelanggan::factory()->create([
         'pelanggan_id' => $pelanggan->id,

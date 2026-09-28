@@ -73,8 +73,6 @@ class Create extends Component
     /** @var array<int, array{id: int, nama_odp: string, jarak: float, port_kosong_count: int}> */
     public array $odpTerdekat = [];
 
-    public string $status = 'belum_terpasang';
-
     public function mount(): void
     {
         $this->authorize('create', Pelanggan::class);
@@ -105,7 +103,7 @@ class Create extends Component
                 'nullable', 'integer', 'exists:pengaturan_prefix_registrasi,id',
             ],
             'tipe_pelanggan' => ['required', 'string', 'in:rumah,bisnis'],
-            'nik' => ['nullable', 'string', 'digits:16'],
+            'nik' => ['required', 'string', 'digits:16'],
             'nama_depan' => ['required', 'string', 'max:100'],
             'nama_belakang' => ['nullable', 'string', 'max:100'],
             'email' => ['nullable', 'email', 'max:255'],
@@ -119,7 +117,6 @@ class Create extends Component
             'alamat_lengkap' => ['required', 'string', 'max:1000'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-            'status' => ['required', 'string', Rule::enum(StatusPelanggan::class)],
             'foto_ktp' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
             'dokumen_mou' => ['nullable', 'file', 'mimes:pdf,jpeg,png,jpg,webp', 'max:10240'],
             'jenis_dokumen' => ['nullable', 'string', 'max:100'],
@@ -136,6 +133,8 @@ class Create extends Component
         return [
             'no_reg.unique' => 'Nomor Registrasi sudah digunakan oleh pelanggan lain.',
             'prefix_registrasi_id.required' => 'Pilih prefix, atau isi No. Registrasi secara manual.',
+            'nik.required' => 'NIK pelanggan wajib diisi.',
+            'nik.digits' => 'NIK harus 16 digit angka.',
             'nama_depan.required' => 'Nama depan pelanggan wajib diisi.',
             'no_hp.required' => 'Nomor WhatsApp / HP wajib diisi.',
             'no_hp.regex' => 'Format nomor HP tidak valid. Gunakan awalan 08 atau +628 (contoh: 08123456789).',
@@ -155,7 +154,7 @@ class Create extends Component
 
         $data = [
             'tipe_pelanggan' => $this->tipe_pelanggan,
-            'nik' => $this->nik ?: null,
+            'nik' => $this->nik,
             'nama_depan' => $this->nama_depan,
             'nama_belakang' => $this->nama_belakang ?: null,
             'email' => $this->email ?: null,
@@ -169,7 +168,8 @@ class Create extends Component
             'alamat_lengkap' => $this->alamat_lengkap,
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,
-            'status' => $this->status,
+            // Pelanggan baru belum punya layanan; tahap berikutnya digerakkan tiket Pemasangan.
+            'status' => StatusPelanggan::BelumTerpasang,
             'dibuat_oleh' => Auth::id(),
         ];
 
@@ -245,7 +245,6 @@ class Create extends Component
             'perumahans' => Perumahan::orderBy('nama_perumahan')->get(),
             'prefixList' => PengaturanPrefixRegistrasi::active()->orderBy('kode')->get(),
             'tipes' => TipePelanggan::cases(),
-            'statuses' => StatusPelanggan::cases(),
         ]);
     }
 }

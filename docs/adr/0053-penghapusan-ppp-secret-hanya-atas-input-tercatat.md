@@ -1,6 +1,6 @@
 # ADR 0053: Penghapusan PPP Secret Hanya atas Input Tercatat, Terbatas, dan Dilindungi
 
-**Status**: Accepted
+**Status**: Accepted — pembersihan orphan (`--clean-orphans`) dan penanda kepemilikan `UNMS:` digantikan ADR-0063; orphan kini hanya diaudit.
 
 ## Konteks
 Audit integrasi MikroTik menemukan beberapa jalur yang menghapus PPP Secret tanpa input manusia: scheduler 03:00 dengan `--clean-orphans` (menghapus secret berkomentar `UNMS:` atau bernama mirip `xxx_NNNNN`), penghapusan duplikat di rekonsiliasi, dan penghapusan-berdasarkan-nama tanpa cek kepemilikan. NOC membuat secret manual yang sah di luar billing, jadi penghapusan otomatis berisiko memutus pelanggan aktif.

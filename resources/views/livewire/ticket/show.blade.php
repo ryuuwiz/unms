@@ -211,7 +211,34 @@
                 <div class="pt-4 border-t border-zinc-100 dark:border-zinc-700/60 space-y-3">
                     <h4 class="text-sm font-bold text-zinc-800 dark:text-zinc-200">Progress Lapangan Teknisi (Tahap 1)</h4>
 
+                    @php($usulan = $ticket->pemasangan)
+                    @if ($usulan?->status_usulan_odp)
+                        <div class="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 space-y-2 text-sm">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span>Usulan ODP: <strong>{{ $usulan->odpUsulan?->nama_odp ?? '-' }}</strong></span>
+                                <flux:badge size="sm" :color="$usulan->status_usulan_odp->color()">{{ $usulan->status_usulan_odp->label() }}</flux:badge>
+                            </div>
+                            @if ($usulan->status_usulan_odp === \App\Enums\Ticket\StatusUsulanOdp::Menunggu)
+                                @can('ubahStatusDivisi', [$ticket, \App\Enums\Ticket\DivisiTicket::Teknisi])
+                                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
+                                        <flux:button size="sm" variant="primary" icon="check" wire:click="setujuiUsulanOdp">Setujui ODP</flux:button>
+                                        <div class="flex-1 space-y-1">
+                                            <div class="flex gap-2">
+                                                <flux:input size="sm" wire:model="alasanGantiOdp" placeholder="Alasan mengganti ODP..." class="flex-1" />
+                                                <flux:button size="sm" wire:click="gantiUsulanOdp">Ganti ODP</flux:button>
+                                            </div>
+                                            <flux:error name="alasanGantiOdp" />
+                                        </div>
+                                    </div>
+                                @endcan
+                            @endif
+                        </div>
+                    @elseif ($usulan?->tanpa_odp_dalam_jangkauan)
+                        <flux:description>Tanpa ODP dalam jangkauan saat tiket dibuat; Teknisi memilih ODP sendiri.</flux:description>
+                    @endif
+
                     @can('ubahStatusDivisi', [$ticket, \App\Enums\Ticket\DivisiTicket::Teknisi])
+                        @if ($usulan?->status_usulan_odp !== \App\Enums\Ticket\StatusUsulanOdp::Menunggu)
                         <form wire:submit="simpanProgressLapangan" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <flux:field>
                                 <flux:label>ODP</flux:label>
@@ -229,7 +256,11 @@
                                 <flux:select wire:model="odp_port_id" placeholder="Pilih Port..." :disabled="! $odp_id">
                                     <flux:select.option value="">-- Pilih Port --</flux:select.option>
                                     @foreach ($odpPorts as $port)
-                                        <flux:select.option value="{{ $port->id }}">Port {{ $port->nomor_port }}</flux:select.option>
+                                        @if (isset($portDipesan[$port->id]))
+                                            <flux:select.option value="{{ $port->id }}" disabled>Port {{ $port->nomor_port }} — Dipesan oleh {{ $portDipesan[$port->id] }}</flux:select.option>
+                                        @else
+                                            <flux:select.option value="{{ $port->id }}">Port {{ $port->nomor_port }}</flux:select.option>
+                                        @endif
                                     @endforeach
                                 </flux:select>
                                 <flux:error name="odp_port_id" />
@@ -247,6 +278,7 @@
                                 <flux:button type="submit" size="sm" variant="primary">Simpan Progress</flux:button>
                             </div>
                         </form>
+                        @endif
                     @endcan
 
                     @if ($ticket->getMedia('foto_pemasangan')->isNotEmpty())
@@ -343,6 +375,55 @@
                         </div>
                     </div>
                 @endif
+            </div>
+        @endif
+
+        @if ($ticket->jenis->value === 'pencabutan')
+            <!-- Pencabutan: Proses NOC (Hapus Secret) & Teknisi (Lepas Port ODP) -->
+            <div class="bg-white dark:bg-zinc-800 p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-700/60 pb-3">
+                    <h3 class="font-bold text-base text-zinc-900 dark:text-white flex items-center gap-2">
+                        <flux:icon name="scissors" class="size-5 text-rose-600 dark:text-rose-400" />
+                        Pencabutan Layanan
+                    </h3>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/40 space-y-2">
+                        <div class="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">NOC: Hapus PPP Secret</div>
+                        @if ($ticket->secretSudahDihapus())
+                            <flux:badge size="xs" color="emerald">Sudah dihapus</flux:badge>
+                            <div class="text-[11px] text-zinc-500">
+                                {{ $ticket->secretDihapusOleh?->name }} &middot; {{ $ticket->secret_dihapus_pada->diffForHumans() }}
+                            </div>
+                        @else
+                            <flux:badge size="xs" color="amber">Belum dihapus</flux:badge>
+                            @can('hapusSecretPencabutan', $ticket)
+                                <flux:button size="xs" variant="primary" class="w-full" wire:click="hapusSecretPencabutan" wire:confirm="Hapus PPP Secret layanan ini dari router? Aksi ini tidak bisa dibatalkan.">
+                                    Hapus Secret
+                                </flux:button>
+                            @endcan
+                        @endif
+                    </div>
+
+                    <div class="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/40 space-y-2">
+                        <div class="font-semibold text-zinc-800 dark:text-zinc-200 text-sm">Teknisi: Lepas Port ODP</div>
+                        @if (! $ticket->layananPelanggan?->odp_port_id)
+                            <flux:badge size="xs" color="emerald">Port sudah dilepas / tidak ada port</flux:badge>
+                        @else
+                            <flux:badge size="xs" color="amber">Port {{ $ticket->layananPelanggan->odpPort?->nomor_port }} masih terpasang</flux:badge>
+                            @can('lepasPortOdpPencabutan', $ticket)
+                                <flux:button size="xs" variant="primary" class="w-full" wire:click="lepasPortOdpPencabutan" wire:confirm="Lepas port ODP layanan ini?">
+                                    Lepas Port
+                                </flux:button>
+                            @endcan
+                        @endif
+                    </div>
+                </div>
+
+                @unless ($ticket->secretSudahDihapus())
+                    <flux:description>Tiket ini belum bisa ditandai Selesai sampai PPP Secret dihapus dari router.</flux:description>
+                @endunless
             </div>
         @endif
 
@@ -820,10 +901,13 @@
                 <flux:label>Router Gateway</flux:label>
                 <flux:select wire:model.live="aktivasiRouterId" placeholder="Pilih router...">
                     <flux:select.option value="">-- Pilih Router --</flux:select.option>
-                    @foreach ($onlineRouters as $r)
+                    @foreach ($routersAktivasi as $r)
                         <flux:select.option value="{{ $r->id }}">{{ $r->nama_router }} ({{ $r->ip_address }})</flux:select.option>
                     @endforeach
                 </flux:select>
+                @if ($routersAktivasi->isEmpty())
+                    <flux:description>Belum ada router online untuk paket ini. Tambahkan router di Detail Paket.</flux:description>
+                @endif
                 <flux:error name="aktivasiRouterId" />
             </flux:field>
 
@@ -881,7 +965,7 @@
                         <flux:label>Router (NOC)</flux:label>
                         <flux:select wire:model.live="prosesRouterId" placeholder="Pilih router...">
                             <flux:select.option value="">Pilih router...</flux:select.option>
-                            @foreach ($onlineRouters as $r)
+                            @foreach ($routersProses as $r)
                                 <flux:select.option value="{{ $r->id }}">{{ $r->nama_router }} ({{ $r->ip_address }})</flux:select.option>
                             @endforeach
                         </flux:select>

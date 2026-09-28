@@ -72,7 +72,7 @@ class Index extends Component
 
         foreach ($routers as $router) {
             try {
-                $res = $service->syncAllBandwidthProfiles($router);
+                $res = $service->syncPaketProfiles($router);
                 $successRouters++;
                 $totalSynced += $res['synced'];
                 if (! empty($res['errors'])) {

@@ -2,11 +2,12 @@
 
 namespace App\Livewire\Router;
 
-use App\Enums\JenisKoneksi;
+use App\Enums\StatusLayanan;
 use App\Enums\StatusRouter;
-use App\Models\IpPool;
+use App\Livewire\Concerns\ProvisionsRouter;
 use App\Models\IpPublik;
 use App\Models\LayananPelanggan;
+use App\Models\PaketLayanan;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
@@ -21,6 +22,7 @@ use Livewire\WithPagination;
 #[Title('Data Router')]
 class Index extends Component
 {
+    use ProvisionsRouter;
     use WithPagination;
 
     public string $search = '';
@@ -96,6 +98,7 @@ class Index extends Component
                         ->where('router_id', $router->id)
                         ->forceDelete();
 
+                    $router->routerPakets()->delete();
                     $router->ipPools()->delete();
                     $router->jobLogs()->delete();
                     $router->delete();
@@ -120,11 +123,14 @@ class Index extends Component
                 return;
             }
 
-            // Layanan PPPoE dinamis memakai Rantai IP Pool Router tujuan (ADR-0060); tanpa pool provisi selalu ditolak.
-            $butuhPool = $router->layanans()->where('jenis_koneksi', JenisKoneksi::Pppoe->value)->exists();
+            // Router tujuan harus menjadi Router Paket untuk setiap paket yang dipindahkan (ADR-0063).
+            $paketBelumTerdaftar = PaketLayanan::query()
+                ->whereIn('id', $router->layanans()->where('status', '!=', StatusLayanan::Berhenti)->select('paket_layanan_id'))
+                ->whereDoesntHave('routerPakets', fn ($query) => $query->where('router_id', $targetRouter->id))
+                ->pluck('nama_paket');
 
-            if ($butuhPool && ! IpPool::where('router_id', $targetRouter->id)->exists()) {
-                Flux::toast(variant: 'danger', text: "Router tujuan {$targetRouter->nama_router} belum memiliki IP Pool. Buat IP Pool untuk router tersebut terlebih dahulu.");
+            if ($paketBelumTerdaftar->isNotEmpty()) {
+                Flux::toast(variant: 'danger', text: "Router tujuan {$targetRouter->nama_router} belum terdaftar untuk paket: {$paketBelumTerdaftar->implode(', ')}. Tambahkan router di Detail Paket terlebih dahulu.");
 
                 return;
             }
@@ -137,6 +143,7 @@ class Index extends Component
                     ->get()
                     ->each(fn (LayananPelanggan $layanan) => $layanan->update(['router_id' => $targetRouter->id]));
 
+                $router->routerPakets()->delete();
                 $router->ipPools()->delete();
                 $router->jobLogs()->delete();
                 $router->delete();
@@ -151,6 +158,7 @@ class Index extends Component
         }
 
         DB::transaction(function () use ($router) {
+            $router->routerPakets()->delete();
             $router->ipPools()->delete();
             $router->jobLogs()->delete();
             $router->delete();
@@ -198,30 +206,7 @@ class Index extends Component
 
     public function provisionRouter(int $routerId, MikrotikService $mikrotikService): void
     {
-        $router = Router::findOrFail($routerId);
-        $this->authorize('update', $router);
-
-        try {
-            $result = $mikrotikService->provisionRouterFull($router);
-            $details = $result['details'] ?? [];
-            $poolSynced = $details['ip_pools']['synced'] ?? 0;
-            $profileSynced = $details['profiles']['synced'] ?? 0;
-            $secretRecovered = $details['secrets']['recovered'] ?? 0;
-            $orphansFound = $details['orphans']['orphans_count'] ?? 0;
-
-            // Penghapusan orphaned secret tidak pernah dilakukan dari UI: hanya dilaporkan (hapus lewat CLI --clean-orphans).
-            $orphanText = $orphansFound > 0 ? ", Orphan terdeteksi: {$orphansFound} (tidak dihapus)" : '';
-
-            Flux::toast(
-                variant: 'success',
-                text: "Provisi {$router->nama_router} sukses! (Pool: {$poolSynced}, Profil: {$profileSynced}, Secret: {$secretRecovered}{$orphanText})"
-            );
-        } catch (\Throwable $e) {
-            Flux::toast(
-                variant: 'danger',
-                text: "Gagal provisi {$router->nama_router}: {$e->getMessage()}"
-            );
-        }
+        $this->provisionRouterFull(Router::findOrFail($routerId), $mikrotikService);
     }
 
     public function render(): View

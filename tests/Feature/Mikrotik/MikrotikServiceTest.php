@@ -11,6 +11,7 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -88,32 +89,14 @@ test('createOrUpdatePppoeSecret throws MikrotikException if paket or profil is m
         ->toThrow(MikrotikException::class, 'tidak memiliki paket layanan atau profil bandwidth');
 });
 
-test('createOrUpdatePppoeSecret throws MikrotikException if PPPoE connection has no IP Pool', function () {
-    $router = Router::factory()->online()->create();
-    $pelanggan = Pelanggan::factory()->create();
-    $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Home-10M']);
-    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
-
-    $layanan = LayananPelanggan::factory()->create([
-        'router_id' => $router->id,
-        'pelanggan_id' => $pelanggan->id,
-        'paket_layanan_id' => $paket->id,
-        'jenis_koneksi' => JenisKoneksi::Pppoe,
-        'ppp_username' => "{$pelanggan->no_reg}_12345",
-        'ppp_password_terenkripsi' => 'secret123',
-    ]);
-
-    expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan))
-        ->toThrow(MikrotikException::class, 'belum punya IP Pool');
-});
-
-test('createOrUpdatePppoeSecret throws MikrotikException if the router has no IP Pool (pool only on another router)', function () {
+test('createOrUpdatePppoeSecret throws MikrotikException if the paket is not registered to the router', function () {
     $router = Router::factory()->online()->create();
     $otherRouter = Router::factory()->online()->create();
     $pelanggan = Pelanggan::factory()->create();
     $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Home-10M']);
     $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
-    IpPool::factory()->create(['router_id' => $otherRouter->id, 'nama_pool' => 'Pool-Rumah']);
+    $poolLain = IpPool::factory()->create(['router_id' => $otherRouter->id, 'nama_pool' => 'Pool-Rumah']);
+    RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $otherRouter->id, 'ip_pool_id' => $poolLain->id]);
 
     $layanan = LayananPelanggan::factory()->create([
         'router_id' => $router->id,
@@ -125,76 +108,54 @@ test('createOrUpdatePppoeSecret throws MikrotikException if the router has no IP
     ]);
 
     expect(fn () => $this->service->createOrUpdatePppoeSecret($router, $layanan))
-        ->toThrow(MikrotikException::class, "Router {$router->nama_router} belum punya IP Pool");
+        ->toThrow(MikrotikException::class, "belum didaftarkan ke router {$router->nama_router}");
 });
 
-test('ensurePppProfile creates one {bandwidth} profile per router carrying the pool chain head', function () {
+test('ensurePaketProfile creates a profile named after the paket using the chosen pool, without comment', function () {
     $router = Router::factory()->online()->create();
     IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Rumah', 'ip_network' => '10.0.0.0', 'cidr' => 24]);
-    IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Tambahan', 'ip_network' => '10.0.5.0', 'cidr' => 24]);
-    $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Home-10M', 'max_limit_tx' => 10, 'max_limit_rx' => 10]);
+    $dipilih = IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Karyawan', 'ip_network' => '11.0.0.0', 'cidr' => 24]);
+    $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'BW-100M', 'max_limit_tx' => 100, 'max_limit_rx' => 100]);
+    $paket = PaketLayanan::factory()->create(['nama_paket' => 'Karyawan_100Mbps', 'profil_bandwidth_id' => $profil->id]);
+    $routerPaket = RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $router->id, 'ip_pool_id' => $dipilih->id]);
     [$client, $sent] = fakeRouterOs();
 
-    $name = $this->service->ensurePppProfile($router, $profil, $client);
+    $name = $this->service->ensurePaketProfile($routerPaket, $client);
 
     $attrs = sentAttributes($sent, '/ppp/profile/add');
-    expect($name)->toBe('Home-10M')
+    expect($name)->toBe('Karyawan_100Mbps')
         ->and($attrs)->toMatchArray([
-            'name' => 'Home-10M',
-            'local-address' => '10.0.0.1',
-            'remote-address' => 'Pool-Rumah',
+            'name' => 'Karyawan_100Mbps',
+            'local-address' => '11.0.0.1',
+            'remote-address' => 'Pool-Karyawan',
+            'rate-limit' => $profil->routerOsRateLimit(),
         ])
-        ->and($attrs)->toHaveKey('rate-limit');
+        ->and($attrs)->not->toHaveKey('comment');
 });
 
-test('ensurePppProfile on a router without pool stays a plain profile with no address', function () {
-    $router = Router::factory()->online()->create();
-    $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Home-10M']);
+test('syncPaketProfiles syncs one profile per Router Paket of that router only', function () {
+    [$router] = layananPppoeDinamis();
+    layananPppoeDinamis(); // Router Paket di router lain tidak ikut
     [$client, $sent] = fakeRouterOs();
 
-    $name = $this->service->ensurePppProfile($router, $profil, $client);
-
-    expect($name)->toBe('Home-10M')
-        ->and(sentAttributes($sent, '/ppp/profile/add'))->not->toHaveKeys(['local-address', 'remote-address']);
-});
-
-test('syncAllBandwidthProfiles syncs one profile per bandwidth pointing at the pool chain head', function () {
-    $router = Router::factory()->online()->create();
-    IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-A', 'ip_network' => '10.0.0.0', 'rentang_ip_awal' => '10.0.0.2', 'rentang_ip_akhir' => '10.0.0.50']);
-    IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-B', 'ip_network' => '10.0.1.0', 'rentang_ip_awal' => '10.0.1.2', 'rentang_ip_akhir' => '10.0.1.50']);
-    ProfilBandwidth::factory()->create(['nama_bandwidth' => 'P10']);
-    [$client, $sent] = fakeRouterOs();
-
-    $res = $this->service->syncAllBandwidthProfiles($router->fresh(), $client);
+    $res = $this->service->syncPaketProfiles($router->fresh(), $client);
 
     $names = collect($sent)->filter(fn ($q) => $q->getEndpoint() === '/ppp/profile/add')
         ->map(fn ($q) => collect($q->getAttributes())->first(fn ($w) => str_starts_with($w, '=name=')))
-        ->sort()->values()->all();
+        ->values()->all();
 
-    expect($res['total'])->toBe(1)
-        ->and($res['synced'])->toBe(1)
-        ->and($names)->toBe(['=name=P10'])
-        ->and(sentAttributes($sent, '/ppp/profile/add'))->toMatchArray(['remote-address' => 'Pool-A', 'local-address' => '10.0.0.1']);
+    expect($res)->toMatchArray(['total' => 1, 'synced' => 1, 'errors' => []])
+        ->and($names)->toBe(['=name=P10']);
 });
 
-test('syncRantaiIpPool chains router pools by creation order via next-pool, last one none', function () {
+test('syncIpPool dismantles the old pool chain by setting next-pool to none', function () {
     $router = Router::factory()->online()->create();
-    IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-A']);
-    IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-B']);
-    [$client, $sent] = fakeRouterOs(['/ip/pool/print' => [
-        ['.id' => '*B', 'name' => 'Pool-B'],
-        ['.id' => '*A', 'name' => 'Pool-A'],
-    ]]);
+    $pool = IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-A']);
+    [$client, $sent] = fakeRouterOs(['/ip/pool/print' => [['.id' => '*A', 'name' => 'Pool-A', 'next-pool' => 'Pool-B']]]);
 
-    $this->service->syncRantaiIpPool($router, $client);
+    $this->service->syncIpPool($router, $pool, $client);
 
-    $sets = collect($sent)->filter(fn ($q) => $q->getEndpoint() === '/ip/pool/set')
-        ->map(fn ($q) => $q->getAttributes())->values()->all();
-
-    expect($sets)->toBe([
-        ['=.id=*A', '=next-pool=Pool-B'],
-        ['=.id=*B', '=next-pool=none'],
-    ]);
+    expect(sentAttributes($sent, '/ip/pool/set'))->toMatchArray(['.id' => '*A', 'next-pool' => 'none']);
 });
 
 test('createOrUpdatePppoeSecret for dynamic PPPoE sends no local/remote-address and uses the per-router profile', function () {
@@ -212,7 +173,7 @@ test('createOrUpdatePppoeSecret for dynamic PPPoE sends no local/remote-address 
 test('createOrUpdatePppoeSecret unsets literal addresses left on an existing dynamic secret', function () {
     [$router, $layanan] = layananPppoeDinamis();
     [$client, $sent] = fakeRouterOs([
-        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'comment' => 'UNMS: S1 - Budi', 'remote-address' => '10.0.0.7', 'local-address' => '10.0.0.1']],
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'remote-address' => '10.0.0.7', 'local-address' => '10.0.0.1']],
     ]);
 
     $this->service->createOrUpdatePppoeSecret($router, $layanan, $client);
@@ -246,7 +207,6 @@ test('autoRecoverPppSecrets dry-run flags a dynamic secret still carrying a lite
         '/ppp/secret/print' => [[
             '.id' => '*1',
             'name' => $layanan->ppp_username,
-            'comment' => 'UNMS: S1 - Budi',
             'profile' => 'P10',
             'remote-address' => '10.0.0.7',
             'local-address' => '10.0.0.1',
@@ -268,7 +228,7 @@ test('autoRecoverPppSecrets dry-run flags a dynamic secret still carrying a lite
 test('autoRecoverPppSecrets treats the old per-pool profile as drift so secrets migrate to the per-router profile', function () {
     [$router, $layanan] = layananPppoeDinamis();
     [$client] = fakeRouterOs([
-        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'comment' => 'UNMS: S1 - Budi', 'profile' => 'P10@Pool-Rumah', 'password' => 'secret123']],
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10@Pool-Rumah', 'password' => 'secret123']],
     ]);
 
     $res = $this->service->autoRecoverPppSecrets($router->fresh(), $client, dryRun: true);
@@ -295,33 +255,16 @@ test('getPoolUsage counts /ip/pool/used entries per pool and never throws', func
     expect($gagal->getPoolUsage($offline))->toBeNull();
 });
 
-test('ensurePppProfile throws MikrotikException if nama_bandwidth is empty', function () {
-    $router = Router::factory()->online()->create();
-    $profil = new ProfilBandwidth;
-    $profil->nama_bandwidth = '';
-
-    expect(fn () => $this->service->ensurePppProfile($router, $profil))
-        ->toThrow(MikrotikException::class, 'Nama profil bandwidth di UNMS kosong');
-});
-
-test('syncAllBandwidthProfiles bulk fetches profiles and adds missing profile', function () {
-    $router = Router::factory()->online()->create();
-    ProfilBandwidth::factory()->create([
-        'nama_bandwidth' => 'Profile-10M',
-        'max_limit_tx' => 10,
-        'max_limit_rx' => 10,
-    ]);
+test('syncPaketProfiles adds the missing profile when the router has none', function () {
+    [$router] = layananPppoeDinamis();
 
     $mockClient = Mockery::mock(Client::class);
     $mockClient->shouldReceive('query')->andReturnSelf();
-    // Return empty existing profiles from router
     $mockClient->shouldReceive('read')->andReturn([]);
 
-    $res = $this->service->syncAllBandwidthProfiles($router, $mockClient);
+    $res = $this->service->syncPaketProfiles($router, $mockClient);
 
-    expect($res['total'])->toBe(1)
-        ->and($res['synced'])->toBe(1)
-        ->and($res['errors'])->toBeEmpty();
+    expect($res)->toMatchArray(['total' => 1, 'synced' => 1, 'errors' => []]);
 });
 
 test('autoRecoverPppSecrets retries on initial query timeout and recovers secret', function () {
@@ -329,6 +272,8 @@ test('autoRecoverPppSecrets retries on initial query timeout and recovers secret
     $pelanggan = Pelanggan::factory()->create();
     $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Fast-20M']);
     $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+
+    RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $router->id, 'ip_pool_id' => IpPool::factory()->create(['router_id' => $router->id])->id]);
 
     $layanan = LayananPelanggan::factory()->create([
         'router_id' => $router->id,
@@ -340,7 +285,7 @@ test('autoRecoverPppSecrets retries on initial query timeout and recovers secret
     ]);
 
     $mockService = Mockery::mock(MikrotikService::class)->makePartial();
-    $mockService->shouldReceive('syncAllBandwidthProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
+    $mockService->shouldReceive('syncPaketProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
 
     $client1 = Mockery::mock(Client::class);
     $client2 = Mockery::mock(Client::class);
@@ -363,4 +308,88 @@ test('autoRecoverPppSecrets retries on initial query timeout and recovers secret
 
     expect($stats['recovered'])->toBe(1)
         ->and($stats['already_synced'])->toBe(0);
+});
+
+test('autoRecoverPppSecrets treats a legacy UNMS comment as drift so the comment gets cleared', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    [$client] = fakeRouterOs([
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'comment' => 'UNMS: S1 - Budi', 'profile' => 'P10', 'password' => 'secret123']],
+    ]);
+
+    $res = $this->service->autoRecoverPppSecrets($router->fresh(), $client, dryRun: true);
+
+    expect($res['dry_run_changes'][0]['reason'])->toBe('comment_lama');
+});
+
+test('autoRecoverPppSecrets removes unused legacy profiles but keeps paket, in-use, and manual profiles', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Karyawan_100Mbps']);
+    [$client, $sent] = fakeRouterOs([
+        '/ppp/secret/print' => [
+            ['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10', 'password' => 'secret123'],
+            ['.id' => '*2', 'name' => 'manual_noc', 'profile' => 'Karyawan_100Mbps@Pool-Rumah'],
+        ],
+        '/ppp/profile/print' => [
+            ['.id' => '*P1', 'name' => 'P10'],
+            ['.id' => '*P2', 'name' => 'Karyawan_100Mbps'],
+            ['.id' => '*P3', 'name' => 'Karyawan_100Mbps@Pool-Rumah'],
+            ['.id' => '*P4', 'name' => 'ISOLIR'],
+        ],
+    ]);
+
+    $res = $this->service->autoRecoverPppSecrets($router->fresh(), $client);
+
+    $dihapus = collect($sent)->filter(fn ($q) => $q->getEndpoint() === '/ppp/profile/remove')
+        ->map(fn ($q) => $q->getAttributes()[0])->values()->all();
+
+    expect($res['profile_lama_dihapus'])->toBe(['Karyawan_100Mbps'])
+        ->and($dihapus)->toBe(['=.id=*P2']);
+});
+
+test('isolir memindahkan secret ke profile ISOLIR dari IP Pool Isolir, tidak men-disable, dan memutus sesi; buka isolir mengembalikan profile paket', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    $router->update(['ip_pool_isolir_id' => IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Isolir', 'ip_network' => '172.16.99.0', 'cidr' => 24])->id]);
+    $reads = [
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']],
+        '/ppp/active/print' => [['.id' => '*A', 'name' => $layanan->ppp_username]],
+    ];
+
+    [$client, $sent] = fakeRouterOs($reads);
+    $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client);
+
+    expect(sentAttributes($sent, '/ppp/profile/add'))->toBe(['name' => 'ISOLIR', 'local-address' => '172.16.99.1', 'remote-address' => 'Pool-Isolir'])
+        ->and(sentAttributes($sent, '/ppp/secret/set'))->toMatchArray(['.id' => '*1', 'profile' => 'ISOLIR', 'disabled' => 'no'])
+        ->and(sentAttributes($sent, '/ppp/active/remove'))->toMatchArray(['.id' => '*A']);
+
+    [$client, $sent] = fakeRouterOs($reads);
+    $this->service->bukaIsolirPppoeSecret($router->fresh(), $layanan, $client);
+
+    expect(sentAttributes($sent, '/ppp/secret/set'))->toMatchArray(['profile' => 'P10', 'disabled' => 'no'])
+        ->and(sentAttributes($sent, '/ppp/active/remove'))->toMatchArray(['.id' => '*A']);
+});
+
+test('isolir gagal jelas bila router belum punya IP Pool Isolir, dan provisi layanan Suspend memakai profile ISOLIR', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    Queue::fake();
+    $layanan->update(['status' => StatusLayanan::Suspend]);
+
+    expect(fn () => $this->service->isolirPppoeSecret($router, $layanan, fakeRouterOs()[0]))
+        ->toThrow(MikrotikException::class, 'belum punya IP Pool Isolir');
+
+    $router->update(['ip_pool_isolir_id' => IpPool::factory()->create(['router_id' => $router->id])->id]);
+    [$client, $sent] = fakeRouterOs();
+    $this->service->createOrUpdatePppoeSecret($router->fresh(), $layanan->fresh(), $client);
+
+    expect(sentAttributes($sent, '/ppp/secret/add'))->toMatchArray(['profile' => 'ISOLIR', 'disabled' => 'no']);
+});
+
+test('autoRecoverPppSecrets treats a disabled secret as drift because isolir no longer disables', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    [$client] = fakeRouterOs([
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10', 'password' => 'secret123', 'disabled' => 'true']],
+    ]);
+
+    $res = $this->service->autoRecoverPppSecrets($router->fresh(), $client, dryRun: true);
+
+    expect($res['dry_run_changes'][0]['reason'])->toBe('disabled_lama');
 });

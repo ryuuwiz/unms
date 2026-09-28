@@ -8,6 +8,7 @@ use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
+use App\Enums\Ticket\StatusUsulanOdp;
 use App\Enums\UserStatus;
 use App\Exceptions\MikrotikConnectionException;
 use App\Exceptions\MikrotikException;
@@ -23,6 +24,7 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Notifications\MikrotikJobNotification;
@@ -60,12 +62,16 @@ beforeEach(function () {
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
         'status' => StatusLayanan::Proses,
+        // Koordinat tanpa ODP di sekitarnya: tiket memakai jalur "Tanpa ODP dalam jangkauan" (Usulan ODP).
+        'latitude' => -6.2,
+        'longitude' => 106.8,
         'router_id' => null,
         'ppp_username' => null,
     ]);
 
     $this->router = Router::factory()->online()->create();
     $this->ipPool = IpPool::factory()->create(['router_id' => $this->router->id, 'nama_pool' => 'Pool-Rumah']);
+    RouterPaket::create(['paket_layanan_id' => $this->paket->id, 'router_id' => $this->router->id, 'ip_pool_id' => $this->ipPool->id]);
 
     $this->odp = Odp::factory()->create();
     $this->odpPort = OdpPort::factory()->create(['odp_id' => $this->odp->id]);
@@ -355,4 +361,128 @@ test('Aktivasi yang gagal karena galat data tidak mengantrekan retry yang pasti 
 
     Queue::assertNotPushed(ProvisionPppoeAccountJob::class);
     Notification::assertSentTo($this->noc, MikrotikJobNotification::class);
+});
+
+test('usulan ODP wajib dipilih dari ODP terdekat dan port baru bisa dipilih setelah teknisi menyetujuinya', function () {
+    $odpDekat = Odp::factory()->create(['latitude' => -6.2, 'longitude' => 106.8]);
+    $portDekat = OdpPort::factory()->create(['odp_id' => $odpDekat->id, 'nomor_port' => 1]);
+
+    $create = Livewire::actingAs($this->admin)
+        ->test(TicketCreate::class)
+        ->set('jenis', JenisTicket::Pemasangan->value)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('layanan_pelanggan_id', $this->layanan->id)
+        ->set('pic_id', $this->teknisi->id)
+        ->set('deskripsi', 'Pemasangan dengan usulan ODP.')
+        ->call('save')
+        ->assertHasErrors(['odp_usulan_id' => 'required']);
+
+    $create->set('odp_usulan_id', $this->odp->id)->call('save')->assertHasErrors(['odp_usulan_id' => 'in']);
+    $create->set('odp_usulan_id', $odpDekat->id)->call('save')->assertHasNoErrors();
+
+    $ticket = Ticket::where('layanan_pelanggan_id', $this->layanan->id)->firstOrFail();
+    expect($ticket->pemasangan->status_usulan_odp)->toBe(StatusUsulanOdp::Menunggu);
+
+    $show = Livewire::actingAs($this->teknisi)
+        ->test(Show::class, ['ticket' => $ticket])
+        ->set('odp_id', $odpDekat->id)
+        ->set('odp_port_id', $portDekat->id)
+        ->set('fotoPemasangan', [UploadedFile::fake()->image('pasang.jpg')])
+        ->call('simpanProgressLapangan')
+        ->assertHasErrors(['odp_id']);
+
+    $show->call('setujuiUsulanOdp')
+        ->assertSet('odp_id', $odpDekat->id)
+        ->set('odp_id', $this->odp->id)
+        ->set('odp_port_id', $this->odpPort->id)
+        ->set('fotoPemasangan', [UploadedFile::fake()->image('pasang.jpg')])
+        ->call('simpanProgressLapangan')
+        ->assertHasErrors(['odp_id'])
+        ->set('odp_id', $odpDekat->id)
+        ->set('odp_port_id', $portDekat->id)
+        ->set('fotoPemasangan', [UploadedFile::fake()->image('pasang.jpg')])
+        ->call('simpanProgressLapangan')
+        ->assertHasNoErrors();
+
+    expect($ticket->fresh()->pemasangan)
+        ->status_usulan_odp->toBe(StatusUsulanOdp::Disetujui)
+        ->odp_port_id->toBe($portDekat->id);
+});
+
+test('teknisi mengganti usulan ODP dengan alasan tercatat lalu memilih ODP lain sendiri', function () {
+    Odp::factory()->create(['latitude' => -6.2, 'longitude' => 106.8])->ports()->create(['nomor_port' => 1, 'status' => StatusOdpPort::Kosong]);
+    $odpDekat = Odp::where('latitude', -6.2)->firstOrFail();
+
+    Livewire::actingAs($this->admin)
+        ->test(TicketCreate::class)
+        ->set('jenis', JenisTicket::Pemasangan->value)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('layanan_pelanggan_id', $this->layanan->id)
+        ->set('pic_id', $this->teknisi->id)
+        ->set('odp_usulan_id', $odpDekat->id)
+        ->set('deskripsi', 'Pemasangan dengan usulan ODP.')
+        ->call('save')
+        ->assertHasNoErrors();
+    $ticket = Ticket::where('layanan_pelanggan_id', $this->layanan->id)->firstOrFail();
+
+    Livewire::actingAs($this->teknisi)
+        ->test(Show::class, ['ticket' => $ticket])
+        ->call('gantiUsulanOdp')
+        ->assertHasErrors(['alasanGantiOdp' => 'required'])
+        ->set('alasanGantiOdp', 'Jalur kabel terhalang sungai')
+        ->call('gantiUsulanOdp')
+        ->assertHasNoErrors()
+        ->set('odp_id', $this->odp->id)
+        ->set('odp_port_id', $this->odpPort->id)
+        ->set('fotoPemasangan', [UploadedFile::fake()->image('pasang.jpg')])
+        ->call('simpanProgressLapangan')
+        ->assertHasNoErrors();
+
+    expect($ticket->fresh()->pemasangan->status_usulan_odp)->toBe(StatusUsulanOdp::Diganti)
+        ->and($ticket->histori()->where('catatan', 'like', '%Jalur kabel terhalang sungai%')->exists())->toBeTrue();
+});
+
+test('port yang dipilih tiket lain yang masih terbuka tidak bisa dipilih, dan bebas lagi setelah tiket itu batal', function () {
+    $ticketPertama = buatTicketPemasangan($this->admin, $this->pelanggan, $this->layanan, $this->teknisi);
+    Livewire::actingAs($this->teknisi)
+        ->test(Show::class, ['ticket' => $ticketPertama])
+        ->set('odp_id', $this->odp->id)
+        ->set('odp_port_id', $this->odpPort->id)
+        ->set('fotoPemasangan', [UploadedFile::fake()->image('pasang.jpg')])
+        ->call('simpanProgressLapangan')
+        ->assertHasNoErrors();
+
+    $layananKedua = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id, 'paket_layanan_id' => $this->paket->id,
+        'status' => StatusLayanan::Proses, 'latitude' => -6.2, 'longitude' => 106.8,
+    ]);
+    $ticketKedua = buatTicketPemasangan($this->admin, $this->pelanggan, $layananKedua, $this->teknisi);
+
+    $pilihPortSama = fn () => Livewire::actingAs($this->teknisi)
+        ->test(Show::class, ['ticket' => $ticketKedua])
+        ->set('odp_id', $this->odp->id)
+        ->set('odp_port_id', $this->odpPort->id)
+        ->set('fotoPemasangan', [UploadedFile::fake()->image('pasang.jpg')])
+        ->call('simpanProgressLapangan');
+
+    $pilihPortSama()->assertHasErrors(['odp_port_id']);
+
+    $ticketPertama->update(['status' => StatusTicket::Batal]);
+
+    $pilihPortSama()->assertHasNoErrors();
+});
+
+test('ticket pemasangan untuk layanan tanpa koordinat ditolak sampai koordinat dilengkapi', function () {
+    $layananTanpaKoordinat = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id, 'paket_layanan_id' => $this->paket->id, 'status' => StatusLayanan::Proses,
+    ]);
+
+    Livewire::actingAs($this->admin)
+        ->test(TicketCreate::class)
+        ->set('jenis', JenisTicket::Pemasangan->value)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('layanan_pelanggan_id', $layananTanpaKoordinat->id)
+        ->set('deskripsi', 'Pemasangan tanpa koordinat layanan.')
+        ->call('save')
+        ->assertHasErrors(['layanan_pelanggan_id']);
 });

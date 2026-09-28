@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\StatusPelanggan;
 use App\Enums\TipePelanggan;
 use App\Enums\UserStatus;
 use App\Livewire\Pelanggan\Create;
@@ -46,12 +45,12 @@ test('can create pelanggan with encrypted ktp and mou document', function () {
 
     Livewire::test(Create::class)
         ->set('no_reg', 'BF2608202601')
+        ->set('nik', '3201234567890003')
         ->set('tipe_pelanggan', TipePelanggan::Rumah->value)
         ->set('nama_depan', 'Budi')
         ->set('nama_belakang', 'Santoso')
         ->set('no_hp', '081234567890')
         ->set('alamat_lengkap', 'Jl. Merdeka No. 10')
-        ->set('status', StatusPelanggan::BelumTerpasang->value)
         ->set('foto_ktp', $ktpFile)
         ->set('dokumen_mou', $mouFile)
         ->set('jenis_dokumen', 'MOU / Kontrak')

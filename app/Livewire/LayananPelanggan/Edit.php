@@ -8,11 +8,11 @@ use App\Actions\LayananPelanggan\UbahStatusLayananAction;
 use App\Enums\JenisKoneksi;
 use App\Enums\StatusLayanan;
 use App\Livewire\Concerns\HasSearchableOptions;
-use App\Models\IpPool;
 use App\Models\IpPublik;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -96,10 +96,10 @@ class Edit extends Component
             'paket_layanan_id' => ['required', 'integer', 'exists:paket_layanan,id'],
             'router_id' => [
                 'required', 'integer', 'exists:router,id',
-                // PPPoE dinamis memakai Rantai IP Pool Router, tidak memilih pool (ADR-0060).
+                // Hanya router yang menjadi Router Paket untuk paket ini (ADR-0063).
                 function (string $attribute, mixed $value, \Closure $fail): void {
-                    if ($this->jenis_koneksi === 'pppoe' && ! IpPool::where('router_id', $value)->exists()) {
-                        $fail(IpPool::PESAN_ROUTER_TANPA_POOL);
+                    if (! RouterPaket::terdaftar($value, $this->paket_layanan_id)) {
+                        $fail(RouterPaket::PESAN_BELUM_TERDAFTAR);
                     }
                 },
             ],
@@ -253,7 +253,9 @@ class Edit extends Component
 
     public function render(): View
     {
-        $routers = Router::orderBy('nama_router')->get();
+        $routers = Router::whereHas('routerPakets', fn ($query) => $query->where('paket_layanan_id', $this->paket_layanan_id))
+            ->orderBy('nama_router')
+            ->get();
         $ipPubliks = $this->router_id
             ? IpPublik::where('router_id', $this->router_id)
                 ->where(fn ($q) => $q->whereNull('layanan_pelanggan_id')->orWhere('layanan_pelanggan_id', $this->layananId))

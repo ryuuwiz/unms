@@ -100,7 +100,7 @@ class EnablePppoeAccountJob implements ShouldBeUnique, ShouldQueue
         ]);
 
         try {
-            $mikrotikService->enablePppoeSecret($router, $this->layanan);
+            $mikrotikService->bukaIsolirPppoeSecret($router, $this->layanan);
 
             $log->update([
                 'status' => MikrotikJobStatus::Success,

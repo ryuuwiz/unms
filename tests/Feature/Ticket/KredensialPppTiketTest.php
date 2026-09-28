@@ -16,6 +16,7 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Mikrotik\MikrotikService;
@@ -43,7 +44,8 @@ beforeEach(function () {
     $this->pelanggan = Pelanggan::factory()->create();
     $this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
     $this->router = Router::factory()->online()->create();
-    IpPool::factory()->create(['router_id' => $this->router->id, 'nama_pool' => 'Pool-Rumah']);
+    $pool = IpPool::factory()->create(['router_id' => $this->router->id, 'nama_pool' => 'Pool-Rumah']);
+    RouterPaket::create(['paket_layanan_id' => $this->paket->id, 'router_id' => $this->router->id, 'ip_pool_id' => $pool->id]);
 });
 
 /**
@@ -55,6 +57,8 @@ function buatTiketDenganLayanan(array $layananAttributes, JenisTicket $jenis = J
         'pelanggan_id' => test()->pelanggan->id,
         'paket_layanan_id' => test()->paket->id,
         'router_id' => test()->router->id,
+        'latitude' => -6.2,
+        'longitude' => 106.8,
     ]);
 
     Livewire::actingAs(test()->admin)
@@ -157,6 +161,7 @@ test('tombol Provisi mengisi password kosong hanya untuk layanan Proses', functi
     $proses = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id, 'paket_layanan_id' => $this->paket->id, 'router_id' => $this->router->id,
         'status' => StatusLayanan::Proses, 'ppp_password_terenkripsi' => null,
+        'latitude' => -6.2, 'longitude' => 106.8,
     ]);
     $aktif = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id, 'paket_layanan_id' => $this->paket->id, 'router_id' => $this->router->id,

@@ -2,11 +2,13 @@
 
 use App\Enums\JenisKoneksi;
 use App\Exceptions\MikrotikException;
+use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,13 +29,15 @@ beforeEach(function () {
  * Susun layanan pelanggan IP Static agar guard IP Pool tidak ikut memicu query RouterOS tambahan,
  * sehingga urutan panggilan query/read ke client mock tetap dapat diprediksi.
  */
-function buatLayananUntukTesIdempotensi(): LayananPelanggan
+function buatLayananUntukTesIdempotensi(Router $router): LayananPelanggan
 {
     $pelanggan = Pelanggan::factory()->create();
     $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Idempotent-10M']);
     $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+    RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $router->id, 'ip_pool_id' => IpPool::factory()->create(['router_id' => $router->id])->id]);
 
     return LayananPelanggan::factory()->create([
+        'router_id' => $router->id,
         'pelanggan_id' => $pelanggan->id,
         'paket_layanan_id' => $paket->id,
         'jenis_koneksi' => JenisKoneksi::IpStatic,
@@ -60,23 +64,24 @@ function mockClientDenganUrutanResponse(array $responses): Client
 
 test('createOrUpdatePppoeSecret melanjutkan ke update saat create gagal karena entry sudah ada (race sempit)', function () {
     $router = Router::factory()->online()->create();
-    $layanan = buatLayananUntukTesIdempotensi();
-    $layanan->update(['router_id' => $router->id]);
+    $layanan = buatLayananUntukTesIdempotensi($router);
 
     // Urutan panggilan read() yang diharapkan:
-    // 1. ensurePppProfile: cari profile -> sudah ada -> lanjut ke set (update), bukan create.
-    // 2. ensurePppProfile: set profile -> ack.
+    // 0. ensurePaketProfile -> syncIpPool: cari pool, buat pool, cari queue, buat queue.
+    // 1. ensurePaketProfile: cari profile -> sudah ada -> lanjut ke set (update), bukan create.
+    // 2. ensurePaketProfile: set profile -> ack.
     // 3. createOrUpdatePppoeSecret: cari secret -> belum ada.
     // 4. createOrUpdatePppoeSecret: create secret -> RouterOS menolak, entry ternyata sudah ada.
     // 5. Re-query verifikasi -> entry ditemukan.
     // 6. Update secret yang ditemukan -> ack.
     $mockClient = mockClientDenganUrutanResponse([
+        fn () => [], fn () => [], fn () => [], fn () => [],
         fn () => [['.id' => '*1', 'name' => 'Profile-Idempotent-10M', 'rate-limit' => '10M/10M', 'comment' => 'x']],
         fn () => [],
         fn () => [],
         fn () => ['after' => ['message' => 'failure: already have such entry']],
         // Entry dibuat proses billing lain (race), jadi berkomentar UNMS:.
-        fn () => [['.id' => '*2', 'name' => 'user-idempotent-1', 'comment' => 'UNMS: S1 - Budi']],
+        fn () => [['.id' => '*2', 'name' => 'user-idempotent-1']],
         fn () => [],
     ]);
 
@@ -92,10 +97,10 @@ test('createOrUpdatePppoeSecret melanjutkan ke update saat create gagal karena e
 
 test('createOrUpdatePppoeSecret tetap melempar MikrotikException untuk kegagalan create yang bukan soal duplikat', function () {
     $router = Router::factory()->online()->create();
-    $layanan = buatLayananUntukTesIdempotensi();
-    $layanan->update(['router_id' => $router->id]);
+    $layanan = buatLayananUntukTesIdempotensi($router);
 
     $mockClient = mockClientDenganUrutanResponse([
+        fn () => [], fn () => [], fn () => [], fn () => [],
         fn () => [['.id' => '*1', 'name' => 'Profile-Idempotent-10M', 'rate-limit' => '10M/10M', 'comment' => 'x']],
         fn () => [],
         fn () => [],

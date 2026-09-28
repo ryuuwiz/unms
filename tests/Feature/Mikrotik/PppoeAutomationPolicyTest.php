@@ -23,6 +23,7 @@ use App\Models\IpPublik;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Models\User;
 use App\Notifications\MikrotikJobNotification;
 use App\Services\Mikrotik\MikrotikService;
@@ -66,7 +67,7 @@ test('job Disable yang basi tidak mengisolir layanan yang sudah Aktif kembali', 
     [$router, $layanan] = layananPppoeDinamis();
     $layanan->update(['status' => StatusLayanan::Aktif]);
     $service = Mockery::mock(MikrotikService::class);
-    $service->shouldNotReceive('disablePppoeSecret');
+    $service->shouldNotReceive('isolirPppoeSecret');
 
     (new DisablePppoeAccountJob($layanan->fresh()))->handle($service);
 
@@ -77,7 +78,7 @@ test('job Enable yang basi tidak membuka layanan yang sudah Suspend atau Berhent
     [, $layanan] = layananPppoeDinamis();
     $layanan->updateQuietly(['status' => $status]);
     $service = Mockery::mock(MikrotikService::class);
-    $service->shouldNotReceive('enablePppoeSecret');
+    $service->shouldNotReceive('bukaIsolirPppoeSecret');
 
     (new EnablePppoeAccountJob($layanan->fresh()))->handle($service);
 
@@ -120,7 +121,7 @@ test('form Edit menolak status di luar enum dan ip_static yang duplikat', functi
 
 // --- Q7: provisi ulang saat username/router/pool/ip_static berubah ---
 
-test('ganti username layanan aktif memprovisi ulang dengan kick, layanan Proses atau tanpa pool tidak', function () {
+test('ganti username layanan aktif memprovisi ulang dengan kick, layanan Proses atau paket tanpa Router Paket tidak', function () {
     [, $layanan] = layananPppoeDinamis();
     $layanan->update(['status' => StatusLayanan::Aktif]);
     Queue::fake();
@@ -136,7 +137,7 @@ test('ganti username layanan aktif memprovisi ulang dengan kick, layanan Proses 
 
     Queue::fake();
     $layanan->updateQuietly(['status' => StatusLayanan::Aktif]);
-    IpPool::where('router_id', $layanan->router_id)->delete();
+    RouterPaket::where('router_id', $layanan->router_id)->delete();
     $layanan = $layanan->fresh();
     $layanan->update(['ppp_username' => $layanan->pelanggan->no_reg.'_76543']);
     Queue::assertNotPushed(ProvisionPppoeAccountJob::class);
@@ -164,9 +165,9 @@ test('rekonsiliasi dilewati untuk router offline, dan mode audit tidak menghapus
     $online = Router::factory()->online()->create();
     $service = Mockery::mock(MikrotikService::class);
     $service->shouldReceive('autoRecoverPppSecrets')->once()->andReturn(['recovered' => 0, 'disabled' => 0, 'duplicates_removed' => 0, 'delete_cap_exceeded' => false, 'errors' => []]);
-    $service->shouldReceive('cleanOrphanedPppSecrets')->once()->with(Mockery::any(), false)->andReturn(['orphans_count' => 2, 'orphans' => ['a', 'b'], 'errors' => []]);
+    $service->shouldReceive('auditOrphanedPppSecrets')->once()->andReturn(['orphans_count' => 2, 'orphans' => ['a', 'b'], 'errors' => []]);
 
-    (new RecoverPppRouterJob($online, false, false, false, true))->handle($service);
+    (new RecoverPppRouterJob($online, false, false, true))->handle($service);
 
     expect(MikrotikJobLog::where('router_id', $online->id)->first()->payload['orphans']['orphans_count'])->toBe(2);
 });
@@ -253,10 +254,11 @@ test('router dengan IP Publik terpasang tidak dapat dihapus', function () {
         ->and(IpPublik::count())->toBe(1);
 });
 
-test('memindahkan layanan PPPoE ke router lain mewajibkan pool tujuan lalu memprovisi ulang layanan aktif', function () {
+test('memindahkan layanan ke router lain mewajibkan router tujuan terdaftar untuk paketnya lalu memprovisi ulang layanan aktif', function () {
     $lama = Router::factory()->online()->create();
     $tujuan = Router::factory()->online()->create();
     $layanan = LayananPelanggan::factory()->create(['router_id' => $lama->id, 'status' => StatusLayanan::Aktif]);
+    RouterPaket::create(['paket_layanan_id' => $layanan->paket_layanan_id, 'router_id' => $lama->id, 'ip_pool_id' => IpPool::factory()->create(['router_id' => $lama->id])->id]);
 
     $komponen = Livewire::actingAs($this->admin)->test(RouterIndex::class)
         ->call('confirmDelete', $lama->id)
@@ -267,6 +269,7 @@ test('memindahkan layanan PPPoE ke router lain mewajibkan pool tujuan lalu mempr
         ->and($layanan->fresh()->router_id)->toBe($lama->id);
 
     $pool = IpPool::factory()->create(['router_id' => $tujuan->id]);
+    RouterPaket::create(['paket_layanan_id' => $layanan->paket_layanan_id, 'router_id' => $tujuan->id, 'ip_pool_id' => $pool->id]);
     $komponen->call('deleteRouter');
 
     expect(Router::find($lama->id))->toBeNull()

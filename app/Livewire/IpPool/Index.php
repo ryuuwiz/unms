@@ -52,7 +52,7 @@ class Index extends Component
 
         if (! $pool->canBeDeleted()) {
             $this->deletingId = null;
-            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} adalah pool terakhir di router ini yang masih dipakai layanan PPPoE dinamis dan tidak dapat dihapus. Tambahkan pool lain di router ini terlebih dahulu.");
+            Flux::toast(variant: 'danger', text: "IP Pool {$pool->nama_pool} masih dipakai paket atau sebagai IP Pool Isolir router ini. Ganti pool tersebut di Detail Paket atau Edit Router terlebih dahulu.");
 
             return;
         }

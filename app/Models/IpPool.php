@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use App\Enums\JenisKoneksi;
 use Database\Factories\IpPoolFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -43,8 +43,6 @@ use Illuminate\Support\Carbon;
 ])]
 class IpPool extends Model
 {
-    public const PESAN_ROUTER_TANPA_POOL = 'Router ini belum punya IP Pool untuk layanan PPPoE. Buat IP Pool untuk router ini di menu IP Pool.';
-
     /** @use HasFactory<IpPoolFactory> */
     use HasFactory;
 
@@ -106,13 +104,23 @@ class IpPool extends Model
     }
 
     /**
-     * Pool boleh dihapus/dipindah router kecuali ia pool terakhir di router yang masih punya layanan
-     * PPPoE dinamis (Rantai IP Pool Router, ADR-0060). Pool lain disambung ulang di rantai.
+     * Router yang memakai pool ini sebagai IP Pool Isolir.
+     *
+     * @return HasOne<Router, $this>
+     */
+    public function routerIsolir(): HasOne
+    {
+        return $this->hasOne(Router::class, 'ip_pool_isolir_id');
+    }
+
+    /**
+     * Pool boleh dihapus/dipindah router kecuali masih dipakai profile sebuah Router Paket atau menjadi
+     * IP Pool Isolir router (ADR-0063).
      */
     public function canBeDeleted(): bool
     {
-        return static::where('router_id', $this->router_id)->whereKeyNot($this->id)->exists()
-            || ! LayananPelanggan::where('router_id', $this->router_id)->where('jenis_koneksi', JenisKoneksi::Pppoe)->exists();
+        return ! RouterPaket::where('ip_pool_id', $this->id)->exists()
+            && ! Router::where('ip_pool_isolir_id', $this->id)->exists();
     }
 
     /**

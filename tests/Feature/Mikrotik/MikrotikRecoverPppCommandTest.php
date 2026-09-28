@@ -40,6 +40,7 @@ beforeEach(function () {
         'ppp_username' => 'BF2308202601_00002',
         'status' => StatusLayanan::Aktif,
     ]);
+    daftarkanRouterPaket($this->layanan);
 });
 
 test('mikrotik:recover-ppp command runs successfully for all routers and logs to MikrotikJobLog', function () {
@@ -126,8 +127,7 @@ test('mikrotik:recover-ppp command with --force runs full provision', function (
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            true,
-            false
+            true
         )
         ->andReturn([
             'status' => 'success',
@@ -149,7 +149,7 @@ test('autoRecoverPppSecrets in MikrotikService restores missing secret and syncs
 
     $mockService = Mockery::mock(MikrotikService::class)->makePartial();
     $mockService->shouldReceive('getClient')->andReturn($mockClient);
-    $mockService->shouldReceive('syncAllBandwidthProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
+    $mockService->shouldReceive('syncPaketProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
 
     // RouterOS returns empty secret list (missing secret)
     $mockClient->shouldReceive('query')->andReturnSelf();
@@ -267,8 +267,7 @@ test('mikrotik:recover-ppp command with --force handles failure gracefully and l
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            true,
-            false
+            true
         )
         ->andThrow(new RuntimeException('API auth failed: invalid password'));
 

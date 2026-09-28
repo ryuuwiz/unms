@@ -166,20 +166,17 @@ class LayananPelanggan extends Model
     }
 
     /**
-     * Kepala Rantai IP Pool Router layanan (ADR-0060): pool yang dirujuk Profile PPP per Router, bukan
-     * pool yang dipilih. Relasi router yang sudah dimuat dibuang bila router_id berubah agar tidak basi.
+     * IP Pool Router Paket layanan ini (paket + router, ADR-0063): pool yang dirujuk profile paketnya.
      *
      * @return Attribute<IpPool|null, never>
      */
     protected function ipPool(): Attribute
     {
-        return Attribute::get(function (): ?IpPool {
-            if ($this->relationLoaded('router') && $this->getRelation('router')?->getKey() != $this->router_id) {
-                $this->unsetRelation('router');
-            }
-
-            return $this->router?->kepalaIpPool();
-        })->withoutObjectCaching();
+        return Attribute::get(fn (): ?IpPool => RouterPaket::query()
+            ->where('router_id', $this->router_id)
+            ->where('paket_layanan_id', $this->paket_layanan_id)
+            ->first()?->ipPool
+        )->withoutObjectCaching();
     }
 
     /**

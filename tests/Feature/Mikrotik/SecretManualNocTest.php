@@ -19,14 +19,16 @@ use Illuminate\Support\Facades\Queue;
 uses(RefreshDatabase::class);
 
 /**
- * Secret Milik Billing / Secret Manual NOC (CONTEXT.md, ADR-0059): tanpa komentar `UNMS:` tidak disentuh.
+ * Kepemilikan objek router dari nama (CONTEXT.md "Secret Milik Billing / Secret Manual NOC", ADR-0063):
+ * secret bernama sama dengan username PPP layanan dikelola billing; hanya komentar penanda NOC
+ * (MANUAL:/NOC:/SYSTEM:/WHITELIST:) yang melindungi dari penghapusan.
  */
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     Queue::fake([KirimWaBlastJob::class]);
     $this->service = new MikrotikService;
     [$this->router, $this->layanan] = layananPppoeDinamis();
-    $this->manual = ['.id' => '*9', 'name' => $this->layanan->ppp_username, 'comment' => 'pelanggan lama, dibuat NOC', 'profile' => 'default', 'password' => 'rahasia-noc'];
+    $this->tanpaKomentar = ['.id' => '*9', 'name' => $this->layanan->ppp_username, 'comment' => 'pelanggan lama, dibuat NOC', 'profile' => 'default', 'password' => 'rahasia-noc'];
 });
 
 /**
@@ -39,53 +41,43 @@ function endpointSecretTerkirim(ArrayObject $sent): array
         ->values()->all();
 }
 
-test('provisi, isolir, un-isolir, dan ganti profil menolak Secret Manual NOC bernama sama tanpa mengubahnya', function (string $aksi) {
-    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [$this->manual], '/ppp/active/print' => [['.id' => '*A', 'name' => $this->layanan->ppp_username]]]);
-
-    expect(fn () => match ($aksi) {
-        'provisi' => $this->service->createOrUpdatePppoeSecret($this->router, $this->layanan, $client),
-        'isolir' => $this->service->disablePppoeSecret($this->router, $this->layanan, true, $client),
-        'unisolir' => $this->service->enablePppoeSecret($this->router, $this->layanan, $client),
-        'profil' => $this->service->updatePppoeProfile($this->router, $this->layanan, true, $client),
-    })->toThrow(MikrotikException::class, "tanpa komentar 'UNMS:'");
-
-    expect(endpointSecretTerkirim($sent))->toBe([]);
-})->with(['provisi', 'isolir', 'unisolir', 'profil']);
-
-test('provisi memakai entri milik billing dan membiarkan Secret Manual NOC bernama sama', function () {
-    $milikBilling = ['.id' => '*1', 'name' => $this->layanan->ppp_username, 'comment' => 'UNMS: S1 - Budi'];
-    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [$this->manual, $milikBilling]]);
+test('provisi mengelola secret bernama sama walau tanpa komentar UNMS dan mengosongkan komentarnya', function () {
+    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [$this->tanpaKomentar]]);
 
     $this->service->createOrUpdatePppoeSecret($this->router, $this->layanan, $client);
 
-    expect(sentAttributes($sent, '/ppp/secret/set'))->toMatchArray(['.id' => '*1'])
-        ->and(endpointSecretTerkirim($sent))->not->toContain('/ppp/secret/remove');
+    expect(sentAttributes($sent, '/ppp/secret/set'))->toMatchArray(['.id' => '*9', 'profile' => 'P10', 'comment' => '']);
 });
 
-test('penghapusan tidak pernah menyentuh Secret Manual NOC', function () {
-    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [$this->manual]]);
+test('penghapusan tetap tidak menyentuh secret berkomentar penanda NOC', function () {
+    $dilindungi = ['comment' => 'NOC: jangan dihapus'] + $this->tanpaKomentar;
+    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [$dilindungi]]);
 
     expect($this->service->deletePppoeSecret($this->router, $this->layanan->ppp_username, PppDeletionContext::system('uji', 'Uji'), $client))->toBeFalse()
         ->and(endpointSecretTerkirim($sent))->toBe([]);
 });
 
-test('rekonsiliasi melaporkan Secret Manual NOC bernama sama dan tidak menimpa, mengisolir, atau menghapus duplikatnya', function () {
-    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [$this->manual, $this->manual + ['.id' => '*10']]]);
+test('rekonsiliasi membereskan duplikat bernama sama kecuali yang berkomentar penanda NOC', function () {
+    $dilindungi = ['.id' => '*11', 'comment' => 'MANUAL: cadangan'] + $this->tanpaKomentar;
+    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [$this->tanpaKomentar, ['.id' => '*10'] + $this->tanpaKomentar, $dilindungi]]);
 
     $hasil = $this->service->autoRecoverPppSecrets($this->router->fresh(), $client);
 
-    expect(endpointSecretTerkirim($sent))->toBe([])
-        ->and(implode(' ', $hasil['errors']))->toContain('Secret Manual NOC')
-        ->and($hasil['duplicates_removed'])->toBe(0);
+    $dihapus = collect($sent)->filter(fn ($q) => $q->getEndpoint() === '/ppp/secret/remove')
+        ->map(fn ($q) => $q->getAttributes()[0])->values()->all();
+
+    expect($hasil['duplicates_removed'])->toBe(1)
+        ->and($dihapus)->toContain('=.id=*10')
+        ->and($dihapus)->not->toContain('=.id=*11');
 });
 
-test('job provisi yang bentrok dengan Secret Manual NOC gagal tanpa retry, tercatat, dan memberi tahu NOC lewat lonceng dan WhatsApp', function () {
+test('job provisi yang gagal permanen tidak di-retry, tercatat, dan memberi tahu NOC lewat lonceng dan WhatsApp', function () {
     Notification::fake();
     $noc = User::factory()->create(['phone' => '081234567890']);
     $noc->assignRole('noc');
 
     $service = Mockery::mock(MikrotikService::class);
-    $service->shouldReceive('createOrUpdatePppoeSecret')->once()->andThrow(new MikrotikException("Secret sudah ada tanpa komentar 'UNMS:'"));
+    $service->shouldReceive('createOrUpdatePppoeSecret')->once()->andThrow(new MikrotikException('Paket belum didaftarkan ke router'));
 
     (new ProvisionPppoeAccountJob($this->layanan))->handle($service);
 

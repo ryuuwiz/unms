@@ -71,7 +71,7 @@
                 </flux:field>
             </div>
 
-            <x-map-picker :lat="$latitude" :lng="$longitude" height="300px" />
+            <x-map-picker lat="latitude" lng="longitude" height="300px" />
         </div>
 
         <flux:separator />

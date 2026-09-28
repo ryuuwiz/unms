@@ -10,7 +10,6 @@ use App\Models\Router;
 use App\Models\User;
 use App\Notifications\MikrotikJobNotification;
 use App\Services\Mikrotik\MikrotikService;
-use App\Support\PppDeletionContext;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -35,7 +34,6 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
     public function __construct(
         public Router $router,
         public bool $force = false,
-        public bool $cleanOrphans = false,
         public bool $dryRun = false,
         public bool $auditOrphans = false
     ) {
@@ -86,26 +84,13 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
         try {
             $lock->block(15, function () use ($mikrotikService) {
                 if ($this->force) {
-                    $result = $mikrotikService->provisionRouterFull(
-                        router: $this->router,
-                        force: true,
-                        cleanOrphans: $this->cleanOrphans
-                    );
+                    $result = $mikrotikService->provisionRouterFull(router: $this->router, force: true);
                 } else {
                     $result = $mikrotikService->autoRecoverPppSecrets($this->router, dryRun: $this->dryRun);
 
-                    if ($this->cleanOrphans) {
-                        // Saat dry-run, jangan benar-benar hapus orphan — hanya laporkan (executeDelete = false).
-                        $orphanStats = $mikrotikService->cleanOrphanedPppSecrets(
-                            $this->router,
-                            ! $this->dryRun,
-                            null,
-                            $this->dryRun ? null : PppDeletionContext::system('artisan', 'Pembersihan orphaned secret atas permintaan eksplisit (opsi --clean-orphans)'),
-                        );
-                        $result['orphans'] = $orphanStats;
-                    } elseif ($this->auditOrphans) {
-                        // Audit terjadwal: hanya melaporkan, tidak pernah menghapus.
-                        $result['orphans'] = $mikrotikService->cleanOrphanedPppSecrets($this->router, false);
+                    if ($this->auditOrphans) {
+                        // Audit terjadwal: hanya melaporkan, tidak pernah menghapus (ADR-0063).
+                        $result['orphans'] = $mikrotikService->auditOrphanedPppSecrets($this->router);
                     }
 
                     $recoveredCount = $result['recovered'];
@@ -114,10 +99,9 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
                     $errors = $result['errors'];
 
                     $orphanCount = (int) ($result['orphans']['orphans_count'] ?? 0);
-                    $capExceeded = $result['delete_cap_exceeded'] || (bool) ($result['orphans']['cap_exceeded'] ?? false);
+                    $capExceeded = $result['delete_cap_exceeded'];
                     $errors = array_merge($errors, $result['orphans']['errors'] ?? []);
-                    $shouldLog = $this->cleanOrphans
-                        || ($this->auditOrphans && $orphanCount > 0)
+                    $shouldLog = ($this->auditOrphans && $orphanCount > 0)
                         || ($recoveredCount > 0)
                         || ($disabledCount > 0)
                         || ($duplicatesRemoved > 0)

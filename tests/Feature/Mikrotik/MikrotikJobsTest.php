@@ -20,6 +20,7 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Models\User;
 use App\Notifications\MikrotikJobNotification;
 use App\Services\Mikrotik\MikrotikService;
@@ -117,7 +118,7 @@ test('ProvisionPppoeAccountJob rethrows MikrotikConnectionException so the queue
 
 test('EnablePppoeAccountJob enables secret and logs success', function () {
     $mockService = Mockery::mock(MikrotikService::class);
-    $mockService->shouldReceive('enablePppoeSecret')
+    $mockService->shouldReceive('bukaIsolirPppoeSecret')
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
@@ -138,16 +139,15 @@ test('EnablePppoeAccountJob enables secret and logs success', function () {
 
 test('DisablePppoeAccountJob disables secret and disconnects active session', function () {
     $mockService = Mockery::mock(MikrotikService::class);
-    $mockService->shouldReceive('disablePppoeSecret')
+    $mockService->shouldReceive('isolirPppoeSecret')
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            Mockery::on(fn ($l) => $l->id === $this->layanan->id),
-            true
+            Mockery::on(fn ($l) => $l->id === $this->layanan->id)
         )
         ->andReturn(true);
 
-    $job = new DisablePppoeAccountJob($this->layanan, true);
+    $job = new DisablePppoeAccountJob($this->layanan);
     $job->handle($mockService);
 
     $log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
@@ -163,7 +163,7 @@ test('EnablePppoeAccountJob skips execution and logs Dilewati when router is kno
     $this->layanan->refresh();
 
     $mockService = Mockery::mock(MikrotikService::class);
-    $mockService->shouldNotReceive('enablePppoeSecret');
+    $mockService->shouldNotReceive('bukaIsolirPppoeSecret');
 
     $job = new EnablePppoeAccountJob($this->layanan);
     $job->handle($mockService);
@@ -181,9 +181,9 @@ test('DisablePppoeAccountJob skips execution and logs Dilewati when router is kn
     $this->layanan->refresh();
 
     $mockService = Mockery::mock(MikrotikService::class);
-    $mockService->shouldNotReceive('disablePppoeSecret');
+    $mockService->shouldNotReceive('isolirPppoeSecret');
 
-    $job = new DisablePppoeAccountJob($this->layanan, true);
+    $job = new DisablePppoeAccountJob($this->layanan);
     $job->handle($mockService);
 
     $log = MikrotikJobLog::where('layanan_pelanggan_id', $this->layanan->id)
@@ -205,8 +205,7 @@ test('SyncIpPoolToRouterJob syncs pool and logs success', function () {
             Mockery::on(fn ($p) => $p->id === $pool->id)
         )
         ->andReturn(['status' => 'success']);
-    $mockService->shouldReceive('syncRantaiIpPool')->once();
-    $mockService->shouldReceive('syncAllBandwidthProfiles')->once()->andReturn(['total' => 0, 'synced' => 0, 'errors' => []]);
+    $mockService->shouldReceive('syncPaketProfiles')->once()->andReturn(['total' => 0, 'synced' => 0, 'errors' => []]);
 
     $job = new SyncIpPoolToRouterJob($pool);
     $job->handle($mockService);
@@ -304,15 +303,15 @@ test('job failure sends database notification to super_admin and noc users', fun
     Notification::assertSentTo([$superAdmin, $nocUser], MikrotikJobNotification::class);
 });
 
-test('SyncBandwidthProfileToRoutersJob ensures profile on all online routers', function () {
+test('SyncBandwidthProfileToRoutersJob ensures the paket profile on routers selling a paket with that bandwidth', function () {
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
+    $routerPaket = RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $this->router->id, 'ip_pool_id' => IpPool::factory()->create(['router_id' => $this->router->id])->id]);
+
     $mockService = Mockery::mock(MikrotikService::class);
-    $mockService->shouldReceive('ensurePppProfile')
+    $mockService->shouldReceive('ensurePaketProfile')
         ->once()
-        ->with(
-            Mockery::on(fn ($r) => $r->id === $this->router->id),
-            Mockery::on(fn ($p) => $p->id === $this->profil->id)
-        )
-        ->andReturn($this->profil->nama_bandwidth);
+        ->with(Mockery::on(fn ($rp) => $rp->is($routerPaket)))
+        ->andReturn($paket->nama_paket);
 
     $job = new SyncBandwidthProfileToRoutersJob($this->profil);
     $job->handle($mockService);
@@ -332,8 +331,11 @@ test('SyncBandwidthProfileToRoutersJob skips a router already locked by another 
     $lock = Cache::lock("mikrotik:router:{$this->router->id}", 120);
     expect($lock->get())->toBeTrue();
 
+    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
+    RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $this->router->id, 'ip_pool_id' => IpPool::factory()->create(['router_id' => $this->router->id])->id]);
+
     $mockService = Mockery::mock(MikrotikService::class);
-    $mockService->shouldNotReceive('ensurePppProfile');
+    $mockService->shouldNotReceive('ensurePaketProfile');
 
     $job = new SyncBandwidthProfileToRoutersJob($this->profil);
     $job->handle($mockService);

@@ -19,7 +19,6 @@ class MikrotikProvisionRouterCommand extends Command
     protected $signature = 'mikrotik:provisi-router
                             {--router= : ID Router tertentu}
                             {--force : Paksa provisi ulang seluruh layanan meskipun sudah terprovisi}
-                            {--clean-orphans : Hapus akun PPP Secret berkomentar UNMS: di MikroTik yang tidak terdaftar di UNMS (aksi eksplisit, dibatasi per eksekusi)}
                             {--audit-orphans : Hanya laporkan orphaned secret ke log, tidak pernah menghapus (dipakai scheduler)}
                             {--async : Jalankan via antrean mikrotik-low di background secara asynchronous}
                             {--dry-run : Simulasi audit drift tanpa mengubah apapun di router (hanya berlaku bersama --async, karena mode sync selalu memakai provisionRouterFull(); tidak bisa digabung dengan --force)}';
@@ -43,7 +42,6 @@ class MikrotikProvisionRouterCommand extends Command
         $routerId = $this->option('router');
         $force = (bool) $this->option('force');
         $auditOrphans = (bool) $this->option('audit-orphans');
-        $cleanOrphans = (bool) $this->option('clean-orphans');
         $async = (bool) $this->option('async');
         $dryRun = (bool) $this->option('dry-run');
 
@@ -83,7 +81,7 @@ class MikrotikProvisionRouterCommand extends Command
             }
             try {
                 foreach ($routers as $router) {
-                    RecoverPppRouterJob::dispatch($router, $force, $cleanOrphans, $dryRun, $auditOrphans);
+                    RecoverPppRouterJob::dispatch($router, $force, $dryRun, $auditOrphans);
                 }
                 $this->info('Seluruh job recovery & provisi router berhasil dimasukkan ke antrean.');
 
@@ -103,9 +101,6 @@ class MikrotikProvisionRouterCommand extends Command
         if ($force) {
             $this->warn('Mode FORCE aktif: Seluruh akun akan diprovisi ulang.');
         }
-        if ($cleanOrphans) {
-            $this->warn('Mode CLEAN ORPHANS aktif: Akun tidak terdaftar akan dihapus.');
-        }
 
         $this->newLine();
 
@@ -117,11 +112,7 @@ class MikrotikProvisionRouterCommand extends Command
             $this->line("Proses router: <comment>{$router->nama_router}</comment> ({$router->ip_address}:{$router->port})...");
 
             try {
-                $res = $mikrotikService->provisionRouterFull(
-                    router: $router,
-                    force: $force,
-                    cleanOrphans: $cleanOrphans
-                );
+                $res = $mikrotikService->provisionRouterFull(router: $router, force: $force);
 
                 $details = $res['details'] ?? [];
                 $poolStats = $details['ip_pools'] ?? [];
@@ -136,9 +127,7 @@ class MikrotikProvisionRouterCommand extends Command
                     'IP Pool' => ($poolStats['synced'] ?? 0).'/'.($poolStats['total'] ?? 0),
                     'Profil' => ($profileStats['synced'] ?? 0).'/'.($profileStats['total'] ?? 0),
                     'PPP Secret' => ($secretStats['recovered'] ?? 0).' synced / '.($secretStats['disabled'] ?? 0).' isolir',
-                    'Orphans' => $cleanOrphans
-                        ? ($orphanStats['deleted'] ?? 0).' dihapus'
-                        : ($orphanStats['orphans_count'] ?? 0).' terdeteksi',
+                    'Orphans' => ($orphanStats['orphans_count'] ?? 0).' terdeteksi',
                 ];
 
                 $successCount++;

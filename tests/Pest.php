@@ -7,6 +7,7 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -108,7 +109,7 @@ function sentAttributes(ArrayObject $sent, string $endpoint): ?array
 }
 
 /**
- * Layanan PPPoE dinamis siap provisi pada router + pool, dengan profil "P10".
+ * Layanan PPPoE dinamis siap provisi pada router + pool, paket "P10" terdaftar di router itu (Router Paket).
  *
  * @return array{0: Router, 1: LayananPelanggan}
  */
@@ -117,7 +118,8 @@ function layananPppoeDinamis(): array
     $router = Router::factory()->online()->create();
     $pool = IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Rumah', 'ip_network' => '10.0.0.0', 'cidr' => 24]);
     $profil = ProfilBandwidth::firstWhere('nama_bandwidth', 'P10') ?? ProfilBandwidth::factory()->create(['nama_bandwidth' => 'P10']);
-    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+    $paket = PaketLayanan::firstWhere('nama_paket', 'P10') ?? PaketLayanan::factory()->create(['nama_paket' => 'P10', 'profil_bandwidth_id' => $profil->id]);
+    RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $router->id, 'ip_pool_id' => $pool->id]);
     $pelanggan = Pelanggan::factory()->create();
 
     $layanan = LayananPelanggan::factory()->create([
@@ -131,6 +133,18 @@ function layananPppoeDinamis(): array
     ]);
 
     return [$router, $layanan];
+}
+
+/**
+ * Daftarkan paket layanan ke router layanan itu (Router Paket, ADR-0063) memakai pool terlama router (dibuat bila belum ada).
+ */
+function daftarkanRouterPaket(LayananPelanggan $layanan): RouterPaket
+{
+    return RouterPaket::firstOrCreate(
+        ['paket_layanan_id' => $layanan->paket_layanan_id, 'router_id' => $layanan->router_id],
+        ['ip_pool_id' => (IpPool::where('router_id', $layanan->router_id)->orderBy('id')->first()
+            ?? IpPool::factory()->create(['router_id' => $layanan->router_id]))->id],
+    );
 }
 
 /**

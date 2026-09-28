@@ -5,9 +5,10 @@ namespace App\Livewire\Ticket;
 use App\Actions\LayananPelanggan\DaftarkanLayananAction;
 use App\Actions\LayananPelanggan\UbahPaketLayananAction;
 use App\Actions\Ticket\AssignPicAction;
+use App\Actions\Ticket\HapusSecretPencabutanAction;
+use App\Actions\Ticket\LepasPortOdpPencabutanAction;
 use App\Actions\Ticket\UbahStatusDivisiTicketAction;
 use App\Actions\Ticket\UbahStatusTicketAction;
-use App\Enums\JenisKoneksi;
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Enums\StatusLayanan;
@@ -17,16 +18,17 @@ use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\JenisTicket;
 use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
+use App\Enums\Ticket\StatusUsulanOdp;
 use App\Exceptions\DuplikatLayananAktifException;
 use App\Exceptions\MikrotikException;
 use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
-use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
 use App\Models\Odp;
 use App\Models\OdpPort;
 use App\Models\PaketLayanan;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\TicketPemasangan;
@@ -85,6 +87,9 @@ class Show extends Component
 
     public ?int $odp_port_id = null;
 
+    /** Alasan Teknisi menolak Usulan ODP -- lihat CONTEXT.md "Usulan ODP". */
+    public string $alasanGantiOdp = '';
+
     /** @var array<int, mixed> */
     public $fotoPemasangan = [];
 
@@ -140,8 +145,72 @@ class Show extends Component
         $this->ticket = $ticket;
         $this->loadTicket();
 
-        $this->odp_id = $this->ticket->pemasangan?->odpPort?->odp_id;
-        $this->odp_port_id = $this->ticket->pemasangan?->odp_port_id;
+        $pemasangan = $this->ticket->pemasangan;
+        $this->odp_port_id = $pemasangan?->odp_port_id;
+        $this->odp_id = $pemasangan?->odpPort?->odp_id
+            ?? ($pemasangan?->status_usulan_odp === StatusUsulanOdp::Disetujui ? $pemasangan->odp_usulan_id : null);
+    }
+
+    /**
+     * Teknisi menyetujui Usulan ODP: port hanya boleh dipilih dari ODP itu.
+     */
+    public function setujuiUsulanOdp(): void
+    {
+        $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
+
+        $pemasangan = $this->ticket->pemasangan;
+        if ($pemasangan?->status_usulan_odp !== StatusUsulanOdp::Menunggu) {
+            return;
+        }
+
+        $pemasangan->update(['status_usulan_odp' => StatusUsulanOdp::Disetujui]);
+        $this->catatHistoriUsulanOdp("Usulan ODP {$pemasangan->odpUsulan?->nama_odp} disetujui Teknisi.");
+
+        $this->odp_id = $pemasangan->odp_usulan_id;
+        $this->odp_port_id = null;
+
+        Flux::toast(variant: 'success', text: 'Usulan ODP disetujui. Silakan pilih port.');
+        $this->loadTicket();
+    }
+
+    /**
+     * Teknisi menolak Usulan ODP dengan alasan, lalu memilih ODP lain sendiri (tanpa kembali ke pembuat tiket).
+     */
+    public function gantiUsulanOdp(): void
+    {
+        $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
+
+        $pemasangan = $this->ticket->pemasangan;
+        if ($pemasangan?->status_usulan_odp !== StatusUsulanOdp::Menunggu) {
+            return;
+        }
+
+        $this->validate(
+            ['alasanGantiOdp' => ['required', 'string', 'min:5', 'max:500']],
+            ['alasanGantiOdp.required' => 'Alasan mengganti Usulan ODP wajib diisi.', 'alasanGantiOdp.min' => 'Alasan minimal 5 karakter.'],
+        );
+
+        $pemasangan->update(['status_usulan_odp' => StatusUsulanOdp::Diganti]);
+        $this->catatHistoriUsulanOdp("Usulan ODP {$pemasangan->odpUsulan?->nama_odp} diganti Teknisi. Alasan: ".trim($this->alasanGantiOdp));
+
+        $this->alasanGantiOdp = '';
+        $this->odp_id = null;
+        $this->odp_port_id = null;
+
+        Flux::toast(variant: 'success', text: 'Usulan ODP diganti. Silakan pilih ODP dan port.');
+        $this->loadTicket();
+    }
+
+    private function catatHistoriUsulanOdp(string $catatan): void
+    {
+        TicketHistori::create([
+            'ticket_id' => $this->ticket->id,
+            'status_lama' => $this->ticket->status,
+            'status_baru' => $this->ticket->status,
+            'catatan' => $catatan,
+            'is_internal' => true,
+            'oleh_pengguna_id' => Auth::id(),
+        ]);
     }
 
     protected function loadTicket(): void
@@ -157,6 +226,7 @@ class Show extends Component
             'layananPelanggan.ipPubliks',
             'layananPelanggan.odpPort.odp',
             'pemasangan.odpPort.odp',
+            'pemasangan.odpUsulan',
             'pic',
             'dibuatOleh',
             'divisis',
@@ -199,6 +269,50 @@ class Show extends Component
 
             Flux::toast(variant: 'success', text: "Status tiket {$this->ticket->nomor_ticket} berhasil diubah ke {$statusBaruEnum->label()}.");
             $this->showUbahStatusModal = false;
+            $this->loadTicket();
+        } catch (Exception $e) {
+            Flux::toast(variant: 'danger', text: $e->getMessage());
+        }
+    }
+
+    /**
+     * Proses NOC pada tiket Pencabutan: hapus PPP Secret di router -- lihat CONTEXT.md "Pencabutan".
+     */
+    public function hapusSecretPencabutan(HapusSecretPencabutanAction $action): void
+    {
+        $this->eksekusiAksiPencabutan(
+            abilitas: 'hapusSecretPencabutan',
+            aksi: fn (User $actor) => $action->execute($this->ticket, $actor),
+            pesanSukses: 'PPP Secret berhasil dihapus dari router. Tiket sudah bisa ditandai Selesai.',
+        );
+    }
+
+    /**
+     * Teknisi mencabut perangkat dan melepas port ODP pada tiket Pencabutan.
+     */
+    public function lepasPortOdpPencabutan(LepasPortOdpPencabutanAction $action): void
+    {
+        $this->eksekusiAksiPencabutan(
+            abilitas: 'lepasPortOdpPencabutan',
+            aksi: fn (User $actor) => $action->execute($this->ticket, $actor),
+            pesanSukses: 'Port ODP berhasil dilepas.',
+        );
+    }
+
+    /**
+     * Jalankan satu aksi divisi tiket Pencabutan yang digerbang Policy: cek otorisasi, eksekusi,
+     * lalu tampilkan toast hasil dan muat ulang tiket.
+     */
+    private function eksekusiAksiPencabutan(string $abilitas, \Closure $aksi, string $pesanSukses): void
+    {
+        $this->authorize($abilitas, $this->ticket);
+
+        try {
+            /** @var User $actor */
+            $actor = Auth::guard('web')->user();
+            $aksi($actor);
+
+            Flux::toast(variant: 'success', text: $pesanSukses);
             $this->loadTicket();
         } catch (Exception $e) {
             Flux::toast(variant: 'danger', text: $e->getMessage());
@@ -334,6 +448,24 @@ class Show extends Component
             'fotoPemasangan.*.max' => 'Ukuran tiap foto maksimal 5 MB.',
         ]);
 
+        $pemasangan = $this->ticket->pemasangan;
+        if ($pemasangan?->status_usulan_odp === StatusUsulanOdp::Menunggu) {
+            $this->addError('odp_id', 'Validasi Usulan ODP dulu (setujui atau ganti) sebelum memilih port.');
+
+            return;
+        }
+        if ($pemasangan?->status_usulan_odp === StatusUsulanOdp::Disetujui && $this->odp_id !== $pemasangan->odp_usulan_id) {
+            $this->addError('odp_id', 'Usulan ODP sudah disetujui; port harus dari ODP tersebut.');
+
+            return;
+        }
+        $dipesanOleh = TicketPemasangan::portDipesan($this->ticket->id)[$this->odp_port_id] ?? null;
+        if ($dipesanOleh) {
+            $this->addError('odp_port_id', "Port sudah dipesan tiket {$dipesanOleh}.");
+
+            return;
+        }
+
         TicketPemasangan::updateOrCreate(
             ['ticket_id' => $this->ticket->id],
             ['odp_port_id' => $this->odp_port_id],
@@ -370,22 +502,33 @@ class Show extends Component
             return;
         }
 
-        $onlineRouters = Router::where('status_koneksi', StatusRouter::Online)->get(['id']);
-        $this->aktivasiRouterId = $onlineRouters->count() === 1 ? $onlineRouters->first()->id : null;
+        $routers = $this->routerOnlineUntukPaket($this->ticket->layananPelanggan?->paket_layanan_id);
+        $this->aktivasiRouterId = $routers->count() === 1 ? $routers->first()->id : null;
 
         $this->showAktivasiModal = true;
     }
 
     /**
-     * Layanan PPPoE dinamis butuh router yang punya IP Pool (Rantai IP Pool Router); NOC tidak memilih pool (ADR-0060).
+     * NOC hanya boleh memilih router yang sudah menjadi Router Paket untuk paket itu (ADR-0063).
      */
-    private function validasiRouterPunyaPool(): \Closure
+    private function validasiRouterPaket(?int $paketLayananId): \Closure
     {
-        return function (string $attribute, mixed $value, \Closure $fail): void {
-            if ($this->ticket->layananPelanggan?->jenis_koneksi === JenisKoneksi::Pppoe && ! IpPool::where('router_id', $value)->exists()) {
-                $fail(IpPool::PESAN_ROUTER_TANPA_POOL);
+        return function (string $attribute, mixed $value, \Closure $fail) use ($paketLayananId): void {
+            if (! RouterPaket::terdaftar($value, $paketLayananId)) {
+                $fail(RouterPaket::PESAN_BELUM_TERDAFTAR);
             }
         };
+    }
+
+    /**
+     * @return Collection<int, Router>
+     */
+    private function routerOnlineUntukPaket(?int $paketLayananId): Collection
+    {
+        return Router::where('status_koneksi', StatusRouter::Online)
+            ->whereHas('routerPakets', fn ($query) => $query->where('paket_layanan_id', $paketLayananId))
+            ->orderBy('nama_router')
+            ->get();
     }
 
     /**
@@ -397,7 +540,7 @@ class Show extends Component
         $this->authorize('aktivasiPemasangan', $this->ticket);
 
         $this->validate([
-            'aktivasiRouterId' => ['required', 'integer', 'exists:router,id', $this->validasiRouterPunyaPool()],
+            'aktivasiRouterId' => ['required', 'integer', 'exists:router,id', $this->validasiRouterPaket($this->ticket->layananPelanggan?->paket_layanan_id)],
         ], [
             'aktivasiRouterId.required' => 'Router wajib dipilih.',
         ]);
@@ -674,7 +817,7 @@ class Show extends Component
                 'prosesPilihanPaket' => ['required', 'in:bawaan,berbeda'],
                 'prosesRouterId' => [
                     'required', 'integer', 'exists:router,id',
-                    $this->validasiRouterPunyaPool(),
+                    $this->validasiRouterPaket($this->prosesPilihanPaket === 'bawaan' ? $layanan->paket_layanan_id : $this->prosesPaketLayananId),
                 ],
                 'prosesPaketLayananId' => ['required', 'integer', 'exists:paket_layanan,id'],
                 'prosesPppMode' => ['required', 'in:auto,manual'],
@@ -802,7 +945,10 @@ class Show extends Component
 
         $transisiValid = $this->ticket->status->transisiValid();
 
-        $odps = Odp::orderBy('nama_odp')->get(['id', 'nama_odp']);
+        $usulanDisetujui = $this->ticket->pemasangan?->status_usulan_odp === StatusUsulanOdp::Disetujui;
+        $odps = Odp::orderBy('nama_odp')
+            ->when($usulanDisetujui, fn ($query) => $query->whereKey($this->ticket->pemasangan->odp_usulan_id))
+            ->get(['id', 'nama_odp']);
         $odpPorts = $this->odp_id
             ? OdpPort::where('odp_id', $this->odp_id)
                 ->where(function ($q) {
@@ -812,7 +958,9 @@ class Show extends Component
                 ->get()
             : collect();
 
-        $onlineRouters = Router::where('status_koneksi', StatusRouter::Online)->orderBy('nama_router')->get();
+        $layananTiket = $this->ticket->layananPelanggan;
+        $routersAktivasi = $this->routerOnlineUntukPaket($layananTiket?->paket_layanan_id);
+        $routersProses = $this->routerOnlineUntukPaket($this->prosesPilihanPaket === 'berbeda' ? $this->prosesPaketLayananId : $layananTiket?->paket_layanan_id);
 
         // Paket Layanan aktif untuk dropdown "Paket Berbeda" (Proses NOC) / "Ubah Paket Layanan"
         // (Proses Admin) -- tidak difilter per-router, lihat CONTEXT.md "Proses Divisi".
@@ -823,7 +971,9 @@ class Show extends Component
             'transisiValid' => $transisiValid,
             'odps' => $odps,
             'odpPorts' => $odpPorts,
-            'onlineRouters' => $onlineRouters,
+            'portDipesan' => $this->odp_id ? TicketPemasangan::portDipesan($this->ticket->id) : [],
+            'routersAktivasi' => $routersAktivasi,
+            'routersProses' => $routersProses,
             'paketLayananList' => $paketLayananList,
             // Pemasangan lama tanpa layanan memakai alur yang sudah ditinggalkan -- tanpa Panduan Alur Tiket.
             'panduan' => $this->ticket->jenis->panduan(),

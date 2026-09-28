@@ -296,7 +296,9 @@
                 @php
                     $statusPpp = $pppStatuses[$layanan->id] ?? null;
                     $isConnected = $statusPpp['is_connected'] ?? false;
-                    $isDisabled = $statusPpp['is_disabled'] ?? ($layanan->status->value === 'isolir' || $layanan->status->value === 'nonaktif');
+                    $isDisabled = $statusPpp['is_disabled'] ?? false;
+                    // Isolir = secret di profile ISOLIR (CONTEXT.md "Isolir"); tanpa data router, ikuti status layanan.
+                    $isIsolir = isset($statusPpp['profile']) ? $statusPpp['profile'] === \App\Models\Router::PROFILE_ISOLIR : $layanan->status === \App\Enums\StatusLayanan::Suspend;
                     $routerOnline = $statusPpp['router_online'] ?? true;
                 @endphp
                 <article id="layanan-{{ $layanan->id }}" class="{{ $card }} scroll-mt-24">
@@ -326,8 +328,10 @@
                                         <flux:badge color="zinc"><span class="mr-1.5 inline-block size-2 rounded-full bg-zinc-400"></span>Disconnected (Offline)</flux:badge>
                                     @endif
                                 </span>
-                                @if ($isDisabled)
-                                    <flux:badge color="rose">Terisolir / Disabled</flux:badge>
+                                @if ($isIsolir)
+                                    <flux:badge color="rose">Terisolir</flux:badge>
+                                @elseif ($isDisabled)
+                                    <flux:badge color="rose">Disabled</flux:badge>
                                 @endif
                             </div>
                         </div>
@@ -408,11 +412,10 @@
                         </summary>
                         <dl class="grid grid-cols-2 gap-x-6 gap-y-4 px-4 pb-5 sm:grid-cols-3 sm:px-6 lg:grid-cols-4">
                             @foreach ([
-                                'Profile' => $statusPpp['profile'] ?? $layanan->paketLayanan->profilBandwidth?->pppProfileName() ?? '—',
+                                'Profile' => $statusPpp['profile'] ?? $layanan->paketLayanan?->nama_paket ?? '—',
                                 'Service' => strtoupper($statusPpp['service'] ?? $layanan->jenis_koneksi?->value ?? 'pppoe'),
                                 'Uptime' => $statusPpp['uptime'] ?? '—',
                                 'Terakhir logout' => $statusPpp['last_logged_out'] ?? '—',
-                                'Gateway (local IP)' => $statusPpp['local_address'] ?? $layanan->resolveLocalAddress() ?? $layanan->ipPool?->getGatewayAddress() ?? '—',
                                 'IP Publik Dedicated' => $layanan->ipPublikAktif()?->alamat_ip ?? '—',
                                 'Caller ID (MAC ONT)' => $statusPpp['caller_id'] ?? '—',
                                 'Port ODP' => ($layanan->odpPort?->odp?->nama_odp ?? '—') . ' (Port ' . ($layanan->odpPort?->nomor_port ?? '—') . ')',
@@ -444,7 +447,7 @@
                             <div>
                                 <dt class="text-sm text-zinc-500 dark:text-zinc-400">Secret PPP</dt>
                                 <dd class="mt-1">
-                                    <flux:badge size="sm" :color="$isDisabled ? 'rose' : 'emerald'">{{ $isDisabled ? 'Disabled (isolir)' : 'Enabled' }}</flux:badge>
+                                    <flux:badge size="sm" :color="$isDisabled ? 'rose' : 'emerald'">{{ $isDisabled ? 'Disabled' : 'Enabled' }}</flux:badge>
                                 </dd>
                             </div>
                         </dl>

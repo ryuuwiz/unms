@@ -84,6 +84,16 @@ class PaketLayanan extends Model
     }
 
     /**
+     * Router yang boleh menjual paket ini (Router Paket, ADR-0063).
+     *
+     * @return HasMany<RouterPaket, $this>
+     */
+    public function routerPakets(): HasMany
+    {
+        return $this->hasMany(RouterPaket::class, 'paket_layanan_id');
+    }
+
+    /**
      * Relasi ke semua layanan pelanggan yang menggunakan paket ini.
      *
      * @return HasMany<LayananPelanggan, $this>

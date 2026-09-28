@@ -8,9 +8,9 @@ use App\Models\IpPool;
 use App\Models\IpPublik;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
-use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Models\User;
 use App\Services\Mikrotik\MikrotikService;
 use App\Utils\IpNetworkHelper;
@@ -89,21 +89,15 @@ test('can delete ip pool without relations from index', function () {
     expect(IpPool::find($pool->id))->toBeNull();
 });
 
-test('cannot delete ip pool with existing customer service relations', function () {
+test('cannot delete ip pool still used by a Router Paket', function () {
     $router = Router::factory()->create();
     $pool = IpPool::factory()->create([
         'router_id' => $router->id,
         'nama_pool' => 'POOL_WITH_LAYANAN',
     ]);
 
-    $pelanggan = Pelanggan::factory()->create();
     $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
-
-    LayananPelanggan::factory()->create([
-        'pelanggan_id' => $pelanggan->id,
-        'paket_layanan_id' => $paket->id,
-        'router_id' => $router->id,
-    ]);
+    RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $router->id, 'ip_pool_id' => $pool->id]);
 
     Livewire::actingAs($this->superAdmin)
         ->test(Index::class)
@@ -115,7 +109,7 @@ test('cannot delete ip pool with existing customer service relations', function 
     expect(IpPool::find($pool->id))->not->toBeNull();
 });
 
-test('cannot reassign ip pool to another router while it has existing customer service relations', function () {
+test('cannot reassign ip pool to another router while a Router Paket uses it', function () {
     $router = Router::factory()->create();
     $otherRouter = Router::factory()->create();
     $pool = IpPool::factory()->create([
@@ -123,14 +117,8 @@ test('cannot reassign ip pool to another router while it has existing customer s
         'nama_pool' => 'POOL_IN_USE',
     ]);
 
-    $pelanggan = Pelanggan::factory()->create();
     $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => ProfilBandwidth::factory()->create()->id]);
-
-    LayananPelanggan::factory()->create([
-        'pelanggan_id' => $pelanggan->id,
-        'paket_layanan_id' => $paket->id,
-        'router_id' => $router->id,
-    ]);
+    RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $router->id, 'ip_pool_id' => $pool->id]);
 
     Livewire::actingAs($this->superAdmin)
         ->test(Edit::class, ['pool' => $pool])

@@ -127,6 +127,7 @@ test('admin dapat mengedit layanan meskipun router terkait sedang offline', func
         'jenis_koneksi' => JenisKoneksi::Pppoe,
         'ppp_username' => "{$this->pelanggan->no_reg}_00001",
     ]);
+    daftarkanRouterPaket($layanan);
 
     Livewire::actingAs($this->admin)
         ->test(Edit::class, ['layananPelanggan' => $layanan])
@@ -150,6 +151,7 @@ test('admin can edit layanan pelanggan and switch to ip_static', function () {
         'jenis_koneksi' => JenisKoneksi::Pppoe,
         'ppp_username' => "{$this->pelanggan->no_reg}_00001",
     ]);
+    daftarkanRouterPaket($layanan);
 
     Livewire::actingAs($this->admin)
         ->test(Edit::class, ['layananPelanggan' => $layanan])
@@ -177,6 +179,7 @@ test('validasi gagal bila router tujuan belum punya IP Pool pada edit layanan PP
         'jenis_koneksi' => JenisKoneksi::Pppoe,
         'ppp_username' => "{$this->pelanggan->no_reg}_00001",
     ]);
+    daftarkanRouterPaket($layanan);
 
     Livewire::actingAs($this->admin)
         ->test(Edit::class, ['layananPelanggan' => $layanan])
@@ -194,6 +197,7 @@ test('admin can regenerate ppp password and it is revealed once on the edit page
         'router_id' => $this->router->id,
         'ppp_password_terenkripsi' => 'password_lama',
     ]);
+    daftarkanRouterPaket($layanan);
 
     $component = Livewire::actingAs($this->admin)
         ->test(Edit::class, ['layananPelanggan' => $layanan])
@@ -218,6 +222,7 @@ test('teknisi without layanan_pelanggan.ubah permission cannot open edit page to
         'router_id' => $this->router->id,
         'ppp_password_terenkripsi' => 'password_lama',
     ]);
+    daftarkanRouterPaket($layanan);
 
     Livewire::actingAs($teknisi)
         ->test(Edit::class, ['layananPelanggan' => $layanan])
@@ -227,12 +232,13 @@ test('teknisi without layanan_pelanggan.ubah permission cannot open edit page to
 });
 
 test('can list and filter layanans by status', function () {
-    LayananPelanggan::factory()->create([
+    $layananTes = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
         'router_id' => $this->router->id,
         'status' => StatusLayanan::Aktif,
     ]);
+    daftarkanRouterPaket($layananTes);
 
     Livewire::actingAs($this->admin)
         ->test(Index::class)
@@ -410,6 +416,7 @@ test('layanan dengan masa aktif expired menampilkan status EXPIRED bukan Suspend
         'tanggal_expired' => now()->subDay()->toDateString(),
         'ppp_username' => "{$this->pelanggan->no_reg}_00001",
     ]);
+    daftarkanRouterPaket($expiredLayanan);
 
     expect($expiredLayanan->isExpired())->toBeTrue()
         ->and($expiredLayanan->statusBadgeLabel())->toBe('EXPIRED')
@@ -431,6 +438,7 @@ test('layanan dengan masa aktif di masa depan menampilkan status aslinya', funct
         'tanggal_expired' => now()->addMonth()->toDateString(),
         'ppp_username' => "{$this->pelanggan->no_reg}_00001",
     ]);
+    daftarkanRouterPaket($activeLayanan);
 
     expect($activeLayanan->isExpired())->toBeFalse()
         ->and($activeLayanan->statusBadgeLabel())->toBe('Aktif')
@@ -447,6 +455,7 @@ test('admin dapat memfilter layanan berdasarkan status EXPIRED di Data Registras
         'tanggal_expired' => now()->subDays(3)->toDateString(),
         'ppp_username' => "{$this->pelanggan->no_reg}_00001",
     ]);
+    daftarkanRouterPaket($expiredLayanan);
 
     $pelangganAktif = Pelanggan::factory()->create(['nama_depan' => 'PelangganAktif']);
     $activeLayanan = LayananPelanggan::factory()->create([
@@ -457,6 +466,7 @@ test('admin dapat memfilter layanan berdasarkan status EXPIRED di Data Registras
         'tanggal_expired' => now()->addDays(20)->toDateString(),
         'ppp_username' => "{$pelangganAktif->no_reg}_00001",
     ]);
+    daftarkanRouterPaket($activeLayanan);
 
     Livewire::actingAs($this->admin)
         ->test(Index::class)
@@ -471,6 +481,7 @@ test('handles invalid encrypted ppp password gracefully without throwing Decrypt
         'paket_layanan_id' => $this->paket->id,
         'router_id' => $this->router->id,
     ]);
+    daftarkanRouterPaket($layanan);
 
     DB::table('layanan_pelanggan')->where('id', $layanan->id)->update([
         'ppp_password_terenkripsi' => 'invalid_encrypted_data',
@@ -554,6 +565,7 @@ test('harga custom tetap dipakai untuk tagihan bulanan berikutnya meskipun harga
         'price_mode' => PriceMode::Custom,
         'price_custom' => 200000,
     ]);
+    daftarkanRouterPaket($layanan);
 
     // Harga paket berubah setelah layanan dibuat -- layanan lama harus tetap pakai harga custom-nya.
     $paket->update(['harga' => 500000]);

@@ -12,6 +12,7 @@ use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Services\Mikrotik\MikrotikService;
 use App\Support\PppDeletionContext;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -30,6 +31,8 @@ beforeEach(function () {
     $this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
     $this->poolLama = IpPool::factory()->create(['router_id' => $this->routerLama->id, 'nama_pool' => 'Pool-Rumah', 'ip_network' => '10.0.0.0', 'cidr' => 24]);
     $this->poolBaru = IpPool::factory()->create(['router_id' => $this->routerBaru->id, 'nama_pool' => 'Pool-Rumah']);
+    RouterPaket::create(['paket_layanan_id' => $this->paket->id, 'router_id' => $this->routerLama->id, 'ip_pool_id' => $this->poolLama->id]);
+    RouterPaket::create(['paket_layanan_id' => $this->paket->id, 'router_id' => $this->routerBaru->id, 'ip_pool_id' => $this->poolBaru->id]);
     $this->layanan = LayananPelanggan::factory()->create([
         'router_id' => $this->routerLama->id,
         'pelanggan_id' => $this->pelanggan->id,
@@ -97,7 +100,7 @@ test('Observer does NOT dispatch cleanup when router_id does not change', functi
     Queue::assertNotPushed(CleanupPppSecretOnOldRouterJob::class);
 });
 
-test('IP Pool layanan adalah kepala Rantai IP Pool Router dan ikut pindah router', function () {
+test('IP Pool layanan adalah pool Router Paket-nya dan ikut pindah router', function () {
     Queue::fake();
 
     expect($this->layanan->ipPool?->id)->toBe($this->poolLama->id);
@@ -108,11 +111,12 @@ test('IP Pool layanan adalah kepala Rantai IP Pool Router dan ikut pindah router
         ->and($this->layanan->fresh()->ipPool?->id)->toBe($this->poolBaru->id);
 });
 
-test('kepala rantai adalah pool terlama di router, null bila router tanpa pool', function () {
-    IpPool::factory()->create(['router_id' => $this->routerLama->id, 'nama_pool' => 'Pool-Tambahan']);
-    expect($this->layanan->fresh()->ipPool?->id)->toBe($this->poolLama->id);
+test('IP Pool layanan adalah pool pilihan Router Paket, bukan pool terlama router; null bila paket tidak terdaftar', function () {
+    $dipilih = IpPool::factory()->create(['router_id' => $this->routerLama->id, 'nama_pool' => 'Pool-Karyawan']);
+    RouterPaket::where('router_id', $this->routerLama->id)->update(['ip_pool_id' => $dipilih->id]);
+    expect($this->layanan->fresh()->ipPool?->id)->toBe($dipilih->id);
 
-    IpPool::where('router_id', $this->routerLama->id)->delete();
+    RouterPaket::where('router_id', $this->routerLama->id)->delete();
     expect($this->layanan->fresh()->ipPool)->toBeNull();
 });
 
@@ -160,6 +164,7 @@ test('resolveRemoteAddress is null for dynamic PPPoE even with a pool -- RouterO
 test('resolveRemoteAddress returns null when neither ip_static nor a pool is set', function () {
     $this->layanan->ip_static = null;
     $this->layanan->ip_dynamic = null;
+    RouterPaket::where('router_id', $this->routerLama->id)->delete();
     IpPool::where('router_id', $this->routerLama->id)->delete();
     $this->layanan->unsetRelation('router');
 
@@ -189,6 +194,7 @@ test('resolveLocalAddress returns gateway of router pool chain head for a litera
 });
 
 test('resolveLocalAddress calculates subnet gateway when ip_static is present without ipPool', function () {
+    RouterPaket::where('router_id', $this->routerLama->id)->delete();
     IpPool::where('router_id', $this->routerLama->id)->delete();
     $this->layanan->unsetRelation('router');
     $this->layanan->ip_static = '10.0.1.25';
@@ -197,6 +203,7 @@ test('resolveLocalAddress calculates subnet gateway when ip_static is present wi
 });
 
 test('resolveLocalAddress returns null when neither ipPool nor ip_static exists', function () {
+    RouterPaket::where('router_id', $this->routerLama->id)->delete();
     IpPool::where('router_id', $this->routerLama->id)->delete();
     $this->layanan->unsetRelation('router');
     $this->layanan->ip_static = null;

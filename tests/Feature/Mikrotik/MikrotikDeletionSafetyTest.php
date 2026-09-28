@@ -7,6 +7,7 @@ use App\Exceptions\MikrotikException;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\MikrotikJobLog;
+use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use App\Support\PppDeletionContext;
@@ -48,7 +49,7 @@ test('deletePppoeSecret menolak username kosong tanpa mengirim query apa pun (?n
 
 test('deletePppoeSecret menghapus, memutus sesi, dan mencatat audit dengan actor, alasan, dan snapshot tanpa password', function () {
     [$client, $sent] = fakeRouterOs([
-        '/ppp/secret/print' => [['.id' => '*1', 'name' => 'budi_11111', 'comment' => 'UNMS: X', 'password' => 'rahasia', 'profile' => 'P10']],
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => 'budi_11111', 'password' => 'rahasia', 'profile' => 'P10']],
         '/ppp/active/print' => [['.id' => '*A', 'name' => 'budi_11111']],
     ]);
 
@@ -84,55 +85,17 @@ test('deletePppoeSecret gagal keras bila RouterOS membalas galat, bukan mengangg
         ->toThrow(MikrotikException::class, 'not enough permissions');
 });
 
-test('cleanOrphanedPppSecrets menolak mode hapus tanpa konteks', function () {
-    [$client] = fakeRouterOs();
-
-    expect(fn () => $this->service->cleanOrphanedPppSecrets($this->router, true, $client))
-        ->toThrow(MikrotikException::class, 'konteks');
-});
-
-test('cleanOrphanedPppSecrets hanya menghapus orphan berkomentar UNMS:, bukan pola nama, secret NOC, atau akun sistem', function () {
+test('auditOrphanedPppSecrets hanya melaporkan secret yang tidak terdaftar di billing dan tidak pernah menghapus', function () {
     [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [
-        ['.id' => '*1', 'name' => 'lama_11111', 'comment' => 'UNMS: sisa'],
-        ['.id' => '*2', 'name' => 'budi_12345', 'comment' => ''],            // pola nama mirip billing, tanpa label
-        ['.id' => '*3', 'name' => 'custom_noc', 'comment' => 'NOC: khusus'],
+        ['.id' => '*1', 'name' => 'lama_11111'],
+        ['.id' => '*2', 'name' => 'manual_klien', 'comment' => ''],
         ['.id' => '*4', 'name' => 'admin', 'comment' => ''],
-        ['.id' => '*5', 'name' => 'manual_klien', 'comment' => ''],
     ]]);
 
-    $hasil = $this->service->cleanOrphanedPppSecrets($this->router, true, $client, $this->ctx);
+    $hasil = $this->service->auditOrphanedPppSecrets($this->router, $client);
 
-    $removed = collect($sent)->filter(fn ($q) => $q->getEndpoint() === '/ppp/secret/remove')->count();
-    expect($hasil['deleted'])->toBe(1)
-        ->and($removed)->toBe(1)
-        ->and($hasil['orphans'])->toContain('budi_12345', 'manual_klien')
-        ->and(MikrotikJobLog::where('job_type', MikrotikJobType::DeletePppoe)->count())->toBe(1);
-});
-
-test('cleanOrphanedPppSecrets mode audit tidak pernah menghapus', function () {
-    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [['.id' => '*1', 'name' => 'lama_11111', 'comment' => 'UNMS: sisa']]]);
-
-    $hasil = $this->service->cleanOrphanedPppSecrets($this->router, false, $client);
-
-    expect($hasil['mode'])->toBe('audit_only')
-        ->and($hasil['orphans_count'])->toBe(1)
+    expect($hasil['orphans'])->toBe(['lama_11111', 'manual_klien'])
         ->and(endpointsSent($sent))->not->toContain('/ppp/secret/remove');
-});
-
-test('cleanOrphanedPppSecrets berhenti di batas hapus per eksekusi dan melaporkan kandidat sisa', function () {
-    config(['mikrotik.max_deletes_per_run' => 3]);
-    $secrets = [];
-    foreach (range(1, 7) as $i) {
-        $secrets[] = ['.id' => "*{$i}", 'name' => "lama_{$i}", 'comment' => 'UNMS: sisa'];
-    }
-    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => $secrets]);
-
-    $hasil = $this->service->cleanOrphanedPppSecrets($this->router, true, $client, $this->ctx);
-
-    expect($hasil['deleted'])->toBe(3)
-        ->and($hasil['cap_exceeded'])->toBeTrue()
-        ->and($hasil['skipped_over_cap'])->toHaveCount(4)
-        ->and($hasil['errors'][0])->toContain('Batas penghapusan 3');
 });
 
 /**
@@ -162,8 +125,8 @@ test('rekonsiliasi menghapus secret layanan Berhenti dengan jejak, tapi tidak pe
     $berhenti = layananUntukRekonsiliasi($this->router, StatusLayanan::Berhenti, 'lama_11111');
     $suspend = layananUntukRekonsiliasi($this->router, StatusLayanan::Suspend, 'nunggak_22222');
     [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [
-        ['.id' => '*1', 'name' => 'lama_11111', 'comment' => 'UNMS: x', 'profile' => 'P10'],
-        ['.id' => '*2', 'name' => 'nunggak_22222', 'comment' => 'UNMS: y', 'profile' => 'P10', 'disabled' => 'true', 'password' => $suspend->ppp_password_terenkripsi],
+        ['.id' => '*1', 'name' => 'lama_11111', 'profile' => 'P10'],
+        ['.id' => '*2', 'name' => 'nunggak_22222', 'profile' => 'P10', 'disabled' => 'true', 'password' => $suspend->ppp_password_terenkripsi],
     ]]);
 
     $hasil = $this->service->autoRecoverPppSecrets($this->router->fresh(), $client);
@@ -178,7 +141,7 @@ test('rekonsiliasi menghapus secret layanan Berhenti dengan jejak, tapi tidak pe
 
 test('rekonsiliasi dry-run hanya melaporkan penghapusan layanan Berhenti', function () {
     layananUntukRekonsiliasi($this->router, StatusLayanan::Berhenti, 'lama_11111');
-    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [['.id' => '*1', 'name' => 'lama_11111', 'comment' => 'UNMS: x']]]);
+    [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [['.id' => '*1', 'name' => 'lama_11111']]]);
 
     $hasil = $this->service->autoRecoverPppSecrets($this->router->fresh(), $client, dryRun: true);
 
@@ -200,8 +163,8 @@ test('rekonsiliasi hanya menghapus duplikat bernama sama untuk username terdafta
     $layanan = layananUntukRekonsiliasi($this->router, StatusLayanan::Aktif, 'budi_11111');
     $sinkron = ['profile' => 'P10', 'password' => $layanan->ppp_password_terenkripsi, 'disabled' => 'false'];
     [$client, $sent] = fakeRouterOs(['/ppp/secret/print' => [
-        ['.id' => '*1', 'name' => 'budi_11111', 'comment' => 'UNMS: a'] + $sinkron,
-        ['.id' => '*2', 'name' => 'budi_11111', 'comment' => 'UNMS: a'] + $sinkron,   // duplikat terdaftar
+        ['.id' => '*1', 'name' => 'budi_11111'] + $sinkron,
+        ['.id' => '*2', 'name' => 'budi_11111'] + $sinkron,   // duplikat terdaftar
         ['.id' => '*3', 'name' => 'tamu', 'comment' => ''],
         ['.id' => '*4', 'name' => 'tamu', 'comment' => ''],                                   // duplikat tak terdaftar
     ]]);
@@ -225,18 +188,19 @@ test('syncIpPool gagal bila RouterOS menolak, dan sync_status menjadi failed (bu
     expect($pool->sync_status)->toBe('failed')->and($pool->applied_to_router_at)->toBeNull();
 });
 
-test('disablePppoeSecret gagal bila set disabled ditolak, dan menolak layanan tanpa username', function () {
+test('isolirPppoeSecret gagal bila pemindahan profile ditolak, dan menolak layanan tanpa username', function () {
+    $this->router->update(['ip_pool_isolir_id' => IpPool::factory()->create(['router_id' => $this->router->id])->id]);
     $layanan = LayananPelanggan::factory()->create(['router_id' => $this->router->id, 'ppp_username' => 'budi_11111']);
     [$client] = fakeRouterOs([
-        '/ppp/secret/print' => [['.id' => '*1', 'name' => 'budi_11111', 'comment' => 'UNMS: S1 - Budi']],
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => 'budi_11111']],
         '/ppp/secret/set' => ['after' => ['message' => 'failure: denied']],
     ]);
 
-    expect(fn () => $this->service->disablePppoeSecret($this->router, $layanan, true, $client))->toThrow(MikrotikException::class, 'denied');
+    expect(fn () => $this->service->isolirPppoeSecret($this->router->fresh(), $layanan, $client))->toThrow(MikrotikException::class, 'denied');
 
     $tanpaNama = LayananPelanggan::factory()->create(['router_id' => $this->router->id, 'ppp_username' => null]);
     [$client2, $sent2] = fakeRouterOs();
-    expect(fn () => $this->service->disablePppoeSecret($this->router, $tanpaNama, true, $client2))->toThrow(MikrotikException::class)
+    expect(fn () => $this->service->isolirPppoeSecret($this->router, $tanpaNama, $client2))->toThrow(MikrotikException::class)
         ->and($sent2)->toHaveCount(0);
 });
 
@@ -249,14 +213,15 @@ test('removeActiveSession menganggap sesi yang sudah berakhir (no such item) buk
     expect($this->service->removeActiveSession($this->router, 'budi_11111', $client))->toBeTrue();
 });
 
-test('removeIpPool hanya membersihkan objek bertanda UNMS dan mencatat audit', function () {
+test('removeIpPool membersihkan objek billing berdasarkan nama, bukan komentar, dan mencatat audit', function () {
+    ProfilBandwidth::firstWhere('nama_bandwidth', 'P10') ?? ProfilBandwidth::factory()->create(['nama_bandwidth' => 'P10']);
     [$client, $sent] = fakeRouterOs([
         '/ppp/profile/print' => [
-            ['.id' => '*P1', 'name' => 'P10@Pool-X', 'comment' => 'UNMS: P10'],
+            ['.id' => '*P1', 'name' => 'P10@Pool-X'],
             ['.id' => '*P2', 'name' => 'Manual@Pool-X', 'comment' => 'buatan noc'],
         ],
-        '/queue/simple/print' => [['.id' => '*Q', 'name' => 'POOL-Pool-X', 'comment' => 'UNMS Managed Pool Queue']],
-        '/ip/pool/print' => [['.id' => '*IP', 'name' => 'Pool-X', 'comment' => 'UNMS Managed IP Pool']],
+        '/queue/simple/print' => [['.id' => '*Q', 'name' => 'POOL-Pool-X']],
+        '/ip/pool/print' => [['.id' => '*IP', 'name' => 'Pool-X']],
     ]);
 
     $hasil = $this->service->removeIpPool($this->router, 'Pool-X', $this->ctx, $client);

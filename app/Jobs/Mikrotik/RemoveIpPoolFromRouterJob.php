@@ -58,10 +58,7 @@ class RemoveIpPoolFromRouterJob implements ShouldQueue
         }
 
         try {
-            // Rantai & profile dialihkan dulu dari pool ini agar RouterOS mau menghapusnya (ADR-0060).
-            $mikrotikService->syncRantaiIpPool($router);
-            $mikrotikService->syncAllBandwidthProfiles($router);
-
+            // Pool yang dipakai Router Paket tidak bisa dihapus/dipindah (IpPool::canBeDeleted), jadi tidak ada profile paket yang merujuknya.
             $mikrotikService->removeIpPool(
                 $router,
                 $this->poolName,

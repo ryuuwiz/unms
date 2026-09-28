@@ -39,6 +39,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property SumberTicket $sumber
  * @property Carbon|null $sla_target_selesai
  * @property bool $perlu_aktivasi_manual
+ * @property Carbon|null $secret_dihapus_pada
+ * @property int|null $secret_dihapus_oleh
  * @property string $deskripsi
  * @property Carbon|null $dijadwalkan_pada
  * @property int|null $dibuat_oleh
@@ -49,6 +51,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property-read LayananPelanggan|null $layananPelanggan
  * @property-read User|null $pic
  * @property-read User|null $dibuatOleh
+ * @property-read User|null $secretDihapusOleh
  * @property-read Collection<int, TicketHistori> $histori
  * @property-read Collection<int, TicketDivisi> $divisis
  */
@@ -63,6 +66,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
     'sumber',
     'sla_target_selesai',
     'perlu_aktivasi_manual',
+    'secret_dihapus_pada',
+    'secret_dihapus_oleh',
     'deskripsi',
     'dijadwalkan_pada',
     'dibuat_oleh',
@@ -131,6 +136,7 @@ class Ticket extends Model implements HasMedia
             'sla_target_selesai' => 'datetime',
             'dijadwalkan_pada' => 'datetime',
             'perlu_aktivasi_manual' => 'boolean',
+            'secret_dihapus_pada' => 'datetime',
             'deleted_at' => 'datetime',
         ];
     }
@@ -298,6 +304,23 @@ class Ticket extends Model implements HasMedia
     public function pic(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pic_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function secretDihapusOleh(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'secret_dihapus_oleh');
+    }
+
+    /**
+     * Gate Selesai tiket Pencabutan (CONTEXT.md "Pencabutan"): PPP Secret harus sudah dihapus
+     * lewat Proses NOC sebelum tiket boleh Selesai.
+     */
+    public function secretSudahDihapus(): bool
+    {
+        return $this->secret_dihapus_pada !== null;
     }
 
     /**

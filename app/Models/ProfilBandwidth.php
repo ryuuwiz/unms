@@ -92,14 +92,6 @@ class ProfilBandwidth extends Model
     }
 
     /**
-     * Nama PPP Profile di RouterOS: satu per profil bandwidth di setiap router (CONTEXT.md "Profile PPP per Router").
-     */
-    public function pppProfileName(): string
-    {
-        return $this->nama_bandwidth;
-    }
-
-    /**
      * Label kecepatan maksimum format TX / RX (misal: "20/10 Mbps" atau "20 Mbps (1:1)").
      */
     public function labelKecepatan(): string

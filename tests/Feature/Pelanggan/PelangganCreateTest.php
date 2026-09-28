@@ -41,6 +41,7 @@ test('can create a pelanggan with valid data, normalized phone, and sequential n
     Livewire::actingAs($this->salesUser)
         ->test(Create::class)
         ->set('prefix_registrasi_id', $prefix->id)
+        ->set('nik', '3201234567890001')
         ->set('nama_depan', 'Ahmad')
         ->set('nama_belakang', 'Dahlan')
         ->set('email', 'ahmad@example.com')
@@ -72,6 +73,7 @@ test('can create a pelanggan with custom unique no_reg', function () {
     Livewire::actingAs($this->salesUser)
         ->test(Create::class)
         ->set('no_reg', 'ARS2309202601')
+        ->set('nik', '3201234567890002')
         ->set('nama_depan', 'Siti')
         ->set('nama_belakang', 'Aminah')
         ->set('email', 'siti@example.com')
@@ -127,5 +129,5 @@ test('requires mandatory fields', function () {
         ->set('no_hp', '')
         ->set('alamat_lengkap', '')
         ->call('save')
-        ->assertHasErrors(['nama_depan', 'no_hp', 'alamat_lengkap']);
+        ->assertHasErrors(['nik' => 'required', 'nama_depan', 'no_hp', 'alamat_lengkap']);
 });

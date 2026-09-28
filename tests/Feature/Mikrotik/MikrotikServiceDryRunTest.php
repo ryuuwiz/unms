@@ -1,11 +1,13 @@
 <?php
 
 use App\Enums\StatusLayanan;
+use App\Models\IpPool;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
+use App\Models\RouterPaket;
 use App\Services\Mikrotik\MikrotikService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,7 +22,7 @@ beforeEach(function () {
 function makeMockedServiceForDryRun(): MikrotikService
 {
     $mockService = Mockery::mock(MikrotikService::class)->makePartial();
-    $mockService->shouldReceive('syncAllBandwidthProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
+    $mockService->shouldReceive('syncPaketProfiles')->andReturn(['total' => 1, 'synced' => 1, 'errors' => []]);
 
     return $mockService;
 }
@@ -29,7 +31,7 @@ test('autoRecoverPppSecrets dryRun=true logs remote-address drift as a change wi
     $router = Router::factory()->online()->create();
     $pelanggan = Pelanggan::factory()->create();
     $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Fast-20M']);
-    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+    $paket = PaketLayanan::factory()->create(['nama_paket' => 'Profile-Fast-20M', 'profil_bandwidth_id' => $profil->id]);
 
     $layanan = LayananPelanggan::factory()->create([
         'router_id' => $router->id,
@@ -40,6 +42,8 @@ test('autoRecoverPppSecrets dryRun=true logs remote-address drift as a change wi
         'ip_static' => '10.20.30.5',
         'status' => StatusLayanan::Aktif,
     ]);
+    // Gateway IP Statis = `.1` pool Router Paket (ADR-0063).
+    RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $router->id, 'ip_pool_id' => IpPool::factory()->create(['router_id' => $router->id, 'ip_network' => '10.20.30.0', 'cidr' => 24])->id]);
 
     expect($layanan->resolveRemoteAddress())->toBe('10.20.30.5')
         ->and($layanan->resolveLocalAddress())->toBe('10.20.30.1');
@@ -51,7 +55,6 @@ test('autoRecoverPppSecrets dryRun=true logs remote-address drift as a change wi
     $client->shouldReceive('read')->andReturn([
         [
             'name' => 'dry-run-user',
-            'comment' => 'UNMS: S1 - Budi',
             'profile' => 'Profile-Fast-20M',
             'remote-address' => '10.20.30.5/32', // format berbeda dari resolveRemoteAddress(), tapi bukan fokus sprint ini
             'local-address' => '10.20.30.1',
@@ -62,8 +65,8 @@ test('autoRecoverPppSecrets dryRun=true logs remote-address drift as a change wi
 
     // Tidak boleh ada satupun aksi nyata yang dijalankan ke router saat dryRun=true.
     $mockService->shouldNotReceive('createOrUpdatePppoeSecret');
-    $mockService->shouldNotReceive('disablePppoeSecret');
-    $mockService->shouldNotReceive('enablePppoeSecret');
+    $mockService->shouldNotReceive('isolirPppoeSecret');
+    $mockService->shouldNotReceive('bukaIsolirPppoeSecret');
 
     $stats = $mockService->autoRecoverPppSecrets($router, $client, dryRun: true);
 
@@ -82,11 +85,11 @@ test('autoRecoverPppSecrets dryRun=true logs remote-address drift as a change wi
         ->and($change['from_router']['password'])->toBe('[REDACTED]');
 });
 
-test('autoRecoverPppSecrets dryRun=true logs disabled-state drift without toggling the secret for real', function () {
+test('autoRecoverPppSecrets dryRun=true logs a Suspend layanan still on its paket profile as isolir drift without changing the router', function () {
     $router = Router::factory()->online()->create();
     $pelanggan = Pelanggan::factory()->create();
     $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Fast-20M']);
-    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+    $paket = PaketLayanan::factory()->create(['nama_paket' => 'Profile-Fast-20M', 'profil_bandwidth_id' => $profil->id]);
 
     $layanan = LayananPelanggan::factory()->create([
         'router_id' => $router->id,
@@ -97,6 +100,7 @@ test('autoRecoverPppSecrets dryRun=true logs disabled-state drift without toggli
         'ip_static' => '10.20.30.5',
         'status' => StatusLayanan::Suspend,
     ]);
+    RouterPaket::create(['paket_layanan_id' => $paket->id, 'router_id' => $router->id, 'ip_pool_id' => IpPool::factory()->create(['router_id' => $router->id, 'ip_network' => '10.20.30.0', 'cidr' => 24])->id]);
 
     $mockService = makeMockedServiceForDryRun();
 
@@ -105,39 +109,38 @@ test('autoRecoverPppSecrets dryRun=true logs disabled-state drift without toggli
     $client->shouldReceive('read')->andReturn([
         [
             'name' => 'dry-run-suspend-user',
-            'comment' => 'UNMS: S1 - Budi',
             'profile' => 'Profile-Fast-20M',
             'remote-address' => '10.20.30.5',
             'local-address' => '10.20.30.1',
             'password' => 'secret123',
-            'disabled' => 'false', // Layanan Suspend tapi secret masih enabled di router
+            'disabled' => 'false', // Layanan Suspend tapi secret masih di profile paket, belum di ISOLIR
         ],
     ]);
 
     $mockService->shouldNotReceive('createOrUpdatePppoeSecret');
-    $mockService->shouldNotReceive('disablePppoeSecret');
-    $mockService->shouldNotReceive('enablePppoeSecret');
+    $mockService->shouldNotReceive('isolirPppoeSecret');
+    $mockService->shouldNotReceive('bukaIsolirPppoeSecret');
 
     $stats = $mockService->autoRecoverPppSecrets($router, $client, dryRun: true);
 
     expect($stats['dry_run'])->toBeTrue()
         ->and($stats['recovered'])->toBe(1)
-        ->and($stats['disabled'])->toBe(0) // dry-run: bukan disable nyata, jadi counter 'disabled' tidak bertambah
+        ->and($stats['disabled'])->toBe(0) // dry-run: bukan isolir nyata, jadi counter tidak bertambah
         ->and($stats['dry_run_changes'])->toHaveCount(1);
 
     $change = $stats['dry_run_changes'][0];
-    expect($change['action'])->toBe('would_disable')
-        ->and($change['reason'])->toBe('disabled_state_mismatch')
-        ->and($change['expected']['disabled'])->toBeTrue();
+    expect($change['action'])->toBe('would_recover')
+        ->and($change['reason'])->toBe('profile_mismatch')
+        ->and($change['expected']['profile'])->toBe(Router::PROFILE_ISOLIR);
 });
 
 test('autoRecoverPppSecrets defaults to dryRun=false and keeps existing real-write behavior', function () {
     $router = Router::factory()->online()->create();
     $pelanggan = Pelanggan::factory()->create();
     $profil = ProfilBandwidth::factory()->create(['nama_bandwidth' => 'Profile-Fast-20M']);
-    $paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $profil->id]);
+    $paket = PaketLayanan::factory()->create(['nama_paket' => 'Profile-Fast-20M', 'profil_bandwidth_id' => $profil->id]);
 
-    LayananPelanggan::factory()->create([
+    $layananTes = LayananPelanggan::factory()->create([
         'router_id' => $router->id,
         'pelanggan_id' => $pelanggan->id,
         'paket_layanan_id' => $paket->id,
@@ -146,6 +149,7 @@ test('autoRecoverPppSecrets defaults to dryRun=false and keeps existing real-wri
         'ip_static' => '10.20.30.5',
         'status' => StatusLayanan::Aktif,
     ]);
+    daftarkanRouterPaket($layananTes);
 
     $mockService = makeMockedServiceForDryRun();
 

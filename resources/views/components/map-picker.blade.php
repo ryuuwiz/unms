@@ -1,6 +1,7 @@
+{{-- `lat`/`lng` adalah NAMA properti Livewire koordinat (bukan nilainya), mis. lat="latitude". --}}
 @props([
-    'lat' => null,
-    'lng' => null,
+    'lat' => 'lat',
+    'lng' => 'lng',
     'readonly' => false,
     'height' => '320px',
 ])
@@ -10,8 +11,8 @@
     x-data="{
         map: null,
         marker: null,
-        lat: @entangle('lat').live,
-        lng: @entangle('lng').live,
+        lat: @entangle($lat).live,
+        lng: @entangle($lng).live,
         readonly: {{ $readonly ? 'true' : 'false' }},
         defaultLat: -6.2088,
         defaultLng: 106.8456,
@@ -119,15 +120,15 @@
     class="space-y-2"
 >
     @if (!$readonly)
-        <div class="flex items-center justify-between">
-            <span class="text-xs text-zinc-500 dark:text-zinc-400">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span class="text-sm text-zinc-500 dark:text-zinc-400">
                 Klik peta atau geser pin marker untuk menentukan titik instalasi.
             </span>
             <flux:button
                 type="button"
-                size="xs"
-                variant="subtle"
+                variant="primary"
                 icon="map-pin"
+                class="w-full sm:w-auto"
                 x-on:click="useCurrentLocation()"
             >
                 Gunakan Lokasi Saya

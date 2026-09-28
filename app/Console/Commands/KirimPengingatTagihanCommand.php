@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Enums\StatusInvoice;
+use App\Enums\StatusLayanan;
 use App\Enums\Wa\TipePengingatTagihan;
 use App\Models\AturanPengingatTagihan;
 use App\Models\Invoice;
@@ -68,6 +69,8 @@ class KirimPengingatTagihanCommand extends Command
 
             $invoiceQuery = Invoice::query()
                 ->where('status', StatusInvoice::MenungguPembayaran)
+                // Layanan Berhenti (Pencabutan Selesai) tetap punya tunggakan tercatat, tapi tidak lagi diingatkan -- CONTEXT.md "Pencabutan".
+                ->whereDoesntHave('layananPelanggan', fn ($q) => $q->where('status', StatusLayanan::Berhenti))
                 ->with(['pelanggan', 'layananPelanggan.paketLayanan']);
 
             if ($rule->tipe_pengingat === TipePengingatTagihan::SetelahJatuhTempo && $rule->kirim_ulang_berkala) {

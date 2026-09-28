@@ -138,6 +138,8 @@
                 <flux:error name="alamat_lengkap" />
             </flux:field>
 
+            <x-map-picker lat="latitude" lng="longitude" />
+
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <flux:field>
                     <flux:label>Latitude</flux:label>

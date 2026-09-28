@@ -1,6 +1,6 @@
 # ADR 0060: Rantai IP Pool per Router, Tanpa Pemilihan Pool oleh Staf
 
-**Status**: Accepted — menggantikan pemilihan IP Pool per layanan (ADR-0019 §1 & §6), Profile PPP per kombinasi Bandwidth × Pool (ADR-0051 §1), dan Segmentasi Jalur IP Pool Rumah/Bisnis. Alokasi IP oleh RouterOS dan alamat sesi dibaca live (ADR-0051 §2–4) tetap berlaku.
+**Status**: Digantikan oleh ADR-0063.
 
 ## Konteks
 NOC memilih IP Pool di Aktivasi Pemasangan, Proses NOC, dan form layanan. Padahal hubungan pool dengan router adalah urusan teknis di belakang layar, dan pilihan manual itu bisa salah pilih. Segmentasi Rumah/Bisnis per pool tidak dibutuhkan secara bisnis.

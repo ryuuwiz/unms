@@ -7,9 +7,9 @@ use App\Models\Concerns\GracefullyDecryptsAttributes;
 use Database\Factories\RouterFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -34,6 +34,8 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $uptime
  * @property string|null $board_name
  * @property string|null $routeros_version
+ * @property int|null $ip_pool_isolir_id
+ * @property-read IpPool|null $ipPoolIsolir
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -55,6 +57,7 @@ use Spatie\Activitylog\Support\LogOptions;
     'uptime',
     'board_name',
     'routeros_version',
+    'ip_pool_isolir_id',
 ])]
 class Router extends Model
 {
@@ -62,6 +65,9 @@ class Router extends Model
     use GracefullyDecryptsAttributes, HasFactory, LogsActivity;
 
     protected $table = 'router';
+
+    /** Nama PPP Profile isolir yang dibuat billing di setiap router (CONTEXT.md "Isolir"). */
+    public const PROFILE_ISOLIR = 'ISOLIR';
 
     /**
      * Konfigurasi logging aktivitas.
@@ -95,6 +101,16 @@ class Router extends Model
     }
 
     /**
+     * IP Pool Isolir: pool profile ISOLIR di router ini (CONTEXT.md "IP Pool Isolir").
+     *
+     * @return BelongsTo<IpPool, $this>
+     */
+    public function ipPoolIsolir(): BelongsTo
+    {
+        return $this->belongsTo(IpPool::class, 'ip_pool_isolir_id');
+    }
+
+    /**
      * Relasi ke semua IP pool yang dimiliki router ini.
      *
      * @return HasMany<IpPool, $this>
@@ -105,21 +121,11 @@ class Router extends Model
     }
 
     /**
-     * Seluruh IP Pool router dalam urutan Rantai IP Pool Router (pool terlama lebih dulu, ADR-0060).
-     *
-     * @return Collection<int, IpPool>
+     * @return HasMany<RouterPaket, $this>
      */
-    public function rantaiIpPool(): Collection
+    public function routerPakets(): HasMany
     {
-        return $this->ipPools->sortBy('id')->values();
-    }
-
-    /**
-     * Kepala Rantai IP Pool Router: pool yang dirujuk Profile PPP per Router; null bila router tanpa pool.
-     */
-    public function kepalaIpPool(): ?IpPool
-    {
-        return $this->rantaiIpPool()->first();
+        return $this->hasMany(RouterPaket::class, 'router_id');
     }
 
     /**
