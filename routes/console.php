@@ -49,7 +49,7 @@ Schedule::command('pembayaran:rekonsiliasi')
 // Ping router tiap 10 dtk: online<->offline terdeteksi < 10 dtk dan memicu notifikasi NOC + recovery.
 // Tugas sub-menit dijalankan berulang oleh schedule:run per menit (docker/supervisor.d/schedule.conf).
 Schedule::command('mikrotik:ping')
-    ->everyTenSeconds()
+    ->everyTwentySeconds()
     ->withoutOverlapping(1)
     ->onOneServer()
     ->runInBackground();
@@ -68,6 +68,10 @@ Schedule::command('horizon:monitor-health')->everyFiveMinutes()->onOneServer();
 
 // Hapus Log Tugas Terjadwal lebih dari 30 hari (model Prunable).
 Schedule::command('model:prune')->daily()->onOneServer();
+
+// hapus log Telescope lebih dari 30 hari (model Prunable). Telescope log bisa sangat besar, jadi hapus
+// lebih sering daripada Log Tugas Terjadwal. Telescope log juga tidak bisa dihapus via
+Schedule::command('telescope:prune')->daily();
 
 // Simpan output setiap tugas ke storage/logs agar CatatLogTugasTerjadwal bisa melampirkan
 // ekor output saat tugas gagal. Harus tetap di baris paling akhir file ini.

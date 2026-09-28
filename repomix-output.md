@@ -228,6 +228,8 @@ The content is organized as follows:
       MISSION-FORMAT.md
       RESOURCES-FORMAT.md
       SKILL.md
+    telescope-debugging/
+      SKILL.md
     testing-best-practices/
       rules/
         assertions.md
@@ -377,6 +379,8 @@ The content is organized as follows:
         medialibrary-guide.md
       SKILL.md
     tailwindcss-development/
+      SKILL.md
+    telescope-debugging/
       SKILL.md
     testing-best-practices/
       rules/
@@ -936,6 +940,7 @@ app/
     AppServiceProvider.php
     FortifyServiceProvider.php
     HorizonServiceProvider.php
+    TelescopeServiceProvider.php
   Services/
     Barang/
       ImporInventarisService.php
@@ -1001,6 +1006,7 @@ config/
   sentry.php
   services.php
   session.php
+  telescope.php
 database/
   factories/
     AkunPelangganFactory.php
@@ -1128,6 +1134,7 @@ database/
     2026_09_27_112052_add_usulan_odp_to_ticket_pemasangan_table.php
     2026_09_27_142849_create_router_paket_table.php
     2026_09_28_023146_add_ip_pool_isolir_id_to_router_table.php
+    2026_09_28_094626_create_telescope_entries_table.php
     2026_09_28_100900_add_secret_dihapus_to_ticket_table.php
   seeders/
     AturanPengingatTagihanSeeder.php
@@ -9775,6 +9782,58 @@ Glossaries, in particular, are an essential reference. Once one is created, it s
 The user will sometimes express preferences of how they want to be taught, or things you should keep in mind. This is the place to record those preferences, so you can refer back to them when designing lessons or working with the user.
 ````
 
+## File: .agents/skills/telescope-debugging/SKILL.md
+````markdown
+---
+name: telescope-debugging
+description: Inspect what a Laravel application actually did using the telescope:list and telescope:show Artisan commands. Use when debugging a slow page, exception, 500 response, failing queued job, N+1 or slow query, or unexpected cache miss in a project with laravel/telescope installed, even when Telescope is not mentioned.
+---
+
+Telescope records every request, job, and command as a **batch**: the entry itself and every query, cache operation, log, event, exception, and view it produced. The two commands below read this data from the terminal. Prefer them to the web UI.
+
+### Workflow
+
+1. **Find the entry.** Run `php artisan telescope:list request` (or `exception`, `job`, `query`, or `cache`). Choose the row by URI, class, or duration, then copy its UUID. Skip this step when you want the most recent entry.
+
+2. **Show the batch.** Run `php artisan telescope:show <uuid>`, or `php artisan telescope:show latest:request`. The output is the entry's own detail followed by Queries, Exceptions, Cache, and Logs sections, all from the same batch.
+
+3. **Diagnose from the flags.** In the Queries table, `DUP` marks queries with the same SQL pattern, which usually indicates an N+1. The `Source` column shows the file and line that ran the query, shortened to a basename; use `--json` for the full path. `SLOW` marks queries over the configured threshold. The Cache header shows hits, misses, and hit rate. An exception entry shows the message, code context, and stack trace.
+
+4. **Finish** when the finding identifies a file and line or a specific query, rather than only a symptom.
+
+### JSON output
+
+Both commands accept `--json`. Prefer it to table output when you need exact values, want to filter results, or expect long output. `telescope:list --json` prints an array of entries. `telescope:show --json` prints `{"entry": {...}, "batch": [...]}`. Its `batch` array is in chronological order and already filtered by `--type`. When no entries match, `telescope:list --json` prints `[]` rather than a message.
+
+Every entry has `id`, `batch_id`, `type`, `content`, `family_hash`, and `created_at`. The `content` keys match the Telescope UI for that type. For example, a query has `sql`, `time`, `slow`, `file`, and `line`, while an exception has `class`, `message`, `file`, `line`, and `trace`. Two fields are not populated by these commands: `tags` is always `[]` (use `--tag` to filter rather than reading tags from the output), and `sequence` is `null` when the entry is addressed by UUID.
+
+```bash
+# Exception class, message, and location for the latest exception
+php artisan telescope:show latest:exception --json | jq '.entry.content | {class, message, file, line}'
+
+# Slow queries in the latest request, with the file that ran them
+php artisan telescope:show latest:request --json --type=query | jq '.batch[] | select(.content.slow) | {sql: .content.sql, time: .content.time, file: .content.file, line: .content.line}'
+
+# Repeated SQL patterns in a request (N+1 candidates), most repeated first
+php artisan telescope:show latest:request --json --type=query | jq '[.batch[].content.sql] | group_by(.) | map({sql: .[0], count: length}) | sort_by(-.count) | .[] | select(.count > 1)'
+
+# Recent 500 responses
+php artisan telescope:list request --json --limit=50 | jq '.[] | select(.content.response_status >= 500) | {id, uri: .content.uri, status: .content.response_status}'
+
+# Failed jobs and their exception messages
+php artisan telescope:list job --json | jq '.[] | select(.content.status == "failed") | {id, name: .content.name, error: .content.exception.message}'
+```
+
+### Reference
+
+- `latest` and `latest:{type}` resolve to the most recent entry without a UUID lookup. Any entry type works, including `latest:query` and `latest:job`.
+- `--json` on either command disables truncation, so `--full` is only needed for table output.
+- `telescope:show <id> --full` disables truncation of SQL, messages, and payloads.
+- `telescope:show <id> --type=query,exception` limits batch context to those types when a request produced hundreds of entries.
+- `telescope:list --tag=Auth:42` filters entries for one authenticated user, because Telescope tags them with `Auth:<user id>`. `--batch=<id>` lists every entry from one request. `--before=<sequence>` pages backward using the cursor printed in the footer. `--family=<hash>` groups recurrences of one exception; read the hash from the `family_hash` field in `--json` output.
+- Run either command with `--help` for the full option list and valid entry types.
+````
+
 ## File: .agents/skills/testing-best-practices/rules/assertions.md
 ````markdown
 # Assertions
@@ -17651,6 +17710,58 @@ If existing pages and components support dark mode, new pages and components mus
 - Trying to use `tailwind.config.js` instead of CSS `@theme` directive
 - Using margins for spacing between siblings instead of gap utilities
 - Forgetting to add dark mode variants when the project uses dark mode
+````
+
+## File: .claude/skills/telescope-debugging/SKILL.md
+````markdown
+---
+name: telescope-debugging
+description: Inspect what a Laravel application actually did using the telescope:list and telescope:show Artisan commands. Use when debugging a slow page, exception, 500 response, failing queued job, N+1 or slow query, or unexpected cache miss in a project with laravel/telescope installed, even when Telescope is not mentioned.
+---
+
+Telescope records every request, job, and command as a **batch**: the entry itself and every query, cache operation, log, event, exception, and view it produced. The two commands below read this data from the terminal. Prefer them to the web UI.
+
+### Workflow
+
+1. **Find the entry.** Run `php artisan telescope:list request` (or `exception`, `job`, `query`, or `cache`). Choose the row by URI, class, or duration, then copy its UUID. Skip this step when you want the most recent entry.
+
+2. **Show the batch.** Run `php artisan telescope:show <uuid>`, or `php artisan telescope:show latest:request`. The output is the entry's own detail followed by Queries, Exceptions, Cache, and Logs sections, all from the same batch.
+
+3. **Diagnose from the flags.** In the Queries table, `DUP` marks queries with the same SQL pattern, which usually indicates an N+1. The `Source` column shows the file and line that ran the query, shortened to a basename; use `--json` for the full path. `SLOW` marks queries over the configured threshold. The Cache header shows hits, misses, and hit rate. An exception entry shows the message, code context, and stack trace.
+
+4. **Finish** when the finding identifies a file and line or a specific query, rather than only a symptom.
+
+### JSON output
+
+Both commands accept `--json`. Prefer it to table output when you need exact values, want to filter results, or expect long output. `telescope:list --json` prints an array of entries. `telescope:show --json` prints `{"entry": {...}, "batch": [...]}`. Its `batch` array is in chronological order and already filtered by `--type`. When no entries match, `telescope:list --json` prints `[]` rather than a message.
+
+Every entry has `id`, `batch_id`, `type`, `content`, `family_hash`, and `created_at`. The `content` keys match the Telescope UI for that type. For example, a query has `sql`, `time`, `slow`, `file`, and `line`, while an exception has `class`, `message`, `file`, `line`, and `trace`. Two fields are not populated by these commands: `tags` is always `[]` (use `--tag` to filter rather than reading tags from the output), and `sequence` is `null` when the entry is addressed by UUID.
+
+```bash
+# Exception class, message, and location for the latest exception
+php artisan telescope:show latest:exception --json | jq '.entry.content | {class, message, file, line}'
+
+# Slow queries in the latest request, with the file that ran them
+php artisan telescope:show latest:request --json --type=query | jq '.batch[] | select(.content.slow) | {sql: .content.sql, time: .content.time, file: .content.file, line: .content.line}'
+
+# Repeated SQL patterns in a request (N+1 candidates), most repeated first
+php artisan telescope:show latest:request --json --type=query | jq '[.batch[].content.sql] | group_by(.) | map({sql: .[0], count: length}) | sort_by(-.count) | .[] | select(.count > 1)'
+
+# Recent 500 responses
+php artisan telescope:list request --json --limit=50 | jq '.[] | select(.content.response_status >= 500) | {id, uri: .content.uri, status: .content.response_status}'
+
+# Failed jobs and their exception messages
+php artisan telescope:list job --json | jq '.[] | select(.content.status == "failed") | {id, name: .content.name, error: .content.exception.message}'
+```
+
+### Reference
+
+- `latest` and `latest:{type}` resolve to the most recent entry without a UUID lookup. Any entry type works, including `latest:query` and `latest:job`.
+- `--json` on either command disables truncation, so `--full` is only needed for table output.
+- `telescope:show <id> --full` disables truncation of SQL, messages, and payloads.
+- `telescope:show <id> --type=query,exception` limits batch context to those types when a request produced hundreds of entries.
+- `telescope:list --tag=Auth:42` filters entries for one authenticated user, because Telescope tags them with `Auth:<user id>`. `--batch=<id>` lists every entry from one request. `--before=<sequence>` pages backward using the cursor printed in the footer. `--family=<hash>` groups recurrences of one exception; read the hash from the `family_hash` field in `--json` output.
+- Run either command with `--help` for the full option list and valid entry types.
 ````
 
 ## File: .claude/skills/testing-best-practices/rules/assertions.md
@@ -30397,22 +30508,6 @@ $this->redirectIntended(route('portal.dashboard'), navigate: true);
 public function render(): View
 ````
 
-## File: app/Livewire/Portal/Invoice/Concerns/AuthorizesInvoiceAccess.php
-````php
-namespace App\Livewire\Portal\Invoice\Concerns;
-⋮----
-use App\Models\Invoice;
-use Illuminate\Support\Facades\Auth;
-⋮----
-trait AuthorizesInvoiceAccess
-⋮----
-protected function authorizeAksesTagihan(Invoice $invoice): void
-⋮----
-$pelanggan = Auth::guard('pelanggan')->user();
-⋮----
-if (! request()->hasValidSignature()) {
-````
-
 ## File: app/Livewire/Portal/Invoice/Index.php
 ````php
 namespace App\Livewire\Portal\Invoice;
@@ -32241,6 +32336,45 @@ protected function gate(): void
 Gate::define('viewHorizon', function ($user = null) {
 ````
 
+## File: app/Providers/TelescopeServiceProvider.php
+````php
+namespace App\Providers;
+⋮----
+use App\Models\User;
+use Illuminate\Support\Facades\Gate;
+use Laravel\Telescope\IncomingEntry;
+use Laravel\Telescope\Telescope;
+use Laravel\Telescope\TelescopeApplicationServiceProvider;
+⋮----
+class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
+⋮----
+public function register(): void
+⋮----
+$this->hideSensitiveRequestDetails();
+⋮----
+$isLocal = $this->app->environment('local');
+⋮----
+Telescope::filter(function (IncomingEntry $entry) use ($isLocal) {
+⋮----
+$entry->isReportableException() ||
+$entry->isFailedRequest() ||
+$entry->isFailedJob() ||
+$entry->isScheduledTask() ||
+$entry->hasMonitoredTag();
+⋮----
+protected function hideSensitiveRequestDetails(): void
+⋮----
+if ($this->app->environment('local')) {
+⋮----
+Telescope::hideRequestParameters(['_token']);
+⋮----
+Telescope::hideRequestHeaders([
+⋮----
+protected function gate(): void
+⋮----
+Gate::define('viewTelescope', function (User $user) {
+````
+
 ## File: app/Services/Geospatial/GeoJsonParser.php
 ````php
 namespace App\Services\Geospatial;
@@ -32356,9 +32490,7 @@ Integration::handles($exceptions);
 
 ## File: bootstrap/providers.php
 ````php
-use App\Providers\AppServiceProvider;
-use App\Providers\FortifyServiceProvider;
-use App\Providers\HorizonServiceProvider;
+
 ````
 
 ## File: config/auth.php
@@ -32431,6 +32563,12 @@ use Spatie\Permission\Models\Role;
 use Illuminate\Support\Str;
 ⋮----
 Str::slug((string) env('APP_NAME', 'laravel')).'-session',
+````
+
+## File: config/telescope.php
+````php
+use Laravel\Telescope\Http\Middleware\Authorize;
+use Laravel\Telescope\Watchers;
 ````
 
 ## File: database/factories/AkunPelangganFactory.php
@@ -34576,6 +34714,56 @@ $table->text('keterangan')->nullable()->after('periode_tagihan')
 public function down(): void
 ⋮----
 $table->dropColumn('keterangan');
+````
+
+## File: database/migrations/2026_09_28_094626_create_telescope_entries_table.php
+````php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+⋮----
+public function getConnection(): ?string
+⋮----
+public function up(): void
+⋮----
+$schema = Schema::connection($this->getConnection());
+⋮----
+$schema->create('telescope_entries', function (Blueprint $table) {
+$table->bigIncrements('sequence');
+$table->uuid('uuid');
+$table->uuid('batch_id');
+$table->string('family_hash')->nullable();
+$table->boolean('should_display_on_index')->default(true);
+$table->string('type', 20);
+$table->longText('content');
+$table->dateTime('created_at')->nullable();
+⋮----
+$table->unique('uuid');
+$table->index('batch_id');
+$table->index('family_hash');
+$table->index('created_at');
+$table->index(['type', 'should_display_on_index']);
+⋮----
+$schema->create('telescope_entries_tags', function (Blueprint $table) {
+$table->uuid('entry_uuid');
+$table->string('tag');
+⋮----
+$table->primary(['entry_uuid', 'tag']);
+$table->index('tag');
+⋮----
+$table->foreign('entry_uuid')
+->references('uuid')
+->on('telescope_entries')
+->cascadeOnDelete();
+⋮----
+$schema->create('telescope_monitoring', function (Blueprint $table) {
+$table->string('tag')->primary();
+⋮----
+public function down(): void
+⋮----
+$schema->dropIfExists('telescope_entries_tags');
+$schema->dropIfExists('telescope_entries');
+$schema->dropIfExists('telescope_monitoring');
 ````
 
 ## File: database/seeders/AturanPengingatTagihanSeeder.php
@@ -51343,6 +51531,7 @@ exit($status);
         "laravel-best-practices",
         "testing-best-practices",
         "configuring-horizon",
+        "telescope-debugging",
         "fluxui-development",
         "livewire-development",
         "tailwindcss-development",
@@ -55534,6 +55723,38 @@ $invQ->where('no_invoice', 'like', "%{$term}%")
 ->paginate(15);
 ⋮----
 'metodes' => MetodePembayaran::cases(),
+````
+
+## File: app/Livewire/Portal/Invoice/Concerns/AuthorizesInvoiceAccess.php
+````php
+namespace App\Livewire\Portal\Invoice\Concerns;
+⋮----
+use App\Models\Invoice;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+⋮----
+trait AuthorizesInvoiceAccess
+⋮----
+protected function authorizeAksesTagihan(Invoice $invoice): void
+⋮----
+$pelanggan = Auth::guard('pelanggan')->user();
+⋮----
+if (! $this->hasValidInvoiceSignature()) {
+⋮----
+protected function hasValidInvoiceSignature(): bool
+⋮----
+if ($request->hasValidSignature() || $request->hasValidRelativeSignature()) {
+⋮----
+if (! $request->secure()) {
+$secureRequest = Request::create(
+uri: preg_replace('/^http:/i', 'https:', $request->fullUrl()),
+method: $request->method(),
+parameters: $request->query->all(),
+cookies: $request->cookies->all(),
+files: $request->files->all(),
+server: array_merge($request->server->all(), [
+⋮----
+if ($secureRequest->hasValidSignature() || $secureRequest->hasValidRelativeSignature()) {
 ````
 
 ## File: app/Livewire/Portal/Invoice/Show.php
@@ -65525,6 +65746,208 @@ compose.smoke.yaml
 ## File: AGENTS.md
 ````markdown
 <laravel-boost-guidelines>
+=== .ai/sloppy rules ===
+
+# Sloppy: code rules for this repository
+
+Instructions for coding agents working in this repository.
+
+Generated by Sloppy 1.1.1 (`sloppy rules --format=boost`). Re-run it when the configuration changes.
+
+## Before you call a task finished
+
+Run the analyser over your own change and fix what it introduced:
+
+```bash
+vendor/bin/sloppy diff main --fail-on=high
+```
+
+Inherited findings are not yours to fix in passing. New ones are.
+
+## This project
+
+- Analysed paths: app
+- Framework rules: auto
+- Fails on: high and above
+- Confidence floor: 0
+
+## The 25 rules in force
+
+### SL101 God Method
+
+- Category: Complexity, severity: high
+- Flags: Flags methods that are excessively long, branchy or chatty across several independent measurements.
+- Why it costs: A method this size usually holds several unrelated responsibilities, which makes it hard to name, hard to test in isolation and hard to change without reading all of it. Length alone is not the problem: this fires when size, branching and the number of collaborators grow together. A lookup table -- a match or switch mapping constants to constants -- counts as one decision, and its rows do not count towards size. A method that is one statement building a value, such as a form or table definition, is only reported when it also branches or nests past the limits.
+- Write it this way instead: Give a method one job. Extract each block you would have introduced with a comment into a named private method, or into its own action class.
+
+### SL102 God Class
+
+- Category: Complexity, severity: high
+- Flags: Flags classes that are large across several dimensions at once: size, method count, injected dependencies and the number of collaborators they talk to.
+- Why it costs: Method count on its own says very little -- an Eloquent model with twenty accessors is fine. This fires when size, dependency count and the breadth of collaborators rise together, which is the shape of a class that has absorbed several responsibilities and now has several reasons to change. Getters and fluent setters do not count as methods, classes built on a framework base get wider limits, and a class that talks to few collaborators needs one more signal than usual.
+- Write it this way instead: Split the class by responsibility. If its honest description needs the word "and", it is two classes.
+
+### SL103 Excessive Nesting
+
+- Category: Complexity, severity: medium
+- Flags: Flags methods whose conditionals, loops and try blocks nest deeper than the configured limit.
+- Why it costs: Every level of nesting is another condition the reader has to keep in their head to know whether a line runs. Deeply nested code also tends to hide its happy path at the bottom of the well. Closures are not counted as nesting, because passing one to a transaction or a collection pipeline is idiomatic rather than a smell.
+- Write it this way instead: Return early. Put the guard clauses at the top and leave the work at one level of indentation.
+
+### SL104 Duplicate Logic
+
+- Category: Duplication, severity: medium
+- Flags: Flags methods whose bodies are structurally identical to another method in the project.
+- Why it costs: Two methods with the same structure and the same calls tend to drift apart: a fix applied to one copy silently leaves the other broken. Because variable names and literals are normalised away, a match means the code has the same shape -- confirm the behaviour really is the same before merging them.
+- Write it this way instead: Name the shared behaviour and call it from both places. If you cannot name it, the duplication is telling you the two cases are not the same case.
+
+### SL105 Dead Private Method
+
+- Category: Dead code, severity: medium
+- Flags: Flags private methods with no visible caller anywhere in the declaring file.
+- Why it costs: A private method can only be called from within its own class, so an unreferenced one is very likely dead: it still has to be read, understood and kept compiling. Calls from traits the class uses count as callers. Anything that could be reached indirectly -- magic methods, dynamic calls, a name appearing as a string, attributes -- is skipped rather than guessed at.
+- Write it this way instead: Delete private code nothing calls. Version control remembers it for you.
+
+### SL106 Unused Constructor Dependency
+
+- Category: Dependencies, severity: medium
+- Flags: Flags constructor-injected dependencies that are never read anywhere in the class.
+- Why it costs: An unused dependency still has to be constructed and resolved, and it misleads the next reader about what the class actually needs. Only private properties are reported outright: a public one is part of the class's API and any caller may read it, and a protected one belongs to subclasses. Reads inside traits the class uses count as uses. Dependencies that could be consumed indirectly -- through a parent class, dynamic property access or an attribute -- are skipped rather than guessed at.
+- Write it this way instead: Inject only what the class uses. Every unused dependency is a line of setup in every test that constructs it.
+
+### SL107 Swallowed Exception
+
+- Category: Error handling, severity: high
+- Flags: Flags catch blocks that neither rethrow, report, log nor otherwise react to the failure they caught.
+- Why it costs: A catch block that does nothing observable turns a failure into a silent wrong answer: the caller sees null or false and cannot tell a genuine empty result from a crash, and nothing is recorded for anyone to investigate later. Catches that log, report, rethrow or record state are not flagged. A catch that answers with the value its signature already uses for "no" -- false from a bool predicate, or null from a nullable function after a specific exception -- is rated low.
+- Write it this way instead: Handle the failure or let it travel. If you catch, log the exception as the previous one and rethrow something meaningful -- never return null in place of an answer.
+
+### SL108 Redundant Condition
+
+- Category: Readability, severity: low
+- Flags: Flags conditions re-tested immediately inside themselves, repeated within one if/elseif chain, duplicated across a boolean operator, or written as a literal true/false.
+- Why it costs: A condition that has already been established cannot change the outcome, so re-testing it adds a branch the reader has to verify and a branch tests can never cover. It usually appears when code is assembled from pieces that each defended themselves.
+- Write it this way instead: Drop conditions that cannot be false. A null check on a non-nullable value teaches the next reader that it can be null.
+
+### SL109 Narrative Comment
+
+- Category: Readability, severity: low
+- Flags: Flags short comments whose every meaningful word already appears in the statement directly below them.
+- Why it costs: A comment that repeats the code costs a line to read and gains nothing, and it silently goes stale when the code changes. Comments explaining why a decision was made are not flagged, because their words are not in the code. This rule is subjective by nature -- turn it off if it does not match how your team writes.
+- Write it this way instead: Write comments that say why, not what. If a comment restates the line below it, rename the thing and delete the comment.
+
+### SL110 Defensive Programming Noise
+
+- Category: Readability, severity: low
+- Flags: Flags a method that guards the same subject the same way twice, with the same outcome and no reassignment in between.
+- Why it costs: A guard repeated in different words reads as though it protects against something new, so the next reader spends time working out the difference and finds none. It also suggests the two checks were written at different times without either author reading the other.
+- Write it this way instead: Validate at the boundary once and trust your own types afterwards. Re-checking a typed argument in every method downstream is noise that hides the check that matters.
+
+### SL111 Copy-Paste Drift
+
+- Category: Duplication, severity: high
+- Flags: Flags a method body that is nearly identical to one or more siblings, where the difference looks like an unfinished copy rather than a deliberate variation.
+- Why it costs: A body that matches its siblings everywhere but one place was probably copied and then edited in one copy only -- a guard added here and not there, a comparison flipped, a different class constructed. Structural duplication detection cannot see this, because it is looking for bodies that match exactly, and exact matches are the case where there is no bug. Confirm which copy is right before changing either: the majority is not automatically correct, it is only the more likely to be.
+- Write it this way instead: Copies drift. When two blocks started identical and one has changed, either re-unify them or make the difference explicit -- a divergence nobody chose is a bug waiting for its turn.
+
+### SL501 Unexplained Suppression
+
+- Category: Suppression, severity: medium
+- Flags: Flags static-analysis suppressions that give no reason for silencing the analyser.
+- Why it costs: A suppression is a claim that the analyser is wrong about this line. Written with a reason it is a reviewed decision someone can check and eventually delete; written bare it is permanent, because no later reader can tell what it was protecting or whether the problem is still there.
+- Write it this way instead: Fix the error rather than silencing it. If you must suppress, say why in the same comment -- an ignore with no reason can never be removed, because nobody can tell what it was protecting.
+
+### SL201 Business Logic In Controller
+
+- Category: Laravel, severity: high
+- Flags: Flags controller actions that combine several business concerns: database writes, calculations, transactions, outbound calls and branching.
+- Why it costs: Logic in a controller can only be exercised through an HTTP request, so it is harder to test, impossible to reuse from a command or a job, and it usually mixes transport concerns with domain rules. A small action that delegates is not flagged -- this fires when several independent business concerns pile up in one method.
+- Write it this way instead: Keep controllers to translating HTTP into one call and back. Put the decision in an action, a service or the model.
+
+### SL202 Inline Validation
+
+- Category: Laravel, severity: low
+- Flags: Flags large inline validation rule sets inside controllers, where a FormRequest would carry them better.
+- Why it costs: A large inline rule set puts input contract, authorisation and business flow in one method, and nothing else can reuse the rules. A FormRequest gives the contract a name and a test, and leaves the controller to the flow. Small inline checks are not flagged.
+- Write it this way instead: Validate in a FormRequest, or in a single validate() call. Hand-rolled if-blocks drift away from the rules the API documents.
+
+### SL203 Possible N+1
+
+- Category: Performance, severity: medium
+- Flags: Flags relationship access inside a loop where the iterated collection does not appear to eager load that relation.
+- Why it costs: Reading a relationship on each item of a collection issues one query per item, so a page that looks fine with ten rows falls over with ten thousand. This is reported as possible rather than certain: the relation may have been eager loaded somewhere this rule cannot see, in which case the access is free.
+- Write it this way instead: Eager-load what the loop will touch: with() the relations before you iterate, not inside the iteration.
+
+### SL204 Query Inside Loop
+
+- Category: Performance, severity: medium
+- Flags: Flags query builder or Eloquent queries executed inside a loop.
+- Why it costs: Each iteration issues its own round trip to the database, so cost grows with the size of the collection and most of the work is the same query with a different value. One query before the loop, keyed by the value the loop varies, usually replaces all of them. Writes are the same: one insert or upsert after the loop replaces a create per row, and one bulk write per chunk is not reported.
+- Write it this way instead: Hoist the query out of the loop. One whereIn beats N wheres, and the database will thank you at the size you have not reached yet.
+
+### SL205 Collection Instead Of Database Query
+
+- Category: Performance, severity: medium
+- Flags: Flags a full table load followed immediately by a collection operation the database could have performed.
+- Why it costs: Loading every row to filter, count or sort it in PHP uses memory proportional to the table and throws most of the work away. Collection operations are not the problem -- doing them to rows that were fetched only to be discarded is.
+- Write it this way instead: Filter in the database. get()->filter() loads the table into memory to throw most of it away.
+
+### SL206 Excessive Controller Dependencies
+
+- Category: Dependencies, severity: medium
+- Flags: Flags controllers whose constructor injects more collaborators than the configured limit.
+- Why it costs: Every constructor dependency is resolved on every request that touches the controller, and a long list is a reliable sign that unrelated actions have been grouped into one class. Splitting by the dependencies each action actually needs usually produces several small, obvious controllers.
+- Write it this way instead: Group the dependencies into a collaborator with a name. A controller with six of them is coordinating six things.
+
+### SL207 Excessive Service Dependencies
+
+- Category: Dependencies, severity: medium
+- Flags: Flags service, action and manager classes whose constructor injects more collaborators than the configured limit.
+- Why it costs: Coordination is a service's job, so several dependencies are normal. Past a point the class is coordinating more than one workflow, which shows up as tests that need half the container mocked and changes that touch the class for unrelated reasons. Only collaborators are counted: enums, value objects, models, dates and collections are data the class is built from, not dependencies.
+- Write it this way instead: Group the dependencies into a collaborator with a name. A service with six of them is doing six jobs badly.
+
+### SL208 Direct External API Call
+
+- Category: Laravel, severity: medium
+- Flags: Flags outbound HTTP requests made directly from controllers, models, form requests or middleware.
+- Why it costs: An HTTP call in these layers cannot be exercised without either the network or framework-wide faking, and the endpoint, headers and payload shape end up spread across code that should not know them. Behind one named client, the integration can be swapped, retried, logged and faked in a single place.
+- Write it this way instead: Put the HTTP call behind a small client class, so the timeout, the retry and the fake used in tests live in one place.
+
+### SL209 Model Doing Too Much
+
+- Category: Laravel, severity: medium
+- Flags: Flags Eloquent models that make outbound calls, dispatch notifications or jobs, or contain long business workflows.
+- Why it costs: Behaviour on a model runs wherever the model is loaded, including in factories, seeders and tests, and it is reachable from anywhere the model is. Persistence, relations and presentation of a row belong on the model; deciding what the business should do next generally does not.
+- Write it this way instead: Keep models about data and relationships. Notifications, PDFs and payment calls belong in classes named after those things.
+
+### SL210 Suspicious Model::all()
+
+- Category: Performance, severity: medium
+- Flags: Flags Model::all() whose result is iterated in the same method, or which is called from inside a loop.
+- Why it costs: A full table load uses memory proportional to the table, which is invisible in development and fatal once the table grows. Where every row genuinely is needed, chunking or a lazy cursor gives the same result with bounded memory. Small reference tables are exempt via the ignore_models option.
+- Write it this way instead: Ask for what you need: a where, a select, or pagination. Model::all() loads the whole table before you filter it.
+
+### SL301 Abstraction Inflation
+
+- Category: Architecture, severity: medium
+- Flags: Flags concepts wrapped in several layers where at least one layer is trivial, singly implemented or singly used.
+- Why it costs: Layers pay for themselves when they hide a real choice: a second implementation, a boundary that gets faked, a shape the caller should not see. When each layer has one implementation, one caller and almost no code, the indirection is all cost -- more files to open to follow one call, and no flexibility gained. This is a judgement about the current usage, not a rule against repositories.
+- Write it this way instead: Add a layer when a second implementation or a real test seam needs it -- not in advance. Interfaces are cheap to add later and expensive to read past.
+
+### SL302 Empty Wrapper Class
+
+- Category: Architecture, severity: medium
+- Flags: Flags classes whose public methods almost all forward their arguments unchanged to a single injected collaborator.
+- Why it costs: Pure forwarding means callers pay an extra hop and an extra file to read, while the wrapper has to be kept in step with whatever it wraps. A wrapper becomes worthwhile the moment it does something of its own -- adapting a shape, adding caching, narrowing an interface -- and this rule stays quiet as soon as it does.
+- Write it this way instead: A class that only forwards to another is a rename with extra steps. Call the other one.
+
+### SL303 Single-Use Abstraction
+
+- Category: Architecture, severity: low
+- Flags: Flags small interfaces and abstract classes that have exactly one implementation and at most one calling file.
+- Why it costs: An interface earns its keep by letting callers not care which implementation they got. With one implementation and one caller there is no choice being hidden, so the interface mostly duplicates the class signature and doubles the edits every change needs. This is advice, not a defect: keep it if a second implementation or a test double is genuinely on the way.
+- Write it this way instead: An interface with one implementation and one caller is indirection with nothing on the other side. Inline it until a second implementation shows up.
+
 === .ai/tall-stack rules ===
 
 ---
@@ -65985,6 +66408,208 @@ Key config options in `config/activitylog.php`:
 ## File: CLAUDE.md
 ````markdown
 <laravel-boost-guidelines>
+=== .ai/sloppy rules ===
+
+# Sloppy: code rules for this repository
+
+Instructions for coding agents working in this repository.
+
+Generated by Sloppy 1.1.1 (`sloppy rules --format=boost`). Re-run it when the configuration changes.
+
+## Before you call a task finished
+
+Run the analyser over your own change and fix what it introduced:
+
+```bash
+vendor/bin/sloppy diff main --fail-on=high
+```
+
+Inherited findings are not yours to fix in passing. New ones are.
+
+## This project
+
+- Analysed paths: app
+- Framework rules: auto
+- Fails on: high and above
+- Confidence floor: 0
+
+## The 25 rules in force
+
+### SL101 God Method
+
+- Category: Complexity, severity: high
+- Flags: Flags methods that are excessively long, branchy or chatty across several independent measurements.
+- Why it costs: A method this size usually holds several unrelated responsibilities, which makes it hard to name, hard to test in isolation and hard to change without reading all of it. Length alone is not the problem: this fires when size, branching and the number of collaborators grow together. A lookup table -- a match or switch mapping constants to constants -- counts as one decision, and its rows do not count towards size. A method that is one statement building a value, such as a form or table definition, is only reported when it also branches or nests past the limits.
+- Write it this way instead: Give a method one job. Extract each block you would have introduced with a comment into a named private method, or into its own action class.
+
+### SL102 God Class
+
+- Category: Complexity, severity: high
+- Flags: Flags classes that are large across several dimensions at once: size, method count, injected dependencies and the number of collaborators they talk to.
+- Why it costs: Method count on its own says very little -- an Eloquent model with twenty accessors is fine. This fires when size, dependency count and the breadth of collaborators rise together, which is the shape of a class that has absorbed several responsibilities and now has several reasons to change. Getters and fluent setters do not count as methods, classes built on a framework base get wider limits, and a class that talks to few collaborators needs one more signal than usual.
+- Write it this way instead: Split the class by responsibility. If its honest description needs the word "and", it is two classes.
+
+### SL103 Excessive Nesting
+
+- Category: Complexity, severity: medium
+- Flags: Flags methods whose conditionals, loops and try blocks nest deeper than the configured limit.
+- Why it costs: Every level of nesting is another condition the reader has to keep in their head to know whether a line runs. Deeply nested code also tends to hide its happy path at the bottom of the well. Closures are not counted as nesting, because passing one to a transaction or a collection pipeline is idiomatic rather than a smell.
+- Write it this way instead: Return early. Put the guard clauses at the top and leave the work at one level of indentation.
+
+### SL104 Duplicate Logic
+
+- Category: Duplication, severity: medium
+- Flags: Flags methods whose bodies are structurally identical to another method in the project.
+- Why it costs: Two methods with the same structure and the same calls tend to drift apart: a fix applied to one copy silently leaves the other broken. Because variable names and literals are normalised away, a match means the code has the same shape -- confirm the behaviour really is the same before merging them.
+- Write it this way instead: Name the shared behaviour and call it from both places. If you cannot name it, the duplication is telling you the two cases are not the same case.
+
+### SL105 Dead Private Method
+
+- Category: Dead code, severity: medium
+- Flags: Flags private methods with no visible caller anywhere in the declaring file.
+- Why it costs: A private method can only be called from within its own class, so an unreferenced one is very likely dead: it still has to be read, understood and kept compiling. Calls from traits the class uses count as callers. Anything that could be reached indirectly -- magic methods, dynamic calls, a name appearing as a string, attributes -- is skipped rather than guessed at.
+- Write it this way instead: Delete private code nothing calls. Version control remembers it for you.
+
+### SL106 Unused Constructor Dependency
+
+- Category: Dependencies, severity: medium
+- Flags: Flags constructor-injected dependencies that are never read anywhere in the class.
+- Why it costs: An unused dependency still has to be constructed and resolved, and it misleads the next reader about what the class actually needs. Only private properties are reported outright: a public one is part of the class's API and any caller may read it, and a protected one belongs to subclasses. Reads inside traits the class uses count as uses. Dependencies that could be consumed indirectly -- through a parent class, dynamic property access or an attribute -- are skipped rather than guessed at.
+- Write it this way instead: Inject only what the class uses. Every unused dependency is a line of setup in every test that constructs it.
+
+### SL107 Swallowed Exception
+
+- Category: Error handling, severity: high
+- Flags: Flags catch blocks that neither rethrow, report, log nor otherwise react to the failure they caught.
+- Why it costs: A catch block that does nothing observable turns a failure into a silent wrong answer: the caller sees null or false and cannot tell a genuine empty result from a crash, and nothing is recorded for anyone to investigate later. Catches that log, report, rethrow or record state are not flagged. A catch that answers with the value its signature already uses for "no" -- false from a bool predicate, or null from a nullable function after a specific exception -- is rated low.
+- Write it this way instead: Handle the failure or let it travel. If you catch, log the exception as the previous one and rethrow something meaningful -- never return null in place of an answer.
+
+### SL108 Redundant Condition
+
+- Category: Readability, severity: low
+- Flags: Flags conditions re-tested immediately inside themselves, repeated within one if/elseif chain, duplicated across a boolean operator, or written as a literal true/false.
+- Why it costs: A condition that has already been established cannot change the outcome, so re-testing it adds a branch the reader has to verify and a branch tests can never cover. It usually appears when code is assembled from pieces that each defended themselves.
+- Write it this way instead: Drop conditions that cannot be false. A null check on a non-nullable value teaches the next reader that it can be null.
+
+### SL109 Narrative Comment
+
+- Category: Readability, severity: low
+- Flags: Flags short comments whose every meaningful word already appears in the statement directly below them.
+- Why it costs: A comment that repeats the code costs a line to read and gains nothing, and it silently goes stale when the code changes. Comments explaining why a decision was made are not flagged, because their words are not in the code. This rule is subjective by nature -- turn it off if it does not match how your team writes.
+- Write it this way instead: Write comments that say why, not what. If a comment restates the line below it, rename the thing and delete the comment.
+
+### SL110 Defensive Programming Noise
+
+- Category: Readability, severity: low
+- Flags: Flags a method that guards the same subject the same way twice, with the same outcome and no reassignment in between.
+- Why it costs: A guard repeated in different words reads as though it protects against something new, so the next reader spends time working out the difference and finds none. It also suggests the two checks were written at different times without either author reading the other.
+- Write it this way instead: Validate at the boundary once and trust your own types afterwards. Re-checking a typed argument in every method downstream is noise that hides the check that matters.
+
+### SL111 Copy-Paste Drift
+
+- Category: Duplication, severity: high
+- Flags: Flags a method body that is nearly identical to one or more siblings, where the difference looks like an unfinished copy rather than a deliberate variation.
+- Why it costs: A body that matches its siblings everywhere but one place was probably copied and then edited in one copy only -- a guard added here and not there, a comparison flipped, a different class constructed. Structural duplication detection cannot see this, because it is looking for bodies that match exactly, and exact matches are the case where there is no bug. Confirm which copy is right before changing either: the majority is not automatically correct, it is only the more likely to be.
+- Write it this way instead: Copies drift. When two blocks started identical and one has changed, either re-unify them or make the difference explicit -- a divergence nobody chose is a bug waiting for its turn.
+
+### SL501 Unexplained Suppression
+
+- Category: Suppression, severity: medium
+- Flags: Flags static-analysis suppressions that give no reason for silencing the analyser.
+- Why it costs: A suppression is a claim that the analyser is wrong about this line. Written with a reason it is a reviewed decision someone can check and eventually delete; written bare it is permanent, because no later reader can tell what it was protecting or whether the problem is still there.
+- Write it this way instead: Fix the error rather than silencing it. If you must suppress, say why in the same comment -- an ignore with no reason can never be removed, because nobody can tell what it was protecting.
+
+### SL201 Business Logic In Controller
+
+- Category: Laravel, severity: high
+- Flags: Flags controller actions that combine several business concerns: database writes, calculations, transactions, outbound calls and branching.
+- Why it costs: Logic in a controller can only be exercised through an HTTP request, so it is harder to test, impossible to reuse from a command or a job, and it usually mixes transport concerns with domain rules. A small action that delegates is not flagged -- this fires when several independent business concerns pile up in one method.
+- Write it this way instead: Keep controllers to translating HTTP into one call and back. Put the decision in an action, a service or the model.
+
+### SL202 Inline Validation
+
+- Category: Laravel, severity: low
+- Flags: Flags large inline validation rule sets inside controllers, where a FormRequest would carry them better.
+- Why it costs: A large inline rule set puts input contract, authorisation and business flow in one method, and nothing else can reuse the rules. A FormRequest gives the contract a name and a test, and leaves the controller to the flow. Small inline checks are not flagged.
+- Write it this way instead: Validate in a FormRequest, or in a single validate() call. Hand-rolled if-blocks drift away from the rules the API documents.
+
+### SL203 Possible N+1
+
+- Category: Performance, severity: medium
+- Flags: Flags relationship access inside a loop where the iterated collection does not appear to eager load that relation.
+- Why it costs: Reading a relationship on each item of a collection issues one query per item, so a page that looks fine with ten rows falls over with ten thousand. This is reported as possible rather than certain: the relation may have been eager loaded somewhere this rule cannot see, in which case the access is free.
+- Write it this way instead: Eager-load what the loop will touch: with() the relations before you iterate, not inside the iteration.
+
+### SL204 Query Inside Loop
+
+- Category: Performance, severity: medium
+- Flags: Flags query builder or Eloquent queries executed inside a loop.
+- Why it costs: Each iteration issues its own round trip to the database, so cost grows with the size of the collection and most of the work is the same query with a different value. One query before the loop, keyed by the value the loop varies, usually replaces all of them. Writes are the same: one insert or upsert after the loop replaces a create per row, and one bulk write per chunk is not reported.
+- Write it this way instead: Hoist the query out of the loop. One whereIn beats N wheres, and the database will thank you at the size you have not reached yet.
+
+### SL205 Collection Instead Of Database Query
+
+- Category: Performance, severity: medium
+- Flags: Flags a full table load followed immediately by a collection operation the database could have performed.
+- Why it costs: Loading every row to filter, count or sort it in PHP uses memory proportional to the table and throws most of the work away. Collection operations are not the problem -- doing them to rows that were fetched only to be discarded is.
+- Write it this way instead: Filter in the database. get()->filter() loads the table into memory to throw most of it away.
+
+### SL206 Excessive Controller Dependencies
+
+- Category: Dependencies, severity: medium
+- Flags: Flags controllers whose constructor injects more collaborators than the configured limit.
+- Why it costs: Every constructor dependency is resolved on every request that touches the controller, and a long list is a reliable sign that unrelated actions have been grouped into one class. Splitting by the dependencies each action actually needs usually produces several small, obvious controllers.
+- Write it this way instead: Group the dependencies into a collaborator with a name. A controller with six of them is coordinating six things.
+
+### SL207 Excessive Service Dependencies
+
+- Category: Dependencies, severity: medium
+- Flags: Flags service, action and manager classes whose constructor injects more collaborators than the configured limit.
+- Why it costs: Coordination is a service's job, so several dependencies are normal. Past a point the class is coordinating more than one workflow, which shows up as tests that need half the container mocked and changes that touch the class for unrelated reasons. Only collaborators are counted: enums, value objects, models, dates and collections are data the class is built from, not dependencies.
+- Write it this way instead: Group the dependencies into a collaborator with a name. A service with six of them is doing six jobs badly.
+
+### SL208 Direct External API Call
+
+- Category: Laravel, severity: medium
+- Flags: Flags outbound HTTP requests made directly from controllers, models, form requests or middleware.
+- Why it costs: An HTTP call in these layers cannot be exercised without either the network or framework-wide faking, and the endpoint, headers and payload shape end up spread across code that should not know them. Behind one named client, the integration can be swapped, retried, logged and faked in a single place.
+- Write it this way instead: Put the HTTP call behind a small client class, so the timeout, the retry and the fake used in tests live in one place.
+
+### SL209 Model Doing Too Much
+
+- Category: Laravel, severity: medium
+- Flags: Flags Eloquent models that make outbound calls, dispatch notifications or jobs, or contain long business workflows.
+- Why it costs: Behaviour on a model runs wherever the model is loaded, including in factories, seeders and tests, and it is reachable from anywhere the model is. Persistence, relations and presentation of a row belong on the model; deciding what the business should do next generally does not.
+- Write it this way instead: Keep models about data and relationships. Notifications, PDFs and payment calls belong in classes named after those things.
+
+### SL210 Suspicious Model::all()
+
+- Category: Performance, severity: medium
+- Flags: Flags Model::all() whose result is iterated in the same method, or which is called from inside a loop.
+- Why it costs: A full table load uses memory proportional to the table, which is invisible in development and fatal once the table grows. Where every row genuinely is needed, chunking or a lazy cursor gives the same result with bounded memory. Small reference tables are exempt via the ignore_models option.
+- Write it this way instead: Ask for what you need: a where, a select, or pagination. Model::all() loads the whole table before you filter it.
+
+### SL301 Abstraction Inflation
+
+- Category: Architecture, severity: medium
+- Flags: Flags concepts wrapped in several layers where at least one layer is trivial, singly implemented or singly used.
+- Why it costs: Layers pay for themselves when they hide a real choice: a second implementation, a boundary that gets faked, a shape the caller should not see. When each layer has one implementation, one caller and almost no code, the indirection is all cost -- more files to open to follow one call, and no flexibility gained. This is a judgement about the current usage, not a rule against repositories.
+- Write it this way instead: Add a layer when a second implementation or a real test seam needs it -- not in advance. Interfaces are cheap to add later and expensive to read past.
+
+### SL302 Empty Wrapper Class
+
+- Category: Architecture, severity: medium
+- Flags: Flags classes whose public methods almost all forward their arguments unchanged to a single injected collaborator.
+- Why it costs: Pure forwarding means callers pay an extra hop and an extra file to read, while the wrapper has to be kept in step with whatever it wraps. A wrapper becomes worthwhile the moment it does something of its own -- adapting a shape, adding caching, narrowing an interface -- and this rule stays quiet as soon as it does.
+- Write it this way instead: A class that only forwards to another is a rename with extra steps. Call the other one.
+
+### SL303 Single-Use Abstraction
+
+- Category: Architecture, severity: low
+- Flags: Flags small interfaces and abstract classes that have exactly one implementation and at most one calling file.
+- Why it costs: An interface earns its keep by letting callers not care which implementation they got. With one implementation and one caller there is no choice being hidden, so the interface mostly duplicates the class signature and doubles the edits every change needs. This is advice, not a defect: keep it if a second implementation or a test double is genuinely on the way.
+- Write it this way instead: An interface with one implementation and one caller is indirection with nothing on the other side. Inline it until a second implementation shows up.
+
 === .ai/tall-stack rules ===
 
 ---
@@ -78732,94 +79357,6 @@ $layanan = $lockedInvoice->layananPelanggan()->lockForUpdate()->first();
 app(PerpanjangMasaAktifAction::class)->execute($layanan, $lockedInvoice, $dibayarPada);
 ````
 
-## File: app/Services/Whatsapp/WhatsappService.php
-````php
-namespace App\Services\Whatsapp;
-⋮----
-use App\Enums\Wa\StatusAntrianWa;
-use App\Jobs\Wa\KirimWaBlastJob;
-use App\Models\AntrianWaBlast;
-use App\Models\Invoice;
-use App\Models\Pembayaran;
-use App\Models\PengaturanPrefixRegistrasi;
-use App\Models\Perusahaan;
-use App\Models\Sysblas;
-use App\Models\Ticket;
-use App\Models\WaTemplate;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\URL;
-⋮----
-class WhatsappService
-⋮----
-public function __construct(
-⋮----
-public function antrikanPesan(
-⋮----
-$template = WaTemplate::where('kode', $kodeTemplate)->first();
-⋮----
-Log::warning("WhatsApp Template '{$kodeTemplate}' tidak ditemukan atau non-aktif.");
-⋮----
-$params = $this->mergeCompanyParams($params);
-⋮----
-$pesan = $template->render($params);
-⋮----
-return $this->antrikanPesanKustom(
-⋮----
-public function antrikanPesanKustom(
-⋮----
-$tanggalKirim = $tanggalTarget ? $tanggalTarget->toDateString() : Carbon::today()->toDateString();
-$refTipe = $referensi ? $referensi->getMorphClass() : null;
-⋮----
-$existing = AntrianWaBlast::query()
-->where('referensi_tipe', $refTipe)
-->where('referensi_id', $refId)
-->where('jenis', $jenis)
-->whereDate('tanggal_kirim', $tanggalKirim)
-->first();
-⋮----
-$normalizedPhone = WhatsappClient::normalizePhoneNumber($noHp);
-⋮----
-$targetSysblas = $sysblas ?? Sysblas::getDefault();
-⋮----
-$antrian = AntrianWaBlast::create([
-⋮----
-'dijadwalkan_pada' => $tanggalTarget ?? Carbon::now(),
-⋮----
-KirimWaBlastJob::dispatch($antrian);
-⋮----
-AntrianWaBlast::catatGagal($antrian, (string) $antrian->pesan_error);
-⋮----
-public function buildInvoiceParams(Invoice $invoice): array
-⋮----
-? URL::signedRoute('portal.invoice.show', ['invoice' => $invoice->id], now()->addDays(30))
-⋮----
-'nama_brand' => PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg),
-⋮----
-'periode' => $invoice->periode_tagihan ?? Carbon::parse($invoice->tanggal_terbit)->format('m/Y'),
-⋮----
-'jatuh_tempo' => Carbon::parse($invoice->tanggal_jatuh_tempo)->translatedFormat('d F Y'),
-⋮----
-public function buildTicketParams(Ticket $ticket, ?string $catatan = null): array
-⋮----
-'jenis_tiket' => $ticket->jenis->label(),
-'prioritas' => $ticket->prioritas->label(),
-'status_tiket' => $ticket->status->label(),
-⋮----
-'sla_target' => $ticket->sla_target_selesai ? Carbon::parse($ticket->sla_target_selesai)->translatedFormat('d F Y H:i') : '-',
-⋮----
-public function buildPaymentParams(Invoice $invoice, Pembayaran $pembayaran): array
-⋮----
-$params = $this->buildInvoiceParams($invoice);
-⋮----
-$params['tanggal_bayar'] = Carbon::parse($pembayaran->dibayar_pada ?? now())->translatedFormat('d F Y H:i');
-⋮----
-public function mergeCompanyParams(array $params): array
-⋮----
-$perusahaan = Perusahaan::default();
-````
-
 ## File: docker/php.ini
 ````ini
 ; Override runtime untuk GOBILLING production
@@ -78894,7 +79431,7 @@ Schedule::command('pembayaran:rekonsiliasi')
 ->sentryMonitor();
 ⋮----
 Schedule::command('mikrotik:ping')
-->everyTenSeconds()
+->everyTwentySeconds()
 ->withoutOverlapping(1)
 ⋮----
 Schedule::command('invoice:kirim-pengingat')->hourly()->onOneServer();
@@ -78905,6 +79442,8 @@ Schedule::command('horizon:snapshot')->everyFiveMinutes()->onOneServer();
 Schedule::command('horizon:monitor-health')->everyFiveMinutes()->onOneServer();
 ⋮----
 Schedule::command('model:prune')->daily()->onOneServer();
+⋮----
+Schedule::command('telescope:prune')->daily();
 ⋮----
 foreach (Schedule::events() as $event) {
 $event->storeOutput();
@@ -79891,6 +80430,97 @@ $tickets = $tiketTerlihat()
 ->paginate(10, pageName: 'tiket');
 ````
 
+## File: app/Services/Whatsapp/WhatsappService.php
+````php
+namespace App\Services\Whatsapp;
+⋮----
+use App\Enums\Wa\StatusAntrianWa;
+use App\Jobs\Wa\KirimWaBlastJob;
+use App\Models\AntrianWaBlast;
+use App\Models\Invoice;
+use App\Models\Pembayaran;
+use App\Models\PengaturanPrefixRegistrasi;
+use App\Models\Perusahaan;
+use App\Models\Sysblas;
+use App\Models\Ticket;
+use App\Models\WaTemplate;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
+⋮----
+class WhatsappService
+⋮----
+public function __construct(
+⋮----
+public function antrikanPesan(
+⋮----
+$template = WaTemplate::where('kode', $kodeTemplate)->first();
+⋮----
+Log::warning("WhatsApp Template '{$kodeTemplate}' tidak ditemukan atau non-aktif.");
+⋮----
+$params = $this->mergeCompanyParams($params);
+⋮----
+$pesan = $template->render($params);
+⋮----
+return $this->antrikanPesanKustom(
+⋮----
+public function antrikanPesanKustom(
+⋮----
+$tanggalKirim = $tanggalTarget ? $tanggalTarget->toDateString() : Carbon::today()->toDateString();
+$refTipe = $referensi ? $referensi->getMorphClass() : null;
+⋮----
+$existing = AntrianWaBlast::query()
+->where('referensi_tipe', $refTipe)
+->where('referensi_id', $refId)
+->where('jenis', $jenis)
+->whereDate('tanggal_kirim', $tanggalKirim)
+->first();
+⋮----
+$normalizedPhone = WhatsappClient::normalizePhoneNumber($noHp);
+⋮----
+$targetSysblas = $sysblas ?? Sysblas::getDefault();
+⋮----
+$antrian = AntrianWaBlast::create([
+⋮----
+'dijadwalkan_pada' => $tanggalTarget ?? Carbon::now(),
+⋮----
+KirimWaBlastJob::dispatch($antrian);
+⋮----
+AntrianWaBlast::catatGagal($antrian, (string) $antrian->pesan_error);
+⋮----
+public function buildInvoiceParams(Invoice $invoice): array
+⋮----
+? Carbon::parse($invoice->tanggal_jatuh_tempo)->endOfDay()->addDays(3)
+: now()->addDays(30);
+⋮----
+? URL::signedRoute('portal.invoice.show', ['invoice' => $invoice->id], $expiresAt)
+⋮----
+'nama_brand' => PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg),
+⋮----
+'periode' => $invoice->periode_tagihan ?? Carbon::parse($invoice->tanggal_terbit)->format('m/Y'),
+⋮----
+'jatuh_tempo' => Carbon::parse($invoice->tanggal_jatuh_tempo)->translatedFormat('d F Y'),
+⋮----
+public function buildTicketParams(Ticket $ticket, ?string $catatan = null): array
+⋮----
+'jenis_tiket' => $ticket->jenis->label(),
+'prioritas' => $ticket->prioritas->label(),
+'status_tiket' => $ticket->status->label(),
+⋮----
+'sla_target' => $ticket->sla_target_selesai ? Carbon::parse($ticket->sla_target_selesai)->translatedFormat('d F Y H:i') : '-',
+⋮----
+public function buildPaymentParams(Invoice $invoice, Pembayaran $pembayaran): array
+⋮----
+$params = $this->buildInvoiceParams($invoice);
+⋮----
+$params['tanggal_bayar'] = Carbon::parse($pembayaran->dibayar_pada ?? now())->translatedFormat('d F Y H:i');
+⋮----
+public function mergeCompanyParams(array $params): array
+⋮----
+$perusahaan = Perusahaan::default();
+````
+
 ## File: docker/entrypoint.sh
 ````bash
 set -euo pipefail
@@ -80442,6 +81072,7 @@ expect(fn () => $job->handle($mockService))->toThrow(RuntimeException::class, 'C
         "laravel/fortify": "^1.37.2",
         "laravel/framework": "^13.17",
         "laravel/horizon": "^5.49",
+        "laravel/telescope": "^5.25",
         "laravel/tinker": "^3.0",
         "league/flysystem-aws-s3-v3": "^3.0",
         "livewire/blaze": "^1.0",
@@ -80547,7 +81178,9 @@ expect(fn () => $job->handle($mockService))->toThrow(RuntimeException::class, 'C
     },
     "extra": {
         "laravel": {
-            "dont-discover": [],
+            "dont-discover": [
+                "laravel/telescope"
+            ],
             "installer": {
                 "post-create-project": []
             }
@@ -81304,252 +81937,6 @@ expect(sentAttributes($sent, '/ppp/secret/add'))->toMatchArray(['profile' => 'IS
 expect($res['dry_run_changes'][0]['reason'])->toBe('disabled_lama');
 ````
 
-## File: app/Models/Ticket.php
-````php
-namespace App\Models;
-⋮----
-use App\Enums\Ticket\DivisiTicket;
-use App\Enums\Ticket\JenisTicket;
-use App\Enums\Ticket\PrioritasTicket;
-use App\Enums\Ticket\StatusDivisiTicket;
-use App\Enums\Ticket\StatusTicket;
-use App\Enums\Ticket\SumberTicket;
-use Carbon\CarbonInterface;
-use Database\Factories\TicketFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\Pivot;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
-use Spatie\Activitylog\Models\Concerns\LogsActivity;
-use Spatie\Activitylog\Support\LogOptions;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
-⋮----
-class Ticket extends Model implements HasMedia
-⋮----
-protected $table = 'ticket';
-⋮----
-protected static function booted(): void
-⋮----
-static::creating(function (Ticket $ticket) {
-⋮----
-$ticket->nomor_ticket = static::generateNomorTicket();
-⋮----
-$prioritas = $ticket->getAttribute('prioritas');
-⋮----
-$ticket->sla_target_selesai = Carbon::now()->addHours($prioritas->durasiSlaHours());
-⋮----
-public function getActivitylogOptions(): LogOptions
-⋮----
-return LogOptions::defaults()
-->logOnly(['nomor_ticket', 'jenis', 'status', 'prioritas', 'pic_id', 'perlu_aktivasi_manual'])
-->logOnlyDirty()
-->dontLogEmptyChanges()
-->useLogName('ticket');
-⋮----
-protected function casts(): array
-⋮----
-public static function generateNomorTicket(): string
-⋮----
-$year = Carbon::now()->format('Y');
-⋮----
-$last = DB::table('ticket')
-->where('nomor_ticket', 'like', $prefix.'%')
-->orderByDesc('id')
-->lockForUpdate()
-->value('nomor_ticket');
-⋮----
-public function divisis(): HasMany
-⋮----
-return $this->hasMany(TicketDivisi::class, 'ticket_id');
-⋮----
-public function hasDivisi(DivisiTicket $divisi): bool
-⋮----
-if ($this->relationLoaded('divisis')) {
-return $this->divisis->contains(fn (TicketDivisi $item) => $item->divisi === $divisi);
-⋮----
-return DB::table('ticket_divisi')
-->where('ticket_id', $this->id)
-->where('divisi', $divisi->value)
-->exists();
-⋮----
-public function getDivisValues(): array
-⋮----
-return $this->divisis->map(fn (TicketDivisi $item) => $item->divisi->value)->values()->toArray();
-⋮----
-->pluck('divisi')
-->toArray();
-⋮----
-public function pemasangan(): HasOne
-⋮----
-return $this->hasOne(TicketPemasangan::class, 'ticket_id');
-⋮----
-public function statusDivisi(DivisiTicket $divisi): StatusDivisiTicket
-⋮----
-$row = $this->relationLoaded('divisis')
-? $this->divisis->first(fn (TicketDivisi $item) => $item->divisi === $divisi)
-: $this->divisis()->where('divisi', $divisi->value)->first();
-⋮----
-public function semuaDivisiWajibSelesai(): bool
-⋮----
-if ($this->statusDivisi($divisi) !== StatusDivisiTicket::Selesai) {
-⋮----
-public function siapDiaktivasi(): bool
-⋮----
-if ($this->statusDivisi(DivisiTicket::Teknisi) === StatusDivisiTicket::Belum) {
-⋮----
-return $this->getMedia('foto_pemasangan')->isNotEmpty();
-⋮----
-public function siapTeknisiSelesai(): bool
-⋮----
-return $this->getMedia('foto_speedtest')->isNotEmpty()
-&& $this->getMedia('foto_tanda_tangan_mou')->isNotEmpty()
-&& $this->getMedia('foto_bersama_pelanggan_teknisi')->isNotEmpty();
-⋮----
-public function pelanggan(): BelongsTo
-⋮----
-return $this->belongsTo(Pelanggan::class, 'pelanggan_id');
-⋮----
-public function layananPelanggan(): BelongsTo
-⋮----
-return $this->belongsTo(LayananPelanggan::class, 'layanan_pelanggan_id');
-⋮----
-public function pic(): BelongsTo
-⋮----
-return $this->belongsTo(User::class, 'pic_id');
-⋮----
-public function secretDihapusOleh(): BelongsTo
-⋮----
-return $this->belongsTo(User::class, 'secret_dihapus_oleh');
-⋮----
-public function secretSudahDihapus(): bool
-⋮----
-public function salesPenanggungJawab(): User|false|null
-⋮----
-public function dibuatOleh(): BelongsTo
-⋮----
-return $this->belongsTo(User::class, 'dibuat_oleh');
-⋮----
-public function histori(): HasMany
-⋮----
-return $this->hasMany(TicketHistori::class, 'ticket_id')->orderByDesc('id');
-⋮----
-public function perluInvoicePindahAlamat(): bool
-⋮----
-if ($this->jenis !== JenisTicket::PindahAlamat || ! $this->isSelesai()) {
-⋮----
-$selesaiPada = $this->histori()->where('status_baru', StatusTicket::Selesai)->value('created_at');
-⋮----
-return ! Invoice::query()
-->where('pelanggan_id', $this->pelanggan_id)
-->when($this->layanan_pelanggan_id, fn ($q) => $q->where('layanan_pelanggan_id', $this->layanan_pelanggan_id))
-->whereNull('periode_tagihan')
-->where('created_at', '>=', $selesaiPada)
-⋮----
-public function isSelesai(): bool
-⋮----
-public function isBatal(): bool
-⋮----
-public function isOverdue(): bool
-⋮----
-if ($this->isSelesai() || $this->isBatal() || ! $this->sla_target_selesai) {
-⋮----
-return Carbon::now()->isAfter($this->sla_target_selesai);
-⋮----
-public function sisaWaktuSla(): string
-⋮----
-if ($this->isSelesai()) {
-⋮----
-if ($this->isBatal()) {
-⋮----
-if ($this->isOverdue()) {
-return 'Lewat '.Carbon::now()->diffForHumans($this->sla_target_selesai, CarbonInterface::DIFF_ABSOLUTE);
-⋮----
-return Carbon::now()->diffForHumans($this->sla_target_selesai, CarbonInterface::DIFF_ABSOLUTE);
-⋮----
-public function scopeAssignedTo(Builder $query, int $userId): Builder
-⋮----
-return $query->where('pic_id', $userId);
-⋮----
-public function scopeUrutkanPrioritas(Builder $query): Builder
-⋮----
-$sekarang = Carbon::now()->toDateTimeString();
-⋮----
-->orderByRaw("CASE WHEN status IN ({$marker}) THEN 1 ELSE 0 END", $tutup)
-->orderByRaw("CASE WHEN status IN ({$marker}) THEN 1 WHEN sla_target_selesai IS NOT NULL AND sla_target_selesai < ? THEN 0 ELSE 1 END", [...$tutup, $sekarang])
-->orderByRaw("CASE WHEN status IN ({$marker}) THEN 0 ELSE CASE prioritas WHEN 'darurat' THEN 0 WHEN 'tinggi' THEN 1 WHEN 'sedang' THEN 2 ELSE 3 END END", $tutup)
-->orderByRaw("CASE WHEN status IN ({$marker}) OR sla_target_selesai IS NULL THEN 1 ELSE 0 END", $tutup)
-->orderByRaw("CASE WHEN status IN ({$marker}) THEN NULL ELSE sla_target_selesai END ASC", $tutup)
-->orderByDesc('id');
-⋮----
-public function scopeTerlihatOleh(Builder $query, User $user): Builder
-⋮----
-if ($user->hasRole('teknisi')) {
-return $query->where('pic_id', $user->id);
-⋮----
-if ($user->hasRole('sales')) {
-return $query->where(function (Builder $q) use ($user) {
-$q->where('dibuat_oleh', $user->id)
-->orWhereHas('pelanggan', fn (Builder $cq) => $cq->where('dibuat_oleh', $user->id));
-⋮----
-public function scopeAntrianUntuk(Builder $query, User $user): Builder
-⋮----
-$query->whereNotIn('status', [StatusTicket::Selesai, StatusTicket::Batal]);
-⋮----
-if ($user->hasRole('super_admin')) {
-⋮----
-$divisi = $user->getRoleNames()->map(fn (string $role) => DivisiTicket::tryFrom($role))->filter()->all();
-⋮----
-return $query->whereHas('divisis', fn (Builder $q) => $q
-->whereIn('ticket_divisi.divisi', $divisi)
-->where('ticket_divisi.status', '!=', StatusDivisiTicket::Selesai));
-⋮----
-public function scopeDivisi(Builder $query, DivisiTicket|string $divisi): Builder
-⋮----
-return $query->whereHas('divisis', function (Builder $q) use ($val) {
-$q->where('ticket_divisi.divisi', $val);
-⋮----
-public function scopeStatus(Builder $query, StatusTicket|string $status): Builder
-⋮----
-return $query->where('status', $val);
-⋮----
-public function scopeJenis(Builder $query, JenisTicket|string $jenis): Builder
-⋮----
-return $query->where('jenis', $val);
-⋮----
-public function scopeOverdue(Builder $query): Builder
-⋮----
-return $query->whereNotIn('status', [StatusTicket::Selesai->value, StatusTicket::Batal->value])
-->whereNotNull('sla_target_selesai')
-->where('sla_target_selesai', '<', Carbon::now());
-⋮----
-public function scopeSearch(Builder $query, string $term): Builder
-⋮----
-return $query->where(function (Builder $q) use ($term) {
-$q->where('nomor_ticket', 'like', "%{$term}%")
-->orWhere('deskripsi', 'like', "%{$term}%")
-->orWhereHas('pelanggan', function (Builder $customerQuery) use ($term) {
-$customerQuery->where('nama_depan', 'like', "%{$term}%")
-->orWhere('nama_belakang', 'like', "%{$term}%")
-->orWhere('no_reg', 'like', "%{$term}%")
-->orWhere('no_hp', 'like', "%{$term}%");
-⋮----
-->orWhereHas('layananPelanggan', function (Builder $layananQuery) use ($term) {
-$layananQuery->where('site_id', 'like', "%{$term}%")
-->orWhere('ppp_username', 'like', "%{$term}%");
-⋮----
-->orWhereHas('pic', function (Builder $picQuery) use ($term) {
-$picQuery->where('name', 'like', "%{$term}%");
-````
-
 ## File: config/menu.php
 ````php
 
@@ -81742,6 +82129,252 @@ public function getAlamatEfektifAttribute(): string
 public function getLatitudeEfektifAttribute(): ?float
 ⋮----
 public function getLongitudeEfektifAttribute(): ?float
+````
+
+## File: app/Models/Ticket.php
+````php
+namespace App\Models;
+⋮----
+use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\JenisTicket;
+use App\Enums\Ticket\PrioritasTicket;
+use App\Enums\Ticket\StatusDivisiTicket;
+use App\Enums\Ticket\StatusTicket;
+use App\Enums\Ticket\SumberTicket;
+use Carbon\CarbonInterface;
+use Database\Factories\TicketFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
+⋮----
+class Ticket extends Model implements HasMedia
+⋮----
+protected $table = 'ticket';
+⋮----
+protected static function booted(): void
+⋮----
+static::creating(function (Ticket $ticket) {
+⋮----
+$ticket->nomor_ticket = static::generateNomorTicket();
+⋮----
+$prioritas = $ticket->getAttribute('prioritas');
+⋮----
+$ticket->sla_target_selesai = Carbon::now()->addHours($prioritas->durasiSlaHours());
+⋮----
+public function getActivitylogOptions(): LogOptions
+⋮----
+return LogOptions::defaults()
+->logOnly(['nomor_ticket', 'jenis', 'status', 'prioritas', 'pic_id', 'perlu_aktivasi_manual'])
+->logOnlyDirty()
+->dontLogEmptyChanges()
+->useLogName('ticket');
+⋮----
+protected function casts(): array
+⋮----
+public static function generateNomorTicket(): string
+⋮----
+$year = Carbon::now()->format('Y');
+⋮----
+$last = DB::table('ticket')
+->where('nomor_ticket', 'like', $prefix.'%')
+->orderByDesc('id')
+->lockForUpdate()
+->value('nomor_ticket');
+⋮----
+public function divisis(): HasMany
+⋮----
+return $this->hasMany(TicketDivisi::class, 'ticket_id');
+⋮----
+public function hasDivisi(DivisiTicket $divisi): bool
+⋮----
+if ($this->relationLoaded('divisis')) {
+return $this->divisis->contains(fn (TicketDivisi $item) => $item->divisi === $divisi);
+⋮----
+return DB::table('ticket_divisi')
+->where('ticket_id', $this->id)
+->where('divisi', $divisi->value)
+->exists();
+⋮----
+public function getDivisValues(): array
+⋮----
+return $this->divisis->map(fn (TicketDivisi $item) => $item->divisi->value)->values()->toArray();
+⋮----
+->pluck('divisi')
+->toArray();
+⋮----
+public function pemasangan(): HasOne
+⋮----
+return $this->hasOne(TicketPemasangan::class, 'ticket_id');
+⋮----
+public function statusDivisi(DivisiTicket $divisi): StatusDivisiTicket
+⋮----
+$row = $this->relationLoaded('divisis')
+? $this->divisis->first(fn (TicketDivisi $item) => $item->divisi === $divisi)
+: $this->divisis()->where('divisi', $divisi->value)->first();
+⋮----
+public function semuaDivisiWajibSelesai(): bool
+⋮----
+if ($this->statusDivisi($divisi) !== StatusDivisiTicket::Selesai) {
+⋮----
+public function siapDiaktivasi(): bool
+⋮----
+if ($this->statusDivisi(DivisiTicket::Teknisi) === StatusDivisiTicket::Belum) {
+⋮----
+return $this->getMedia('foto_pemasangan')->isNotEmpty()
+|| $this->getMedia('foto_speedtest')->isNotEmpty();
+⋮----
+public function siapTeknisiSelesai(): bool
+⋮----
+return $this->getMedia('foto_speedtest')->isNotEmpty()
+&& $this->getMedia('foto_tanda_tangan_mou')->isNotEmpty();
+⋮----
+public function pelanggan(): BelongsTo
+⋮----
+return $this->belongsTo(Pelanggan::class, 'pelanggan_id');
+⋮----
+public function layananPelanggan(): BelongsTo
+⋮----
+return $this->belongsTo(LayananPelanggan::class, 'layanan_pelanggan_id');
+⋮----
+public function pic(): BelongsTo
+⋮----
+return $this->belongsTo(User::class, 'pic_id');
+⋮----
+public function secretDihapusOleh(): BelongsTo
+⋮----
+return $this->belongsTo(User::class, 'secret_dihapus_oleh');
+⋮----
+public function secretSudahDihapus(): bool
+⋮----
+public function salesPenanggungJawab(): User|false|null
+⋮----
+public function dibuatOleh(): BelongsTo
+⋮----
+return $this->belongsTo(User::class, 'dibuat_oleh');
+⋮----
+public function histori(): HasMany
+⋮----
+return $this->hasMany(TicketHistori::class, 'ticket_id')->orderByDesc('id');
+⋮----
+public function perluInvoicePindahAlamat(): bool
+⋮----
+if ($this->jenis !== JenisTicket::PindahAlamat || ! $this->isSelesai()) {
+⋮----
+$selesaiPada = $this->histori()->where('status_baru', StatusTicket::Selesai)->value('created_at');
+⋮----
+return ! Invoice::query()
+->where('pelanggan_id', $this->pelanggan_id)
+->when($this->layanan_pelanggan_id, fn ($q) => $q->where('layanan_pelanggan_id', $this->layanan_pelanggan_id))
+->whereNull('periode_tagihan')
+->where('created_at', '>=', $selesaiPada)
+⋮----
+public function isSelesai(): bool
+⋮----
+public function isBatal(): bool
+⋮----
+public function isOverdue(): bool
+⋮----
+if ($this->isSelesai() || $this->isBatal() || ! $this->sla_target_selesai) {
+⋮----
+return Carbon::now()->isAfter($this->sla_target_selesai);
+⋮----
+public function sisaWaktuSla(): string
+⋮----
+if ($this->isSelesai()) {
+⋮----
+if ($this->isBatal()) {
+⋮----
+if ($this->isOverdue()) {
+return 'Lewat '.Carbon::now()->diffForHumans($this->sla_target_selesai, CarbonInterface::DIFF_ABSOLUTE);
+⋮----
+return Carbon::now()->diffForHumans($this->sla_target_selesai, CarbonInterface::DIFF_ABSOLUTE);
+⋮----
+public function scopeAssignedTo(Builder $query, int $userId): Builder
+⋮----
+return $query->where('pic_id', $userId);
+⋮----
+public function scopeUrutkanPrioritas(Builder $query): Builder
+⋮----
+$sekarang = Carbon::now()->toDateTimeString();
+⋮----
+->orderByRaw("CASE WHEN status IN ({$marker}) THEN 1 ELSE 0 END", $tutup)
+->orderByRaw("CASE WHEN status IN ({$marker}) THEN 1 WHEN sla_target_selesai IS NOT NULL AND sla_target_selesai < ? THEN 0 ELSE 1 END", [...$tutup, $sekarang])
+->orderByRaw("CASE WHEN status IN ({$marker}) THEN 0 ELSE CASE prioritas WHEN 'darurat' THEN 0 WHEN 'tinggi' THEN 1 WHEN 'sedang' THEN 2 ELSE 3 END END", $tutup)
+->orderByRaw("CASE WHEN status IN ({$marker}) OR sla_target_selesai IS NULL THEN 1 ELSE 0 END", $tutup)
+->orderByRaw("CASE WHEN status IN ({$marker}) THEN NULL ELSE sla_target_selesai END ASC", $tutup)
+->orderByDesc('id');
+⋮----
+public function scopeTerlihatOleh(Builder $query, User $user): Builder
+⋮----
+if ($user->hasRole('teknisi')) {
+return $query->where('pic_id', $user->id);
+⋮----
+if ($user->hasRole('sales')) {
+return $query->where(function (Builder $q) use ($user) {
+$q->where('dibuat_oleh', $user->id)
+->orWhereHas('pelanggan', fn (Builder $cq) => $cq->where('dibuat_oleh', $user->id));
+⋮----
+public function scopeAntrianUntuk(Builder $query, User $user): Builder
+⋮----
+$query->whereNotIn('status', [StatusTicket::Selesai, StatusTicket::Batal]);
+⋮----
+if ($user->hasRole('super_admin')) {
+⋮----
+$divisi = $user->getRoleNames()->map(fn (string $role) => DivisiTicket::tryFrom($role))->filter()->all();
+⋮----
+return $query->whereHas('divisis', fn (Builder $q) => $q
+->whereIn('ticket_divisi.divisi', $divisi)
+->where('ticket_divisi.status', '!=', StatusDivisiTicket::Selesai));
+⋮----
+public function scopeDivisi(Builder $query, DivisiTicket|string $divisi): Builder
+⋮----
+return $query->whereHas('divisis', function (Builder $q) use ($val) {
+$q->where('ticket_divisi.divisi', $val);
+⋮----
+public function scopeStatus(Builder $query, StatusTicket|string $status): Builder
+⋮----
+return $query->where('status', $val);
+⋮----
+public function scopeJenis(Builder $query, JenisTicket|string $jenis): Builder
+⋮----
+return $query->where('jenis', $val);
+⋮----
+public function scopeOverdue(Builder $query): Builder
+⋮----
+return $query->whereNotIn('status', [StatusTicket::Selesai->value, StatusTicket::Batal->value])
+->whereNotNull('sla_target_selesai')
+->where('sla_target_selesai', '<', Carbon::now());
+⋮----
+public function scopeSearch(Builder $query, string $term): Builder
+⋮----
+return $query->where(function (Builder $q) use ($term) {
+$q->where('nomor_ticket', 'like', "%{$term}%")
+->orWhere('deskripsi', 'like', "%{$term}%")
+->orWhereHas('pelanggan', function (Builder $customerQuery) use ($term) {
+$customerQuery->where('nama_depan', 'like', "%{$term}%")
+->orWhere('nama_belakang', 'like', "%{$term}%")
+->orWhere('no_reg', 'like', "%{$term}%")
+->orWhere('no_hp', 'like', "%{$term}%");
+⋮----
+->orWhereHas('layananPelanggan', function (Builder $layananQuery) use ($term) {
+$layananQuery->where('site_id', 'like', "%{$term}%")
+->orWhere('ppp_username', 'like', "%{$term}%");
+⋮----
+->orWhereHas('pic', function (Builder $picQuery) use ($term) {
+$picQuery->where('name', 'like', "%{$term}%");
 ````
 
 ## File: app/Services/Mikrotik/MikrotikService.php
@@ -82350,446 +82983,6 @@ $activeData = $client->query($activeQuery)->read();
 
 ````
 
-## File: app/Livewire/Ticket/Show.php
-````php
-namespace App\Livewire\Ticket;
-⋮----
-use App\Actions\LayananPelanggan\DaftarkanLayananAction;
-use App\Actions\LayananPelanggan\UbahPaketLayananAction;
-use App\Actions\Ticket\AssignPicAction;
-use App\Actions\Ticket\HapusSecretPencabutanAction;
-use App\Actions\Ticket\LepasPortOdpPencabutanAction;
-use App\Actions\Ticket\UbahStatusDivisiTicketAction;
-use App\Actions\Ticket\UbahStatusTicketAction;
-use App\Enums\MikrotikJobStatus;
-use App\Enums\MikrotikJobType;
-use App\Enums\StatusLayanan;
-use App\Enums\StatusOdpPort;
-use App\Enums\StatusRouter;
-use App\Enums\Ticket\DivisiTicket;
-use App\Enums\Ticket\JenisTicket;
-use App\Enums\Ticket\StatusDivisiTicket;
-use App\Enums\Ticket\StatusTicket;
-use App\Enums\Ticket\StatusUsulanOdp;
-use App\Exceptions\DuplikatLayananAktifException;
-use App\Exceptions\MikrotikException;
-use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
-use App\Models\LayananPelanggan;
-use App\Models\MikrotikJobLog;
-use App\Models\Odp;
-use App\Models\OdpPort;
-use App\Models\PaketLayanan;
-use App\Models\Router;
-use App\Models\RouterPaket;
-use App\Models\Ticket;
-use App\Models\TicketHistori;
-use App\Models\TicketPemasangan;
-use App\Models\User;
-use App\Services\Mikrotik\MikrotikService;
-use App\Services\Mikrotik\NotifikasiNoc;
-use App\Services\Whatsapp\WhatsappService;
-use Exception;
-use Flux\Flux;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\Rule;
-use Illuminate\View\View;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
-use Livewire\Component;
-use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
-use Livewire\WithFileUploads;
-⋮----
-class Show extends Component
-⋮----
-public Ticket $ticket;
-⋮----
-public bool $showUbahStatusModal = false;
-⋮----
-public string $statusBaru = '';
-⋮----
-public string $catatanStatus = '';
-⋮----
-// State Modal Assign PIC
-public bool $showAssignPicModal = false;
-⋮----
-public ?int $selectedPicId = null;
-⋮----
-public string $catatanAssign = '';
-⋮----
-// State Modal Tambah Catatan
-public bool $showCatatanModal = false;
-⋮----
-public string $catatanProses = '';
-⋮----
-public bool $catatanIsInternal = false;
-⋮----
-/** @var mixed */
-public $fotoPengerjaan = null;
-⋮----
-// State Pemasangan: progress lapangan Teknisi (tahap 1)
-public ?int $odp_id = null;
-⋮----
-public ?int $odp_port_id = null;
-⋮----
-/** Alasan Teknisi menolak Usulan ODP -- lihat CONTEXT.md "Usulan ODP". */
-public string $alasanGantiOdp = '';
-⋮----
-/** @var array<int, mixed> */
-public $fotoPemasangan = [];
-⋮----
-// State Pemasangan: bukti tahap 2 Teknisi
-⋮----
-public $fotoSpeedtest = [];
-⋮----
-public $fotoMou = null;
-⋮----
-public $fotoBersama = [];
-⋮----
-// State Modal Aktivasi Pemasangan (NOC)
-public bool $showAktivasiModal = false;
-⋮----
-public ?int $aktivasiRouterId = null;
-⋮----
-// State Modal Proses Divisi (NOC / Admin / Customer Service) -- lihat CONTEXT.md
-// "Proses Divisi (NOC/Admin/Customer Service)".
-public bool $showProsesModal = false;
-⋮----
-public string $prosesDivisi = '';
-⋮----
-public string $prosesStatusDivisi = 'progress';
-⋮----
-public string $prosesCatatan = '';
-⋮----
-// Proses NOC saja
-public string $prosesModeMikrotik = 'proses';
-⋮----
-public string $prosesPilihanPaket = 'bawaan';
-⋮----
-public ?int $prosesRouterId = null;
-⋮----
-public ?int $prosesPaketLayananId = null;
-⋮----
-public string $prosesPppMode = 'auto';
-⋮----
-public string $prosesPppUsername = '';
-⋮----
-public string $prosesPppPassword = '';
-⋮----
-// Proses Admin saja
-public bool $prosesUbahPaket = false;
-⋮----
-// Reveal PPP Password di panel Informasi Layanan -- lihat ADR-0055.
-public string $revealedPppPassword = '';
-⋮----
-public function mount(Ticket $ticket): void
-⋮----
-$this->authorize('view', $ticket);
-⋮----
-$this->loadTicket();
-⋮----
-public function setujuiUsulanOdp(): void
-⋮----
-$this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
-⋮----
-$pemasangan->update(['status_usulan_odp' => StatusUsulanOdp::Disetujui]);
-$this->catatHistoriUsulanOdp("Usulan ODP {$pemasangan->odpUsulan?->nama_odp} disetujui Teknisi.");
-⋮----
-Flux::toast(variant: 'success', text: 'Usulan ODP disetujui. Silakan pilih port.');
-⋮----
-public function gantiUsulanOdp(): void
-⋮----
-$this->validate(
-⋮----
-$pemasangan->update(['status_usulan_odp' => StatusUsulanOdp::Diganti]);
-$this->catatHistoriUsulanOdp("Usulan ODP {$pemasangan->odpUsulan?->nama_odp} diganti Teknisi. Alasan: ".trim($this->alasanGantiOdp));
-⋮----
-Flux::toast(variant: 'success', text: 'Usulan ODP diganti. Silakan pilih ODP dan port.');
-⋮----
-private function catatHistoriUsulanOdp(string $catatan): void
-⋮----
-TicketHistori::create([
-⋮----
-'oleh_pengguna_id' => Auth::id(),
-⋮----
-protected function loadTicket(): void
-⋮----
-$this->ticket->load([
-⋮----
-public function openUbahStatusModal(): void
-⋮----
-$transisiValid = $this->ticket->status->transisiValid();
-⋮----
-public function prosesUbahStatus(UbahStatusTicketAction $action): void
-⋮----
-$this->validate([
-⋮----
-$statusBaruEnum = StatusTicket::tryFrom($this->statusBaru);
-⋮----
-Flux::toast(variant: 'danger', text: 'Status tujuan tidak valid.');
-⋮----
-$actor = Auth::guard('web')->user();
-$action->execute(
-⋮----
-Flux::toast(variant: 'success', text: "Status tiket {$this->ticket->nomor_ticket} berhasil diubah ke {$statusBaruEnum->label()}.");
-⋮----
-Flux::toast(variant: 'danger', text: $e->getMessage());
-⋮----
-public function hapusSecretPencabutan(HapusSecretPencabutanAction $action): void
-⋮----
-$this->eksekusiAksiPencabutan(
-⋮----
-aksi: fn (User $actor) => $action->execute($this->ticket, $actor),
-⋮----
-public function lepasPortOdpPencabutan(LepasPortOdpPencabutanAction $action): void
-⋮----
-private function eksekusiAksiPencabutan(string $abilitas, \Closure $aksi, string $pesanSukses): void
-⋮----
-$this->authorize($abilitas, $this->ticket);
-⋮----
-$aksi($actor);
-⋮----
-Flux::toast(variant: 'success', text: $pesanSukses);
-⋮----
-public function openAssignPicModal(): void
-⋮----
-public function prosesAssignPic(AssignPicAction $action): void
-⋮----
-$newPic = $this->selectedPicId ? User::find($this->selectedPicId) : null;
-⋮----
-Flux::toast(variant: 'success', text: "PIC tiket {$this->ticket->nomor_ticket} berhasil diperbarui: {$picName}.");
-⋮----
-public function openCatatanModal(): void
-⋮----
-public function simpanCatatan(): void
-⋮----
-$histori = TicketHistori::create([
-⋮----
-$histori->addMediaFromDisk(
-FileUploadConfiguration::path($this->fotoPengerjaan->getFilename(), false),
-FileUploadConfiguration::disk()
-⋮----
-->usingFileName($this->fotoPengerjaan->getClientOriginalName())
-->toMediaCollection('foto_pengerjaan');
-⋮----
-Log::error('Gagal menyimpan foto pengerjaan: '.$e->getMessage());
-⋮----
-$params = $whatsappService->buildTicketParams($this->ticket, trim($this->catatanProses));
-$whatsappService->antrikanPesan(
-⋮----
-Log::error('Gagal kirim WA catatan baru: '.$e->getMessage());
-⋮----
-Flux::toast(variant: 'success', text: 'Catatan proses penanganan berhasil ditambahkan.');
-⋮----
-public function updatedOdpId(): void
-⋮----
-public function simpanProgressLapangan(): void
-⋮----
-'odp_port_id' => ['required', 'integer', Rule::exists('odp_port', 'id')->where('odp_id', $this->odp_id)],
-⋮----
-$this->addError('odp_id', 'Validasi Usulan ODP dulu (setujui atau ganti) sebelum memilih port.');
-⋮----
-$this->addError('odp_id', 'Usulan ODP sudah disetujui; port harus dari ODP tersebut.');
-⋮----
-$dipesanOleh = TicketPemasangan::portDipesan($this->ticket->id)[$this->odp_port_id] ?? null;
-⋮----
-$this->addError('odp_port_id', "Port sudah dipesan tiket {$dipesanOleh}.");
-⋮----
-TicketPemasangan::updateOrCreate(
-⋮----
-$this->ticket->addMediaFromDisk(
-FileUploadConfiguration::path($foto->getFilename(), false),
-⋮----
-)->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_pemasangan');
-⋮----
-if ($this->ticket->statusDivisi(DivisiTicket::Teknisi) === StatusDivisiTicket::Belum) {
-app(UbahStatusDivisiTicketAction::class)->execute(
-⋮----
-actor: Auth::guard('web')->user(),
-⋮----
-Flux::toast(variant: 'success', text: 'Progress lapangan berhasil disimpan.');
-⋮----
-public function openAktivasiModal(): void
-⋮----
-$this->authorize('aktivasiPemasangan', $this->ticket);
-⋮----
-if (! $this->ticket->siapDiaktivasi()) {
-Flux::toast(variant: 'danger', text: 'Belum bisa diaktivasi: pastikan Teknisi sudah memilih ODP+Port dan mengunggah minimal 1 foto pemasangan.');
-⋮----
-$routers = $this->routerOnlineUntukPaket($this->ticket->layananPelanggan?->paket_layanan_id);
-$this->aktivasiRouterId = $routers->count() === 1 ? $routers->first()->id : null;
-⋮----
-private function validasiRouterPaket(?int $paketLayananId): \Closure
-⋮----
-if (! RouterPaket::terdaftar($value, $paketLayananId)) {
-$fail(RouterPaket::PESAN_BELUM_TERDAFTAR);
-⋮----
-private function routerOnlineUntukPaket(?int $paketLayananId): Collection
-⋮----
-return Router::where('status_koneksi', StatusRouter::Online)
-->whereHas('routerPakets', fn ($query) => $query->where('paket_layanan_id', $paketLayananId))
-->orderBy('nama_router')
-->get();
-⋮----
-public function prosesAktivasi(): void
-⋮----
-'aktivasiRouterId' => ['required', 'integer', 'exists:router,id', $this->validasiRouterPaket($this->ticket->layananPelanggan?->paket_layanan_id)],
-⋮----
-Flux::toast(variant: 'danger', text: 'Tiket ini belum terhubung ke Data Registrasi Billing.');
-⋮----
-app(DaftarkanLayananAction::class)->assertBelumAdaDuplikat(
-⋮----
-$this->addError('aktivasiRouterId', $e->getMessage());
-⋮----
-$pppUsername = LayananPelanggan::generatePppUsername($layanan->pelanggan);
-⋮----
-DB::transaction(function () use ($layanan, $pppUsername, $odpPortId) {
-$layanan->update([
-⋮----
-$layanan->isiPppPasswordJikaKosong();
-⋮----
-OdpPort::whereKey($odpPortId)->update([
-⋮----
-$this->ticket->pemasangan()->update([
-⋮----
-'diaktivasi_oleh' => Auth::id(),
-⋮----
-$router = Router::findOrFail($this->aktivasiRouterId);
-⋮----
-app(MikrotikService::class)->createOrUpdatePppoeSecret($router, $layanan->fresh());
-⋮----
-$layanan->update(['status' => StatusLayanan::Aktif]);
-⋮----
-MikrotikJobLog::create([
-⋮----
-Flux::toast(
-⋮----
-$log = MikrotikJobLog::create([
-⋮----
-'error_message' => $e->getMessage(),
-⋮----
-app(NotifikasiNoc::class)->kirim($log, whatsapp: true);
-⋮----
-$dicobaLagi = MikrotikException::bisaDicobaLagi($e);
-⋮----
-ProvisionPppoeAccountJob::dispatch($layanan->fresh());
-⋮----
-text: "Provisi ke router gagal: {$e->getMessage()} ".($dicobaLagi ? 'Sistem mencoba ulang otomatis dan NOC diberi tahu.' : 'Perbaiki penyebabnya lalu klik Coba Provisi Lagi.'),
-⋮----
-public function provisiUlang(): void
-⋮----
-ProvisionPppoeAccountJob::dispatch($layanan);
-Flux::toast(variant: 'info', text: "Provisi {$layanan->ppp_username} diantrekan. Hasilnya muncul di lonceng notifikasi.");
-⋮----
-public function simpanFotoTahapDua(): void
-⋮----
-)->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_speedtest');
-⋮----
-FileUploadConfiguration::path($this->fotoMou->getFilename(), false),
-⋮----
-)->usingFileName($this->fotoMou->getClientOriginalName())->toMediaCollection('foto_tanda_tangan_mou');
-⋮----
-)->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_bersama_pelanggan_teknisi');
-⋮----
-Flux::toast(variant: 'success', text: 'Foto bukti tahap akhir berhasil diunggah.');
-⋮----
-public function tandaiDivisiSelesai(string $divisiValue): void
-⋮----
-$divisi = DivisiTicket::from($divisiValue);
-$this->authorize('ubahStatusDivisi', [$this->ticket, $divisi]);
-⋮----
-if ($divisi === DivisiTicket::Teknisi && ! $this->ticket->siapTeknisiSelesai()) {
-Flux::toast(variant: 'danger', text: 'Lengkapi foto speedtest, tanda tangan MOU, dan foto bersama sebelum menandai Teknisi selesai.');
-⋮----
-Flux::toast(variant: 'success', text: "{$divisi->label()} berhasil ditandai selesai.");
-⋮----
-public function openProsesModal(string $divisiValue): void
-⋮----
-$current = $this->ticket->statusDivisi($divisi);
-⋮----
-/**
-     * Simpan hasil modal "Proses {Divisi}": aksi teknis khusus per divisi (NOC: router/paket/
-     * Mikrotik/PPP; Admin: opsional ubah paket), lalu satu baris TicketHistori berisi Catatan
-     * Proses wajib -- lihat UbahStatusDivisiTicketAction::execute(). Opsi status "Cancel"
-     * membatalkan tiket keseluruhan lewat UbahStatusTicketAction, bukan status per-divisi.
-     */
-public function prosesDivisiSubmit(): void
-⋮----
-$divisi = DivisiTicket::from($this->prosesDivisi);
-⋮----
-app(UbahStatusTicketAction::class)->execute(
-⋮----
-Flux::toast(variant: 'success', text: "Tiket {$this->ticket->nomor_ticket} berhasil dibatalkan.");
-⋮----
-$perluPasswordManual = $layanan->perluPasswordManual($this->prosesModeMikrotik === 'sudah');
-⋮----
-$this->validasiRouterPaket($this->prosesPilihanPaket === 'bawaan' ? $layanan->paket_layanan_id : $this->prosesPaketLayananId),
-⋮----
-Rule::requiredIf($this->prosesPppMode === 'manual'),
-⋮----
-Rule::unique('layanan_pelanggan', 'ppp_username')->ignore($layanan->id),
-⋮----
-'prosesPppPassword' => [Rule::requiredIf($perluPasswordManual), 'nullable', 'string', 'max:64'],
-⋮----
-app(UbahPaketLayananAction::class)->execute($layanan, $paketLayananId, $this->prosesRouterId);
-⋮----
-$layanan->update(['ppp_username' => $this->prosesPppUsername]);
-⋮----
-$layanan->update(['ppp_username' => LayananPelanggan::generatePppUsername($layanan->pelanggan)]);
-⋮----
-$layanan->update(['ppp_password_terenkripsi' => $this->prosesPppPassword]);
-⋮----
-$router = Router::findOrFail($this->prosesRouterId);
-⋮----
-Flux::toast(variant: 'warning', heading: 'Registrasi Mikrotik Gagal', text: $e->getMessage(), duration: 20000);
-⋮----
-$this->validate(['prosesPaketLayananId' => ['required', 'integer', 'exists:paket_layanan,id']]);
-app(UbahPaketLayananAction::class)->execute($layanan, $this->prosesPaketLayananId);
-⋮----
-Flux::toast(variant: 'success', text: "Proses {$divisi->label()} berhasil disimpan.");
-⋮----
-public function revealPppPassword(): void
-⋮----
-$this->authorize('lihatKredensialPpp', $this->ticket);
-⋮----
-->performedOn($layanan)
-->causedBy(Auth::guard('web')->user())
-->withProperties([
-⋮----
-'ip' => request()->ip(),
-⋮----
-->log("Mengungkap PPP Password layanan {$layanan->ppp_username} lewat tiket {$this->ticket->nomor_ticket}");
-⋮----
-public function sembunyikanPppPassword(): void
-⋮----
-public function render(): View
-⋮----
-/** @var Collection<int, User> $staffList */
-$staffList = User::query()->active()->role('teknisi')->orderBy('name')->get();
-⋮----
-$odps = Odp::orderBy('nama_odp')
-->when($usulanDisetujui, fn ($query) => $query->whereKey($this->ticket->pemasangan->odp_usulan_id))
-->get(['id', 'nama_odp']);
-⋮----
-? OdpPort::where('odp_id', $this->odp_id)
-->where(function ($q) {
-$q->where('status', StatusOdpPort::Kosong)->orWhere('id', $this->odp_port_id);
-⋮----
-->orderBy('nomor_port')
-->get()
-⋮----
-$routersAktivasi = $this->routerOnlineUntukPaket($layananTiket?->paket_layanan_id);
-$routersProses = $this->routerOnlineUntukPaket($this->prosesPilihanPaket === 'berbeda' ? $this->prosesPaketLayananId : $layananTiket?->paket_layanan_id);
-⋮----
-$paketLayananList = PaketLayanan::aktif()->orderBy('nama_paket')->get();
-⋮----
-'portDipesan' => $this->odp_id ? TicketPemasangan::portDipesan($this->ticket->id) : [],
-⋮----
-'panduan' => $this->ticket->jenis->panduan(),
-````
-
 ## File: tests/Feature/LayananPelangganTest.php
 ````php
 use App\Enums\JenisKoneksi;
@@ -83105,6 +83298,463 @@ $ticket->refresh();
 ⋮----
 expect($ticket->layanan_pelanggan_id)->toBe($layanan->id)
 ->and($ticket->perlu_aktivasi_manual)->toBeFalse();
+````
+
+## File: app/Livewire/Ticket/Show.php
+````php
+namespace App\Livewire\Ticket;
+⋮----
+use App\Actions\LayananPelanggan\DaftarkanLayananAction;
+use App\Actions\LayananPelanggan\UbahPaketLayananAction;
+use App\Actions\Ticket\AssignPicAction;
+use App\Actions\Ticket\HapusSecretPencabutanAction;
+use App\Actions\Ticket\LepasPortOdpPencabutanAction;
+use App\Actions\Ticket\UbahStatusDivisiTicketAction;
+use App\Actions\Ticket\UbahStatusTicketAction;
+use App\Enums\MikrotikJobStatus;
+use App\Enums\MikrotikJobType;
+use App\Enums\StatusLayanan;
+use App\Enums\StatusOdpPort;
+use App\Enums\StatusRouter;
+use App\Enums\Ticket\DivisiTicket;
+use App\Enums\Ticket\JenisTicket;
+use App\Enums\Ticket\StatusDivisiTicket;
+use App\Enums\Ticket\StatusTicket;
+use App\Enums\Ticket\StatusUsulanOdp;
+use App\Exceptions\DuplikatLayananAktifException;
+use App\Exceptions\MikrotikException;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
+use App\Models\LayananPelanggan;
+use App\Models\MikrotikJobLog;
+use App\Models\Odp;
+use App\Models\OdpPort;
+use App\Models\PaketLayanan;
+use App\Models\Router;
+use App\Models\RouterPaket;
+use App\Models\Ticket;
+use App\Models\TicketHistori;
+use App\Models\TicketPemasangan;
+use App\Models\User;
+use App\Services\Mikrotik\MikrotikService;
+use App\Services\Mikrotik\NotifikasiNoc;
+use App\Services\Whatsapp\WhatsappService;
+use Exception;
+use Flux\Flux;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
+use Livewire\WithFileUploads;
+⋮----
+class Show extends Component
+⋮----
+public Ticket $ticket;
+⋮----
+public bool $showUbahStatusModal = false;
+⋮----
+public string $statusBaru = '';
+⋮----
+public string $catatanStatus = '';
+⋮----
+// State Modal Assign PIC
+public bool $showAssignPicModal = false;
+⋮----
+public ?int $selectedPicId = null;
+⋮----
+public string $catatanAssign = '';
+⋮----
+// State Modal Tambah Catatan
+public bool $showCatatanModal = false;
+⋮----
+public string $catatanProses = '';
+⋮----
+public bool $catatanIsInternal = false;
+⋮----
+/** @var mixed */
+public $fotoPengerjaan = null;
+⋮----
+// State Pemasangan: progress lapangan Teknisi (tahap 1)
+public ?int $odp_id = null;
+⋮----
+public ?int $odp_port_id = null;
+⋮----
+/** Alasan Teknisi menolak Usulan ODP -- lihat CONTEXT.md "Usulan ODP". */
+public string $alasanGantiOdp = '';
+⋮----
+/** @var array<int, mixed> */
+public $fotoPemasangan = [];
+⋮----
+// State Pemasangan: bukti tahap 2 Teknisi
+⋮----
+public $fotoSpeedtest = [];
+⋮----
+public $fotoMou = null;
+⋮----
+public $fotoBersama = [];
+⋮----
+// State Modal Aktivasi Pemasangan (NOC)
+public bool $showAktivasiModal = false;
+⋮----
+public ?int $aktivasiRouterId = null;
+⋮----
+// State Modal Proses Divisi (NOC / Admin / Customer Service) -- lihat CONTEXT.md
+// "Proses Divisi (NOC/Admin/Customer Service)".
+public bool $showProsesModal = false;
+⋮----
+public string $prosesDivisi = '';
+⋮----
+public string $prosesStatusDivisi = 'progress';
+⋮----
+public string $prosesCatatan = '';
+⋮----
+// Proses NOC saja
+public string $prosesModeMikrotik = 'proses';
+⋮----
+public string $prosesPilihanPaket = 'bawaan';
+⋮----
+public ?int $prosesRouterId = null;
+⋮----
+public ?int $prosesPaketLayananId = null;
+⋮----
+public string $prosesPppMode = 'auto';
+⋮----
+public string $prosesPppUsername = '';
+⋮----
+public string $prosesPppPassword = '';
+⋮----
+// Proses Admin saja
+public bool $prosesUbahPaket = false;
+⋮----
+// Reveal PPP Password di panel Informasi Layanan -- lihat ADR-0055.
+public string $revealedPppPassword = '';
+⋮----
+public function mount(Ticket $ticket): void
+⋮----
+$this->authorize('view', $ticket);
+⋮----
+$this->loadTicket();
+⋮----
+public function setujuiUsulanOdp(): void
+⋮----
+$this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
+⋮----
+$pemasangan->update(['status_usulan_odp' => StatusUsulanOdp::Disetujui]);
+$this->catatHistoriUsulanOdp("Usulan ODP {$pemasangan->odpUsulan?->nama_odp} disetujui Teknisi.");
+⋮----
+Flux::toast(variant: 'success', text: 'Usulan ODP disetujui. Silakan pilih port.');
+⋮----
+public function gantiUsulanOdp(): void
+⋮----
+$this->validate(
+⋮----
+$pemasangan->update(['status_usulan_odp' => StatusUsulanOdp::Diganti]);
+$this->catatHistoriUsulanOdp("Usulan ODP {$pemasangan->odpUsulan?->nama_odp} diganti Teknisi. Alasan: ".trim($this->alasanGantiOdp));
+⋮----
+Flux::toast(variant: 'success', text: 'Usulan ODP diganti. Silakan pilih ODP dan port.');
+⋮----
+private function catatHistoriUsulanOdp(string $catatan): void
+⋮----
+TicketHistori::create([
+⋮----
+'oleh_pengguna_id' => Auth::id(),
+⋮----
+protected function loadTicket(): void
+⋮----
+$this->ticket->load([
+⋮----
+public function openUbahStatusModal(): void
+⋮----
+$transisiValid = $this->ticket->status->transisiValid();
+⋮----
+public function prosesUbahStatus(UbahStatusTicketAction $action): void
+⋮----
+$this->validate([
+⋮----
+$statusBaruEnum = StatusTicket::tryFrom($this->statusBaru);
+⋮----
+Flux::toast(variant: 'danger', text: 'Status tujuan tidak valid.');
+⋮----
+$actor = Auth::guard('web')->user();
+$action->execute(
+⋮----
+Flux::toast(variant: 'success', text: "Status tiket {$this->ticket->nomor_ticket} berhasil diubah ke {$statusBaruEnum->label()}.");
+⋮----
+Flux::toast(variant: 'danger', text: $e->getMessage());
+⋮----
+public function hapusSecretPencabutan(HapusSecretPencabutanAction $action): void
+⋮----
+$this->eksekusiAksiPencabutan(
+⋮----
+aksi: fn (User $actor) => $action->execute($this->ticket, $actor),
+⋮----
+public function lepasPortOdpPencabutan(LepasPortOdpPencabutanAction $action): void
+⋮----
+private function eksekusiAksiPencabutan(string $abilitas, \Closure $aksi, string $pesanSukses): void
+⋮----
+$this->authorize($abilitas, $this->ticket);
+⋮----
+$aksi($actor);
+⋮----
+Flux::toast(variant: 'success', text: $pesanSukses);
+⋮----
+public function openAssignPicModal(): void
+⋮----
+public function prosesAssignPic(AssignPicAction $action): void
+⋮----
+$newPic = $this->selectedPicId ? User::find($this->selectedPicId) : null;
+⋮----
+Flux::toast(variant: 'success', text: "PIC tiket {$this->ticket->nomor_ticket} berhasil diperbarui: {$picName}.");
+⋮----
+public function openCatatanModal(): void
+⋮----
+public function simpanCatatan(): void
+⋮----
+$histori = TicketHistori::create([
+⋮----
+$histori->addMediaFromDisk(
+FileUploadConfiguration::path($this->fotoPengerjaan->getFilename(), false),
+FileUploadConfiguration::disk()
+⋮----
+->usingFileName($this->fotoPengerjaan->getClientOriginalName())
+->toMediaCollection('foto_pengerjaan');
+⋮----
+Log::error('Gagal menyimpan foto pengerjaan: '.$e->getMessage());
+⋮----
+$params = $whatsappService->buildTicketParams($this->ticket, trim($this->catatanProses));
+$whatsappService->antrikanPesan(
+⋮----
+Log::error('Gagal kirim WA catatan baru: '.$e->getMessage());
+⋮----
+Flux::toast(variant: 'success', text: 'Catatan proses penanganan berhasil ditambahkan.');
+⋮----
+public function updatedOdpId(): void
+⋮----
+protected function simpanOdpPortTeknisi(): bool
+⋮----
+'odp_port_id' => ['required', 'integer', Rule::exists('odp_port', 'id')->where('odp_id', $this->odp_id)],
+⋮----
+$this->addError('odp_id', 'Validasi Usulan ODP dulu (setujui atau ganti) sebelum memilih port.');
+⋮----
+$this->addError('odp_id', 'Usulan ODP sudah disetujui; port harus dari ODP tersebut.');
+⋮----
+$dipesanOleh = TicketPemasangan::portDipesan($this->ticket->id)[$this->odp_port_id] ?? null;
+⋮----
+$this->addError('odp_port_id', "Port sudah dipesan tiket {$dipesanOleh}.");
+⋮----
+TicketPemasangan::updateOrCreate(
+⋮----
+protected function uploadPendingFotoTeknisi(): void
+⋮----
+$this->validate($rules, [
+⋮----
+$this->ticket->addMediaFromDisk(
+FileUploadConfiguration::path($foto->getFilename(), false),
+⋮----
+)->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_pemasangan');
+⋮----
+)->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_speedtest');
+⋮----
+FileUploadConfiguration::path($this->fotoMou->getFilename(), false),
+⋮----
+)->usingFileName($this->fotoMou->getClientOriginalName())->toMediaCollection('foto_tanda_tangan_mou');
+⋮----
+)->usingFileName($foto->getClientOriginalName())->toMediaCollection('foto_bersama_pelanggan_teknisi');
+⋮----
+public function simpanProgressLapangan(): void
+⋮----
+if (! $this->simpanOdpPortTeknisi()) {
+⋮----
+$this->uploadPendingFotoTeknisi();
+⋮----
+if ($this->ticket->statusDivisi(DivisiTicket::Teknisi) === StatusDivisiTicket::Belum) {
+app(UbahStatusDivisiTicketAction::class)->execute(
+⋮----
+actor: Auth::guard('web')->user(),
+⋮----
+Flux::toast(variant: 'success', text: 'Progress pengerjaan lapangan berhasil disimpan.');
+⋮----
+public function openAktivasiModal(): void
+⋮----
+$this->authorize('aktivasiPemasangan', $this->ticket);
+⋮----
+if (! $this->ticket->siapDiaktivasi()) {
+Flux::toast(variant: 'danger', text: 'Belum bisa diaktivasi: pastikan Teknisi sudah memilih ODP+Port dan mengunggah minimal 1 foto pemasangan.');
+⋮----
+$routers = $this->routerOnlineUntukPaket($this->ticket->layananPelanggan?->paket_layanan_id);
+$this->aktivasiRouterId = $routers->count() === 1 ? $routers->first()->id : null;
+⋮----
+private function validasiRouterPaket(?int $paketLayananId): \Closure
+⋮----
+if (! RouterPaket::terdaftar($value, $paketLayananId)) {
+$fail(RouterPaket::PESAN_BELUM_TERDAFTAR);
+⋮----
+private function routerOnlineUntukPaket(?int $paketLayananId): Collection
+⋮----
+return Router::where('status_koneksi', StatusRouter::Online)
+->whereHas('routerPakets', fn ($query) => $query->where('paket_layanan_id', $paketLayananId))
+->orderBy('nama_router')
+->get();
+⋮----
+public function prosesAktivasi(): void
+⋮----
+'aktivasiRouterId' => ['required', 'integer', 'exists:router,id', $this->validasiRouterPaket($this->ticket->layananPelanggan?->paket_layanan_id)],
+⋮----
+Flux::toast(variant: 'danger', text: 'Tiket ini belum terhubung ke Data Registrasi Billing.');
+⋮----
+app(DaftarkanLayananAction::class)->assertBelumAdaDuplikat(
+⋮----
+$this->addError('aktivasiRouterId', $e->getMessage());
+⋮----
+$pppUsername = LayananPelanggan::generatePppUsername($layanan->pelanggan);
+⋮----
+DB::transaction(function () use ($layanan, $pppUsername, $odpPortId) {
+$layanan->update([
+⋮----
+$layanan->isiPppPasswordJikaKosong();
+⋮----
+OdpPort::whereKey($odpPortId)->update([
+⋮----
+$this->ticket->pemasangan()->update([
+⋮----
+'diaktivasi_oleh' => Auth::id(),
+⋮----
+$router = Router::findOrFail($this->aktivasiRouterId);
+⋮----
+app(MikrotikService::class)->createOrUpdatePppoeSecret($router, $layanan->fresh());
+⋮----
+$layanan->update(['status' => StatusLayanan::Aktif]);
+⋮----
+MikrotikJobLog::create([
+⋮----
+Flux::toast(
+⋮----
+$log = MikrotikJobLog::create([
+⋮----
+'error_message' => $e->getMessage(),
+⋮----
+app(NotifikasiNoc::class)->kirim($log, whatsapp: true);
+⋮----
+$dicobaLagi = MikrotikException::bisaDicobaLagi($e);
+⋮----
+ProvisionPppoeAccountJob::dispatch($layanan->fresh());
+⋮----
+text: "Provisi ke router gagal: {$e->getMessage()} ".($dicobaLagi ? 'Sistem mencoba ulang otomatis dan NOC diberi tahu.' : 'Perbaiki penyebabnya lalu klik Coba Provisi Lagi.'),
+⋮----
+public function provisiUlang(): void
+⋮----
+ProvisionPppoeAccountJob::dispatch($layanan);
+Flux::toast(variant: 'info', text: "Provisi {$layanan->ppp_username} diantrekan. Hasilnya muncul di lonceng notifikasi.");
+⋮----
+public function simpanFotoTahapDua(): void
+⋮----
+Flux::toast(variant: 'success', text: 'Foto bukti berhasil disimpan.');
+⋮----
+public function tandaiDivisiSelesai(string $divisiValue): void
+⋮----
+$divisi = DivisiTicket::from($divisiValue);
+$this->authorize('ubahStatusDivisi', [$this->ticket, $divisi]);
+⋮----
+if (! $this->ticket->siapTeknisiSelesai()) {
+⋮----
+Flux::toast(variant: 'danger', text: 'Pilih dan simpan Port ODP sebelum menandai Teknisi selesai.');
+} elseif ($this->ticket->getMedia('foto_speedtest')->isEmpty()) {
+Flux::toast(variant: 'danger', text: 'Unggah foto speedtest sebelum menandai Teknisi selesai.');
+} elseif ($this->ticket->getMedia('foto_tanda_tangan_mou')->isEmpty()) {
+Flux::toast(variant: 'danger', text: 'Unggah foto tanda tangan MOU sebelum menandai Teknisi selesai.');
+⋮----
+Flux::toast(variant: 'danger', text: 'Lengkapi port ODP, foto speedtest, dan foto MOU sebelum menandai Teknisi selesai.');
+⋮----
+Flux::toast(variant: 'success', text: "{$divisi->label()} berhasil ditandai selesai.");
+⋮----
+public function openProsesModal(string $divisiValue): void
+⋮----
+$current = $this->ticket->statusDivisi($divisi);
+⋮----
+/**
+     * Simpan hasil modal "Proses {Divisi}": aksi teknis khusus per divisi (NOC: router/paket/
+     * Mikrotik/PPP; Admin: opsional ubah paket), lalu satu baris TicketHistori berisi Catatan
+     * Proses wajib -- lihat UbahStatusDivisiTicketAction::execute(). Opsi status "Cancel"
+     * membatalkan tiket keseluruhan lewat UbahStatusTicketAction, bukan status per-divisi.
+     */
+public function prosesDivisiSubmit(): void
+⋮----
+$divisi = DivisiTicket::from($this->prosesDivisi);
+⋮----
+app(UbahStatusTicketAction::class)->execute(
+⋮----
+Flux::toast(variant: 'success', text: "Tiket {$this->ticket->nomor_ticket} berhasil dibatalkan.");
+⋮----
+$perluPasswordManual = $layanan->perluPasswordManual($this->prosesModeMikrotik === 'sudah');
+⋮----
+$this->validasiRouterPaket($this->prosesPilihanPaket === 'bawaan' ? $layanan->paket_layanan_id : $this->prosesPaketLayananId),
+⋮----
+Rule::requiredIf($this->prosesPppMode === 'manual'),
+⋮----
+Rule::unique('layanan_pelanggan', 'ppp_username')->ignore($layanan->id),
+⋮----
+'prosesPppPassword' => [Rule::requiredIf($perluPasswordManual), 'nullable', 'string', 'max:64'],
+⋮----
+app(UbahPaketLayananAction::class)->execute($layanan, $paketLayananId, $this->prosesRouterId);
+⋮----
+$layanan->update(['ppp_username' => $this->prosesPppUsername]);
+⋮----
+$layanan->update(['ppp_username' => LayananPelanggan::generatePppUsername($layanan->pelanggan)]);
+⋮----
+$layanan->update(['ppp_password_terenkripsi' => $this->prosesPppPassword]);
+⋮----
+$router = Router::findOrFail($this->prosesRouterId);
+⋮----
+Flux::toast(variant: 'warning', heading: 'Registrasi Mikrotik Gagal', text: $e->getMessage(), duration: 20000);
+⋮----
+$this->validate(['prosesPaketLayananId' => ['required', 'integer', 'exists:paket_layanan,id']]);
+app(UbahPaketLayananAction::class)->execute($layanan, $this->prosesPaketLayananId);
+⋮----
+Flux::toast(variant: 'success', text: "Proses {$divisi->label()} berhasil disimpan.");
+⋮----
+public function revealPppPassword(): void
+⋮----
+$this->authorize('lihatKredensialPpp', $this->ticket);
+⋮----
+->performedOn($layanan)
+->causedBy(Auth::guard('web')->user())
+->withProperties([
+⋮----
+'ip' => request()->ip(),
+⋮----
+->log("Mengungkap PPP Password layanan {$layanan->ppp_username} lewat tiket {$this->ticket->nomor_ticket}");
+⋮----
+public function sembunyikanPppPassword(): void
+⋮----
+public function render(): View
+⋮----
+/** @var Collection<int, User> $staffList */
+$staffList = User::query()->active()->role('teknisi')->orderBy('name')->get();
+⋮----
+$odps = Odp::orderBy('nama_odp')
+->when($usulanDisetujui, fn ($query) => $query->whereKey($this->ticket->pemasangan->odp_usulan_id))
+->get(['id', 'nama_odp']);
+⋮----
+? OdpPort::where('odp_id', $this->odp_id)
+->where(function ($q) {
+$q->where('status', StatusOdpPort::Kosong)->orWhere('id', $this->odp_port_id);
+⋮----
+->orderBy('nomor_port')
+->get()
+⋮----
+$routersAktivasi = $this->routerOnlineUntukPaket($layananTiket?->paket_layanan_id);
+$routersProses = $this->routerOnlineUntukPaket($this->prosesPilihanPaket === 'berbeda' ? $this->prosesPaketLayananId : $layananTiket?->paket_layanan_id);
+⋮----
+$paketLayananList = PaketLayanan::aktif()->orderBy('nama_paket')->get();
+⋮----
+'portDipesan' => $this->odp_id ? TicketPemasangan::portDipesan($this->ticket->id) : [],
+⋮----
+'panduan' => $this->ticket->jenis->panduan(),
 ````
 
 ## File: database/seeders/RolesAndPermissionsSeeder.php
