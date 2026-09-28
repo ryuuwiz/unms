@@ -452,8 +452,14 @@ $registerRutePortalPelanggan = function () {
     });
 };
 
-// Mount lama, domain utama, path "/portal" -- permanen, lihat catatan di atas.
-Route::prefix('portal')->name('portal.')->group($registerRutePortalPelanggan);
+// Mount lama, domain utama, path "/portal" -- permanen, lihat catatan di atas. Saat mount
+// domain khusus di bawah aktif, mount ini dipasang dengan prefix nama "portal-legacy." (bukan
+// "portal.") supaya tidak collide dengan nama yang sama saat `route:cache` menyerialisasi rute
+// (Laravel melarang dua rute berbagi satu nama saat caching -- lihat LogicException di
+// AbstractRouteCollection::prepareForSerialization()). Pencocokan permintaan masuk memakai
+// path/domain, bukan nama, jadi tautan lama tetap match; route()/redirectRoute('portal.*') tetap
+// selalu resolve ke mount domain khusus sesuai desain di bawah.
+Route::prefix('portal')->name(config('app.portal_domain') ? 'portal-legacy.' : 'portal.')->group($registerRutePortalPelanggan);
 
 // Mount baru, domain khusus (mis. portal.gobilling.id), tanpa prefix path. Didaftarkan
 // SETELAH mount lama supaya nama rute "portal.*" (dipakai WhatsappService, redirect

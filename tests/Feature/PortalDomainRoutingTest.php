@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\Facades\Artisan;
+
 test('portal.* names resolve to the dedicated portal domain, without the legacy /portal prefix', function () {
     expect(route('portal.login'))->toBe('http://'.config('app.portal_domain').'/login')
         ->and(route('portal.dashboard'))->toBe('http://'.config('app.portal_domain').'/dashboard');
@@ -11,4 +13,10 @@ test('the legacy /portal path on the main domain still works, for already-sent s
 
 test('the new portal domain serves the same login page at its root', function () {
     $this->get('http://'.config('app.portal_domain').'/login')->assertOk();
+});
+
+test('route:cache does not crash when both the legacy and dedicated portal mounts are registered', function () {
+    expect(fn () => Artisan::call('route:cache'))->not->toThrow(LogicException::class);
+
+    Artisan::call('route:clear');
 });

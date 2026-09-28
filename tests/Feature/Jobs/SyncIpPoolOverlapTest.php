@@ -26,6 +26,27 @@ test('dispatching two syncs for the same pool only queues one job', function () 
     Queue::assertPushed(SyncIpPoolToRouterJob::class, 1);
 });
 
+test('saving the same pool twice via IpPoolObserver::saved() only queues one sync job', function () {
+    // Regression: IpPoolObserver::saved() used to dispatch via Bus::chain($jobs)->dispatch(),
+    // which calls Illuminate\Bus\Dispatcher::dispatch() directly and never checks ShouldBeUnique
+    // (only Illuminate\Foundation\Bus\PendingDispatch::shouldDispatch() does, via UniqueLock).
+    // Every real IpPool::save() -- the actual production trigger, not a direct ::dispatch() call --
+    // queued a brand-new SyncIpPoolToRouterJob with no dedupe, contradicting the job's own docblock
+    // and piling up duplicate jobs that fight over the same per-router WithoutOverlapping lock.
+    $pool = IpPool::factory()->create(['router_id' => $this->router->id]);
+
+    Queue::fake();
+
+    // Force the observer's real dispatch path (guarded by `if (app()->runningUnitTests())`),
+    // same trick as ProfilBandwidthObserver's analogous regression test.
+    app()->instance('env', 'production');
+    $pool->update(['deskripsi' => 'percobaan simpan pertama']);
+    $pool->update(['deskripsi' => 'percobaan simpan kedua']);
+    app()->instance('env', 'testing');
+
+    Queue::assertPushed(SyncIpPoolToRouterJob::class, 1);
+});
+
 test('syncs for different pools are both queued', function () {
     $poolA = IpPool::factory()->create(['router_id' => $this->router->id]);
     $poolB = IpPool::factory()->create(['router_id' => $this->router->id]);
