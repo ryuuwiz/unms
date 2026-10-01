@@ -117,6 +117,8 @@
                     <flux:error name="logo" />
                 </flux:field>
 
+                <x-brand.identitas-aplikasi-fields :nama-brand="$nama" :ikon-preview="$ikon_aplikasi?->temporaryUrl() ?: $existing_ikon_aplikasi_url" />
+
                 <flux:field>
                     <flux:checkbox wire:model="is_active" label="Status Aktif" />
                     <flux:description>Prefix nonaktif tidak muncul di dropdown pendaftaran pelanggan.</flux:description>

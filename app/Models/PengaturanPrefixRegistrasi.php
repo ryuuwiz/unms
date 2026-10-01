@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasLogo;
+use App\Support\BrandPelanggan;
 use Database\Factories\PengaturanPrefixRegistrasiFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -19,12 +20,14 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property string $kode
  * @property string $nama
  * @property bool $is_active
+ * @property string|null $nama_pendek
+ * @property string|null $warna_utama
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read string|null $logo_url
  * @property-read string|null $logo_base64
  */
-#[Fillable(['kode', 'nama', 'is_active'])]
+#[Fillable(['kode', 'nama', 'is_active', 'nama_pendek', 'warna_utama'])]
 class PengaturanPrefixRegistrasi extends Model implements HasMedia
 {
     /** @use HasFactory<PengaturanPrefixRegistrasiFactory> */
@@ -39,7 +42,7 @@ class PengaturanPrefixRegistrasi extends Model implements HasMedia
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['kode', 'nama', 'is_active'])
+            ->logOnly(['kode', 'nama', 'is_active', 'nama_pendek', 'warna_utama'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('pengaturan_prefix_registrasi');
@@ -69,6 +72,10 @@ class PengaturanPrefixRegistrasi extends Model implements HasMedia
         $this->addMediaCollection('logo')
             ->singleFile()
             ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']);
+
+        $this->addMediaCollection(BrandPelanggan::KOLEKSI_IKON)
+            ->singleFile()
+            ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/webp']);
     }
 
     /**
@@ -90,14 +97,5 @@ class PengaturanPrefixRegistrasi extends Model implements HasMedia
     public static function kodeUntuk(?string $noReg): string
     {
         return static::untukNoReg($noReg)->kode ?? '';
-    }
-
-    /**
-     * Nama Brand Pelanggan: nama prefix milik No. Registrasi, fallback brand Perusahaan.
-     */
-    public static function namaBrandUntuk(?string $noReg): string
-    {
-        return static::untukNoReg($noReg)?->nama
-            ?: (Perusahaan::default()->nama_brand ?: config('app.name', 'GOBILLING'));
     }
 }

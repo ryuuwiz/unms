@@ -4,8 +4,8 @@ namespace App\Services\PaymentGateway;
 
 use App\Actions\LayananPelanggan\PerpanjangMasaAktifAction;
 use App\Models\Invoice;
-use App\Models\PengaturanPrefixRegistrasi;
 use App\Models\TemplateDeskripsiTagihan;
+use App\Support\BrandPelanggan;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -71,7 +71,7 @@ class DeskripsiTagihanBuilder
             ?? Carbon::parse($invoice->tanggal_terbit);
 
         return [
-            'brand' => PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg),
+            'brand' => BrandPelanggan::untukNoReg($pelanggan?->no_reg)->nama(),
             'site_id' => $layanan->site_id ?? '-',
             'bulan' => $bulan->translatedFormat('F Y'),
             'nama_paket_pelanggan' => $layanan?->paketLayanan->nama_paket ?? 'Layanan Internet',

@@ -105,6 +105,8 @@
                     <flux:input wire:model="tagline" placeholder="Contoh: Solusi Billing & Manajemen ISP Terpadu" />
                     <flux:error name="tagline" />
                 </flux:field>
+
+                <x-brand.identitas-aplikasi-fields :nama-brand="$nama_brand" :ikon-preview="$ikon_aplikasi?->temporaryUrl() ?: $existing_ikon_aplikasi_url" />
             </flux:card>
 
             {{-- 2. Kontak & Lokasi --}}

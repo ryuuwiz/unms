@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Settings;
 
+use App\Livewire\Concerns\KelolaIdentitasAplikasi;
 use App\Models\PengaturanPrefixRegistrasi as PengaturanPrefixRegistrasiModel;
 use Flux\Flux;
 use Illuminate\Validation\Rule;
@@ -12,12 +13,13 @@ use Livewire\Component;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
+use Spatie\MediaLibrary\HasMedia;
 
 #[Layout('layouts.app')]
 #[Title('Pengaturan Prefix Registrasi')]
 class PengaturanPrefixRegistrasi extends Component
 {
-    use WithFileUploads;
+    use KelolaIdentitasAplikasi, WithFileUploads;
 
     public string $search = '';
 
@@ -51,6 +53,7 @@ class PengaturanPrefixRegistrasi extends Component
         $this->nama = $prefix->nama;
         $this->is_active = $prefix->is_active;
         $this->existing_logo_url = $prefix->logo_url;
+        $this->isiIdentitasAplikasi($prefix);
 
         $this->showModal = true;
     }
@@ -67,14 +70,17 @@ class PengaturanPrefixRegistrasi extends Component
             'nama' => ['required', 'string', 'max:100'],
             'is_active' => ['required', 'boolean'],
             'logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
+            ...$this->aturanIdentitasAplikasi(),
         ], [
             'kode.regex' => 'Kode prefix harus 2-5 huruf kapital (contoh: BF, ARS).',
+            ...$this->pesanIdentitasAplikasi(),
         ]);
 
         $data = [
             'kode' => strtoupper($this->kode),
             'nama' => trim($this->nama),
             'is_active' => $this->is_active,
+            ...$this->dataIdentitasAplikasi(),
         ];
 
         if ($this->editingId) {
@@ -97,6 +103,8 @@ class PengaturanPrefixRegistrasi extends Component
                 ->toMediaCollection('logo');
         }
 
+        $this->simpanIkonAplikasi($prefix);
+
         $this->showModal = false;
         $this->resetForm();
     }
@@ -109,6 +117,11 @@ class PengaturanPrefixRegistrasi extends Component
 
         $this->logo = null;
         $this->existing_logo_url = null;
+    }
+
+    protected function modelIdentitasAplikasi(): ?HasMedia
+    {
+        return $this->editingId ? PengaturanPrefixRegistrasiModel::find($this->editingId) : null;
     }
 
     public function toggleStatus(int $id): void
@@ -128,6 +141,7 @@ class PengaturanPrefixRegistrasi extends Component
         $this->is_active = true;
         $this->logo = null;
         $this->existing_logo_url = null;
+        $this->isiIdentitasAplikasi(null);
     }
 
     public function render(): View

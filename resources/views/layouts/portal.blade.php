@@ -1,7 +1,25 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+    @php($brand = \App\Support\BrandPelanggan::untukPortal())
     <head>
-        @include('partials.head')
+        @include('partials.head', ['brandPortal' => $brand])
+        @php($akarPortal = \App\Http\Controllers\AplikasiPelangganController::akarPortal(request()))
+        <meta name="theme-color" content="{{ $brand->warnaUtama() }}">
+        <link rel="manifest" href="{{ $akarPortal }}/manifest.webmanifest" crossorigin="use-credentials">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-title" content="{{ $brand->namaPendek() }}">
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => navigator.serviceWorker.register(@js($akarPortal.'/sw.js'), { scope: @js($akarPortal.'/') }));
+            }
+        </script>
+        <style>
+            :root, .dark {
+                --color-accent: {{ $brand->warnaUtama() }};
+                --color-accent-content: {{ $brand->warnaUtama() }};
+                --color-accent-foreground: {{ $brand->warnaTeks() }};
+            }
+        </style>
     </head>
     <body class="min-h-screen bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 flex flex-col">
         <x-impersonation-banner />
@@ -9,12 +27,10 @@
             <!-- Portal Customer Navigation Bar -->
             <flux:header class="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 lg:px-8">
                 <div class="flex items-center gap-3">
-                    <div class="flex items-center justify-center size-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold shadow-md shadow-indigo-500/20">
-                        <flux:icon icon="bolt" class="size-5 text-white" />
-                    </div>
+                    <x-portal.brand-mark :brand="$brand" />
                     <div>
-                        <div class="font-bold text-sm leading-tight tracking-wide flex items-center gap-1.5">
-                            {{ config('app.name', 'GOBILLING') }} <span class="text-xs px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-200/50 dark:border-indigo-800/50">PORTAL</span>
+                        <div class="font-bold text-sm leading-tight tracking-wide">
+                            {{ $brand->nama() }}
                         </div>
                         <div class="text-[11px] text-zinc-500 dark:text-zinc-400">Area Pelanggan</div>
                     </div>
@@ -47,11 +63,17 @@
                     >
                         {{ __('Profil & Langganan') }}
                     </flux:navbar.item>
+
+                    <flux:navbar.item icon="lifebuoy" :href="route('portal.dashboard').'#bantuan'">
+                        {{ __('Bantuan') }}
+                    </flux:navbar.item>
                 </flux:navbar>
 
                 <flux:spacer />
 
                 <div class="flex items-center gap-3">
+                    <x-portal.pasang-aplikasi :brand="$brand" />
+
                     <flux:dropdown position="bottom" align="end">
                         <flux:button variant="ghost" class="flex items-center gap-2 px-2 py-1.5 rounded-lg">
                             <div class="size-7 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center font-bold text-xs">
@@ -124,6 +146,10 @@
                     <flux:icon icon="user" class="size-4" />
                     <span>Profil</span>
                 </a>
+                <a href="{{ route('portal.dashboard') }}#bantuan" class="text-xs flex flex-col items-center gap-0.5 py-1 text-zinc-500">
+                    <flux:icon icon="lifebuoy" class="size-4" />
+                    <span>Bantuan</span>
+                </a>
             </div>
         @endauth
 
@@ -132,7 +158,7 @@
         </main>
 
         <footer class="border-t border-zinc-200 dark:border-zinc-800 py-6 text-center text-xs text-zinc-500 dark:text-zinc-400 mt-auto">
-            &copy; {{ date('Y') }} {{ config('app.name', 'GOBILLING') }} Customer Portal &bull; Layanan Internet Cepat & Stabil
+            &copy; {{ date('Y') }} {{ $brand->nama() }} &bull; Layanan Internet Cepat & Stabil
         </footer>
 
         @persist('toast')

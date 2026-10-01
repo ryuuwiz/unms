@@ -7,11 +7,11 @@ use App\Jobs\Wa\KirimWaBlastJob;
 use App\Models\AntrianWaBlast;
 use App\Models\Invoice;
 use App\Models\Pembayaran;
-use App\Models\PengaturanPrefixRegistrasi;
 use App\Models\Perusahaan;
 use App\Models\Sysblas;
 use App\Models\Ticket;
 use App\Models\WaTemplate;
+use App\Support\BrandPelanggan;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -148,10 +148,10 @@ class WhatsappService
         return [
             'nama_pelanggan' => $pelanggan ? "{$pelanggan->nama_depan} {$pelanggan->nama_belakang}" : 'Pelanggan',
             'no_reg' => $pelanggan->no_reg ?? '-',
-            'nama_brand' => PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg),
+            'nama_brand' => BrandPelanggan::untukNoReg($pelanggan?->no_reg)->nama(),
             'no_invoice' => $invoice->no_invoice,
             'periode' => $invoice->periode_tagihan ?? Carbon::parse($invoice->tanggal_terbit)->format('m/Y'),
-            'total_tagihan' => 'Rp ' . number_format($invoice->jumlah_setelah_promo ?? $invoice->jumlah, 0, ',', '.'),
+            'total_tagihan' => 'Rp '.number_format($invoice->jumlah_setelah_promo ?? $invoice->jumlah, 0, ',', '.'),
             'jatuh_tempo' => Carbon::parse($invoice->tanggal_jatuh_tempo)->translatedFormat('d F Y'),
             'link_pembayaran' => $linkBayar,
             'nama_paket' => $namaPaket,
@@ -185,7 +185,7 @@ class WhatsappService
             'status_tiket' => $ticket->status->label(),
             'nama_pelanggan' => $pelanggan ? "{$pelanggan->nama_depan} {$pelanggan->nama_belakang}" : 'Pelanggan',
             'no_reg' => $pelanggan->no_reg ?? '-',
-            'nama_brand' => PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg),
+            'nama_brand' => BrandPelanggan::untukNoReg($pelanggan?->no_reg)->nama(),
             'no_hp_pelanggan' => $pelanggan->no_hp ?? '-',
             'alamat' => $alamat,
             'nama_pic' => $pic->name ?? 'Belum Ditugaskan',
@@ -206,7 +206,7 @@ class WhatsappService
     {
         $params = $this->buildInvoiceParams($invoice);
 
-        $params['jumlah_dibayar'] = 'Rp ' . number_format((float) $pembayaran->jumlah_dibayar, 0, ',', '.');
+        $params['jumlah_dibayar'] = 'Rp '.number_format((float) $pembayaran->jumlah_dibayar, 0, ',', '.');
         $params['tanggal_bayar'] = Carbon::parse($pembayaran->dibayar_pada ?? now())->translatedFormat('d F Y H:i');
         $metodeText = $pembayaran->metode->value;
         $params['metode_bayar'] = strtoupper(str_replace('_', ' ', $metodeText));

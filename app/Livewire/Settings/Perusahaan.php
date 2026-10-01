@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Settings;
 
+use App\Livewire\Concerns\KelolaIdentitasAplikasi;
 use App\Models\Perusahaan as PerusahaanModel;
 use App\Support\MediaLibraryVisibility;
 use Flux\Flux;
@@ -14,12 +15,13 @@ use Livewire\Component;
 use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
+use Spatie\MediaLibrary\HasMedia;
 
 #[Layout('layouts.app')]
 #[Title('Profil Perusahaan')]
 class Perusahaan extends Component
 {
-    use WithFileUploads, WithPagination;
+    use KelolaIdentitasAplikasi, WithFileUploads, WithPagination;
 
     public bool $showMediaPicker = false;
 
@@ -87,6 +89,7 @@ class Perusahaan extends Component
         $this->nama_penandatangan = $perusahaan->nama_penandatangan;
         $this->jabatan_penandatangan = $perusahaan->jabatan_penandatangan;
         $this->existing_logo_url = $perusahaan->logo_url;
+        $this->isiIdentitasAplikasi($perusahaan);
     }
 
     public function pilihDariMediaLibrary(int $mediaId): void
@@ -136,6 +139,13 @@ class Perusahaan extends Component
         Flux::toast(variant: 'success', text: 'Logo perusahaan berhasil dihapus!');
     }
 
+    protected function modelIdentitasAplikasi(): ?HasMedia
+    {
+        $perusahaan = PerusahaanModel::default();
+
+        return $perusahaan->exists ? $perusahaan : null;
+    }
+
     public function save(): void
     {
         $this->validate([
@@ -158,7 +168,8 @@ class Perusahaan extends Component
             'nama_penandatangan' => ['nullable', 'string', 'max:255'],
             'jabatan_penandatangan' => ['nullable', 'string', 'max:255'],
             'logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
-        ]);
+            ...$this->aturanIdentitasAplikasi(),
+        ], $this->pesanIdentitasAplikasi());
 
         $perusahaan = PerusahaanModel::default();
 
@@ -181,6 +192,7 @@ class Perusahaan extends Component
             'syarat_ketentuan' => $this->syarat_ketentuan ? trim($this->syarat_ketentuan) : null,
             'nama_penandatangan' => $this->nama_penandatangan ? trim($this->nama_penandatangan) : null,
             'jabatan_penandatangan' => $this->jabatan_penandatangan ? trim($this->jabatan_penandatangan) : null,
+            ...$this->dataIdentitasAplikasi(),
             'is_default' => true,
         ];
 
@@ -204,10 +216,13 @@ class Perusahaan extends Component
             $perusahaan->syncFaviconFiles();
         }
 
+        $this->simpanIkonAplikasi($perusahaan);
+
         Cache::forget(PerusahaanModel::CACHE_KEY);
 
         $this->existing_logo_url = $perusahaan->getFirstMediaUrl('logo') ?: null;
         $this->logo = null;
+        $this->isiIdentitasAplikasi($perusahaan);
 
         Flux::toast(variant: 'success', text: 'Profil perusahaan dan template tagihan berhasil disimpan!');
     }

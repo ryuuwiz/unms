@@ -113,11 +113,11 @@ Pengenal unik untuk setiap pelanggan dengan format default `[Prefix][DDMMYYYY][C
 _Avoid_: Customer ID, Nomor Pelanggan, No Langganan, CUST-XXXXXX, No Reg Duplikat
 
 **Prefix Registrasi**:
-Kode singkat (2-5 huruf kapital, contoh `BF` untuk Bestfiber, `ARS` untuk Arsyila) yang mewakili brand/unit bisnis dan menjadi awalan No. Registrasi pelanggan. Dikelola dinamis oleh staff lewat halaman Pengaturan Prefix Registrasi (tabel `pengaturan_prefix_registrasi`), dapat dinonaktifkan tanpa dihapus sehingga No. Registrasi lama yang sudah terbit tetap valid.
+Kode singkat (2-5 huruf kapital, contoh `BEST` untuk BESTFIBER, `WIFI` untuk WIFIGO, `MIIX` untuk MyArsyila) yang mewakili brand/unit bisnis dan menjadi awalan No. Registrasi pelanggan. Dikelola dinamis oleh staff lewat halaman Pengaturan Prefix Registrasi (tabel `pengaturan_prefix_registrasi`), dapat dinonaktifkan tanpa dihapus sehingga No. Registrasi lama yang sudah terbit tetap valid.
 _Avoid_: Kode Cabang Hardcode, Prefix Bebas Tanpa Kelola
 
 **Brand Pelanggan**:
-Merek ISP yang dilihat seorang pelanggan: nama (dan logo) Prefix Registrasi yang cocok dengan huruf awal No. Registrasi-nya, **termasuk prefix yang sudah dinonaktifkan** (nonaktif hanya berarti tidak bisa dipilih untuk registrasi baru). No. Registrasi yang tidak cocok dengan prefix mana pun jatuh ke brand Perusahaan. Satu-satunya brand yang tampil di setiap hal yang dilihat pelanggan (pesan WhatsApp, invoice PDF, deskripsi payment gateway) dan disebut di pesan staf tentang pelanggan itu. Brand hanya identitas merek (nama, logo); identitas legal, rekening, kontak, dan NPWP tetap satu milik Perusahaan. Semua brand dikirim dari Koneksi Gateway WhatsApp yang sama.
+Merek ISP yang dilihat seorang pelanggan: nama (dan logo) Prefix Registrasi yang cocok dengan huruf awal No. Registrasi-nya, **termasuk prefix yang sudah dinonaktifkan** (nonaktif hanya berarti tidak bisa dipilih untuk registrasi baru). No. Registrasi yang tidak cocok dengan prefix mana pun jatuh ke brand Perusahaan. Satu-satunya brand yang tampil di setiap hal yang dilihat pelanggan (pesan WhatsApp, invoice PDF, deskripsi payment gateway) dan disebut di pesan staf tentang pelanggan itu. Brand hanya identitas merek (nama, nama pendek, logo, ikon aplikasi, warna utama); atribut yang belum diisi diturunkan dari brand itu sendiri (nama pendek dari nama, ikon dari logo, warna default aplikasi), tidak pernah dipinjam dari brand Perusahaan; identitas legal, rekening, kontak, dan NPWP tetap satu milik Perusahaan. Semua brand dikirim dari Koneksi Gateway WhatsApp yang sama.
 _Avoid_: Brand Perusahaan untuk Pesan Pelanggan, Template WA per Brand, Nomor WA per Brand, Cabang
 
 **Format Identitas Pelanggan**:
@@ -247,8 +247,24 @@ Program diskon (nominal / persentase) atau bonus durasi yang dapat diaplikasikan
 _Avoid_: Voucher Bebas, Potongan Informal
 
 **Portal Pelanggan**:
-Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time. Tetap satu monolit dengan aplikasi staf (ADR-0007), tapi dapat diakses lewat domain khususnya sendiri (`app.portal_domain`, mis. `portal.gobilling.id`) sekaligus tetap hidup di path lama `/portal/*` pada domain staf (dipertahankan permanen untuk tautan tagihan bertanda tangan yang sudah terkirim) -- lihat ADR-0049. Tidak menampilkan PPP Username/Password, router, atau alamat IP; tampilannya belum di-brand per Brand Pelanggan.
+Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time. Tetap satu monolit dengan aplikasi staf (ADR-0007), tapi dapat diakses lewat domain khususnya sendiri (`app.portal_domain`, mis. `portal.gobilling.id`) sekaligus tetap hidup di path lama `/portal/*` pada domain staf (dipertahankan permanen untuk tautan tagihan bertanda tangan yang sudah terkirim) -- lihat ADR-0049. Tidak menampilkan PPP Username/Password, router, atau alamat IP. Tampil dengan identitas Brand Pelanggan (bukan brand Perusahaan) dan dapat dipasang ke layar utama ponsel sebagai Aplikasi Pelanggan.
 _Avoid_: Client Area Bebas, Customer App Terpisah, Halaman Member, Portal Sebagai Aplikasi Terpisah
+
+**Aplikasi Pelanggan**:
+Portal Pelanggan yang dipasang pelanggan ke layar utama ponselnya, dengan nama pendek dan ikon Brand Pelanggan miliknya. Bukan aplikasi app store dan bukan codebase terpisah: isi dan fiturnya persis Portal Pelanggan. Satu aplikasi per Brand Pelanggan, bukan per Perusahaan/tenant. Semua brand berbagi satu domain Portal, sehingga brand baru diketahui setelah login: pemasangan ditawarkan setelah login dan identitasnya mengikuti brand pelanggan yang login; satu ponsel memasang satu Aplikasi Pelanggan. Sebelum login tampil Petunjuk Brand atau, bila tidak ada, brand Perusahaan. Tidak pernah menampilkan nama GOBILLING.
+_Avoid_: Aplikasi Whitelabel Native, Aplikasi Play Store per Brand, Aplikasi Per Tenant, Domain per Brand, Powered by GOBILLING
+
+**Petunjuk Brand**:
+Brand Pelanggan terakhir yang login di sebuah perangkat, diingat perangkat itu agar halaman sebelum login (login, klaim akun, lupa kata sandi) tampil dengan brand yang sama dengan Aplikasi Pelanggan yang terpasang. Hanya menentukan tampilan, tidak pernah menentukan identitas atau hak akses; setelah login brand selalu diturunkan dari No. Registrasi.
+_Avoid_: Brand dari Sesi Sebelumnya sebagai Identitas, Memilih Brand Manual di Halaman Login
+
+**Kontak Dukungan**:
+Tombol di Portal Pelanggan untuk menghubungi CS (WhatsApp dengan pesan terisi, telepon, email). Satu-satunya jalur dukungan dari Portal; Portal tidak membuat atau menampilkan tiket (ADR-0040). Kontaknya milik Perusahaan dan sama untuk semua Brand Pelanggan; pesan WhatsApp terisi menyebut Brand Pelanggan dan No. Registrasi.
+_Avoid_: Tiket dari Portal, Live Chat, Layanan Dukungan Self-Service, Kontak CS per Brand
+
+**Status Koneksi**:
+Keadaan sambungan sebuah Layanan Pelanggan yang dilihat pelanggan di Portal: paket dan kecepatannya, status layanan (Aktif/Isolir/…), Online atau Offline, dan lama sesi saat ini, dibaca live dari router. Router yang tidak dapat dihubungi berarti "Status tidak tersedia", bukan Offline. Tidak memuat riwayat pemakaian (GB), router, alamat IP, maupun perangkat pelanggan.
+_Avoid_: Penggunaan Bandwidth, Pemakaian Kuota, Grafik Trafik, Offline saat Router Tak Terjangkau
 
 **Akun Pelanggan**:
 Entitas kredensial autentikasi pengguna portal (guard `pelanggan`) yang terikat 1-to-1 dengan master data Pelanggan.
@@ -264,7 +280,7 @@ Tautan resmi sesi pembayaran terkelola dari payment gateway aktif (`payment_gate
 _Avoid_: Custom Checkout URL, Link Bayar Bebas, Xendit URL Saja
 
 **Halaman Tagihan Mandiri**:
-Halaman tunggal tanpa autentikasi/login yang dituju oleh tautan pada notifikasi WhatsApp pengingat tagihan, berisi rincian satu Invoice dan satu tombol yang mengarah ke Link Pembayaran Gateway. Berbeda dari Portal Pelanggan (yang mencakup banyak halaman dan wajib login): halaman ini diakses via signed URL bertanggal kedaluwarsa yang mengikat ke satu Invoice spesifik, tanpa form perbandingan biaya custom internal apa pun. Pelanggan yang sudah login ke Portal Pelanggan tetap dapat mencapai halaman yang sama via sesi login sebagai jalur kedua.
+Halaman tunggal tanpa autentikasi/login yang dituju oleh tautan pada notifikasi WhatsApp pengingat tagihan, berisi rincian satu Invoice dan satu tombol yang mengarah ke Link Pembayaran Gateway. Tampil dengan Brand Pelanggan pemilik invoice (bukan Petunjuk Brand). Berbeda dari Portal Pelanggan (yang mencakup banyak halaman dan wajib login): halaman ini diakses via signed URL bertanggal kedaluwarsa yang mengikat ke satu Invoice spesifik, tanpa form perbandingan biaya custom internal apa pun. Pelanggan yang sudah login ke Portal Pelanggan tetap dapat mencapai halaman yang sama via sesi login sebagai jalur kedua.
 _Avoid_: Portal Pelanggan Saja, Halaman Bayar Terpisah, Custom Checkout Form, Kartu Estimasi Biaya Internal
 
 **Log Webhook**:

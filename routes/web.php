@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\MapMarkerController;
+use App\Http\Controllers\AplikasiPelangganController;
 use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\LabelBarangPdfController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\PenggunaMediaController;
 use App\Http\Controllers\RabPdfController;
 use App\Http\Controllers\Webhook\PaymentWebhookController;
 use App\Http\Controllers\Webhook\WhatsappWebhookController;
+use App\Http\Middleware\CatatPetunjukBrand;
 use App\Livewire\Barang;
 use App\Livewire\Invoice;
 use App\Livewire\IpPool;
@@ -414,6 +416,13 @@ $registerRutePortalPelanggan = function () {
     Route::get('/login', Login::class)->name('login');
     Route::get('/klaim-akun', KlaimAkun::class)->name('klaim-akun');
 
+    // Aset Aplikasi Pelanggan (PWA) ber-brand, lihat ADR-0066.
+    Route::get('/manifest.webmanifest', [AplikasiPelangganController::class, 'manifest'])->name('aplikasi.manifest');
+    Route::get('/sw.js', [AplikasiPelangganController::class, 'serviceWorker'])->name('aplikasi.service-worker');
+    Route::get('/aplikasi/ikon/{brand}/{ukuran}.png', [AplikasiPelangganController::class, 'ikon'])
+        ->whereNumber('ukuran')
+        ->name('aplikasi.ikon');
+
     // Halaman Tagihan Mandiri: dapat diakses TANPA login lewat tautan bertanda tangan
     // (signed URL) yang dikirim via notifikasi WhatsApp/email -- lihat Show::mount() untuk
     // validasi akses (sesi pelanggan ATAU signature valid untuk invoice ini) dan Show::bayar()
@@ -424,7 +433,7 @@ $registerRutePortalPelanggan = function () {
     // mungkin sudah ter-cache di notifikasi lama/riwayat browser.
     Route::get('/tagihan/{invoice}/bayar', fn (App\Models\Invoice $invoice) => redirect()->route('portal.invoice.show', $invoice))->name('invoice.bayar');
 
-    Route::middleware('auth:pelanggan')->group(function () {
+    Route::middleware(['auth:pelanggan', CatatPetunjukBrand::class])->group(function () {
         Route::get('/', function () {
             return redirect()->route('portal.dashboard');
         })->name('index');

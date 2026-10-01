@@ -155,3 +155,28 @@ test('perusahaan default menyediakan fallback aman saat data kosong', function (
     expect($fallback)->toBeInstanceOf(Perusahaan::class)
         ->and($fallback->nama_perusahaan)->not->toBeEmpty();
 });
+
+test('super_admin dapat mengatur identitas Aplikasi Pelanggan perusahaan', function () {
+    Storage::fake('public');
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(PerusahaanComponent::class)
+        ->set('nama_pendek', 'NUSANET')
+        ->set('warna_utama', '#0EA5E9')
+        ->set('ikon_aplikasi', UploadedFile::fake()->image('ikon.png', 512, 512))
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $perusahaan = Perusahaan::where('is_default', true)->first();
+    expect($perusahaan->nama_pendek)->toBe('NUSANET')
+        ->and($perusahaan->warna_utama)->toBe('#0ea5e9')
+        ->and($perusahaan->hasMedia('ikon_aplikasi'))->toBeTrue();
+});
+
+test('warna utama perusahaan harus kode hex', function () {
+    Livewire::actingAs($this->superAdmin)
+        ->test(PerusahaanComponent::class)
+        ->set('warna_utama', 'biru')
+        ->call('save')
+        ->assertHasErrors(['warna_utama']);
+});

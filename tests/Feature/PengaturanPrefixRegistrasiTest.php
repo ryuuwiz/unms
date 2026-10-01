@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
 
 uses(RefreshDatabase::class);
 
@@ -91,3 +92,41 @@ test('admin dapat mengunggah dan menghapus logo brand prefix', function () {
 
     expect($prefix->fresh()->hasMedia('logo'))->toBeFalse();
 });
+
+test('admin dapat mengatur identitas Aplikasi Pelanggan prefix: nama pendek, warna utama, dan ikon', function () {
+    Storage::fake('public');
+    $prefix = PengaturanPrefixRegistrasiModel::factory()->create(['kode' => 'WIFI', 'nama' => 'WIFIGO']);
+
+    Livewire::actingAs($this->admin)
+        ->test(PengaturanPrefixRegistrasi::class)
+        ->call('openEditModal', $prefix->id)
+        ->set('nama_pendek', 'WIFIGO')
+        ->set('warna_utama', '#FF6600')
+        ->set('ikon_aplikasi', UploadedFile::fake()->image('ikon.png', 512, 512))
+        ->call('simpan')
+        ->assertHasNoErrors();
+
+    $prefix->refresh();
+    expect($prefix->nama_pendek)->toBe('WIFIGO')
+        ->and($prefix->warna_utama)->toBe('#ff6600')
+        ->and($prefix->hasMedia('ikon_aplikasi'))->toBeTrue()
+        ->and(Activity::where('subject_id', $prefix->id)->where('subject_type', $prefix->getMorphClass())->latest('id')->first()->attribute_changes['attributes'])
+        ->toMatchArray(['nama_pendek' => 'WIFIGO', 'warna_utama' => '#ff6600']);
+});
+
+test('identitas Aplikasi Pelanggan prefix divalidasi', function (string $field, mixed $nilai) {
+    Storage::fake('public');
+    $prefix = PengaturanPrefixRegistrasiModel::factory()->create(['kode' => 'WIFI']);
+
+    Livewire::actingAs($this->admin)
+        ->test(PengaturanPrefixRegistrasi::class)
+        ->call('openEditModal', $prefix->id)
+        ->set($field, $nilai)
+        ->call('simpan')
+        ->assertHasErrors([$field]);
+})->with([
+    'nama pendek terlalu panjang' => ['nama_pendek', 'NAMA SANGAT PANJANG'],
+    'warna bukan hex' => ['warna_utama', 'orange'],
+    'ikon tidak persegi' => fn () => ['ikon_aplikasi', UploadedFile::fake()->image('ikon.png', 800, 400)],
+    'ikon terlalu kecil' => fn () => ['ikon_aplikasi', UploadedFile::fake()->image('ikon.png', 256, 256)],
+]);
