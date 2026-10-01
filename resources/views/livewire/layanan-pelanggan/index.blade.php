@@ -56,15 +56,20 @@
                     {{-- Pelanggan --}}
                     <flux:table.cell>
                         <div class="flex flex-col">
-                            @can('view', $layanan->pelanggan)
-                                <flux:link :href="route('pelanggan.show', ['pelanggan' => $layanan->pelanggan, 'tab' => 'subscriptions']).'#layanan-'.$layanan->id"
-                                    wire:navigate class="font-medium">
-                                    {{ $layanan->pelanggan?->identitasLengkap() ?? '-' }}
-                                </flux:link>
+                            @if ($layanan->pelanggan)
+                                @can('view', $layanan->pelanggan)
+                                    <flux:link :href="route('pelanggan.show', ['pelanggan' => $layanan->pelanggan, 'tab' => 'subscriptions']).'#layanan-'.$layanan->id"
+                                        wire:navigate class="font-medium">
+                                        {{ $layanan->pelanggan->identitasLengkap() }}
+                                    </flux:link>
+                                @else
+                                    <span
+                                        class="font-medium text-zinc-900 dark:text-zinc-100">{{ $layanan->pelanggan->identitasLengkap() }}</span>
+                                @endcan
                             @else
                                 <span
-                                    class="font-medium text-zinc-900 dark:text-zinc-100">{{ $layanan->pelanggan?->identitasLengkap() ?? '-' }}</span>
-                            @endcan
+                                    class="font-medium text-zinc-900 dark:text-zinc-100">-</span>
+                            @endif
                             <span class="font-mono text-xs text-zinc-500">{{ $layanan->site_id }}</span>
                         </div>
                     </flux:table.cell>
@@ -173,4 +178,3 @@
         </div>
     </flux:modal>
 </div>
-

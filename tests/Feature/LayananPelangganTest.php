@@ -246,6 +246,21 @@ test('can list and filter layanans by status', function () {
         ->assertSee($this->pelanggan->nama_depan);
 });
 
+test('can list layanan without a related pelanggan', function () {
+    $layananTanpaPelanggan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+    ]);
+    $this->pelanggan->delete();
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->assertOk()
+        ->assertSee($layananTanpaPelanggan->site_id)
+        ->assertSee('>-</span>', escape: false);
+});
+
 test('pelanggan dapat mendaftarkan lebih dari satu layanan (multi-site, duplikat dicek nanti saat aktivasi)', function () {
     Livewire::actingAs($this->admin)
         ->test(Create::class, ['pelanggan' => $this->pelanggan])
