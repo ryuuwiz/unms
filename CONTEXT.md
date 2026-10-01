@@ -113,7 +113,7 @@ Pengenal unik untuk setiap pelanggan dengan format default `[Prefix][DDMMYYYY][C
 _Avoid_: Customer ID, Nomor Pelanggan, No Langganan, CUST-XXXXXX, No Reg Duplikat
 
 **Prefix Registrasi**:
-Kode singkat (2-5 huruf kapital, contoh `BF` untuk Bestfiber, `ARS` untuk Arsyila) yang mewakili brand/unit bisnis dan menjadi awalan No. Registrasi pelanggan. Dikelola dinamis oleh staff lewat halaman Pengaturan Prefix Registrasi (tabel `pengaturan_prefix_registrasi`), dapat dinonaktifkan tanpa dihapus sehingga No. Registrasi lama yang sudah terbit tetap valid.
+Kode singkat (2-5 huruf kapital, contoh `BEST` untuk BESTFIBER, `WIFI` untuk WIFIGO, `MIIX` untuk MyArsyila) yang mewakili brand/unit bisnis dan menjadi awalan No. Registrasi pelanggan. Dikelola dinamis oleh staff lewat halaman Pengaturan Prefix Registrasi (tabel `pengaturan_prefix_registrasi`), dapat dinonaktifkan tanpa dihapus sehingga No. Registrasi lama yang sudah terbit tetap valid.
 _Avoid_: Kode Cabang Hardcode, Prefix Bebas Tanpa Kelola
 
 **Brand Pelanggan**:
@@ -247,8 +247,16 @@ Program diskon (nominal / persentase) atau bonus durasi yang dapat diaplikasikan
 _Avoid_: Voucher Bebas, Potongan Informal
 
 **Portal Pelanggan**:
-Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time. Tetap satu monolit dengan aplikasi staf (ADR-0007), tapi dapat diakses lewat domain khususnya sendiri (`app.portal_domain`, mis. `portal.gobilling.id`) sekaligus tetap hidup di path lama `/portal/*` pada domain staf (dipertahankan permanen untuk tautan tagihan bertanda tangan yang sudah terkirim) -- lihat ADR-0049. Tidak menampilkan PPP Username/Password, router, atau alamat IP; tampilannya belum di-brand per Brand Pelanggan.
+Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time. Tetap satu monolit dengan aplikasi staf (ADR-0007), tapi dapat diakses lewat domain khususnya sendiri (`app.portal_domain`, mis. `portal.gobilling.id`) sekaligus tetap hidup di path lama `/portal/*` pada domain staf (dipertahankan permanen untuk tautan tagihan bertanda tangan yang sudah terkirim) -- lihat ADR-0049. Tidak menampilkan PPP Username/Password, router, atau alamat IP. Tampil dengan identitas Brand Pelanggan (bukan brand Perusahaan) dan dapat dipasang ke layar utama ponsel sebagai Aplikasi Pelanggan.
 _Avoid_: Client Area Bebas, Customer App Terpisah, Halaman Member, Portal Sebagai Aplikasi Terpisah
+
+**Aplikasi Pelanggan**:
+Portal Pelanggan yang dipasang pelanggan ke layar utama ponselnya, dengan nama dan ikon Brand Pelanggan. Bukan aplikasi app store dan bukan codebase terpisah: isi dan fiturnya persis Portal Pelanggan. Satu aplikasi per Brand Pelanggan, bukan per Perusahaan/tenant.
+_Avoid_: Aplikasi Whitelabel Native, Aplikasi Play Store per Brand, Aplikasi Per Tenant
+
+**Kontak Dukungan**:
+Tombol di Portal Pelanggan untuk menghubungi CS (WhatsApp dengan pesan terisi, telepon, email). Satu-satunya jalur dukungan dari Portal; Portal tidak membuat atau menampilkan tiket (ADR-0040).
+_Avoid_: Tiket dari Portal, Live Chat, Layanan Dukungan Self-Service
 
 **Akun Pelanggan**:
 Entitas kredensial autentikasi pengguna portal (guard `pelanggan`) yang terikat 1-to-1 dengan master data Pelanggan.
