@@ -38,19 +38,19 @@ class XenditDriver extends AbstractPaymentDriver
     }
 
     /**
-     * Dapatkan API Key Xendit dari database setting atau fallback config.
+     * Dapatkan API Key Xendit dari pengaturan gateway terenkripsi.
      */
     protected function getApiKey(PengaturanGateway $setting): string
     {
-        return (string) ($setting->getCredential('secret_key') ?: config('services.xendit.secret_key', ''));
+        return (string) $setting->getCredential('secret_key', '');
     }
 
     /**
-     * Dapatkan Callback Token Xendit dari database setting atau fallback config.
+     * Dapatkan Callback Token Xendit dari pengaturan gateway terenkripsi.
      */
     protected function getCallbackToken(PengaturanGateway $setting): string
     {
-        return (string) ($setting->getCredential('callback_token') ?: config('services.xendit.callback_token', ''));
+        return (string) $setting->getCredential('callback_token', '');
     }
 
     /**

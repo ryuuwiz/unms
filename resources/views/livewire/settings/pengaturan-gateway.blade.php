@@ -357,10 +357,26 @@
                 </div>
             @endif
 
+            @if($callbackTokenResult)
+                <div class="p-4 rounded-xl {{ $callbackTokenResult->success ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800' }} border space-y-2">
+                    <div class="flex items-center gap-2 font-semibold">
+                        <flux:icon :name="$callbackTokenResult->success ? 'check-circle' : 'exclamation-triangle'" class="size-5" />
+                        <span>Uji Callback Token Xendit</span>
+                    </div>
+                    <div class="text-xs">{{ $callbackTokenResult->message }}</div>
+                    <div class="text-xs font-mono">URL canonical: /webhook/payment/xendit</div>
+                </div>
+            @endif
+
             <div class="flex justify-end gap-2">
                 <flux:button variant="filled" wire:click="eksekusiPing" :disabled="$isPinging">
                     Uji Ulang
                 </flux:button>
+                @if($pingingGateway?->provider === 'xendit')
+                    <flux:button variant="filled" wire:click="ujiCallbackToken">
+                        Uji Token
+                    </flux:button>
+                @endif
                 <flux:modal.close>
                     <flux:button variant="primary">Tutup</flux:button>
                 </flux:modal.close>

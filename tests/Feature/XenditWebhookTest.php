@@ -11,6 +11,7 @@ use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\Pembayaran;
+use App\Models\PengaturanGateway;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\TransaksiPaymentGateway;
@@ -24,7 +25,18 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
-    config(['services.xendit.callback_token' => 'test_xendit_token_xyz']);
+    PengaturanGateway::create([
+        'provider' => 'xendit',
+        'gateway' => 'xendit',
+        'nama' => 'Xendit Test',
+        'credentials' => [
+            'secret_key' => 'xnd_development_test_key',
+            'callback_token' => 'test_xendit_token_xyz',
+        ],
+        'is_default' => true,
+        'is_active' => true,
+        'sandbox_mode' => true,
+    ]);
 
     $this->profil = ProfilBandwidth::factory()->create();
     $this->paket = PaketLayanan::factory()->create([
@@ -73,7 +85,7 @@ beforeEach(function () {
 });
 
 test('webhook menolak request jika token tidak valid dengan HTTP 401', function () {
-    $response = $this->postJson('/webhook/xendit', [
+    $response = $this->postJson('/webhook/payment/xendit', [
         'id' => 'evt_123',
     ], [
         'x-callback-token' => 'wrong_token',
@@ -84,15 +96,19 @@ test('webhook menolak request jika token tidak valid dengan HTTP 401', function 
 });
 
 test('webhook menolak request tanpa header token dengan HTTP 401', function () {
-    $response = $this->postJson('/webhook/xendit', [
+    $response = $this->postJson('/webhook/payment/xendit', [
         'id' => 'evt_123',
     ]);
 
     $response->assertStatus(401);
 });
 
-test('webhook xendit legacy dengan token tidak valid tetap membuat WebhookLog beraudit berstatus gagal', function () {
-    $this->postJson('/webhook/xendit', ['id' => 'evt_audit_reject'], [
+test('route callback legacy tidak lagi tersedia', function () {
+    $this->postJson('/webhook/xendit', ['id' => 'evt_legacy'])->assertNotFound();
+});
+
+test('webhook xendit dengan token tidak valid tetap membuat WebhookLog beraudit berstatus gagal', function () {
+    $this->postJson('/webhook/payment/xendit', ['id' => 'evt_audit_reject'], [
         'x-callback-token' => 'wrong_token',
     ])->assertStatus(401);
 
@@ -124,7 +140,7 @@ test('webhook memproses callback format Xendit Hosted Invoice PAID, melunaskan i
         'paid_at' => now()->toIso8601String(),
     ];
 
-    $response = $this->postJson('/webhook/xendit', $payload, [
+    $response = $this->postJson('/webhook/payment/xendit', $payload, [
         'x-callback-token' => 'test_xendit_token_xyz',
     ]);
 
@@ -158,7 +174,7 @@ test('webhook memproses callback EXPIRED dengan me-reset link invoice lokal dan 
         'payer_email' => $this->pelanggan->email,
     ];
 
-    $response = $this->postJson('/webhook/xendit', $payload, [
+    $response = $this->postJson('/webhook/payment/xendit', $payload, [
         'x-callback-token' => 'test_xendit_token_xyz',
     ]);
 
@@ -189,7 +205,7 @@ test('webhook bersifat idempoten terhadap retry event ID yang sama', function ()
         'paid_amount' => 250000,
     ];
 
-    $response = $this->postJson('/webhook/xendit', $payload, [
+    $response = $this->postJson('/webhook/payment/xendit', $payload, [
         'x-callback-token' => 'test_xendit_token_xyz',
     ]);
 
@@ -214,7 +230,7 @@ test('webhook aman terhadap invoice yang sudah lunas sebelumnya', function () {
         'paid_amount' => 250000,
     ];
 
-    $response = $this->postJson('/webhook/xendit', $payload, [
+    $response = $this->postJson('/webhook/payment/xendit', $payload, [
         'x-callback-token' => 'test_xendit_token_xyz',
     ]);
 
@@ -235,7 +251,7 @@ test('webhook merespons sukses saat menerima data uji coba / test dummy dari das
         'payment_channel' => 'PERMATA',
     ];
 
-    $response = $this->postJson('/webhook/xendit', $payload, [
+    $response = $this->postJson('/webhook/payment/xendit', $payload, [
         'x-callback-token' => 'test_xendit_token_xyz',
     ]);
 

@@ -5,7 +5,9 @@ namespace App\Livewire\Settings;
 use App\DTO\PaymentGateway\PingConnectionResult;
 use App\Models\PengaturanGateway as PengaturanGatewayModel;
 use App\Services\PaymentGateway\PaymentGatewayManager;
+use App\Services\Xendit\XenditWebhookVerifier;
 use Flux\Flux;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -62,6 +64,8 @@ class PengaturanGateway extends Component
     public ?PengaturanGatewayModel $pingingGateway = null;
 
     public ?PingConnectionResult $pingResult = null;
+
+    public ?PingConnectionResult $callbackTokenResult = null;
 
     public bool $isPinging = false;
 
@@ -234,9 +238,11 @@ class PengaturanGateway extends Component
         $this->pingGatewayId = $id;
         $this->pingingGateway = PengaturanGatewayModel::findOrFail($id);
         $this->pingResult = null;
+        $this->callbackTokenResult = null;
         $this->showPingModal = true;
 
         $this->eksekusiPing();
+        $this->ujiCallbackToken();
     }
 
     public function eksekusiPing(): void
@@ -258,6 +264,58 @@ class PengaturanGateway extends Component
         } finally {
             $this->isPinging = false;
         }
+    }
+
+    public function ujiCallbackToken(): void
+    {
+        if (! $this->pingingGateway || $this->pingingGateway->provider !== 'xendit') {
+            $this->callbackTokenResult = null;
+
+            return;
+        }
+
+        $callbackToken = trim((string) $this->pingingGateway->getCredential('callback_token'));
+        if ($callbackToken === '') {
+            $this->callbackTokenResult = new PingConnectionResult(
+                success: false,
+                message: 'Callback Token Xendit belum diisi pada koneksi gateway ini.'
+            );
+
+            return;
+        }
+
+        $request = Request::create('/webhook/payment/xendit', 'POST', [], [], [], [
+            'HTTP_X_CALLBACK_TOKEN' => $callbackToken,
+        ]);
+
+        $canonicalValid = app(PaymentGatewayManager::class)
+            ->driver('xendit')
+            ->verifyWebhook($request, $this->pingingGateway);
+
+        $legacyValid = app(XenditWebhookVerifier::class)->verifikasi($request);
+
+        if (! $canonicalValid) {
+            $this->callbackTokenResult = new PingConnectionResult(
+                success: false,
+                message: 'Callback Token tidak cocok dengan kredensial koneksi yang dipakai route canonical /webhook/payment/xendit.'
+            );
+
+            return;
+        }
+
+        if (! $legacyValid) {
+            $this->callbackTokenResult = new PingConnectionResult(
+                success: false,
+                message: 'Token valid untuk route canonical, tetapi berbeda dari konfigurasi route legacy /webhook/xendit. Gunakan URL canonical di Dashboard Xendit atau samakan konfigurasi gateway.'
+            );
+
+            return;
+        }
+
+        $this->callbackTokenResult = new PingConnectionResult(
+            success: true,
+            message: 'Callback Token valid untuk route canonical dan route legacy.'
+        );
     }
 
     protected function resetForm(): void

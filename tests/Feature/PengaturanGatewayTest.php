@@ -48,6 +48,7 @@ test('super admin dapat melakukan ping test koneksi gateway via Livewire', funct
         'nama' => 'Xendit Test Connection',
         'credentials' => [
             'secret_key' => 'xnd_development_dummy_key',
+            'callback_token' => 'test_callback_token',
         ],
         'is_default' => true,
         'is_active' => true,
@@ -59,5 +60,54 @@ test('super admin dapat melakukan ping test koneksi gateway via Livewire', funct
         ->assertOk()
         ->call('openPingModal', $gateway->id)
         ->assertSet('showPingModal', true)
-        ->assertSee('Uji Koneksi API Gateway');
+        ->assertSee('Uji Koneksi API Gateway')
+        ->assertSet('callbackTokenResult.success', true)
+        ->assertSee('Callback Token valid untuk route canonical dan route legacy.');
+});
+
+test('pengujian koneksi menandai callback token kosong', function () {
+    $gateway = PengaturanGatewayModel::create([
+        'provider' => 'xendit',
+        'nama' => 'Xendit Tanpa Callback Token',
+        'credentials' => [
+            'secret_key' => 'xnd_development_dummy_key',
+        ],
+        'is_default' => true,
+        'is_active' => true,
+        'sandbox_mode' => true,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(PengaturanGateway::class)
+        ->call('openPingModal', $gateway->id)
+        ->assertSet('callbackTokenResult.success', false)
+        ->assertSee('Callback Token Xendit belum diisi pada koneksi gateway ini.');
+});
+
+test('pengujian koneksi mendeteksi perbedaan token route canonical dan legacy', function () {
+    PengaturanGatewayModel::create([
+        'provider' => 'xendit',
+        'nama' => 'Xendit Legacy',
+        'credentials' => ['callback_token' => 'legacy_callback_token'],
+        'is_default' => true,
+        'is_active' => true,
+        'sandbox_mode' => true,
+    ]);
+
+    $gatewayCanonical = PengaturanGatewayModel::create([
+        'provider' => 'xendit',
+        'nama' => 'Xendit Canonical',
+        'credentials' => [
+            'secret_key' => 'xnd_development_dummy_key',
+            'callback_token' => 'canonical_callback_token',
+        ],
+        'is_active' => true,
+        'sandbox_mode' => true,
+    ]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(PengaturanGateway::class)
+        ->call('openPingModal', $gatewayCanonical->id)
+        ->assertSet('callbackTokenResult.success', false)
+        ->assertSee('Token valid untuk route canonical, tetapi berbeda dari konfigurasi route legacy');
 });

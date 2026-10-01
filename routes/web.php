@@ -9,7 +9,6 @@ use App\Http\Controllers\PenggunaMediaController;
 use App\Http\Controllers\RabPdfController;
 use App\Http\Controllers\Webhook\PaymentWebhookController;
 use App\Http\Controllers\Webhook\WhatsappWebhookController;
-use App\Http\Controllers\Webhook\XenditWebhookController;
 use App\Livewire\Barang;
 use App\Livewire\Invoice;
 use App\Livewire\IpPool;
@@ -399,13 +398,6 @@ Route::middleware(['auth'])->group(function () {
 
 // ─── Webhook Payment Gateways (Public & CSRF-Exempt) ─────────────
 Route::middleware('throttle:webhook')->post('/webhook/payment/{gateway}', [PaymentWebhookController::class, 'handle'])->name('webhook.payment');
-
-// ─── Webhook Xendit Legacy Aliases (Protected with xendit.token) ──
-Route::middleware(['throttle:webhook', 'xendit.token'])->group(function () {
-    Route::post('/webhook/xendit', [XenditWebhookController::class, 'handle'])->name('webhook.xendit');
-    Route::post('/webhook/xendit/virtual-account', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.va');
-    Route::post('/webhook/xendit/qris', [XenditWebhookController::class, 'handle'])->name('webhook.xendit.qris');
-});
 
 // ─── Webhook WhatsApp / GOWA / WAHA (Public & CSRF-Exempt) ───────────────────────
 Route::middleware('throttle:webhook')->post('/webhook/whatsapp', [WhatsappWebhookController::class, 'handle'])->name('webhook.whatsapp');
