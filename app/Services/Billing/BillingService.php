@@ -85,6 +85,8 @@ class BillingService
                 'status' => StatusInvoice::MenungguPembayaran,
                 'tanggal_terbit' => $terbit,
                 'tanggal_jatuh_tempo' => $jatuhTempo,
+                'masa_aktif_mulai' => $this->mulaiPeriode($layanan, $periode),
+                'masa_aktif_selesai' => $this->selesaiPeriode($periode, $jatuhTempo),
                 'dibuat_oleh' => $dibuatOleh,
             ]);
 
@@ -123,6 +125,16 @@ class BillingService
         }
 
         return implode('; ', $baris);
+    }
+
+    private function mulaiPeriode(LayananPelanggan $layanan, string $periode): string
+    {
+        return Carbon::createFromFormat('!Y-m', $periode)->startOfMonth()->toDateString();
+    }
+
+    private function selesaiPeriode(string $periode, Carbon $jatuhTempo): string
+    {
+        return Carbon::createFromFormat('!Y-m', $periode)->endOfMonth()->toDateString();
     }
 
     /**
@@ -198,6 +210,8 @@ class BillingService
                 'status' => StatusInvoice::MenungguPembayaran,
                 'tanggal_terbit' => $terbit,
                 'tanggal_jatuh_tempo' => $jatuhTempo,
+                'masa_aktif_mulai' => $layanan->tanggal_mulai,
+                'masa_aktif_selesai' => $jatuhTempo,
                 'dibuat_oleh' => $dibuatOleh,
             ]);
 

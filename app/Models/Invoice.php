@@ -34,6 +34,9 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon $tanggal_jatuh_tempo
  * @property Carbon|null $tanggal_lunas
  * @property Carbon|null $masa_aktif_hingga Snapshot tanggal_expired layanan setelah invoice ini dibayar
+ * @property Carbon|null $masa_aktif_mulai
+ * @property Carbon|null $masa_aktif_selesai
+ * @property Carbon|null $masa_aktif_sebelum
  * @property MetodePembayaran|null $metode_pembayaran
  * @property int|null $dibuat_oleh
  * @property int|null $dihapus_oleh
@@ -72,6 +75,9 @@ use Spatie\Activitylog\Support\LogOptions;
     'status',
     'tanggal_terbit',
     'tanggal_jatuh_tempo',
+    'masa_aktif_mulai',
+    'masa_aktif_selesai',
+    'masa_aktif_sebelum',
     'tanggal_lunas',
     'masa_aktif_hingga',
     'metode_pembayaran',
@@ -139,6 +145,9 @@ class Invoice extends Model
             'tanggal_jatuh_tempo' => 'date',
             'tanggal_lunas' => 'date',
             'masa_aktif_hingga' => 'date',
+            'masa_aktif_mulai' => 'date',
+            'masa_aktif_selesai' => 'date',
+            'masa_aktif_sebelum' => 'date',
             'payment_gateway_expired_at' => 'datetime',
             'xendit_expired_at' => 'datetime',
             'deleted_at' => 'datetime',

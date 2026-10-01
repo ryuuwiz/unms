@@ -108,7 +108,7 @@ test('pembayaran manual menolak invoice yang sudah digabung', function () {
     expect($lama->fresh()->status)->toBe(StatusInvoice::Digabung);
 });
 
-test('melunasi invoice akumulatif memperpanjang sebanyak siklus dari expired lama, bukan dari tanggal bayar', function () {
+test('melunasi invoice akumulatif mengikuti akhir periode invoice, bukan tanggal pembayaran', function () {
     ($this->buatInvoice)('2026-08', StatusInvoice::Kadaluarsa);
     $baru = $this->billing->generateInvoice($this->layanan, periodeTagihan: '2026-09');
 
@@ -118,8 +118,8 @@ test('melunasi invoice akumulatif memperpanjang sebanyak siklus dari expired lam
         'dibayar_pada' => '2026-09-20',
     ]);
 
-    expect($this->layanan->fresh()->tanggal_expired->toDateString())->toBe('2026-10-10')
-        ->and($this->layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
+    expect($this->layanan->fresh()->tanggal_expired->toDateString())->toBe('2026-09-30')
+        ->and($this->layanan->fresh()->status)->toBe(StatusLayanan::Suspend);
 });
 
 test('perpanjangan menyesuaikan tanggal expired ke Hari Jatuh Tempo pada pengaturan', function () {

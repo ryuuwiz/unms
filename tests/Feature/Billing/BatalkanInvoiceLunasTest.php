@@ -71,7 +71,7 @@ test('void invoice lunas mengembalikan masa aktif, membuang pembayaran dari lapo
     $invoice = $this->billing->generateInvoice($layanan, periodeTagihan: $expired->format('Y-m'));
     lunasiManual($invoice);
 
-    expect($layanan->fresh()->tanggal_expired->toDateString())->toBe($expired->copy()->addMonth()->toDateString());
+    expect($layanan->fresh()->tanggal_expired->toDateString())->toBe($expired->copy()->endOfMonth()->toDateString());
 
     app(BatalkanInvoiceLunasAction::class)->execute($invoice->fresh(), $this->superAdmin, 'Salah catat pembayaran');
 
@@ -110,7 +110,7 @@ test('invoice yang tadinya digabung dilepas menjadi Kadaluarsa saat invoice peng
     expect($lama->fresh()->status)->toBe(StatusInvoice::Digabung);
 
     lunasiManual($baru);
-    expect($layanan->fresh()->tanggal_expired->toDateString())->toBe($expired->copy()->addMonths(2)->toDateString());
+    expect($layanan->fresh()->tanggal_expired->toDateString())->toBe($expired->copy()->endOfMonth()->toDateString());
 
     app(BatalkanInvoiceLunasAction::class)->execute($baru->fresh(), $this->superAdmin, 'Koreksi tagihan');
 

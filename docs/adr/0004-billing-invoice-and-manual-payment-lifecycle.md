@@ -10,9 +10,11 @@ Pada Fase 2 arsitektur UNMS, sistem membutuhkan modul penagihan (billing) manual
    - Penomoran ditangani secara transaksional dengan penguncian baris (`lockForUpdate`) untuk mencegah duplikasi pada concurrency tinggi.
 
 2. **Aturan Perpanjangan Masa Aktif Layanan (PRD 4.2)**:
-   - **Kondisi 1 (Pembayaran Tepat Waktu / Sebelum Expired)**: Jika `tanggal_expired` lama masih di masa depan, masa aktif baru ditambahkan secara akumulatif (`tanggal_expired_baru = tanggal_expired_lama + masa_aktif_paket`).
-   - **Kondisi 2 (Pembayaran Setelah Expired / Suspend)**: Jika `tanggal_expired` sudah terlewati, masa aktif baru dihitung dari tanggal bayar (`tanggal_expired_baru = now() + masa_aktif_paket`).
-   - Status layanan yang sebelumnya `suspend` atau `proses` otomatis diaktifkan menjadi `aktif`.
+   - Rentang layanan disimpan pada invoice (`masa_aktif_mulai` dan `masa_aktif_selesai`).
+   - Pelunasan menetapkan masa aktif berdasarkan periode invoice, bukan nominal atau tanggal pembayaran.
+   - Invoice gabungan memakai seluruh periode invoice yang diserap. Jika masa aktif yang sudah ada lebih panjang, nilainya tidak boleh berkurang.
+   - Pembayaran invoice pertama tidak mengubah layanan berstatus `proses` menjadi `aktif`; aktivasi menunggu instalasi selesai.
+   - Invoice historis tanpa rentang eksplisit dapat dihitung ulang dengan `billing:recalculate-active-periods --apply`.
 
 3. **Pencatatan Transaksi Pembayaran**:
    - Pembayaran dilakukan di dalam `DB::transaction()` dengan `lockForUpdate()` pada baris `invoice`.

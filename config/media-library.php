@@ -35,6 +35,12 @@ return [
     'disk_name' => env('MEDIA_DISK', 'public'),
 
     /*
+     * Customer identity documents must use shared storage in multi-replica
+     * deployments so database media records never outlive their file payloads.
+     */
+    'customer_documents_disk' => env('CUSTOMER_DOCUMENTS_DISK', env('MEDIA_DISK', 'local')),
+
+    /*
      * The disk on which to store conversions (thumbnails, etc.) and responsive images
      * when no disk is specified explicitly on the media collection or via
      * `storingConversionsOnDisk()`. When left null, conversions are stored on the

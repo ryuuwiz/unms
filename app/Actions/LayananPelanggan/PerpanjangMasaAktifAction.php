@@ -14,13 +14,11 @@ class PerpanjangMasaAktifAction
     /**
      * Perpanjang masa aktif layanan pelanggan atas pelunasan sebuah invoice (PRD 4.2).
      *
-     * Paket berdurasi bulan: masa aktif bertambah sebanyak siklus yang dicakup invoice (invoice itu
-     * sendiri ditambah invoice periodik lama yang digabung ke dalamnya -- Tunggakan Akumulatif),
-     * dihitung dari `tanggal_expired` lama dan tidak pernah dari tanggal bayar, lalu disesuaikan ke
-     * Hari Jatuh Tempo pada Siklus Tagihan. Bulan saat layanan diisolir tetap ditagih.
+     * Masa aktif mengikuti rentang layanan yang tersimpan pada invoice. Invoice gabungan memakai
+     * rentang invoice periodik yang diserap, sehingga nominal dan tanggal pembayaran tidak
+     * menentukan jumlah bulan secara heuristik.
      *
-     * Paket berdurasi hari tidak mengenal siklus: akumulatif dari `tanggal_expired` bila masih di
-     * masa depan, selain itu dari tanggal bayar.
+     * Invoice lama tanpa rentang eksplisit tetap memakai aturan paket sebagai fallback.
      *
      * Pemanggil bertanggung jawab mengunci baris $layanan (lockForUpdate) dan membungkus
      * pemanggilan ini dalam transaksi database miliknya sendiri -- action ini tidak membuka
@@ -28,12 +26,19 @@ class PerpanjangMasaAktifAction
      */
     public function execute(LayananPelanggan $layanan, Invoice $invoice, Carbon $dibayarPada): LayananPelanggan
     {
+        $invoice->update([
+            'masa_aktif_sebelum' => $layanan->tanggal_expired?->toDateString(),
+        ]);
         $hingga = $this->hitungExpiredBaru($layanan, $invoice, $dibayarPada)->toDateString();
 
-        $layanan->update([
-            'tanggal_expired' => $hingga,
-            'status' => StatusLayanan::Aktif,
-        ]);
+        $attributes = ['tanggal_expired' => $hingga];
+        if (Carbon::parse($hingga)->isToday() || Carbon::parse($hingga)->isFuture()) {
+            if ($layanan->status !== StatusLayanan::Proses) {
+                $attributes['status'] = StatusLayanan::Aktif;
+            }
+        }
+
+        $layanan->update($attributes);
         $invoice->update(['masa_aktif_hingga' => $hingga]);
 
         return $layanan;
@@ -49,12 +54,52 @@ class PerpanjangMasaAktifAction
         $paket = $layanan->paketLayanan;
         $masaNilai = $paket ? (int) $paket->masa_aktif_nilai : 1;
         $masaSatuan = $paket ? $paket->masa_aktif_satuan : MasaAktifSatuan::Bulan;
+        $currentExpired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
 
-        // Tambahan bonus bulan dari promo bila ada
+        if ($invoice->masa_aktif_selesai) {
+            return $this->hitungDariPeriodeInvoice($invoice, $currentExpired);
+        }
+
+        // Fallback untuk invoice lama yang belum memiliki rentang periode tersimpan.
+        return $this->hitungDariPaket($invoice, $dibayarPada, $currentExpired, $masaNilai, $masaSatuan);
+    }
+
+    private function hitungDariPeriodeInvoice(
+        Invoice $invoice,
+        ?Carbon $currentExpired,
+    ): Carbon {
+        $tanggalPeriode = Carbon::parse($invoice->masa_aktif_selesai);
+
+        foreach ($invoice->invoiceDigabung()->get() as $invoiceDigabung) {
+            if ($invoiceDigabung->masa_aktif_selesai) {
+                $tanggalPeriode = $tanggalPeriode->max(Carbon::parse($invoiceDigabung->masa_aktif_selesai));
+            }
+        }
+
+        $bonusBulan = (int) ($invoice->promo?->bonus_bulan ?? 0);
+        if ($bonusBulan > 0) {
+            $tanggalPeriode = $tanggalPeriode->addMonthsNoOverflow($bonusBulan);
+        }
+
+        if ($invoice->periode_tagihan !== null
+            && $currentExpired
+            && $currentExpired->isFuture()
+            && $currentExpired->greaterThan($tanggalPeriode)) {
+            return $currentExpired;
+        }
+
+        return $tanggalPeriode;
+    }
+
+    private function hitungDariPaket(
+        Invoice $invoice,
+        Carbon $dibayarPada,
+        ?Carbon $currentExpired,
+        int $masaNilai,
+        MasaAktifSatuan $masaSatuan,
+    ): Carbon {
         $promo = $invoice->promo;
         $bonusBulan = ($promo && $promo->bonus_bulan) ? (int) $promo->bonus_bulan : 0;
-
-        $currentExpired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
 
         if ($masaSatuan === MasaAktifSatuan::Bulan) {
             $siklus = 1 + $invoice->invoiceDigabung()->count();
@@ -84,6 +129,12 @@ class PerpanjangMasaAktifAction
         $expired = $layanan->tanggal_expired ? Carbon::parse($layanan->tanggal_expired) : null;
 
         if (! $expired) {
+            return $layanan;
+        }
+
+        if ($invoice->masa_aktif_sebelum) {
+            $layanan->update(['tanggal_expired' => $invoice->masa_aktif_sebelum->toDateString()]);
+
             return $layanan;
         }
 

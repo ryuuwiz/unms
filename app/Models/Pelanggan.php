@@ -86,10 +86,10 @@ class Pelanggan extends Model implements HasMedia
     {
         $this->addMediaCollection('ktp')
             ->singleFile()
-            ->useDisk('local');
+            ->useDisk(config('media-library.customer_documents_disk', 'local'));
 
         $this->addMediaCollection('dokumen')
-            ->useDisk('local');
+            ->useDisk(config('media-library.customer_documents_disk', 'local'));
     }
 
     /**

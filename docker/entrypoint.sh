@@ -144,10 +144,14 @@ fi
 # =============================================================================
 # 8. Cache warm-up (masih di maintenance)
 #
-# config:cache, route:cache, view:cache, event:cache memakan waktu. Tetap di
-# dalam window maintenance supaya user tidak hit cache setengah jadi.
+# Bersihkan hanya cache konfigurasi dan aplikasi. Jangan gunakan
+# `optimize:clear`, karena perintah tersebut juga dapat membersihkan storage
+# framework pada versi Laravel tertentu. Tetap di dalam window maintenance
+# supaya user tidak hit cache setengah jadi.
 # =============================================================================
 log "Warming caches..."
+php artisan config:clear || warn "config:clear failed (non-fatal)."
+php artisan cache:clear  || warn "cache:clear failed (non-fatal)."
 php artisan config:cache  || warn "config:cache failed (non-fatal)."
 php artisan route:cache   || warn "route:cache failed (non-fatal)."
 php artisan view:cache    || warn "view:cache failed (non-fatal)."

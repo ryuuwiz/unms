@@ -10,6 +10,7 @@ use App\Services\Billing\BillingService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Queue;
 
 uses(RefreshDatabase::class);
 
@@ -101,6 +102,35 @@ test('generateFirstInvoice memberi tenggat jatuh tempo H+1 dari tanggal mulai se
     $invoice = $this->billing->generateFirstInvoice($layanan, JenisTagihanPertama::SatuBulanFull);
 
     expect($invoice->tanggal_jatuh_tempo->toDateString())->toBe('2026-09-11');
+});
+
+test('pelunasan invoice pertama hanya memberi masa aktif sampai jatuh tempo dan tidak mengaktifkan layanan proses', function () {
+    Queue::fake();
+
+    $tanggalMulai = Carbon::create(2026, 9, 10);
+    $jatuhTempo = Carbon::create(2026, 9, 15);
+    $layanan = LayananPelanggan::factory()->create([
+        'paket_layanan_id' => $this->paket->id,
+        'status' => StatusLayanan::Proses,
+        'tanggal_mulai' => $tanggalMulai->toDateString(),
+        'tanggal_expired' => $tanggalMulai->copy()->addMonth()->toDateString(),
+    ]);
+    $invoice = $this->billing->generateFirstInvoice(
+        $layanan,
+        JenisTagihanPertama::ProporsionalSisaHari,
+        tanggalJatuhTempo: $jatuhTempo,
+    );
+
+    $this->billing->prosesPembayaranManual($invoice, [
+        'metode' => 'manual_admin',
+        'jumlah_dibayar' => $invoice->jumlah_setelah_promo,
+        'dibayar_pada' => $tanggalMulai,
+    ]);
+
+    expect($layanan->fresh()->tanggal_expired->toDateString())->toBe($jatuhTempo->toDateString())
+        ->and($layanan->fresh()->status)->toBe(StatusLayanan::Proses)
+        ->and($invoice->fresh()->masa_aktif_mulai->toDateString())->toBe($tanggalMulai->toDateString())
+        ->and($invoice->fresh()->masa_aktif_selesai->toDateString())->toBe($jatuhTempo->toDateString());
 });
 
 test('tagihan pertama dari generateFirstInvoice tidak menghalangi tagihan siklus berikutnya yang sesungguhnya', function () {

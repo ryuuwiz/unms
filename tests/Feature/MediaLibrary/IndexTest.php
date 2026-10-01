@@ -11,6 +11,7 @@ use App\Services\Storage\S3HealthCheckService;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Permission\Models\Role;
@@ -60,6 +61,17 @@ test('listing shows non-restricted media but excludes pelanggan ktp and dokumen'
         ->assertSee($ticketMedia->file_name)
         ->assertDontSee($ktp->file_name)
         ->assertDontSee($dokumen->file_name);
+});
+
+test('customer document media uses the configured media disk', function () {
+    Storage::fake('s3');
+    config(['media-library.customer_documents_disk' => 's3']);
+
+    $pelanggan = Pelanggan::factory()->create();
+
+    $media = buatMediaDummy($pelanggan, 'dokumen');
+
+    expect($media->disk)->toBe('s3');
 });
 
 test('collection filter narrows the listing', function () {
