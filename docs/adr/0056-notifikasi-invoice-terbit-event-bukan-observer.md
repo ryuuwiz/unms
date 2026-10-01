@@ -9,7 +9,7 @@ Pelanggan tidak mendapat pesan apa pun saat invoice dibuat (tagihan pertama saat
 1. **`InvoiceTerbitEvent` dipancarkan dari `BillingService`** (`generateInvoice()` dan `generateManualInvoice()`, yang juga dipakai `generateFirstInvoice()`), di dalam transaksi; listener antrean `wa-blast` memakai `$afterCommit`. Bukan observer `Invoice::created`: observer ikut menyala untuk seeder, factory, dan tes sehingga mengirim pesan sungguhan.
 2. **Bukan tipe aturan baru di mesin pengingat.** Aturan pengingat berjalan per jam dan menunda sampai 1 jam serta bergantung pada aturan yang bisa dimatikan admin; pesan terbit harus keluar begitu invoice dibuat.
 3. **Jendela siang 07:00-20:00 WIB (eksplisit `Asia/Jakarta`, bukan zona waktu aplikasi).** Di luar jendela, listener menunda ke 08:30 berikutnya (`withDelay`). Zona waktu eksplisit karena `config/app.php` bernilai `UTC` sementara jam operasional pelanggan WIB.
-4. **Template `invoice_terbit` baru**, terpisah dari `pengingat_tagihan_h3`, ditambahkan lewat seeder dan migrasi data `firstOrCreate` (seeder tidak menjangkau DB produksi; migrasi tidak menimpa hasil edit admin). Kanal: WhatsApp dan email (`InvoiceTerbitNotification`) ke `Pelanggan.email` bila terisi.
+4. **Template `invoice_terbit` baru**, terpisah dari `pengingat_tagihan_h3`, ditambahkan lewat seeder dan migrasi data `firstOrCreate` (seeder tidak menjangkau DB produksi; migrasi tidak menimpa hasil edit admin). Kanal: WhatsApp saja; email invoice tidak dikirim.
 5. **Tanpa opt-out per invoice**, aturan pengingat lama tidak diubah (boleh tumpang-tindih dengan H-3; admin bisa menonaktifkannya). Kegagalan kirim dicatat dan tidak pernah menggagalkan pembuatan invoice.
 
 ## Konsekuensi

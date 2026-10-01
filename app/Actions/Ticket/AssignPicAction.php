@@ -37,7 +37,7 @@ class AssignPicAction
                 : 'Penugasan PIC dibatalkan.';
 
             if ($catatan && trim($catatan) !== '') {
-                $pesanLog .= ' Catatan: '.trim($catatan);
+                $pesanLog .= ' Catatan: ' . trim($catatan);
             }
 
             TicketHistori::create([
@@ -71,7 +71,7 @@ class AssignPicAction
                     jenis: "tiket_assign_pic_{$pic->id}_{$ticket->histori()->count()}"
                 );
             } catch (\Throwable $e) {
-                Log::error('Gagal mengantrikan WA penugasan PIC: '.$e->getMessage());
+                Log::error('Gagal mengantrikan WA penugasan PIC: ' . $e->getMessage());
             }
         }
 

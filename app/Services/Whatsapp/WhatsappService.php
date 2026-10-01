@@ -151,7 +151,7 @@ class WhatsappService
             'nama_brand' => PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg),
             'no_invoice' => $invoice->no_invoice,
             'periode' => $invoice->periode_tagihan ?? Carbon::parse($invoice->tanggal_terbit)->format('m/Y'),
-            'total_tagihan' => 'Rp '.number_format($invoice->jumlah_setelah_promo ?? $invoice->jumlah, 0, ',', '.'),
+            'total_tagihan' => 'Rp ' . number_format($invoice->jumlah_setelah_promo ?? $invoice->jumlah, 0, ',', '.'),
             'jatuh_tempo' => Carbon::parse($invoice->tanggal_jatuh_tempo)->translatedFormat('d F Y'),
             'link_pembayaran' => $linkBayar,
             'nama_paket' => $namaPaket,
@@ -192,6 +192,7 @@ class WhatsappService
             'catatan_histori' => $catatan ?? $ticket->deskripsi,
             'deskripsi' => $ticket->deskripsi,
             'sla_target' => $ticket->sla_target_selesai ? Carbon::parse($ticket->sla_target_selesai)->translatedFormat('d F Y H:i') : '-',
+            'jadwal_teknisi' => $ticket->dijadwalkan_pada ? Carbon::parse($ticket->dijadwalkan_pada)->translatedFormat('d F Y H:i') : '-',
             'link_tiket' => route('ticket.show', $ticket->id),
         ];
     }
@@ -205,7 +206,7 @@ class WhatsappService
     {
         $params = $this->buildInvoiceParams($invoice);
 
-        $params['jumlah_dibayar'] = 'Rp '.number_format((float) $pembayaran->jumlah_dibayar, 0, ',', '.');
+        $params['jumlah_dibayar'] = 'Rp ' . number_format((float) $pembayaran->jumlah_dibayar, 0, ',', '.');
         $params['tanggal_bayar'] = Carbon::parse($pembayaran->dibayar_pada ?? now())->translatedFormat('d F Y H:i');
         $metodeText = $pembayaran->metode->value;
         $params['metode_bayar'] = strtoupper(str_replace('_', ' ', $metodeText));

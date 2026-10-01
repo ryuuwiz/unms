@@ -50,7 +50,7 @@ beforeEach(function () {
     ]);
 });
 
-test('pembuatan tiket baru dengan lampiran foto berhasil menyimpan media dan mengantrikan pesan wa', function () {
+test('pembuatan tiket baru dengan lampiran foto tidak mengirim notifikasi ke pelanggan', function () {
     $foto = UploadedFile::fake()->image('kendala.jpg');
 
     Livewire::actingAs($this->admin)
@@ -68,14 +68,8 @@ test('pembuatan tiket baru dengan lampiran foto berhasil menyimpan media dan men
     expect($ticket)->not->toBeNull()
         ->and($ticket->getFirstMedia('foto_kendala'))->not->toBeNull();
 
-    // Verifikasi antrean WA ke pelanggan
     $normalizedPelangganPhone = WhatsappClient::normalizePhoneNumber($this->pelanggan->no_hp);
-    $antrianPelanggan = AntrianWaBlast::where('no_hp_tujuan', $normalizedPelangganPhone)
-        ->where('jenis', 'tiket_dibuat')
-        ->first();
-
-    expect($antrianPelanggan)->not->toBeNull()
-        ->and($antrianPelanggan->pesan)->toContain($ticket->nomor_ticket);
+    expect(AntrianWaBlast::where('no_hp_tujuan', $normalizedPelangganPhone)->exists())->toBeFalse();
 });
 
 test('foto kendala yang diunggah menampilkan preview gambar sebelum disimpan', function () {
@@ -112,7 +106,7 @@ test('penugasan teknisi mengantrikan pesan wa disposisi ke nomor hp teknisi', fu
         ->and($antrianTeknisi->pesan)->toContain($this->teknisi->name);
 });
 
-test('perubahan status tiket mengantrikan pesan wa update ke pelanggan', function () {
+test('perubahan status tiket tidak mengirim pesan wa ke pelanggan', function () {
     $ticket = Ticket::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'status' => StatusTicket::Baru,
@@ -129,15 +123,10 @@ test('perubahan status tiket mengantrikan pesan wa update ke pelanggan', functio
     );
 
     $normalizedPelangganPhone = WhatsappClient::normalizePhoneNumber($this->pelanggan->no_hp);
-    $antrian = AntrianWaBlast::where('no_hp_tujuan', $normalizedPelangganPhone)
-        ->where('jenis', 'like', 'tiket_status_diproses%')
-        ->first();
-
-    expect($antrian)->not->toBeNull()
-        ->and($antrian->pesan)->toContain('Diproses');
+    expect(AntrianWaBlast::where('no_hp_tujuan', $normalizedPelangganPhone)->exists())->toBeFalse();
 });
 
-test('penambahan catatan dengan foto pengerjaan mengunggah media dan mengirim wa', function () {
+test('penambahan catatan dengan foto pengerjaan tidak mengirim wa ke pelanggan', function () {
     $ticket = Ticket::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'status' => StatusTicket::Diproses,
@@ -159,12 +148,29 @@ test('penambahan catatan dengan foto pengerjaan mengunggah media dan mengirim wa
         ->and($histori->getFirstMedia('foto_pengerjaan'))->not->toBeNull();
 
     $normalizedPelangganPhone = WhatsappClient::normalizePhoneNumber($this->pelanggan->no_hp);
-    $antrian = AntrianWaBlast::where('no_hp_tujuan', $normalizedPelangganPhone)
-        ->where('jenis', "tiket_catatan_{$histori->id}")
+    expect(AntrianWaBlast::where('no_hp_tujuan', $normalizedPelangganPhone)->exists())->toBeFalse();
+});
+
+test('jadwal kunjungan teknisi mengirim notifikasi wa ke pelanggan', function () {
+    Livewire::actingAs($this->admin)
+        ->test(Create::class)
+        ->set('jenis', JenisTicket::Gangguan->value)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('prioritas', PrioritasTicket::Tinggi->value)
+        ->set('divisis', [DivisiTicket::Teknisi->value])
+        ->set('pic_id', $this->teknisi->id)
+        ->set('dijadwalkan_pada', '2026-10-01T10:00')
+        ->set('deskripsi', 'Koneksi pelanggan perlu diperiksa di lokasi.')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $antrian = AntrianWaBlast::where('no_hp_tujuan', WhatsappClient::normalizePhoneNumber($this->pelanggan->no_hp))
+        ->where('jenis', 'tiket_penjadwalan_teknisi')
         ->first();
 
     expect($antrian)->not->toBeNull()
-        ->and($antrian->pesan)->toContain('-18 dBm');
+        ->and($antrian->pesan)->toContain($this->teknisi->name)
+        ->and($antrian->pesan)->toContain('01 Oktober 2026');
 });
 
 test('event invoice lunas otomatis mengantrikan pesan wa kuitansi konfirmasi bayar', function () {

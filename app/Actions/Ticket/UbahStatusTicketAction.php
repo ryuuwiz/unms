@@ -12,11 +12,9 @@ use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\User;
 use App\Notifications\TicketStatusBerubahNotification;
-use App\Services\Whatsapp\WhatsappService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 class UbahStatusTicketAction
@@ -155,24 +153,6 @@ class UbahStatusTicketAction
                 changedBy: $actor,
                 catatan: $catatan,
             ));
-        }
-
-        // Notifikasi WhatsApp ke Pelanggan
-        if ($ticket->pelanggan && ! empty($ticket->pelanggan->no_hp)) {
-            try {
-                /** @var WhatsappService $whatsappService */
-                $whatsappService = app(WhatsappService::class);
-                $params = $whatsappService->buildTicketParams($ticket, $catatan);
-                $whatsappService->antrikanPesan(
-                    noHp: $ticket->pelanggan->no_hp,
-                    kodeTemplate: 'tiket_status_update',
-                    params: $params,
-                    referensi: $ticket,
-                    jenis: "tiket_status_{$statusBaru->value}_{$ticket->histori()->count()}"
-                );
-            } catch (\Throwable $e) {
-                Log::error('Gagal mengantrikan WA update tiket: '.$e->getMessage());
-            }
         }
     }
 }
