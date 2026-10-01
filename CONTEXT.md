@@ -117,7 +117,7 @@ Kode singkat (2-5 huruf kapital, contoh `BEST` untuk BESTFIBER, `WIFI` untuk WIF
 _Avoid_: Kode Cabang Hardcode, Prefix Bebas Tanpa Kelola
 
 **Brand Pelanggan**:
-Merek ISP yang dilihat seorang pelanggan: nama (dan logo) Prefix Registrasi yang cocok dengan huruf awal No. Registrasi-nya, **termasuk prefix yang sudah dinonaktifkan** (nonaktif hanya berarti tidak bisa dipilih untuk registrasi baru). No. Registrasi yang tidak cocok dengan prefix mana pun jatuh ke brand Perusahaan. Satu-satunya brand yang tampil di setiap hal yang dilihat pelanggan (pesan WhatsApp, invoice PDF, deskripsi payment gateway) dan disebut di pesan staf tentang pelanggan itu. Brand hanya identitas merek (nama, logo); identitas legal, rekening, kontak, dan NPWP tetap satu milik Perusahaan. Semua brand dikirim dari Koneksi Gateway WhatsApp yang sama.
+Merek ISP yang dilihat seorang pelanggan: nama (dan logo) Prefix Registrasi yang cocok dengan huruf awal No. Registrasi-nya, **termasuk prefix yang sudah dinonaktifkan** (nonaktif hanya berarti tidak bisa dipilih untuk registrasi baru). No. Registrasi yang tidak cocok dengan prefix mana pun jatuh ke brand Perusahaan. Satu-satunya brand yang tampil di setiap hal yang dilihat pelanggan (pesan WhatsApp, invoice PDF, deskripsi payment gateway) dan disebut di pesan staf tentang pelanggan itu. Brand hanya identitas merek (nama, nama pendek, logo, ikon aplikasi, warna utama); identitas legal, rekening, kontak, dan NPWP tetap satu milik Perusahaan. Semua brand dikirim dari Koneksi Gateway WhatsApp yang sama.
 _Avoid_: Brand Perusahaan untuk Pesan Pelanggan, Template WA per Brand, Nomor WA per Brand, Cabang
 
 **Format Identitas Pelanggan**:
@@ -255,8 +255,12 @@ Portal Pelanggan yang dipasang pelanggan ke layar utama ponselnya, dengan nama d
 _Avoid_: Aplikasi Whitelabel Native, Aplikasi Play Store per Brand, Aplikasi Per Tenant
 
 **Kontak Dukungan**:
-Tombol di Portal Pelanggan untuk menghubungi CS (WhatsApp dengan pesan terisi, telepon, email). Satu-satunya jalur dukungan dari Portal; Portal tidak membuat atau menampilkan tiket (ADR-0040).
-_Avoid_: Tiket dari Portal, Live Chat, Layanan Dukungan Self-Service
+Tombol di Portal Pelanggan untuk menghubungi CS (WhatsApp dengan pesan terisi, telepon, email). Satu-satunya jalur dukungan dari Portal; Portal tidak membuat atau menampilkan tiket (ADR-0040). Kontaknya milik Perusahaan dan sama untuk semua Brand Pelanggan; pesan WhatsApp terisi menyebut Brand Pelanggan dan No. Registrasi.
+_Avoid_: Tiket dari Portal, Live Chat, Layanan Dukungan Self-Service, Kontak CS per Brand
+
+**Status Koneksi**:
+Keadaan sambungan sebuah Layanan Pelanggan yang dilihat pelanggan di Portal: paket dan kecepatannya, status layanan (Aktif/Isolir/…), Online atau Offline, dan lama sesi saat ini, dibaca live dari router. Router yang tidak dapat dihubungi berarti "Status tidak tersedia", bukan Offline. Tidak memuat riwayat pemakaian (GB), router, alamat IP, maupun perangkat pelanggan.
+_Avoid_: Penggunaan Bandwidth, Pemakaian Kuota, Grafik Trafik, Offline saat Router Tak Terjangkau
 
 **Akun Pelanggan**:
 Entitas kredensial autentikasi pengguna portal (guard `pelanggan`) yang terikat 1-to-1 dengan master data Pelanggan.
