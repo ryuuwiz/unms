@@ -15,7 +15,7 @@ Schedule::command('layanan:cek-tunggakan-pertama')->hourly()->onOneServer();
 
 // Periodic Fast Auto-Recovery for IP Pools, Profiles & PPP Secrets (In-Memory Diff via Queue mikrotik-low)
 Schedule::command('mikrotik:provisi-router --async')
-    ->everyFifteenMinutes()
+    ->everySecond()
     ->withoutOverlapping(15)
     ->onOneServer()
     ->runInBackground();
@@ -41,7 +41,7 @@ Schedule::command('xendit:cek-va-expired')->hourly()->onOneServer();
 // gateway untuk transaksi pending -- jaring pengaman agar pembayaran tidak pernah
 // tertahan diam-diam jika webhook hilang atau job antrean gagal total.
 Schedule::command('pembayaran:rekonsiliasi')
-    ->everyFifteenMinutes()
+    ->everyFiveMinutes()
     ->withoutOverlapping(15)
     ->onOneServer()
     ->sentryMonitor();
