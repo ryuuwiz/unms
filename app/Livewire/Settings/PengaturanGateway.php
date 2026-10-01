@@ -5,9 +5,9 @@ namespace App\Livewire\Settings;
 use App\DTO\PaymentGateway\PingConnectionResult;
 use App\Models\PengaturanGateway as PengaturanGatewayModel;
 use App\Services\PaymentGateway\PaymentGatewayManager;
-use App\Services\Xendit\XenditWebhookVerifier;
 use Flux\Flux;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -257,9 +257,15 @@ class PengaturanGateway extends Component
             $manager = app(PaymentGatewayManager::class);
             $this->pingResult = $manager->pingConnection($this->pingingGateway);
         } catch (\Throwable $e) {
+            Log::error('Pengujian koneksi payment gateway gagal.', [
+                'gateway_id' => $this->pingingGateway->id,
+                'provider' => $this->pingingGateway->provider,
+                'exception' => $e::class,
+            ]);
+
             $this->pingResult = new PingConnectionResult(
                 success: false,
-                message: 'Error: '.$e->getMessage()
+                message: 'Pengujian koneksi gagal. Periksa log aplikasi untuk detail teknis.'
             );
         } finally {
             $this->isPinging = false;
@@ -292,8 +298,6 @@ class PengaturanGateway extends Component
             ->driver('xendit')
             ->verifyWebhook($request, $this->pingingGateway);
 
-        $legacyValid = app(XenditWebhookVerifier::class)->verifikasi($request);
-
         if (! $canonicalValid) {
             $this->callbackTokenResult = new PingConnectionResult(
                 success: false,
@@ -303,18 +307,9 @@ class PengaturanGateway extends Component
             return;
         }
 
-        if (! $legacyValid) {
-            $this->callbackTokenResult = new PingConnectionResult(
-                success: false,
-                message: 'Token valid untuk route canonical, tetapi berbeda dari konfigurasi route legacy /webhook/xendit. Gunakan URL canonical di Dashboard Xendit atau samakan konfigurasi gateway.'
-            );
-
-            return;
-        }
-
         $this->callbackTokenResult = new PingConnectionResult(
             success: true,
-            message: 'Callback Token valid untuk route canonical dan route legacy.'
+            message: 'Callback Token valid untuk route canonical /webhook/payment/xendit.'
         );
     }
 

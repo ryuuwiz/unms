@@ -554,6 +554,11 @@ class XenditDriver extends AbstractPaymentDriver
         }
 
         if (empty($apiKey)) {
+            Log::warning('Pengujian koneksi Xendit gagal: Secret Key belum dikonfigurasi.', [
+                'gateway_id' => $setting->id,
+                'provider' => $setting->provider,
+            ]);
+
             return new PingConnectionResult(
                 success: false,
                 message: 'Secret Key Xendit belum dikonfigurasi.'
@@ -571,6 +576,11 @@ class XenditDriver extends AbstractPaymentDriver
             $balanceData = json_decode((string) json_encode($balance), true) ?: [];
             $amount = (float) ($balanceData['balance'] ?? $balance->getBalance());
 
+            Log::info('Pengujian koneksi Xendit berhasil.', [
+                'gateway_id' => $setting->id,
+                'provider' => $setting->provider,
+            ]);
+
             return new PingConnectionResult(
                 success: true,
                 message: 'Koneksi ke Xendit API berhasil terhubung.',
@@ -579,12 +589,24 @@ class XenditDriver extends AbstractPaymentDriver
                 rawResponse: $balanceData
             );
         } catch (XenditSdkException $e) {
+            Log::error('Pengujian koneksi Xendit ditolak oleh API.', [
+                'gateway_id' => $setting->id,
+                'provider' => $setting->provider,
+                'exception' => $e::class,
+            ]);
+
             return new PingConnectionResult(
                 success: false,
                 message: 'Autentikasi Xendit gagal: '.$e->getMessage(),
                 rawResponse: (array) $e->getFullError()
             );
         } catch (Exception $e) {
+            Log::error('Pengujian koneksi Xendit gagal terhubung.', [
+                'gateway_id' => $setting->id,
+                'provider' => $setting->provider,
+                'exception' => $e::class,
+            ]);
+
             return new PingConnectionResult(
                 success: false,
                 message: 'Gagal menghubungi Xendit API: '.$e->getMessage()

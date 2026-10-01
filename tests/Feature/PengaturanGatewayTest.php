@@ -62,7 +62,7 @@ test('super admin dapat melakukan ping test koneksi gateway via Livewire', funct
         ->assertSet('showPingModal', true)
         ->assertSee('Uji Koneksi API Gateway')
         ->assertSet('callbackTokenResult.success', true)
-        ->assertSee('Callback Token valid untuk route canonical dan route legacy.');
+        ->assertSee('Callback Token valid untuk route canonical /webhook/payment/xendit.');
 });
 
 test('pengujian koneksi menandai callback token kosong', function () {
@@ -84,7 +84,7 @@ test('pengujian koneksi menandai callback token kosong', function () {
         ->assertSee('Callback Token Xendit belum diisi pada koneksi gateway ini.');
 });
 
-test('pengujian koneksi mendeteksi perbedaan token route canonical dan legacy', function () {
+test('pengujian koneksi hanya memvalidasi callback token gateway yang dipilih', function () {
     PengaturanGatewayModel::create([
         'provider' => 'xendit',
         'nama' => 'Xendit Legacy',
@@ -108,6 +108,6 @@ test('pengujian koneksi mendeteksi perbedaan token route canonical dan legacy', 
     Livewire::actingAs($this->superAdmin)
         ->test(PengaturanGateway::class)
         ->call('openPingModal', $gatewayCanonical->id)
-        ->assertSet('callbackTokenResult.success', false)
-        ->assertSee('Token valid untuk route canonical, tetapi berbeda dari konfigurasi route legacy');
+        ->assertSet('callbackTokenResult.success', true)
+        ->assertSee('Callback Token valid untuk route canonical /webhook/payment/xendit.');
 });
