@@ -16,5 +16,6 @@ ADR-0061 diperluas: Brand Pelanggan kini berisi nama, nama pendek, logo, ikon ap
 - Satu ponsel hanya bisa memasang satu Aplikasi Pelanggan. Jika dua pelanggan dari merek berbeda memakai ponsel yang sama, ikon di layar utama tetap ikon merek pertama yang dipasang.
 - Aplikasi yang sudah terpasang tidak langsung mengikuti perubahan No. Registrasi atau atribut brand. Ikon dan nama baru menunggu browser memperbarui *manifest*.
 - Pindah ke domain per brand di kemudian hari akan memutus aplikasi yang sudah terpasang, karena PWA terikat ke origin-nya. Pelanggan harus memasang ulang dari domain baru.
+- Atribut brand yang belum diisi diturunkan dari brand itu sendiri: nama pendek dari nama, ikon dari logo di kanvas persegi, dan warna default aplikasi. Atribut tidak dipinjam dari Perusahaan, supaya satu aplikasi tidak pernah mencampur dua merek.
 - Petunjuk Brand hanya menentukan tampilan halaman sebelum login. Setelah login, brand selalu diturunkan ulang dari No. Registrasi.
 - Halaman Tagihan Mandiri (tautan bertanda tangan) mengambil brand dari invoice-nya, bukan dari Petunjuk Brand.
