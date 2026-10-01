@@ -273,7 +273,7 @@
 
     {{-- ═══════════ Tab 2: Layanan Internet ═══════════ --}}
     @if ($activeTab === 'subscriptions')
-        <div class="space-y-6" wire:poll.10s.visible="loadPppStatuses">
+        <div class="space-y-6" wire:poll.20s.visible="loadPppStatuses">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <flux:heading size="lg">Layanan internet</flux:heading>
@@ -301,7 +301,7 @@
                     $isIsolir = isset($statusPpp['profile']) ? $statusPpp['profile'] === \App\Models\Router::PROFILE_ISOLIR : $layanan->status === \App\Enums\StatusLayanan::Suspend;
                     $routerOnline = $statusPpp['router_online'] ?? true;
                 @endphp
-                <article id="layanan-{{ $layanan->id }}" class="{{ $card }} scroll-mt-24">
+                <article wire:key="layanan-{{ $layanan->id }}" id="layanan-{{ $layanan->id }}" class="{{ $card }} scroll-mt-24">
                     <header class="flex flex-col gap-4 p-4 sm:p-6 lg:flex-row lg:items-start lg:justify-between">
                         <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
@@ -405,11 +405,10 @@
                         </div>
                     </dl>
 
-                    <details class="group border-t border-zinc-100 dark:border-zinc-800">
-                        <summary class="flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-sm font-medium text-zinc-700 sm:px-6 dark:text-zinc-300">
+                    <section class="border-t border-zinc-100 dark:border-zinc-800">
+                        <div class="flex min-h-12 items-center px-4 text-sm font-medium text-zinc-700 sm:px-6 dark:text-zinc-300">
                             Detail sesi PPP & jaringan
-                            <flux:icon name="chevron-down" class="size-5 text-zinc-400 transition group-open:rotate-180" />
-                        </summary>
+                        </div>
                         <dl class="grid grid-cols-2 gap-x-6 gap-y-4 px-4 pb-5 sm:grid-cols-3 sm:px-6 lg:grid-cols-4">
                             @foreach ([
                                 'Profile' => $statusPpp['profile'] ?? $layanan->paketLayanan?->nama_paket ?? '—',
@@ -451,7 +450,7 @@
                                 </dd>
                             </div>
                         </dl>
-                    </details>
+                    </section>
                 </article>
             @empty
                 <div class="rounded-xl border-2 border-dashed border-zinc-300 p-8 text-center sm:p-12 dark:border-zinc-700">
