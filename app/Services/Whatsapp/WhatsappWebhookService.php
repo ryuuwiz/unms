@@ -2,15 +2,12 @@
 
 namespace App\Services\Whatsapp;
 
-use App\Enums\StatusInvoice;
 use App\Enums\StatusWebhookLog;
 use App\Enums\Sysblas\SysblasProvider;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\Wa\StatusAntrianWa;
 use App\Models\AntrianWaBlast;
-use App\Models\Invoice;
 use App\Models\Pelanggan;
-use App\Models\PengaturanPrefixRegistrasi;
 use App\Models\Sysblas;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
@@ -22,10 +19,6 @@ use Sentry\State\Scope;
 
 class WhatsappWebhookService
 {
-    public function __construct(
-        protected WhatsappService $whatsappService
-    ) {}
-
     /**
      * Proses payload webhook WhatsApp secara sinkron: mencatat WebhookLog lalu langsung
      * menanganinya. Dipakai oleh `whatsapp:simulate-webhook` (CLI lokal, bukan HTTP publik,
@@ -374,10 +367,7 @@ class WhatsappWebhookService
             ->orWhere('no_hp', '0'.substr($phone, 2))
             ->first();
 
-        // 1. Jika ada kata kunci interaktif, buat balasan otomatis
-        $replyMessage = $this->generateInteractiveReply($messageText, $pelanggan);
-
-        // 2. Jika pelanggan memiliki tiket aktif, catat histori chat ke tiket
+        // Jika pelanggan memiliki tiket aktif, catat histori chat ke tiket.
         if ($pelanggan) {
             $activeTicket = Ticket::query()
                 ->where('pelanggan_id', $pelanggan->id)
@@ -396,92 +386,6 @@ class WhatsappWebhookService
                     'created_at' => Carbon::now(),
                 ]);
             }
-        }
-
-        // Kirim auto-reply jika ada pesan balasan
-        if ($replyMessage) {
-            $replyMessage .= "\n\nSalam,\n".PengaturanPrefixRegistrasi::namaBrandUntuk($pelanggan?->no_reg);
-
-            $this->whatsappService->antrikanPesanKustom(
-                noHp: $phone,
-                pesan: $replyMessage,
-                referensi: $pelanggan,
-                jenis: 'webhook_autoreply'
-            );
-        }
-
-        return $replyMessage;
-    }
-
-    /**
-     * Buat balasan interaktif berdasarkan kata kunci pesan.
-     */
-    protected function generateInteractiveReply(string $text, ?Pelanggan $pelanggan): ?string
-    {
-        $upper = strtoupper(trim($text));
-
-        // Keyword TAGIHAN / INFO TAGIHAN / CEK TAGIHAN / BAYAR
-        if (str_contains($upper, 'TAGIHAN') || str_contains($upper, 'BAYAR') || str_contains($upper, 'INVOICE')) {
-            if (! $pelanggan) {
-                return 'Halo! Nomor WhatsApp Anda belum terdaftar sebagai pelanggan kami. Silahkan hubungi Customer Service untuk informasi pendaftaran layanan.';
-            }
-
-            $unpaidInvoices = Invoice::query()
-                ->where('pelanggan_id', $pelanggan->id)
-                ->where('status', StatusInvoice::MenungguPembayaran)
-                ->orderBy('tanggal_jatuh_tempo')
-                ->get();
-
-            if ($unpaidInvoices->isEmpty()) {
-                return "Halo Bapak/Ibu *{$pelanggan->namaLengkap()}*,\n\nSaat ini Anda *tidak memiliki tagihan tertunggak* (Semua tagihan lunas). Terima kasih atas kelancaran pembayaran Anda! 🙏";
-            }
-
-            $totalNominal = $unpaidInvoices->sum('jumlah');
-            $msg = "Halo Bapak/Ibu *{$pelanggan->namaLengkap()}* (No Reg: {$pelanggan->no_reg}),\n\nBerikut rincian tagihan Anda yang belum dibayar:\n";
-
-            foreach ($unpaidInvoices as $inv) {
-                $tglJatuhTempo = $inv->tanggal_jatuh_tempo->format('d/m/Y');
-                $nominal = number_format($inv->jumlah_setelah_promo ?? $inv->jumlah, 0, ',', '.');
-                $linkBayar = $inv->xendit_invoice_url ?? route('portal.invoice.show', $inv->id);
-                $msg .= "• *{$inv->no_invoice}* : Rp {$nominal} (Jatuh Tempo: {$tglJatuhTempo})\n  Link Bayar: {$linkBayar}\n";
-            }
-
-            $msg .= "\n*Total Tagihan:* Rp ".number_format($totalNominal, 0, ',', '.')."\n\nSilahkan lakukan pembayaran melalui link pembayaran di atas atau via Portal Pelanggan.";
-
-            return $msg;
-        }
-
-        // Keyword TIKET / GANGGUAN / KENDALA
-        if (str_contains($upper, 'TIKET') || str_contains($upper, 'STATUS TIKET') || str_contains($upper, 'GANGGUAN') || str_contains($upper, 'RUSAK')) {
-            if (! $pelanggan) {
-                return 'Halo! Untuk pelaporan kendala atau tiket gangguan, mohon sebutkan No. Registrasi Pelanggan atau hubungi Helpdesk kami.';
-            }
-
-            $activeTickets = Ticket::query()
-                ->where('pelanggan_id', $pelanggan->id)
-                ->whereNotIn('status', [StatusTicket::Selesai, StatusTicket::Batal])
-                ->latest('id')
-                ->get();
-
-            if ($activeTickets->isEmpty()) {
-                return "Halo Bapak/Ibu *{$pelanggan->namaLengkap()}*,\n\nSaat ini *tidak ada tiket gangguan aktif* untuk layanan Anda. Jika mengalami kendala koneksi, silahkan sampaikan detail kendala Anda di sini agar tim teknisi kami segera menindaklanjuti.";
-            }
-
-            $msg = "Halo Bapak/Ibu *{$pelanggan->namaLengkap()}*,\n\nStatus tiket penanganan Anda saat ini:\n";
-            foreach ($activeTickets as $t) {
-                $statusLabel = $t->status->label();
-                $msg .= "• *{$t->nomor_ticket}* - {$t->jenis->label()} (Status: *{$statusLabel}*)\n";
-            }
-            $msg .= "\nTim teknisi kami sedang memproses kendala Anda. Mohon ditunggu.";
-
-            return $msg;
-        }
-
-        // Keyword MENU / BANTUAN / INFO
-        if ($upper === 'MENU' || $upper === 'BANTUAN' || $upper === 'INFO' || $upper === 'HELP') {
-            $nama = $pelanggan ? $pelanggan->namaLengkap() : 'Pelanggan';
-
-            return "Halo *{$nama}*,\n\nSelamat datang di Layanan Otomatis WhatsApp.\nKetik kata kunci berikut untuk info cepat:\n\n1. *TAGIHAN* - Untuk cek tagihan & link pembayaran\n2. *TIKET* - Untuk cek status penanganan kendala\n3. *BANTUAN* - Untuk panduan bantuan\n\nUntuk berbicara langsung dengan Customer Service, silahkan tinggalkan pesan Anda di sini.";
         }
 
         return null;

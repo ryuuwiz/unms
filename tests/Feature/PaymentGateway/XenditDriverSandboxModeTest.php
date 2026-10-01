@@ -1,14 +1,19 @@
 <?php
 
+use App\Enums\GatewayChannel;
+use App\Enums\StatusTransaksiGateway;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\PengaturanGateway;
 use App\Models\Router;
+use App\Models\TransaksiPaymentGateway;
 use App\Services\PaymentGateway\Drivers\XenditDriver;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Xendit\Invoice\Invoice as XenditInvoice;
+use Xendit\Invoice\InvoiceApi;
 
 uses(RefreshDatabase::class);
 
@@ -128,4 +133,53 @@ test('checkStatus di APP_ENV local tidak melaporkan PENDING palsu', function () 
     // yang menutupi kondisi sebenarnya (lihat ADR 0039).
     expect($result)->toHaveKey('error')
         ->and($result['status'] ?? null)->not->toBe('PENDING');
+});
+
+test('checkStatus memulihkan invoice melalui external_id saat id lama tidak ditemukan', function () {
+    app()->detectEnvironment(fn () => 'local');
+
+    $setting = PengaturanGateway::create([
+        'provider' => 'xendit',
+        'gateway' => 'xendit',
+        'nama' => 'Xendit Utama',
+        'credentials' => ['secret_key' => 'xnd_development_test_123'],
+        'is_default' => true,
+        'is_active' => true,
+    ]);
+    $transaksi = TransaksiPaymentGateway::create([
+        'invoice_id' => $this->invoice->id,
+        'gateway' => 'xendit',
+        'external_id' => 'INV-RECOVERY-001',
+        'xendit_reference_id' => 'old_id',
+        'channel' => GatewayChannel::Invoice,
+        'total_tagihan' => 254000,
+        'fee_gateway' => 4000,
+        'status' => StatusTransaksiGateway::Pending,
+    ]);
+
+    $remoteInvoice = (new XenditInvoice)
+        ->setId('6abe1a0cad9cd3582f98b526')
+        ->setExternalId('INV-RECOVERY-001')
+        ->setStatus('PAID')
+        ->setAmount(254000)
+        ->setInvoiceUrl('https://checkout.xendit.co/web/6abe1a0cad9cd3582f98b526');
+    $invoiceApi = Mockery::mock(InvoiceApi::class);
+    $invoiceApi->shouldReceive('getInvoiceById')->once()->andThrow(new Exception('Could not find invoice by id old_id'));
+    $invoiceApi->shouldReceive('getInvoices')->once()->andReturn([$remoteInvoice]);
+
+    $driver = new class($invoiceApi) extends XenditDriver
+    {
+        public function __construct(private InvoiceApi $invoiceApi) {}
+
+        protected function getInvoiceApi(string $apiKey): InvoiceApi
+        {
+            return $this->invoiceApi;
+        }
+    };
+
+    $result = $driver->checkStatus($transaksi, $setting);
+
+    expect($result['id'])->toBe('6abe1a0cad9cd3582f98b526')
+        ->and($result['recovered_by'])->toBe('external_id')
+        ->and($result['status'])->toBe('PAID');
 });

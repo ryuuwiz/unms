@@ -246,11 +246,16 @@ class PaymentGatewayManager
 
         $transaksi = $invoice->transaksiPaymentGatewayAktif();
         if ($this->isMissingRemoteInvoice($statusData)) {
+            if (($statusData['error_code'] ?? null) === 'ambiguous_external_id') {
+                return $statusData;
+            }
+
             $this->invalidateMissingRemoteInvoice($invoice, $transaksi);
 
             return $statusData;
         }
 
+        $this->adoptRecoveredRemoteReference($invoice, $statusData);
         $this->recordStatusSync($provider, $statusStr, $statusData, $transaksi);
         $this->applySyncedStatus($invoice, $statusStr, $statusData, $transaksi, $provider);
 
@@ -363,7 +368,26 @@ class PaymentGatewayManager
         return str_contains(
             strtolower((string) ($statusData['error'] ?? '')),
             'could not find invoice by id'
-        );
+        ) || ($statusData['error_code'] ?? null) === 'external_id_not_found';
+    }
+
+    /**
+     * @param  array<string, mixed>  $statusData
+     */
+    protected function adoptRecoveredRemoteReference(Invoice $invoice, array $statusData): void
+    {
+        if (($statusData['recovered_by'] ?? null) !== 'external_id' || empty($statusData['id'])) {
+            return;
+        }
+
+        $invoice->update([
+            'payment_gateway_id' => $statusData['id'],
+            'payment_gateway_url' => $statusData['invoice_url'] ?? $invoice->payment_gateway_url,
+            'payment_gateway_status' => $statusData['status'] ?? $invoice->payment_gateway_status,
+            'xendit_invoice_id' => $statusData['id'],
+            'xendit_invoice_url' => $statusData['invoice_url'] ?? $invoice->xendit_invoice_url,
+            'xendit_status' => $statusData['status'] ?? $invoice->xendit_status,
+        ]);
     }
 
     protected function invalidateMissingRemoteInvoice(Invoice $invoice, ?TransaksiPaymentGateway $transaksi): void

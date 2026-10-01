@@ -253,6 +253,22 @@ class XenditDriver extends AbstractPaymentDriver
 
             return json_decode((string) json_encode($response), true) ?: [];
         } catch (Exception $e) {
+            $externalId = $target instanceof TransaksiPaymentGateway
+                ? $target->external_id
+                : $target->transaksiPaymentGatewayAktif()?->external_id;
+
+            if (! empty($externalId)) {
+                $recovered = $this->findInvoiceByExternalId($externalId, $apiKey);
+
+                if (! isset($recovered['error'])) {
+                    return $recovered;
+                }
+
+                if (isset($recovered['error_code'])) {
+                    return $recovered;
+                }
+            }
+
             // Fallback coba periksa ke V3 Payment Requests API jika invoice ID tidak ditemukan
             try {
                 $v3Result = $this->checkPaymentRequestV3Status($xenditId, $apiKey);
@@ -267,6 +283,56 @@ class XenditDriver extends AbstractPaymentDriver
 
             return ['error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Pulihkan invoice melalui external_id yang dibuat oleh aplikasi.
+     *
+     * @return array<string, mixed>
+     */
+    protected function findInvoiceByExternalId(string $externalId, string $apiKey): array
+    {
+        try {
+            $invoices = $this->getInvoiceApi($apiKey)->getInvoices(
+                null,
+                $externalId,
+                null,
+                10
+            );
+        } catch (Exception $e) {
+            Log::warning("Fallback external_id Xendit {$externalId} gagal: ".$e->getMessage());
+
+            return ['error' => $e->getMessage()];
+        }
+
+        $matches = array_values(array_filter(
+            $invoices,
+            fn ($invoice): bool => $invoice->getExternalId() === $externalId
+        ));
+
+        if (count($matches) !== 1) {
+            return [
+                'error' => count($matches) === 0
+                    ? 'Invoice Xendit tidak ditemukan berdasarkan external_id.'
+                    : 'Lebih dari satu invoice Xendit ditemukan berdasarkan external_id.',
+                'error_code' => count($matches) === 0 ? 'external_id_not_found' : 'ambiguous_external_id',
+                'external_id' => $externalId,
+            ];
+        }
+
+        $invoice = $matches[0];
+        $status = strtoupper((string) $invoice->getStatus());
+        $amount = (float) $invoice->getAmount();
+
+        return [
+            'id' => (string) $invoice->getId(),
+            'external_id' => $externalId,
+            'invoice_url' => (string) $invoice->getInvoiceUrl(),
+            'status' => $status,
+            'amount' => $amount,
+            'paid_amount' => $status === 'PAID' || $status === 'SETTLED' ? $amount : 0.0,
+            'recovered_by' => 'external_id',
+        ];
     }
 
     /**

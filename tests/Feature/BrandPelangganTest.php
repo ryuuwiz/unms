@@ -35,7 +35,7 @@ test('pesan WA ke pelanggan dan teknisi memakai brand prefix, no_reg tak dikenal
         ->and($render('tiket_penugasan_teknisi', $this->wa->buildTicketParams($ticket)))->toContain(' - BESTFIBER (');
 });
 
-test('auto-reply WhatsApp ditutup dengan brand pelanggan', function () {
+test('inbound WhatsApp tetap diterima tanpa membuat auto-reply', function () {
     Pelanggan::factory()->create(['no_reg' => 'ARS2309202601', 'no_hp' => '081277776666']);
 
     $this->postJson(route('webhook.whatsapp'), [
@@ -45,7 +45,7 @@ test('auto-reply WhatsApp ditutup dengan brand pelanggan', function () {
         'message' => 'TAGIHAN',
     ])->assertOk();
 
-    expect(AntrianWaBlast::where('jenis', 'webhook_autoreply')->firstOrFail()->pesan)->toEndWith("Salam,\nArsyila");
+    expect(AntrianWaBlast::where('jenis', 'webhook_autoreply')->exists())->toBeFalse();
 });
 
 test('invoice PDF dan halaman invoice portal tidak memuat PPP username maupun router', function () {

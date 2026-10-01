@@ -160,6 +160,39 @@ test('invoice gateway yang tidak ditemukan ditandai invalid agar dapat diterbitk
         ->and($transaksi->status)->toBe(StatusTransaksiGateway::Expired);
 });
 
+test('invoice lunas dapat dipulihkan melalui external_id setelah id gateway tidak ditemukan', function () {
+    $transaksi = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+
+    $recoveredDriver = new class extends XenditDriver
+    {
+        public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
+        {
+            return [
+                'id' => '6abe1a0cad9cd3582f98b526',
+                'external_id' => $target instanceof TransaksiPaymentGateway ? $target->external_id : 'unused',
+                'invoice_url' => 'https://checkout.xendit.co/web/6abe1a0cad9cd3582f98b526',
+                'status' => 'PAID',
+                'amount' => (float) ($target instanceof TransaksiPaymentGateway ? $target->total_tagihan : 0),
+                'paid_amount' => (float) ($target instanceof TransaksiPaymentGateway ? $target->total_tagihan : 0),
+                'recovered_by' => 'external_id',
+            ];
+        }
+    };
+    $this->manager->registerDriver('xendit', $recoveredDriver);
+
+    $this->invoice->update([
+        'payment_gateway_id' => '6abe1e4ade2f5074a6d5f3c1',
+        'xendit_invoice_id' => '6abe1e4ade2f5074a6d5f3c1',
+    ]);
+    $result = $this->manager->sinkronkanStatus($this->invoice);
+
+    $this->invoice->refresh();
+    expect($result['recovered_by'])->toBe('external_id')
+        ->and($this->invoice->status)->toBe(StatusInvoice::Lunas)
+        ->and($this->invoice->payment_gateway_id)->toBe('6abe1a0cad9cd3582f98b526')
+        ->and($transaksi->fresh()->status)->toBe(StatusTransaksiGateway::Paid);
+});
+
 test('proses pelunasan memperbarui status invoice, layanan, dan memancarkan event InvoicePaidEvent', function () {
     Event::fake([InvoicePaidEvent::class]);
 

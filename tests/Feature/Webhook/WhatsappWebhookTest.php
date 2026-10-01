@@ -95,7 +95,7 @@ test('webhook tracking failed berhasil menandai antrian gagal dengan pesan error
         ->and($antrian->fresh()->pesan_error)->toBe('Nomor WhatsApp tidak aktif');
 });
 
-test('webhook incoming message keyword TAGIHAN membalas rincian invoice pelanggan', function () {
+test('webhook incoming message tidak lagi membuat auto-reply', function () {
     $pelanggan = Pelanggan::factory()->create([
         'nama_depan' => 'Budi',
         'nama_belakang' => 'Santoso',
@@ -126,14 +126,9 @@ test('webhook incoming message keyword TAGIHAN membalas rincian invoice pelangga
             'type' => 'queued',
         ]);
 
-    $autoReply = AntrianWaBlast::where('no_hp_tujuan', '6281299998888')
+    expect(AntrianWaBlast::where('no_hp_tujuan', '6281299998888')
         ->where('jenis', 'webhook_autoreply')
-        ->first();
-
-    expect($autoReply)->not->toBeNull()
-        ->and($autoReply->pesan)->toContain('Budi Santoso')
-        ->and($autoReply->pesan)->toContain('INV-2026-9901')
-        ->and($autoReply->pesan)->toContain('250.000');
+        ->exists())->toBeFalse();
 });
 
 test('webhook incoming message pelanggan mencatat pesan masuk ke histori tiket aktif', function () {
@@ -226,7 +221,7 @@ test('webhook waha session.status working mengaktifkan sysblas connection', func
     expect($sysblas->fresh()->is_aktif)->toBeTrue();
 });
 
-test('webhook waha message inbound membalas info tagihan pelanggan', function () {
+test('webhook waha message inbound tidak membuat auto-reply', function () {
     $pelanggan = Pelanggan::factory()->create([
         'nama_depan' => 'Joko',
         'nama_belakang' => 'Widodo',
@@ -261,14 +256,9 @@ test('webhook waha message inbound membalas info tagihan pelanggan', function ()
             'type' => 'queued',
         ]);
 
-    $autoReply = AntrianWaBlast::where('no_hp_tujuan', '6281388887777')
+    expect(AntrianWaBlast::where('no_hp_tujuan', '6281388887777')
         ->where('jenis', 'webhook_autoreply')
-        ->first();
-
-    expect($autoReply)->not->toBeNull()
-        ->and($autoReply->pesan)->toContain('Joko Widodo')
-        ->and($autoReply->pesan)->toContain('INV-2026-WAHA-01')
-        ->and($autoReply->pesan)->toContain('175.000');
+        ->exists())->toBeFalse();
 });
 
 test('webhook gowa message.ack (shape sama dengan waha) berhasil memperbarui status antrian_wa_blast', function () {

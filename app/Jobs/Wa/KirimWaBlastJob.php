@@ -65,6 +65,12 @@ class KirimWaBlastJob implements ShouldBeUnique, ShouldQueue
 
     public function handle(WhatsappClient $client): void
     {
+        if ($this->antrian->jenis === 'webhook_autoreply') {
+            $this->antrian->tandaiGagal('Webhook auto-reply dinonaktifkan.');
+
+            return;
+        }
+
         // Pastikan record masih ada dan belum berstatus terkirim
         if (! $this->antrian->exists || $this->antrian->status->value === 'terkirim') {
             return;

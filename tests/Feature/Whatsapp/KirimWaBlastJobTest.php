@@ -47,6 +47,17 @@ function kirimWa(AntrianWaBlast $antrian): void
     (new KirimWaBlastJob($antrian))->handle(app(WhatsappClient::class));
 }
 
+test('historical webhook auto-reply selalu dibatalkan tanpa memanggil gateway', function () {
+    Http::preventStrayRequests();
+    $antrian = antrianWa($this->sysblas);
+    $antrian->update(['jenis' => 'webhook_autoreply']);
+
+    (new KirimWaBlastJob($antrian))->handle(app(WhatsappClient::class));
+
+    expect($antrian->fresh()->status)->toBe(StatusAntrianWa::Gagal)
+        ->and($antrian->fresh()->pesan_error)->toBe('Webhook auto-reply dinonaktifkan.');
+});
+
 test('batas percobaan berbasis waktu dan job unik per antrean, sehingga penyapu tidak menggandakannya', function () {
     Queue::fake();
     $antrian = antrianWa($this->sysblas);

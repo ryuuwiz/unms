@@ -27,7 +27,7 @@ WhatsappWebhookController::handle()
                  ├─ format {event, session, payload}   → handleWahaEvent()      (GOWA & WAHA, shape sama)
                  │      ├─ message.ack        → handleWahaMessageAck()   → update AntrianWaBlast
                  │      ├─ session.status      → handleWahaSessionStatus() → aktifkan Sysblas terkait
-                 │      └─ message / message.any → handleIncomingMessage() → auto-reply + histori tiket
+                 │      └─ message / message.any → handleIncomingMessage() → histori tiket
                  │
                  ├─ format flat {message, phone|sender}  → handleIncomingMessage()   (legacy / simulasi lokal)
                  └─ format flat {status, phone|id}       → handleTrackingStatus()    (legacy DLR)
@@ -159,20 +159,14 @@ Setiap payload **selalu** dicatat ke tabel `webhook_log` (`WhatsappWebhookServic
 sebelum diproses, dengan `status_proses`: `diterima → diproses|diabaikan|gagal`. Gunakan ini sebagai
 sumber kebenaran saat debugging — payload mentah tersimpan utuh di kolom `payload`.
 
-## 7. Auto-reply pesan masuk (`generateInteractiveReply`)
+## 7. Pesan masuk
 
-Pesan masuk dicocokkan ke kata kunci (case-insensitive, `str_contains`), dan pelanggan dikenali dari
-nomor HP (`Pelanggan::where('no_hp', ...)`):
+Semua pesan masuk diproses untuk pencocokan pelanggan dan pencatatan ke `TicketHistori` bila
+pelanggan memiliki tiket aktif. Sistem **tidak lagi mengirim balasan otomatis** untuk keyword
+`TAGIHAN`, `BAYAR`, `INVOICE`, `TIKET`, `GANGGUAN`, `RUSAK`, `MENU`, `BANTUAN`, `INFO`, atau `HELP`.
 
-| Kata kunci | Balasan |
-|---|---|
-| `TAGIHAN`, `BAYAR`, `INVOICE` | Daftar invoice belum lunas + link bayar (atau info "tidak ada tunggakan") |
-| `TIKET`, `STATUS TIKET`, `GANGGUAN`, `RUSAK` | Status tiket aktif pelanggan |
-| `MENU`, `BANTUAN`, `INFO`, `HELP` | Menu bantuan |
-| lainnya | Tidak ada auto-reply, tapi jika pelanggan punya tiket aktif, teks tetap dicatat ke `TicketHistori` sebagai `[WhatsApp Pelanggan]: ...` |
-
-Balasan otomatis dikirim lewat `WhatsappService::antrikanPesanKustom()` dengan `jenis: 'webhook_autoreply'`
-(masuk ke outbox `AntrianWaBlast` seperti pesan lain, ikut rate-limit anti-ban per koneksi).
+Item antrean lama dengan `jenis: 'webhook_autoreply'` dibatalkan sebagai `gagal` dengan alasan
+`Webhook auto-reply dinonaktifkan.` dan worker selalu melewati jenis tersebut.
 
 ## 8. Cara menguji
 
@@ -229,7 +223,7 @@ vendor/bin/sail artisan test --compact --filter="Whatsapp|Gowa|Sysblas"
 | Webhook masuk tapi tidak ada efek | Bentuk payload tidak cocok 3 format yang dikenali → `type: unknown`/`unhandled_event` | Lihat `webhook_log.payload` mentah, bandingkan dengan §4 |
 | `401 Unauthorized` terus-menerus dari GOWA | Nama header signature salah, atau `api_secret` di `Sysblas` tidak sama dengan `webhook_secret` yang didaftarkan ke GOWA | Cek §5, pastikan `PATCH /devices/{id}/webhook` di GOWA memakai secret yang sama |
 | `AntrianWaBlast` tidak pernah jadi `Terkirim` walau pesan sukses di WA | `session` pada payload `message.ack` tidak cocok, atau matching by nomor+3-hari-terakhir meleset (ada retry rate-limit tertunda) | Cek `response_log` kolom `waha_ack`, cek `KirimWaBlastJob` (rate limit 1 pesan/5 menit — lihat §10 di bawah) |
-| Auto-reply tidak terkirim balik | Nomor pelanggan tidak match format `WhatsappClient::normalizePhoneNumber()`, atau koneksi `Sysblas` default nonaktif | Cek `Sysblas::getDefault()`, cek `AntrianWaBlast` baris `jenis=webhook_autoreply` |
+| Pesan inbound tidak membalas otomatis | Fitur auto-reply sudah dinonaktifkan | Tindak lanjuti pesan melalui operator atau alur tiket |
 | `Sysblas` tidak auto-aktif walau `session.status: WORKING` | `session_name` di payload tidak persis sama dengan kolom `sysblas.session_name` (case-sensitive) | `handleWahaSessionStatus()` pakai exact match |
 
 ## 10. Terkait: rate-limit anti-ban pengiriman
