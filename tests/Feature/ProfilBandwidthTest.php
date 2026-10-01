@@ -6,6 +6,7 @@ use App\Livewire\ProfilBandwidth\Edit;
 use App\Livewire\ProfilBandwidth\Index;
 use App\Models\ProfilBandwidth;
 use App\Models\User;
+use App\Support\BurstProfileCalculator;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -50,6 +51,43 @@ test('noc user can create profil bandwidth with burst configuration', function (
         ->and($profil->labelKecepatan())->toBe('50 Mbps (1:1)')
         ->and($profil->routerOsMaxLimit())->toBe('53477376/53477376')
         ->and($profil->routerOsRateLimit())->toBe('53477376/53477376 80216064/80216064 42781901/42781901 16/16 6 10695475/10695475');
+});
+
+test('automatic burst calculation fills values from the directional max limits', function () {
+    expect(BurstProfileCalculator::calculate(20, 10))->toBe([
+        'burst_rate_tx' => 30,
+        'burst_rate_rx' => 15,
+        'burst_threshold_tx' => 16,
+        'burst_threshold_rx' => 8,
+        'burst_time_tx' => 16,
+        'burst_time_rx' => 16,
+    ]);
+
+    Livewire::actingAs($this->nocUser)
+        ->test(Create::class)
+        ->set('max_limit_tx', 20)
+        ->set('max_limit_rx', 10)
+        ->set('limit_rate_tx', 5)
+        ->call('calculateBurstProfile')
+        ->assertSet('burst_rate_tx', 30)
+        ->assertSet('burst_rate_rx', 15)
+        ->assertSet('burst_threshold_tx', 16)
+        ->assertSet('burst_threshold_rx', 8)
+        ->assertSet('burst_time_tx', 16)
+        ->assertSet('burst_time_rx', 16)
+        ->assertSet('limit_rate_tx', 5)
+        ->assertHasNoErrors();
+});
+
+test('automatic burst calculation leaves incomplete directions empty', function () {
+    expect(BurstProfileCalculator::calculate(null, 1))->toBe([
+        'burst_rate_tx' => null,
+        'burst_rate_rx' => 2,
+        'burst_threshold_tx' => null,
+        'burst_threshold_rx' => 1,
+        'burst_time_tx' => null,
+        'burst_time_rx' => 16,
+    ]);
 });
 
 test('noc user can create standard profile without burst', function () {

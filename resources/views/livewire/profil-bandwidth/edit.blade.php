@@ -41,7 +41,10 @@
                     <flux:heading size="base">Konfigurasi Burst</flux:heading>
                     <flux:subheading>Aktifkan jika ingin memberikan burst speed pada awal koneksi.</flux:subheading>
                 </div>
-                <flux:switch wire:model.live="useBurst" />
+                <div class="flex items-center gap-3">
+                    <flux:button type="button" wire:click="calculateBurstProfile" variant="ghost" icon="calculator">Hitung Otomatis</flux:button>
+                    <flux:switch wire:model.live="useBurst" />
+                </div>
             </div>
 
             @if ($useBurst)

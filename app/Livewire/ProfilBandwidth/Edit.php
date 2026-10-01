@@ -3,6 +3,7 @@
 namespace App\Livewire\ProfilBandwidth;
 
 use App\Models\ProfilBandwidth;
+use App\Support\BurstProfileCalculator;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -61,6 +62,13 @@ class Edit extends Component
         $this->burst_time_rx = $profilBandwidth->burst_time_rx;
         $this->limit_rate_tx = $profilBandwidth->limit_rate_tx;
         $this->limit_rate_rx = $profilBandwidth->limit_rate_rx;
+    }
+
+    public function calculateBurstProfile(): void
+    {
+        $values = BurstProfileCalculator::calculate($this->max_limit_tx, $this->max_limit_rx);
+
+        $this->fill($values);
     }
 
     /**
