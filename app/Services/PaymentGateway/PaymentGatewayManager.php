@@ -245,33 +245,68 @@ class PaymentGatewayManager
         $statusStr = strtoupper((string) ($statusData['status'] ?? ''));
 
         $transaksi = $invoice->transaksiPaymentGatewayAktif();
-        if ($transaksi && ! empty($statusData) && ! isset($statusData['error'])) {
-            $transaksi->update([
-                'payload_response' => $statusData,
-                'provider_reference_id' => $statusData['id'] ?? $transaksi->provider_reference_id,
-                'xendit_reference_id' => $statusData['id'] ?? $transaksi->xendit_reference_id,
-            ]);
+        if ($this->isMissingRemoteInvoice($statusData)) {
+            $this->invalidateMissingRemoteInvoice($invoice, $transaksi);
 
-            // Catat log audit sinkronisasi API jika belum ada
-            $eventId = (string) ($statusData['id'] ?? ($transaksi->provider_reference_id ?: $transaksi->external_id));
-            if (! empty($eventId)) {
-                WebhookLog::firstOrCreate(
-                    [
-                        'provider' => $provider,
-                        'provider_event_id' => $eventId,
-                    ],
-                    [
-                        'transaksi_payment_gateway_id' => $transaksi->id,
-                        'event_type' => "sync.{$provider}",
-                        'xendit_event_id' => $eventId,
-                        'payload' => $statusData,
-                        'status_proses' => in_array($statusStr, ['PAID', 'SETTLED', 'SUCCEEDED', 'BERHASIL', 'EXPIRED'], true) ? StatusWebhookLog::Diproses : StatusWebhookLog::Diterima,
-                        'diterima_pada' => Carbon::now(),
-                    ]
-                );
-            }
+            return $statusData;
         }
 
+        $this->recordStatusSync($provider, $statusStr, $statusData, $transaksi);
+        $this->applySyncedStatus($invoice, $statusStr, $statusData, $transaksi, $provider);
+
+        return $statusData;
+    }
+
+    /**
+     * @param  array<string, mixed>  $statusData
+     */
+    protected function recordStatusSync(
+        string $provider,
+        string $statusStr,
+        array $statusData,
+        ?TransaksiPaymentGateway $transaksi
+    ): void {
+        if (! $transaksi || empty($statusData) || isset($statusData['error'])) {
+            return;
+        }
+
+        $transaksi->update([
+            'payload_response' => $statusData,
+            'provider_reference_id' => $statusData['id'] ?? $transaksi->provider_reference_id,
+            'xendit_reference_id' => $statusData['id'] ?? $transaksi->xendit_reference_id,
+        ]);
+
+        $eventId = (string) ($statusData['id'] ?? ($transaksi->provider_reference_id ?: $transaksi->external_id));
+        if (empty($eventId)) {
+            return;
+        }
+
+        WebhookLog::firstOrCreate(
+            [
+                'provider' => $provider,
+                'provider_event_id' => $eventId,
+            ],
+            [
+                'transaksi_payment_gateway_id' => $transaksi->id,
+                'event_type' => "sync.{$provider}",
+                'xendit_event_id' => $eventId,
+                'payload' => $statusData,
+                'status_proses' => in_array($statusStr, ['PAID', 'SETTLED', 'SUCCEEDED', 'BERHASIL', 'EXPIRED'], true) ? StatusWebhookLog::Diproses : StatusWebhookLog::Diterima,
+                'diterima_pada' => Carbon::now(),
+            ]
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $statusData
+     */
+    protected function applySyncedStatus(
+        Invoice $invoice,
+        string $statusStr,
+        array $statusData,
+        ?TransaksiPaymentGateway $transaksi,
+        string $provider
+    ): void {
         if (in_array($statusStr, ['PAID', 'SETTLED', 'SUCCEEDED', 'BERHASIL'], true)) {
             $callbackData = new PaymentCallbackData(
                 provider: $provider,
@@ -283,34 +318,80 @@ class PaymentGatewayManager
                 rawPayload: $statusData
             );
 
-            // prosesPelunasan() sudah mengunci baris invoice & mengecek ulang isLunas() di
-            // dalam transaksinya sendiri, jadi aman dipanggil langsung dari sini.
             $this->prosesPelunasan($invoice, $callbackData, $transaksi);
             $invoice->refresh();
-        } elseif ($statusStr === 'EXPIRED' || $statusStr === 'BATAL') {
-            // Dikunci + re-check isLunas() DI DALAM lock: dipanggil berulang oleh sweeper
-            // terjadwal (lihat RekonsiliasiPembayaranCommand), sehingga rawan berbenturan
-            // dengan webhook yang baru saja melunasi invoice yang sama secara paralel.
-            DB::transaction(function () use ($invoice, $transaksi) {
-                /** @var Invoice $lockedInvoice */
-                $lockedInvoice = Invoice::where('id', $invoice->id)->lockForUpdate()->firstOrFail();
 
-                if (! $lockedInvoice->isLunas()) {
-                    $lockedInvoice->update([
-                        'payment_gateway_url' => null,
-                        'payment_gateway_status' => 'EXPIRED',
-                        'xendit_invoice_url' => null,
-                        'xendit_status' => 'EXPIRED',
-                    ]);
-
-                    if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
-                        $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
-                    }
-                }
-            });
+            return;
         }
 
-        return $statusData;
+        if ($statusStr === 'EXPIRED' || $statusStr === 'BATAL') {
+            $this->invalidateExpiredInvoice($invoice, $transaksi);
+        }
+    }
+
+    protected function invalidateExpiredInvoice(Invoice $invoice, ?TransaksiPaymentGateway $transaksi): void
+    {
+        DB::transaction(function () use ($invoice, $transaksi): void {
+            /** @var Invoice $lockedInvoice */
+            $lockedInvoice = Invoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedInvoice->isLunas()) {
+                return;
+            }
+
+            $lockedInvoice->update([
+                'payment_gateway_url' => null,
+                'payment_gateway_status' => 'EXPIRED',
+                'xendit_invoice_url' => null,
+                'xendit_status' => 'EXPIRED',
+            ]);
+
+            if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
+                $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
+            }
+        });
+    }
+
+    /**
+     * Xendit mengembalikan pesan ini saat ID invoice tidak ada pada akun/key aktif.
+     * Link lokal harus dianggap tidak valid agar pembayaran berikutnya membuat invoice baru.
+     *
+     * @param  array<string, mixed>  $statusData
+     */
+    protected function isMissingRemoteInvoice(array $statusData): bool
+    {
+        return str_contains(
+            strtolower((string) ($statusData['error'] ?? '')),
+            'could not find invoice by id'
+        );
+    }
+
+    protected function invalidateMissingRemoteInvoice(Invoice $invoice, ?TransaksiPaymentGateway $transaksi): void
+    {
+        DB::transaction(function () use ($invoice, $transaksi): void {
+            /** @var Invoice $lockedInvoice */
+            $lockedInvoice = Invoice::query()
+                ->whereKey($invoice->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedInvoice->isLunas()) {
+                return;
+            }
+
+            $lockedInvoice->update([
+                'payment_gateway_url' => null,
+                'payment_gateway_id' => null,
+                'payment_gateway_status' => 'EXPIRED',
+                'xendit_invoice_url' => null,
+                'xendit_invoice_id' => null,
+                'xendit_status' => 'EXPIRED',
+            ]);
+
+            if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
+                $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
+            }
+        });
     }
 
     /**

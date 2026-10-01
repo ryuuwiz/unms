@@ -136,6 +136,30 @@ test('kegagalan panggilan API gateway meninggalkan baris transaksi Pending sebag
     expect($this->invoice->payment_gateway_url)->toBeNull();
 });
 
+test('invoice gateway yang tidak ditemukan ditandai invalid agar dapat diterbitkan ulang', function () {
+    $transaksi = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+
+    $missingInvoiceDriver = new class extends XenditDriver
+    {
+        public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
+        {
+            return ['error' => 'Could not find invoice by id 6abe1e4ade2f5074a6d5f3c1'];
+        }
+    };
+    $this->manager->registerDriver('xendit', $missingInvoiceDriver);
+
+    $result = $this->manager->sinkronkanStatus($this->invoice);
+
+    $this->invoice->refresh();
+    $transaksi->refresh();
+
+    expect($result['error'])->toContain('Could not find invoice by id')
+        ->and($this->invoice->payment_gateway_id)->toBeNull()
+        ->and($this->invoice->payment_gateway_url)->toBeNull()
+        ->and($this->invoice->payment_gateway_status)->toBe('EXPIRED')
+        ->and($transaksi->status)->toBe(StatusTransaksiGateway::Expired);
+});
+
 test('proses pelunasan memperbarui status invoice, layanan, dan memancarkan event InvoicePaidEvent', function () {
     Event::fake([InvoicePaidEvent::class]);
 
