@@ -64,14 +64,17 @@ Schedule::command('horizon:snapshot')->everyFiveMinutes()->onOneServer();
 // Alerts super_admin/noc if Horizon is down, paused, or has completed no job
 // in 15 minutes -- catches a wedged worker that a plain HTTP HEALTHCHECK on
 // the web process can't see (Horizon shares the container with Caddy/PHP-FPM).
-Schedule::command('horizon:monitor-health')->everyFiveMinutes()->onOneServer();
+Schedule::command('horizon:monitor-health')
+    ->everyFiveMinutes()
+    ->onOneServer()
+    ->environments('production');
 
 // Hapus Log Tugas Terjadwal lebih dari 30 hari (model Prunable).
 Schedule::command('model:prune')->daily()->onOneServer();
 
 // hapus log Telescope lebih dari 30 hari (model Prunable). Telescope log bisa sangat besar, jadi hapus
 // lebih sering daripada Log Tugas Terjadwal. Telescope log juga tidak bisa dihapus via
-Schedule::command('telescope:prune')->daily();
+Schedule::command('telescope:prune')->daily()->environments('local')->onOneServer();
 
 // Simpan output setiap tugas ke storage/logs agar CatatLogTugasTerjadwal bisa melampirkan
 // ekor output saat tugas gagal. Harus tetap di baris paling akhir file ini.
