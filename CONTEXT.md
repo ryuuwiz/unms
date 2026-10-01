@@ -251,8 +251,12 @@ Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagiha
 _Avoid_: Client Area Bebas, Customer App Terpisah, Halaman Member, Portal Sebagai Aplikasi Terpisah
 
 **Aplikasi Pelanggan**:
-Portal Pelanggan yang dipasang pelanggan ke layar utama ponselnya, dengan nama dan ikon Brand Pelanggan. Bukan aplikasi app store dan bukan codebase terpisah: isi dan fiturnya persis Portal Pelanggan. Satu aplikasi per Brand Pelanggan, bukan per Perusahaan/tenant.
-_Avoid_: Aplikasi Whitelabel Native, Aplikasi Play Store per Brand, Aplikasi Per Tenant
+Portal Pelanggan yang dipasang pelanggan ke layar utama ponselnya, dengan nama pendek dan ikon Brand Pelanggan miliknya. Bukan aplikasi app store dan bukan codebase terpisah: isi dan fiturnya persis Portal Pelanggan. Satu aplikasi per Brand Pelanggan, bukan per Perusahaan/tenant. Semua brand berbagi satu domain Portal, sehingga brand baru diketahui setelah login: pemasangan ditawarkan setelah login dan identitasnya mengikuti brand pelanggan yang login; satu ponsel memasang satu Aplikasi Pelanggan. Sebelum login tampil Petunjuk Brand atau, bila tidak ada, brand Perusahaan. Tidak pernah menampilkan nama GOBILLING.
+_Avoid_: Aplikasi Whitelabel Native, Aplikasi Play Store per Brand, Aplikasi Per Tenant, Domain per Brand, Powered by GOBILLING
+
+**Petunjuk Brand**:
+Brand Pelanggan terakhir yang login di sebuah perangkat, diingat perangkat itu agar halaman sebelum login (login, klaim akun, lupa kata sandi) tampil dengan brand yang sama dengan Aplikasi Pelanggan yang terpasang. Hanya menentukan tampilan, tidak pernah menentukan identitas atau hak akses; setelah login brand selalu diturunkan dari No. Registrasi.
+_Avoid_: Brand dari Sesi Sebelumnya sebagai Identitas, Memilih Brand Manual di Halaman Login
 
 **Kontak Dukungan**:
 Tombol di Portal Pelanggan untuk menghubungi CS (WhatsApp dengan pesan terisi, telepon, email). Satu-satunya jalur dukungan dari Portal; Portal tidak membuat atau menampilkan tiket (ADR-0040). Kontaknya milik Perusahaan dan sama untuk semua Brand Pelanggan; pesan WhatsApp terisi menyebut Brand Pelanggan dan No. Registrasi.
@@ -276,7 +280,7 @@ Tautan resmi sesi pembayaran terkelola dari payment gateway aktif (`payment_gate
 _Avoid_: Custom Checkout URL, Link Bayar Bebas, Xendit URL Saja
 
 **Halaman Tagihan Mandiri**:
-Halaman tunggal tanpa autentikasi/login yang dituju oleh tautan pada notifikasi WhatsApp pengingat tagihan, berisi rincian satu Invoice dan satu tombol yang mengarah ke Link Pembayaran Gateway. Berbeda dari Portal Pelanggan (yang mencakup banyak halaman dan wajib login): halaman ini diakses via signed URL bertanggal kedaluwarsa yang mengikat ke satu Invoice spesifik, tanpa form perbandingan biaya custom internal apa pun. Pelanggan yang sudah login ke Portal Pelanggan tetap dapat mencapai halaman yang sama via sesi login sebagai jalur kedua.
+Halaman tunggal tanpa autentikasi/login yang dituju oleh tautan pada notifikasi WhatsApp pengingat tagihan, berisi rincian satu Invoice dan satu tombol yang mengarah ke Link Pembayaran Gateway. Tampil dengan Brand Pelanggan pemilik invoice (bukan Petunjuk Brand). Berbeda dari Portal Pelanggan (yang mencakup banyak halaman dan wajib login): halaman ini diakses via signed URL bertanggal kedaluwarsa yang mengikat ke satu Invoice spesifik, tanpa form perbandingan biaya custom internal apa pun. Pelanggan yang sudah login ke Portal Pelanggan tetap dapat mencapai halaman yang sama via sesi login sebagai jalur kedua.
 _Avoid_: Portal Pelanggan Saja, Halaman Bayar Terpisah, Custom Checkout Form, Kartu Estimasi Biaya Internal
 
 **Log Webhook**:
