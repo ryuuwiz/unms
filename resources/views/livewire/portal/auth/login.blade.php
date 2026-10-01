@@ -1,10 +1,9 @@
 <div class="max-w-md mx-auto my-10 sm:my-16">
     <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center size-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white shadow-xl shadow-indigo-500/25 mb-4">
-            <flux:icon icon="bolt" class="size-7 text-white" />
-        </div>
+        @php($brand = \App\Support\BrandPelanggan::untukPortal())
+        <x-portal.brand-mark :brand="$brand" size="size-14" class="mx-auto mb-4 text-2xl" />
         <h1 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Portal Pelanggan
+            {{ $brand->nama() }}
         </h1>
         <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             Masuk untuk mengecek tagihan, pembayaran, & status internet Anda

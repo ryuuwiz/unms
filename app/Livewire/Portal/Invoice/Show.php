@@ -6,6 +6,7 @@ use App\Enums\StatusLayanan;
 use App\Livewire\Portal\Invoice\Concerns\AuthorizesInvoiceAccess;
 use App\Models\Invoice;
 use App\Services\PaymentGateway\PaymentGatewayManager;
+use App\Support\BrandPelanggan;
 use Exception;
 use Flux\Flux;
 use Illuminate\View\View;
@@ -39,6 +40,9 @@ class Show extends Component
             'pembayarans',
             'transaksiPaymentGateways' => fn ($q) => $q->latest(),
         ]);
+
+        // Halaman Tagihan Mandiri selalu ber-brand pemilik invoice, bukan sesi/Petunjuk Brand.
+        BrandPelanggan::tetapkanUntukRequest(BrandPelanggan::untukNoReg($this->invoice->pelanggan?->no_reg));
     }
 
     /**

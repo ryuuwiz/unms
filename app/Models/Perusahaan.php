@@ -17,6 +17,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property int $id
  * @property string $nama_perusahaan
  * @property string $nama_brand
+ * @property string|null $nama_pendek
+ * @property string|null $warna_utama
  * @property string|null $tagline
  * @property string|null $alamat
  * @property string|null $kota
@@ -42,6 +44,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 #[Fillable([
     'nama_perusahaan',
     'nama_brand',
+    'nama_pendek',
+    'warna_utama',
     'tagline',
     'alamat',
     'kota',
@@ -106,6 +110,11 @@ class Perusahaan extends Model implements HasMedia
         $this->addMediaCollection('logo')
             ->singleFile()
             ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']);
+
+        // Ikon Aplikasi Pelanggan (persegi), lihat ADR-0066.
+        $this->addMediaCollection('ikon_aplikasi')
+            ->singleFile()
+            ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/webp']);
     }
 
     /**

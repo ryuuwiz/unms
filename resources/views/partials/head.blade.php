@@ -2,9 +2,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 @php
-    $companyForFavicon = \App\Models\Perusahaan::default();
-    $faviconUrl = $companyForFavicon->logo_url;
-    $appName = $companyForFavicon->nama_brand ?: config('app.name', 'GOBILLING');
+    if (isset($brandPortal)) {
+        $faviconUrl = $brandPortal->urlIkon(192);
+        $appleTouchIconUrl = $brandPortal->urlIkon(180);
+        $appName = $brandPortal->nama();
+    } else {
+        $companyForFavicon = \App\Models\Perusahaan::default();
+        $faviconUrl = $companyForFavicon->logo_url;
+        $appName = $companyForFavicon->nama_brand ?: config('app.name', 'GOBILLING');
+    }
 @endphp
 
 <title>
@@ -13,7 +19,7 @@
 
 @if ($faviconUrl)
     <link rel="icon" href="{{ $faviconUrl }}">
-    <link rel="apple-touch-icon" href="{{ $faviconUrl }}">
+    <link rel="apple-touch-icon" href="{{ $appleTouchIconUrl ?? $faviconUrl }}">
 @else
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">

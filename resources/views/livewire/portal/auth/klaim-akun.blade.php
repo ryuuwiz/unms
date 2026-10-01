@@ -1,8 +1,8 @@
 <div class="max-w-md mx-auto my-10 sm:my-16">
     <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center size-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white shadow-xl shadow-emerald-500/25 mb-4">
-            <flux:icon icon="shield-check" class="size-7 text-white" />
-        </div>
+        @php($brand = \App\Support\BrandPelanggan::untukPortal())
+        <x-portal.brand-mark :brand="$brand" size="size-14" class="mx-auto mb-2 text-2xl" />
+        <div class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 mb-1">{{ $brand->nama() }}</div>
         <h1 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
             Aktivasi / Reset Akun Portal
         </h1>
