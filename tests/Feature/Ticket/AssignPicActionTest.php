@@ -84,3 +84,12 @@ test('admin can unassign pic', function () {
     $histori = TicketHistori::where('ticket_id', $ticket->id)->latest('id')->first();
     expect($histori->catatan)->toContain('Penugasan PIC dibatalkan');
 });
+
+test('admin cannot assign a non-technician as pic', function () {
+    $ticket = Ticket::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+    ]);
+
+    expect(fn () => $this->action->execute($ticket, $this->salesUser, $this->adminUser))
+        ->toThrow(AuthorizationException::class);
+});

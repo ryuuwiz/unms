@@ -95,6 +95,33 @@ test('admin can create ticket through livewire create form', function () {
     expect(TicketHistori::where('ticket_id', $ticket->id)->count())->toBe(1);
 });
 
+test('pic dropdown hanya menampilkan teknisi aktif', function () {
+    $inactiveTechnician = User::factory()->create(['status' => UserStatus::Inactive]);
+    $inactiveTechnician->assignRole('teknisi');
+
+    $component = Livewire::actingAs($this->adminUser)->test(Create::class);
+
+    expect($component->viewData('staffList')->pluck('id')->all())
+        ->toContain($this->teknisiUser->id)
+        ->not->toContain($this->salesUser->id)
+        ->not->toContain($inactiveTechnician->id);
+});
+
+test('create ticket menolak pic yang bukan teknisi', function () {
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class)
+        ->set('jenis', JenisTicket::Pemasangan->value)
+        ->set('pelanggan_id', $this->pelanggan->id)
+        ->set('prioritas', PrioritasTicket::Tinggi->value)
+        ->set('divisis', [DivisiTicket::Teknisi->value])
+        ->set('pic_id', $this->salesUser->id)
+        ->set('deskripsi', 'Pemasangan paket 50Mbps di perumahan arsyila.')
+        ->call('save')
+        ->assertHasErrors(['pic_id']);
+
+    expect(Ticket::where('pelanggan_id', $this->pelanggan->id)->exists())->toBeFalse();
+});
+
 test('livewire show component allows changing status via modal', function () {
     $ticket = Ticket::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,

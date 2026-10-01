@@ -3,6 +3,7 @@
 use App\Enums\Wa\StatusAntrianWa;
 use App\Jobs\Wa\KirimWaBlastJob;
 use App\Models\AntrianWaBlast;
+use App\Models\Pelanggan;
 use App\Models\Sysblas;
 use App\Models\User;
 use App\Notifications\GatewayWaBermasalahNotification;
@@ -22,6 +23,7 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(SysblasSeeder::class);
     $this->sysblas = Sysblas::first();
+    Pelanggan::factory()->create(['no_hp' => '6281234567890']);
     Role::findOrCreate('super_admin');
     $this->admin = User::factory()->create()->assignRole(Role::findOrCreate('admin'));
     Notification::fake();
@@ -56,6 +58,17 @@ test('historical webhook auto-reply selalu dibatalkan tanpa memanggil gateway', 
 
     expect($antrian->fresh()->status)->toBe(StatusAntrianWa::Gagal)
         ->and($antrian->fresh()->pesan_error)->toBe('Webhook auto-reply dinonaktifkan.');
+});
+
+test('gowa tidak mengirim pesan ke nomor yang tidak terdaftar sebagai pelanggan sistem', function () {
+    Http::preventStrayRequests();
+    $antrian = antrianWa($this->sysblas);
+    $antrian->update(['no_hp_tujuan' => '6281234567899']);
+
+    (new KirimWaBlastJob($antrian))->handle(app(WhatsappClient::class));
+
+    expect($antrian->fresh()->status)->toBe(StatusAntrianWa::Gagal)
+        ->and($antrian->fresh()->pesan_error)->toBe('Nomor tujuan tidak terdaftar sebagai pelanggan sistem.');
 });
 
 test('batas percobaan berbasis waktu dan job unik per antrean, sehingga penyapu tidak menggandakannya', function () {

@@ -10,6 +10,7 @@ use App\Enums\Ticket\PrioritasTicket;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\Ticket\StatusUsulanOdp;
 use App\Enums\Ticket\SumberTicket;
+use App\Enums\UserStatus;
 use App\Livewire\Concerns\HasSearchableOptions;
 use App\Models\LayananPelanggan;
 use App\Models\Odp;
@@ -110,8 +111,8 @@ class Create extends Component
         return [
             'pelanggan_id' => [
                 'model' => Pelanggan::class,
-                'query' => fn() => Pelanggan::query()->with('perumahan'),
-                'label' => fn(Pelanggan $p) => $p->labelSelector(),
+                'query' => fn () => Pelanggan::query()->with('perumahan'),
+                'label' => fn (Pelanggan $p) => $p->labelSelector(),
                 'cap' => 20,
             ],
         ];
@@ -127,7 +128,7 @@ class Create extends Component
             // lihat ticket/create.blade.php. Pemasangan tanpa layanan (alur lama, ticket_id
             // dituju dari Tambah Layanan nanti) tetap Teknisi saja seperti sebelumnya.
             JenisTicket::Pemasangan->value => $this->layanan_pelanggan_id
-                ? array_map(fn($d) => $d->value, Ticket::DIVISI_WAJIB_PEMASANGAN)
+                ? array_map(fn ($d) => $d->value, Ticket::DIVISI_WAJIB_PEMASANGAN)
                 : [DivisiTicket::Teknisi->value],
             // NOC menghapus PPP Secret, Teknisi mencabut perangkat & melepas port ODP -- CONTEXT.md "Pencabutan".
             JenisTicket::Pencabutan->value => [DivisiTicket::Noc->value, DivisiTicket::Teknisi->value],
@@ -153,7 +154,13 @@ class Create extends Component
             'prioritas' => ['required', Rule::enum(PrioritasTicket::class)],
             'divisis' => ['required', 'array', 'min:1'],
             'divisis.*' => ['required', Rule::enum(DivisiTicket::class)],
-            'pic_id' => ['nullable', 'integer', 'exists:users,id'],
+            'pic_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(function ($query) {
+                    $query->where('status', UserStatus::Active);
+                }),
+            ],
             'dijadwalkan_pada' => ['nullable', 'date'],
             'deskripsi' => ['required', 'string', 'min:5', 'max:3000'],
             'fotoKendala' => ['nullable', 'image', 'max:5120'],
@@ -167,6 +174,12 @@ class Create extends Component
             'fotoKendala.image' => 'Lampiran foto harus berupa format gambar (jpg, png, webp).',
             'fotoKendala.max' => 'Ukuran foto maksimal 5 MB.',
         ]);
+
+        if ($this->pic_id && ! User::query()->active()->role('teknisi')->whereKey($this->pic_id)->exists()) {
+            $this->addError('pic_id', 'PIC harus merupakan Teknisi aktif.');
+
+            return;
+        }
 
         $layananUsulan = $this->layananUntukUsulanOdp();
         $kandidatOdp = new Collection;
@@ -209,7 +222,7 @@ class Create extends Component
             ]);
 
             // Sync divisi ke pivot
-            $divisiRows = array_map(fn(string $d) => ['ticket_id' => $ticket->id, 'divisi' => $d], $this->divisis);
+            $divisiRows = array_map(fn (string $d) => ['ticket_id' => $ticket->id, 'divisi' => $d], $this->divisis);
             DB::table('ticket_divisi')->insert($divisiRows);
 
             $catatanUsulan = '';
@@ -224,7 +237,7 @@ class Create extends Component
                 ]);
 
                 $catatanUsulan = $adaKandidat
-                    ? ' Usulan ODP: ' . $kandidatOdp->find($this->odp_usulan_id)?->nama_odp . ' (menunggu validasi Teknisi).'
+                    ? ' Usulan ODP: '.$kandidatOdp->find($this->odp_usulan_id)?->nama_odp.' (menunggu validasi Teknisi).'
                     : ' Tanpa ODP dalam jangkauan; Teknisi memilih ODP sendiri.';
             }
 
@@ -232,7 +245,7 @@ class Create extends Component
                 'ticket_id' => $ticket->id,
                 'status_lama' => null,
                 'status_baru' => StatusTicket::Baru,
-                'catatan' => 'Tiket baru dibuat.' . ($this->pic_id ? ' PIC ditugaskan pada saat pembuatan.' : '') . $catatanUsulan,
+                'catatan' => 'Tiket baru dibuat.'.($this->pic_id ? ' PIC ditugaskan pada saat pembuatan.' : '').$catatanUsulan,
                 'oleh_pengguna_id' => $authUserId,
             ]);
 
@@ -253,7 +266,7 @@ class Create extends Component
                     ->usingFileName($this->fotoKendala->getClientOriginalName())
                     ->toMediaCollection('foto_kendala');
             } catch (\Throwable $e) {
-                Log::error('Gagal menyimpan foto kendala tiket: ' . $e->getMessage());
+                Log::error('Gagal menyimpan foto kendala tiket: '.$e->getMessage());
             }
         }
 
@@ -277,7 +290,7 @@ class Create extends Component
                         jenis: 'tiket_assign_pic_create'
                     );
                 } catch (\Throwable $e) {
-                    Log::error('Gagal kirim WA penugasan teknisi: ' . $e->getMessage());
+                    Log::error('Gagal kirim WA penugasan teknisi: '.$e->getMessage());
                 }
             }
         }
@@ -297,7 +310,7 @@ class Create extends Component
                     jenis: 'tiket_penjadwalan_teknisi'
                 );
             } catch (\Throwable $e) {
-                Log::error('Gagal kirim WA penjadwalan teknisi ke pelanggan: ' . $e->getMessage());
+                Log::error('Gagal kirim WA penjadwalan teknisi ke pelanggan: '.$e->getMessage());
             }
         }
 
@@ -329,7 +342,7 @@ class Create extends Component
 
         return Odp::query()
             ->terdekat((float) $layanan->latitude, (float) $layanan->longitude, Odp::RADIUS_PELANGGAN_METER)
-            ->withCount(['ports as port_tersedia_count' => fn($query) => $query
+            ->withCount(['ports as port_tersedia_count' => fn ($query) => $query
                 ->where('status', StatusOdpPort::Kosong)
                 ->whereNotIn('id', $portDipesan)])
             ->get()
@@ -346,14 +359,15 @@ class Create extends Component
         /** @var Collection<int, LayananPelanggan> $layanans */
         $layanans = $this->pelanggan_id
             ? LayananPelanggan::query()
-            ->with(['paketLayanan', 'router'])
-            ->where('pelanggan_id', $this->pelanggan_id)
-            ->get()
+                ->with(['paketLayanan', 'router'])
+                ->where('pelanggan_id', $this->pelanggan_id)
+                ->get()
             : collect();
 
         /** @var Collection<int, User> $staffList */
         $staffList = User::query()
             ->active()
+            ->role('teknisi')
             ->orderBy('name')
             ->get();
 
@@ -371,7 +385,7 @@ class Create extends Component
             'staffList' => $staffList,
             'selectedPelanggan' => $selectedPelanggan,
             'prioritasEnum' => $prioritasEnum,
-            'jenisList' => array_filter(JenisTicket::cases(), fn(JenisTicket $j) => Auth::user()->can('create', [Ticket::class, $j])),
+            'jenisList' => array_filter(JenisTicket::cases(), fn (JenisTicket $j) => Auth::user()->can('create', [Ticket::class, $j])),
             'prioritasList' => PrioritasTicket::cases(),
             'divisiList' => DivisiTicket::cases(),
         ]);

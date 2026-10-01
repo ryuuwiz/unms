@@ -226,7 +226,7 @@ class TicketPolicy
             return false;
         }
 
-        if ($pic && ! $pic->isActive()) {
+        if ($pic && (! $pic->isActive() || ! $pic->hasRole('teknisi'))) {
             return false;
         }
 

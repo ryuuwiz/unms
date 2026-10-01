@@ -2,8 +2,10 @@
 
 namespace App\Jobs\Wa;
 
+use App\Enums\Sysblas\SysblasProvider;
 use App\Enums\Wa\StatusAntrianWa;
 use App\Models\AntrianWaBlast;
+use App\Models\Pelanggan;
 use App\Models\Sysblas;
 use App\Models\User;
 use App\Notifications\GatewayWaBermasalahNotification;
@@ -78,6 +80,12 @@ class KirimWaBlastJob implements ShouldBeUnique, ShouldQueue
 
         // Resolusi koneksi Sysblas spesifik atau default
         $sysblas = $this->antrian->sysblas ?? Sysblas::getDefault();
+        if ($sysblas?->provider === SysblasProvider::Gowa && ! $this->nomorTerdaftarDiSistem()) {
+            $this->antrian->tandaiGagal('Nomor tujuan tidak terdaftar sebagai pelanggan sistem.');
+
+            return;
+        }
+
         $targetClient = $sysblas ? $sysblas->makeClient() : $client;
         $maxAttempts = $sysblas ? max(1, $sysblas->limit_per_menit) : 25;
         $delaySeconds = $sysblas ? max(1, $sysblas->delay_detik ?? 300) : 300;
@@ -126,6 +134,15 @@ class KirimWaBlastJob implements ShouldBeUnique, ShouldQueue
             'unauthorized' => $this->gagalkanKarenaGateway($sysblas, $result),
             default => $this->antrian->tandaiGagal($result['message'], $result),
         };
+    }
+
+    private function nomorTerdaftarDiSistem(): bool
+    {
+        $nomor = WhatsappClient::normalizePhoneNumber($this->antrian->no_hp_tujuan);
+
+        return $nomor !== null && Pelanggan::query()
+            ->where('no_hp', $nomor)
+            ->exists();
     }
 
     /**
