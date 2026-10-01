@@ -997,7 +997,7 @@
                         <flux:error name="prosesPppUsername" />
                     </flux:field>
 
-                    @if ($ticket->layananPelanggan?->perluPasswordManual($prosesModeMikrotik === 'sudah'))
+                    @if ($this->perluPasswordManualNoc())
                         <flux:field>
                             <flux:label>Password PPP di Router</flux:label>
                             <flux:input type="password" wire:model="prosesPppPassword" placeholder="Password asli secret di router..." autocomplete="off" viewable />

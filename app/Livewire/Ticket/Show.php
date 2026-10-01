@@ -803,6 +803,11 @@ class Show extends Component
         $this->showProsesModal = true;
     }
 
+    public function perluPasswordManualNoc(): bool
+    {
+        return $this->ticket->layananPelanggan?->perluPasswordManual($this->prosesModeMikrotik === 'sudah') ?? false;
+    }
+
     /**
      * Simpan hasil modal "Proses {Divisi}": aksi teknis khusus per divisi (NOC: router/paket/
      * Mikrotik/PPP; Admin: opsional ubah paket), lalu satu baris TicketHistori berisi Catatan
@@ -850,7 +855,7 @@ class Show extends Component
                 return;
             }
 
-            $perluPasswordManual = $layanan->perluPasswordManual($this->prosesModeMikrotik === 'sudah');
+            $perluPasswordManual = $this->perluPasswordManualNoc();
 
             $this->validate([
                 'prosesModeMikrotik' => ['required', 'in:proses,sudah'],

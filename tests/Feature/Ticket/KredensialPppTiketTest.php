@@ -126,6 +126,19 @@ test('Proses NOC mode proses mengisi password kosong pada layanan Proses dan tid
     expect($terisi->layananPelanggan->fresh()->ppp_password_terenkripsi)->toBe('lama12345');
 });
 
+test('modal NOC menyembunyikan password untuk registrasi otomatis dan menampilkannya untuk registrasi yang sudah ada', function () {
+    $ticket = buatTiketDenganLayanan(['status' => StatusLayanan::Proses, 'ppp_password_terenkripsi' => null]);
+
+    $component = Livewire::actingAs($this->noc)
+        ->test(Show::class, ['ticket' => $ticket])
+        ->call('openProsesModal', DivisiTicket::Noc->value)
+        ->set('prosesModeMikrotik', 'proses');
+
+    $component->assertDontSee('Password PPP di Router')
+        ->set('prosesModeMikrotik', 'sudah')
+        ->assertSee('Password PPP di Router');
+});
+
 test('mode Sudah Registrasi Mikrotik mewajibkan password asli, menyimpannya, dan tidak memanggil RouterOS', function () {
     $mock = Mockery::mock(MikrotikService::class);
     $this->app->instance(MikrotikService::class, $mock);
