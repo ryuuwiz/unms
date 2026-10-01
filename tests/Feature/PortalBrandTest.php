@@ -101,15 +101,34 @@ test('setelah login brand selalu dari No. Registrasi meski Petunjuk Brand berisi
         ->assertCookie(BrandPelanggan::COOKIE_PETUNJUK, 'BEST');
 });
 
-test('Halaman Tagihan Mandiri memakai brand pemilik invoice, mengabaikan Petunjuk Brand', function () {
+test('Halaman Tagihan Mandiri memakai brand pemilik invoice di kedua mount, mengabaikan Petunjuk Brand', function (string $noReg, string $brand, string $namaRute) {
     $invoice = Invoice::factory()->create([
-        'pelanggan_id' => Pelanggan::factory()->create(['no_reg' => 'BEST0110202609'])->id,
+        'pelanggan_id' => Pelanggan::factory()->create(['no_reg' => $noReg])->id,
     ]);
 
     $this->withCookie(BrandPelanggan::COOKIE_PETUNJUK, 'WIFI')
-        ->get(URL::signedRoute('portal.invoice.show', ['invoice' => $invoice->id]))
+        ->get(URL::signedRoute($namaRute, ['invoice' => $invoice->id]))
         ->assertOk()
-        ->assertSee('Rincian Invoice - BESTFIBER')
-        ->assertDontSee('WIFIGO')
+        ->assertSee("Rincian Invoice - {$brand}")
         ->assertDontSee('GOBILLING');
+})->with([
+    'BESTFIBER' => ['BEST0110202609', 'BESTFIBER'],
+    'tanpa prefix cocok jatuh ke Perusahaan' => ['CUSTOM-009', 'NUSANET'],
+])->with(['portal.invoice.show', 'portal-legacy.invoice.show']);
+
+test('pelanggan login yang membuka invoice-nya sendiri melihat brand dari invoice', function () {
+    $pelanggan = Pelanggan::factory()->create(['no_reg' => 'WIFI0110202605']);
+    $invoice = Invoice::factory()->create(['pelanggan_id' => $pelanggan->id]);
+
+    $this->actingAs($pelanggan->akunPelanggan, 'pelanggan')
+        ->get(route('portal.invoice.show', $invoice))
+        ->assertOk()
+        ->assertSee('Rincian Invoice - WIFIGO');
+});
+
+test('halaman login di mount lama juga memakai Petunjuk Brand', function () {
+    $this->withCookie(BrandPelanggan::COOKIE_PETUNJUK, 'WIFI')
+        ->get('/portal/login')
+        ->assertOk()
+        ->assertSee('Login Portal Pelanggan - WIFIGO');
 });

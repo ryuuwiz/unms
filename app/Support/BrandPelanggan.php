@@ -24,6 +24,12 @@ final class BrandPelanggan
 
     public const PANJANG_NAMA_PENDEK = 12;
 
+    /** Format warna utama yang diterima: hex `#rrggbb`. */
+    public const POLA_WARNA = '/^#[0-9a-fA-F]{6}$/';
+
+    /** Media collection ikon aplikasi persegi, milik Prefix Registrasi maupun Perusahaan. */
+    public const KOLEKSI_IKON = 'ikon_aplikasi';
+
     /** Pengenal brand Perusahaan di URL/cookie, karena brand Perusahaan tidak punya kode prefix. */
     public const KODE_PERUSAHAAN = 'default';
 
@@ -126,8 +132,13 @@ final class BrandPelanggan
 
     public function nama(): string
     {
-        return $this->prefix?->nama
-            ?: (Perusahaan::default()->nama_brand ?: config('app.name', 'GOBILLING'));
+        if ($this->prefix) {
+            return $this->prefix->nama;
+        }
+
+        $perusahaan = $this->perusahaan ??= Perusahaan::default();
+
+        return $perusahaan->nama_brand ?: ($perusahaan->nama_perusahaan ?: 'Portal Pelanggan');
     }
 
     /**
@@ -159,7 +170,7 @@ final class BrandPelanggan
     {
         $warna = (string) $this->sumber()->warna_utama;
 
-        return preg_match('/^#[0-9a-f]{6}$/i', $warna) ? strtolower($warna) : self::WARNA_DEFAULT;
+        return preg_match(self::POLA_WARNA, $warna) ? strtolower($warna) : self::WARNA_DEFAULT;
     }
 
     /**
@@ -202,7 +213,7 @@ final class BrandPelanggan
 
     public function ikonAplikasiMedia(): ?Media
     {
-        return $this->sumber()->getFirstMedia('ikon_aplikasi');
+        return $this->sumber()->getFirstMedia(self::KOLEKSI_IKON);
     }
 
     /**
@@ -213,6 +224,7 @@ final class BrandPelanggan
     {
         return substr(md5(implode('|', [
             $this->pengenal(),
+            $this->nama(),
             $this->namaPendek(),
             $this->warnaUtama(),
             $this->ikonAplikasiMedia()?->uuid,

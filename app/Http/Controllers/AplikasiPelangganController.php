@@ -14,17 +14,26 @@ use Illuminate\Http\Response;
  */
 class AplikasiPelangganController extends Controller
 {
-    private const PATH_MANIFEST = '/manifest.webmanifest';
+    /**
+     * Awal path mount Portal yang melayani request ini: '' di domain Portal, '/portal' di mount
+     * lama (ADR-0049). Manifest dan service worker harus satu origin dan satu scope dengan
+     * halaman yang memasangnya.
+     */
+    public static function akarPortal(Request $request): string
+    {
+        return rtrim('/'.trim((string) $request->route()?->getPrefix(), '/'), '/');
+    }
 
     public function manifest(Request $request): JsonResponse
     {
         $brand = BrandPelanggan::untukPortal();
-        $akar = substr($request->getPathInfo(), 0, -strlen(self::PATH_MANIFEST));
+        $akar = self::akarPortal($request);
 
         $ikon = [];
         foreach ([192, 512] as $ukuran) {
-            $ikon[] = ['src' => $brand->urlIkon($ukuran), 'sizes' => "{$ukuran}x{$ukuran}", 'type' => 'image/png', 'purpose' => 'any'];
-            $ikon[] = ['src' => $brand->urlIkon($ukuran), 'sizes' => "{$ukuran}x{$ukuran}", 'type' => 'image/png', 'purpose' => 'maskable'];
+            foreach (['any', 'maskable'] as $kegunaan) {
+                $ikon[] = ['src' => $brand->urlIkon($ukuran), 'sizes' => "{$ukuran}x{$ukuran}", 'type' => 'image/png', 'purpose' => $kegunaan];
+            }
         }
 
         return response()
@@ -36,7 +45,7 @@ class AplikasiPelangganController extends Controller
                 'scope' => $akar.'/',
                 'display' => 'standalone',
                 'theme_color' => $brand->warnaUtama(),
-                'background_color' => '#ffffff',
+                'background_color' => $brand->warnaUtama(),
                 'icons' => $ikon,
             ], options: JSON_UNESCAPED_SLASHES)
             ->header('Content-Type', 'application/manifest+json')

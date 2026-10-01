@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\KeadaanKoneksi;
 use App\Enums\StatusLayanan;
 use App\Livewire\Portal\StatusKoneksi;
 use App\Models\LayananPelanggan;
@@ -68,9 +69,9 @@ test('Status Koneksi menampilkan Online, Offline, atau tidak tersedia tanpa memb
         ->assertDontSee('PAKET-RAHASIA')
         ->assertDontSee('WIFI0110202601_12345');
 })->with([
-    'online' => [[], StatusKoneksi::KEADAAN_ONLINE, 'tersambung 1 hari 3 jam'],
-    'offline' => [['is_connected' => false, 'uptime' => null], StatusKoneksi::KEADAAN_OFFLINE, 'Offline'],
-    'router tak terjangkau' => [['is_connected' => false, 'router_online' => false], StatusKoneksi::KEADAAN_TIDAK_TERSEDIA, 'Status tidak tersedia'],
+    'online' => [[], KeadaanKoneksi::Online->value, 'tersambung 1 hari 3 jam'],
+    'offline' => [['is_connected' => false, 'uptime' => null], KeadaanKoneksi::Offline->value, 'Offline'],
+    'router tak terjangkau' => [['is_connected' => false, 'router_online' => false], KeadaanKoneksi::TidakTersedia->value, 'Status tidak tersedia'],
 ]);
 
 test('layanan tanpa router atau PPP Username tidak memanggil router', function () {
@@ -84,7 +85,7 @@ test('layanan tanpa router atau PPP Username tidak memanggil router', function (
 
     Livewire::actingAs($this->akun, 'pelanggan')
         ->test(StatusKoneksi::class, ['layananId' => $layanan->id])
-        ->assertSeeHtml('data-status-koneksi="'.StatusKoneksi::KEADAAN_BELUM_TERSAMBUNG.'"');
+        ->assertSeeHtml('data-status-koneksi="'.KeadaanKoneksi::BelumTersambung->value.'"');
 });
 
 test('layanan suspend menampilkan ajakan melunasi tagihan', function () {
@@ -94,6 +95,16 @@ test('layanan suspend menampilkan ajakan melunasi tagihan', function () {
     Livewire::actingAs($this->akun, 'pelanggan')
         ->test(StatusKoneksi::class, ['layananId' => $layanan->id])
         ->assertSee('Layanan diisolir. Lunasi tagihan untuk mengaktifkan kembali.');
+});
+
+test('layanan aktif yang masa aktifnya habis diajak memperpanjang, bukan disebut diisolir', function () {
+    $layanan = layananTersambung($this->pelanggan, ['tanggal_expired' => now()->subDays(2)]);
+    $this->mikrotik->shouldReceive('getPppStatus')->andReturn(statusPpp());
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(StatusKoneksi::class, ['layananId' => $layanan->id])
+        ->assertSee('Masa aktif layanan sudah habis')
+        ->assertDontSee('Layanan diisolir');
 });
 
 test('cek ulang membaca ulang router dan dibatasi per pelanggan', function () {

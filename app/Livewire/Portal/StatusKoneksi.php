@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Portal;
 
+use App\Enums\KeadaanKoneksi;
 use App\Enums\StatusLayanan;
 use App\Models\AkunPelanggan;
 use App\Models\LayananPelanggan;
@@ -21,14 +22,6 @@ use Livewire\Component;
 #[Lazy]
 class StatusKoneksi extends Component
 {
-    public const KEADAAN_ONLINE = 'online';
-
-    public const KEADAAN_OFFLINE = 'offline';
-
-    public const KEADAAN_TIDAK_TERSEDIA = 'tidak_tersedia';
-
-    public const KEADAAN_BELUM_TERSAMBUNG = 'belum_tersambung';
-
     private const BATAS_MUAT_ULANG_PER_MENIT = 6;
 
     #[Locked]
@@ -67,18 +60,19 @@ class StatusKoneksi extends Component
         $layanan = $this->layanan();
 
         return view('livewire.portal.status-koneksi', [
-            'perluBayar' => $layanan->status === StatusLayanan::Suspend || $layanan->isExpired(),
+            'diisolir' => $layanan->status === StatusLayanan::Suspend,
+            'masaAktifHabis' => $layanan->status === StatusLayanan::Aktif && $layanan->isExpired(),
             ...$this->bacaKoneksi($layanan, $mikrotik),
         ]);
     }
 
     /**
-     * @return array{keadaan: string, lamaSesi: ?string}
+     * @return array{keadaan: KeadaanKoneksi, lamaSesi: ?string}
      */
     private function bacaKoneksi(LayananPelanggan $layanan, MikrotikService $mikrotik): array
     {
         if (! $layanan->router || blank($layanan->ppp_username)) {
-            return ['keadaan' => self::KEADAAN_BELUM_TERSAMBUNG, 'lamaSesi' => null];
+            return ['keadaan' => KeadaanKoneksi::BelumTersambung, 'lamaSesi' => null];
         }
 
         $status = $this->paksaBacaUlang
@@ -86,18 +80,18 @@ class StatusKoneksi extends Component
             : $mikrotik->getPppStatus($layanan->router, $layanan->ppp_username);
 
         if (! $status['router_online']) {
-            return ['keadaan' => self::KEADAAN_TIDAK_TERSEDIA, 'lamaSesi' => null];
+            return ['keadaan' => KeadaanKoneksi::TidakTersedia, 'lamaSesi' => null];
         }
 
         return $status['is_connected']
-            ? ['keadaan' => self::KEADAAN_ONLINE, 'lamaSesi' => self::lamaSesi($status['uptime'])]
-            : ['keadaan' => self::KEADAAN_OFFLINE, 'lamaSesi' => null];
+            ? ['keadaan' => KeadaanKoneksi::Online, 'lamaSesi' => self::lamaSesi($status['uptime'])]
+            : ['keadaan' => KeadaanKoneksi::Offline, 'lamaSesi' => null];
     }
 
     /**
      * Uptime RouterOS (mis. `1w2d3h4m5s`) jadi dua satuan terbesar, mis. "9 hari 3 jam".
      */
-    public static function lamaSesi(?string $uptime): ?string
+    private static function lamaSesi(?string $uptime): ?string
     {
         if (! preg_match_all('/(\d+)([wdhms])/', (string) $uptime, $cocok, PREG_SET_ORDER)) {
             return null;

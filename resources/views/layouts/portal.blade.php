@@ -3,7 +3,7 @@
     @php($brand = \App\Support\BrandPelanggan::untukPortal())
     <head>
         @include('partials.head', ['brandPortal' => $brand])
-        @php($akarPortal = rtrim('/'.trim((string) request()->route()?->getPrefix(), '/'), '/'))
+        @php($akarPortal = \App\Http\Controllers\AplikasiPelangganController::akarPortal(request()))
         <meta name="theme-color" content="{{ $brand->warnaUtama() }}">
         <link rel="manifest" href="{{ $akarPortal }}/manifest.webmanifest" crossorigin="use-credentials">
         <meta name="apple-mobile-web-app-capable" content="yes">

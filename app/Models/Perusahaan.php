@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasLogo;
+use App\Support\BrandPelanggan;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -111,8 +112,7 @@ class Perusahaan extends Model implements HasMedia
             ->singleFile()
             ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']);
 
-        // Ikon Aplikasi Pelanggan (persegi), lihat ADR-0066.
-        $this->addMediaCollection('ikon_aplikasi')
+        $this->addMediaCollection(BrandPelanggan::KOLEKSI_IKON)
             ->singleFile()
             ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/webp']);
     }

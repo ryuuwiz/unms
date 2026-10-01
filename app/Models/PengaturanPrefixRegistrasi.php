@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasLogo;
+use App\Support\BrandPelanggan;
 use Database\Factories\PengaturanPrefixRegistrasiFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -72,8 +73,7 @@ class PengaturanPrefixRegistrasi extends Model implements HasMedia
             ->singleFile()
             ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp']);
 
-        // Ikon Aplikasi Pelanggan (persegi), lihat ADR-0066.
-        $this->addMediaCollection('ikon_aplikasi')
+        $this->addMediaCollection(BrandPelanggan::KOLEKSI_IKON)
             ->singleFile()
             ->acceptsMimeTypes(['image/png', 'image/jpeg', 'image/webp']);
     }

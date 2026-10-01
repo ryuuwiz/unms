@@ -32,6 +32,7 @@ test('manifest mengikuti brand pelanggan yang login', function () {
         'name' => 'WIFIGO HOME INTERNET',
         'short_name' => 'WIFIGO',
         'theme_color' => '#ff6600',
+        'background_color' => '#ff6600',
         'display' => 'standalone',
         'start_url' => '/dashboard',
         'scope' => '/',
@@ -86,12 +87,23 @@ test('ikon brand Perusahaan tersedia di pengenal default, brand atau ukuran tida
     $this->get(route('portal.aplikasi.ikon', ['brand' => 'WIFI', 'ukuran' => 64]))->assertNotFound();
 });
 
-test('mengganti ikon menghasilkan URL ikon baru', function () {
-    $sebelum = BrandPelanggan::untukNoReg('WIFI01')->urlIkon(192);
+test('ikon aplikasi juga tersedia di mount lama', function () {
+    $this->get('/portal/aplikasi/ikon/WIFI/192.png')
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/png');
+});
 
-    $this->wifigo->addMedia(UploadedFile::fake()->image('ikon.png', 512, 512))->toMediaCollection('ikon_aplikasi');
+test('mengganti nama brand atau ikon menghasilkan URL ikon baru', function () {
+    $awal = BrandPelanggan::untukNoReg('WIFI01')->urlIkon(192);
 
-    expect(BrandPelanggan::untukNoReg('WIFI01')->urlIkon(192))->not->toBe($sebelum);
+    $this->wifigo->update(['nama' => 'WIFIGO FIBER']);
+    $setelahGantiNama = BrandPelanggan::untukNoReg('WIFI01')->urlIkon(192);
+
+    expect($setelahGantiNama)->not->toBe($awal);
+
+    $this->wifigo->addMedia(UploadedFile::fake()->image('ikon.png', 512, 512))->toMediaCollection(BrandPelanggan::KOLEKSI_IKON);
+
+    expect(BrandPelanggan::untukNoReg('WIFI01')->urlIkon(192))->not->toBe($setelahGantiNama);
 });
 
 test('service worker tersedia tanpa cache offline', function () {

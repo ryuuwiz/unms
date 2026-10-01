@@ -36,7 +36,7 @@ trait KelolaIdentitasAplikasi
     {
         return [
             'nama_pendek' => ['nullable', 'string', 'max:'.BrandPelanggan::PANJANG_NAMA_PENDEK],
-            'warna_utama' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'warna_utama' => ['nullable', 'regex:'.BrandPelanggan::POLA_WARNA],
             'ikon_aplikasi' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048', 'dimensions:min_width=512,min_height=512,ratio=1'],
         ];
     }
@@ -68,7 +68,7 @@ trait KelolaIdentitasAplikasi
         $this->nama_pendek = $model->nama_pendek ?? '';
         $this->warna_utama = $model->warna_utama ?? '';
         $this->ikon_aplikasi = null;
-        $this->existing_ikon_aplikasi_url = $model?->getFirstMediaUrl('ikon_aplikasi') ?: null;
+        $this->existing_ikon_aplikasi_url = $model?->getFirstMediaUrl(BrandPelanggan::KOLEKSI_IKON) ?: null;
     }
 
     protected function simpanIkonAplikasi(HasMedia $model): void
@@ -82,12 +82,12 @@ trait KelolaIdentitasAplikasi
             FileUploadConfiguration::disk()
         )
             ->usingFileName($this->ikon_aplikasi->getClientOriginalName())
-            ->toMediaCollection('ikon_aplikasi');
+            ->toMediaCollection(BrandPelanggan::KOLEKSI_IKON);
     }
 
     public function hapusIkonAplikasi(): void
     {
-        $this->modelIdentitasAplikasi()?->clearMediaCollection('ikon_aplikasi');
+        $this->modelIdentitasAplikasi()?->clearMediaCollection(BrandPelanggan::KOLEKSI_IKON);
 
         $this->ikon_aplikasi = null;
         $this->existing_ikon_aplikasi_url = null;
