@@ -321,6 +321,20 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 
 - Do not create verification scripts or tinker when tests cover that functionality and prove they work. Unit and feature tests are more important.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues for `ryuuwiz/unms`, using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repository. Read the root `GLOSSARY.md` and relevant ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+
 ## Application Structure & Architecture
 
 - Stick to existing directory structure; don't create new base folders without approval.
