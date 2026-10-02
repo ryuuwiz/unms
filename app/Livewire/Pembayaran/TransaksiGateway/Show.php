@@ -3,10 +3,11 @@
 namespace App\Livewire\Pembayaran\TransaksiGateway;
 
 use App\Enums\StatusTransaksiGateway;
+use App\Models\Invoice;
 use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
-use App\Services\PaymentGateway\PaymentGatewayManager;
+use App\Services\PaymentGateway\CekStatusPembayaranInvoice;
 use App\Services\Xendit\XenditPaymentService;
 use Flux\Flux;
 use Illuminate\View\View;
@@ -20,8 +21,8 @@ class Show extends Component
 {
     public TransaksiPaymentGateway $transaksi;
 
-    /** @var array<string, mixed>|null */
-    public ?array $reconciliationResult = null;
+    /** @var array{judul: string, keterangan: string|null, warna: string}|null */
+    public ?array $hasilCekStatus = null;
 
     public function mount(TransaksiPaymentGateway $transaksi): void
     {
@@ -29,15 +30,24 @@ class Show extends Component
         $this->transaksi = $transaksi->load(['invoice.pelanggan', 'webhookLogs' => fn ($q) => $q->latest('id')]);
     }
 
-    public function rekonsiliasiStatus(PaymentGatewayManager $manager): void
+    /**
+     * Cek semua transaksi invoice ke gateway (termasuk link lama); PAID diputuskan Pelunasan Susulan.
+     */
+    public function rekonsiliasiStatus(CekStatusPembayaranInvoice $cekStatus): void
     {
         $this->authorize('viewAny', Pembayaran::class);
 
+        $invoice = Invoice::withTrashed()->find($this->transaksi->invoice_id);
+        if (! $invoice) {
+            Flux::toast(variant: 'warning', text: 'Invoice transaksi ini tidak ditemukan.');
+
+            return;
+        }
+
         try {
-            $this->reconciliationResult = $manager->sinkronkanStatus($this->transaksi->invoice);
+            $this->hasilCekStatus = $cekStatus->periksa($invoice)->untukStaf();
             $this->transaksi->refresh();
             $this->transaksi->load(['invoice.pelanggan', 'webhookLogs' => fn ($q) => $q->latest('id')]);
-            Flux::toast(variant: 'success', text: 'Status berhasil disinkronkan langsung dari API Gateway.');
         } catch (\Throwable $e) {
             Flux::toast(variant: 'danger', text: 'Gagal rekonsiliasi: '.$e->getMessage());
         }

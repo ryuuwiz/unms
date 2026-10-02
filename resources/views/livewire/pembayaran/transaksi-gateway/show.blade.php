@@ -26,17 +26,8 @@
         </div>
     </div>
 
-    @if($reconciliationResult)
-        <flux:card class="p-4 bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-xs">
-            <div class="flex justify-between items-center mb-1.5">
-                <div class="font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
-                    <flux:icon.arrow-path class="size-4 text-indigo-600 dark:text-indigo-400" />
-                    Hasil Rekonsiliasi API {{ strtoupper($transaksi->gateway) }}:
-                </div>
-                <span class="text-[11px] text-indigo-700 dark:text-indigo-300">Sinkronisasi Berhasil</span>
-            </div>
-            <pre class="overflow-x-auto text-[11px] p-3 bg-white dark:bg-zinc-900/90 rounded-lg font-mono border border-indigo-100 dark:border-indigo-900/50">{{ json_encode($reconciliationResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
-        </flux:card>
+    @if($hasilCekStatus)
+        <x-pembayaran.hasil-cek-status :hasil="$hasilCekStatus" />
     @endif
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

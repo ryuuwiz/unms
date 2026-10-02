@@ -8,7 +8,6 @@ use App\Enums\StatusInvoice;
 use App\Enums\StatusTransaksiGateway;
 use App\Models\Invoice;
 use App\Models\TransaksiPaymentGateway;
-use App\Services\PaymentGateway\Drivers\XenditDriver;
 use App\Services\PaymentGateway\LaporanPelunasanSusulan;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use App\Services\PaymentGateway\PelunasanSusulan;
@@ -127,11 +126,8 @@ class PulihkanPembayaranCommand extends Command
             return [$row('ERROR: '.($statusData['error'] ?? '-'), '-'), null];
         }
 
-        $driver = $manager->driver($transaksi->gateway ?: XenditDriver::PROVIDER);
-        if ($driver instanceof XenditDriver && in_array($statusGateway, ['PAID', 'SETTLED', 'SUCCEEDED'], true)) {
-            $pembayaran = $driver->petakanPayload(array_merge(['external_id' => $transaksi->external_id], $statusData));
-            $hasil = $pelunasanSusulan->tangani($pembayaran, $transaksi->pengaturanGateway, $dryRun);
-
+        $hasil = $pelunasanSusulan->tanganiStatusGateway($transaksi, $statusData, $dryRun);
+        if ($hasil) {
             return [$row($statusGateway, $hasil->aksi->value, $hasil->keterangan), $hasil];
         }
 

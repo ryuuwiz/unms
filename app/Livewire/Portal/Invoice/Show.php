@@ -5,6 +5,7 @@ namespace App\Livewire\Portal\Invoice;
 use App\Enums\StatusLayanan;
 use App\Livewire\Portal\Invoice\Concerns\AuthorizesInvoiceAccess;
 use App\Models\Invoice;
+use App\Services\PaymentGateway\CekStatusPembayaranInvoice;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use App\Support\BrandPelanggan;
 use Exception;
@@ -53,21 +54,19 @@ class Show extends Component
     }
 
     /**
-     * Cek dan sinkronisasikan status pembayaran terbaru dari gateway.
+     * Cek semua link pembayaran tagihan ke gateway (termasuk link lama). Kasus yang dilaporkan
+     * hanya menampilkan pesan umum; alasan internalnya untuk staf.
      */
-    public function sinkronkanStatus(PaymentGatewayManager $paymentManager): void
+    public function sinkronkanStatus(CekStatusPembayaranInvoice $cekStatus): void
     {
         try {
-            $paymentManager->sinkronkanStatus($this->invoice);
+            $hasil = $cekStatus->periksa($this->invoice);
             $this->invoice->refresh();
 
-            if ($this->invoice->isLunas()) {
-                Flux::toast(variant: 'success', text: 'Pembayaran berhasil terkonfirmasi! Tagihan telah lunas.');
-            } else {
-                Flux::toast(variant: 'info', text: 'Status tagihan: Menunggu pembayaran.');
-            }
+            Flux::toast(variant: $hasil->lunas ? 'success' : ($hasil->dilaporkan() ? 'warning' : 'info'), text: $hasil->pesanPelanggan());
         } catch (Exception $e) {
-            Flux::toast(variant: 'danger', text: 'Gagal memperbarui status: '.$e->getMessage());
+            report($e);
+            Flux::toast(variant: 'danger', text: 'Gagal memperbarui status. Silakan coba lagi beberapa saat lagi.');
         }
     }
 

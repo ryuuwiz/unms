@@ -129,6 +129,26 @@ class PelunasanSusulan
     }
 
     /**
+     * Putuskan status gateway satu transaksi lewat Pelunasan Susulan bila statusnya PAID di Xendit;
+     * null bila bukan pembayaran Xendit yang lunas (status lain disinkronkan seperti biasa).
+     *
+     * @param  array<string, mixed>  $statusData
+     */
+    public function tanganiStatusGateway(TransaksiPaymentGateway $transaksi, array $statusData, bool $dryRun = false): ?HasilPelunasanSusulan
+    {
+        $driver = $this->manager->driver($transaksi->gateway ?: XenditDriver::PROVIDER);
+        $status = strtoupper((string) ($statusData['status'] ?? ''));
+
+        if (! $driver instanceof XenditDriver || ! in_array($status, ['PAID', 'SETTLED', 'SUCCEEDED'], true)) {
+            return null;
+        }
+
+        $pembayaran = $driver->petakanPayload(array_merge(['external_id' => $transaksi->external_id], $statusData));
+
+        return $this->tangani($pembayaran, $transaksi->pengaturanGateway, $dryRun);
+    }
+
+    /**
      * Alasan pembayaran tidak dilunasi otomatis dan dilaporkan untuk tindakan manual (ADR-0069),
      * atau null bila boleh dilunasi. Untuk invoice Digabung yang menentukan adalah ujung rantai
      * penggabung: hanya bila ujungnya masih terbuka tunggakan itu belum dibayar lewat jalur lain.
