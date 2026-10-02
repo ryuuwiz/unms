@@ -16,24 +16,28 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
-use Throwable;
 
 /**
- * Ping router tiap 20 dtk (mikrotik:ping). Log & notifikasi browser NOC hanya saat status berubah
- * online <-> offline; pulih dari offline memicu RecoverPppRouterJob. Tanpa WhatsApp --
- * router yang flapping bisa membuat banyak pesan WA berturut-turut ke NOC/super_admin
- * dalam sehari (tiap flip = log baru, tidak ter-dedup) dan berisiko membuat nomor gateway
- * WA kena banned; notifikasi browser tetap cukup untuk kejadian ini.
+ * Satu putaran Ping Router (CONTEXT.md "Ping Router", "Router Offline"). Router Online/Tidak Diketahui
+ * dicoba sampai 10x berjeda 30 dtk dan baru menjadi Router Offline setelah kesepuluhnya gagal: satu log +
+ * satu notifikasi browser NOC. Router yang sudah Offline cukup satu percobaan; terjangkau = Online +
+ * RecoverPppRouterJob tanpa notifikasi. Tanpa WhatsApp: alarm utama NOC untuk router mati adalah PRTG.
  */
 class PingRouterJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $tries = 1;
+    public const JEDA_PERCOBAAN_DETIK = 30;
+
+    public int $tries = 10;
 
     public int $timeout = 10;
 
-    public int $uniqueFor = 30;
+    /**
+     * Kunci unik bertahan satu putaran penuh agar pemicu baru tidak membuka putaran kedua. Satu putaran
+     * sekitar 5 menit (9 x jeda + 10 x percobaan); dua kali lipatnya memberi cadangan saat mikrotik-high sibuk.
+     */
+    public int $uniqueFor = 600;
 
     public function __construct(
         public Router $router
@@ -53,40 +57,41 @@ class PingRouterJob implements ShouldBeUnique, ShouldQueue
     {
         $sebelumnya = $this->router->status_koneksi;
 
-        try {
-            // testConnection() menyimpan status_koneksi (Online/Offline) ke router ini.
-            $mikrotikService->testConnection($this->router, 3);
-        } catch (Throwable) {
-            // Router offline: status sudah tercatat; bukan kegagalan job.
-        }
+        if ($mikrotikService->pingRouter($this->router, 3)) {
+            if ($sebelumnya !== StatusRouter::Online) {
+                RecoverPppRouterJob::dispatch($this->router);
+            }
 
-        $sekarang = $this->router->status_koneksi;
-
-        if ($sekarang === $sebelumnya) {
             return;
         }
 
-        $online = $sekarang === StatusRouter::Online;
-
-        // Pertama kali terdeteksi online (Unknown) bukan kejadian yang perlu diberitahukan.
-        if (! ($online && $sebelumnya === StatusRouter::Unknown)) {
-            $log = MikrotikJobLog::create([
-                'router_id' => $this->router->id,
-                'job_type' => MikrotikJobType::Ping,
-                'status' => $online ? MikrotikJobStatus::Success : MikrotikJobStatus::Failed,
-                'attempt_count' => 1,
-                'payload' => ['pesan' => $online
-                    ? "Router {$this->router->nama_router} kembali online."
-                    : "Router {$this->router->nama_router} offline: {$this->router->last_ping_message}"],
-                'error_message' => $online ? null : $this->router->last_ping_message,
-                'finished_at' => Carbon::now(),
-            ]);
-
-            $notifikasiNoc->kirim($log);
+        if ($sebelumnya === StatusRouter::Offline) {
+            return;
         }
 
-        if ($online) {
-            RecoverPppRouterJob::dispatch($this->router);
+        if ($this->attempts() < $this->tries) {
+            $this->release(self::JEDA_PERCOBAAN_DETIK);
+
+            return;
         }
+
+        $this->tandaiRouterOffline($notifikasiNoc);
+    }
+
+    private function tandaiRouterOffline(NotifikasiNoc $notifikasiNoc): void
+    {
+        $this->router->update(['status_koneksi' => StatusRouter::Offline]);
+
+        $log = MikrotikJobLog::create([
+            'router_id' => $this->router->id,
+            'job_type' => MikrotikJobType::Ping,
+            'status' => MikrotikJobStatus::Failed,
+            'attempt_count' => $this->attempts(),
+            'payload' => ['pesan' => "Router {$this->router->nama_router} offline setelah {$this->attempts()} percobaan: {$this->router->last_ping_message}"],
+            'error_message' => $this->router->last_ping_message,
+            'finished_at' => Carbon::now(),
+        ]);
+
+        $notifikasiNoc->kirim($log);
     }
 }
