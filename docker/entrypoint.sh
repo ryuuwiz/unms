@@ -61,9 +61,15 @@ mkdir -p \
     storage/framework/sessions \
     storage/framework/views \
     storage/framework/testing \
+    storage/app/public \
+    storage/app/private/livewire-tmp \
     storage/logs \
     bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
+
+# storage/app adalah volume persisten Dokploy (kosong & milik root saat pertama
+# mount), jadi symlink dibuat di sini, setelah direktorinya dijamin ada.
+php artisan storage:link --force || warn "storage:link failed (non-fatal)."
 
 # =============================================================================
 # 4. Maintenance mode — masuk
@@ -161,7 +167,6 @@ php artisan event:cache   || warn "event:cache failed (non-fatal)."
 # storage/* milik root; kembalikan ke www-data supaya cache:clear/log runtime
 # (php-fpm, horizon) tidak gagal "could not be opened in append mode".
 chown -R www-data:www-data storage bootstrap/cache 2>/dev/null || true
-php artisan storage:link || true
 
 # =============================================================================
 # 9. Keluar maintenance mode — aplikasi siap menerima trafik

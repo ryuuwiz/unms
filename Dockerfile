@@ -134,6 +134,7 @@ RUN php artisan package:discover --ansi \
     && php artisan livewire:publish --assets --ansi \
     && mkdir -p storage/framework/cache storage/framework/sessions \
         storage/framework/testing storage/framework/views storage/logs \
+        storage/app/public storage/app/private \
         bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache public \
     && chmod -R 775 storage bootstrap/cache
@@ -141,6 +142,9 @@ RUN php artisan package:discover --ansi \
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
+# Persistensi: mount named volume Dokploy di /var/www/html/storage/app (sengaja
+# bukan instruksi VOLUME -- itu hanya membuat volume anonim baru tiap deploy).
+# ADR-0067.
 EXPOSE 8080
 
 # Healthcheck HTTP-only: membuktikan Caddy+PHP-FPM hidup. Kesehatan Horizon

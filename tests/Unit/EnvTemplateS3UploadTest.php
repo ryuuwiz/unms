@@ -51,13 +51,12 @@ test('.env.docker.example keeps AWS_ENDPOINT browser-reachable, not an internal-
         ->and($endpointHost)->not->toBe('rustfs'); // the Docker Compose internal service name
 });
 
-test('.env.docker.example keeps Livewire temporary uploads on the s3 disk explicitly', function () {
+test('.env.docker.example keeps Livewire temporary uploads on the local disk explicitly', function () {
     $env = parseEnvExample('.env.docker.example');
 
-    // Production runs 2+ replicas with no confirmed sticky-session routing
-    // (ADR-0036): a local-disk temp upload from replica A may not exist when
-    // save() lands on replica B. This must stay explicit (not left to fall
-    // back implicitly onto FILESYSTEM_DISK) so the choice is intentional.
+    // Browser->S3 presigned PUT needs bucket CORS and failed in production
+    // (ADR-0067). Temp uploads proxy through the app instead; final files
+    // still go to s3. Valid for a single replica with a persisted storage/app.
     expect($env['FILESYSTEM_DISK'] ?? null)->toBe('s3')
-        ->and($env['LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK'] ?? null)->toBe('s3');
+        ->and($env['LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK'] ?? null)->toBe('local');
 });
