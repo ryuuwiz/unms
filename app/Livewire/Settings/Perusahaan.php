@@ -8,6 +8,7 @@ use App\Support\MediaLibraryVisibility;
 use Flux\Flux;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -89,6 +90,14 @@ class Perusahaan extends Component
 
         if (! $media) {
             Flux::toast(variant: 'danger', text: 'Berkas tidak ditemukan atau bukan gambar.');
+
+            return;
+        }
+
+        // Media::copy() menulis berkas 0 byte bila objeknya tidak ada di disk (disk s3 'throw' => false).
+        if (! Storage::disk($media->disk)->exists($media->getPathRelativeToRoot())) {
+            Log::warning('Berkas media untuk logo tidak ditemukan di disk.', ['media_id' => $media->id, 'disk' => $media->disk, 'path' => $media->getPathRelativeToRoot()]);
+            Flux::toast(variant: 'danger', text: 'Berkas tidak ditemukan di penyimpanan.');
 
             return;
         }

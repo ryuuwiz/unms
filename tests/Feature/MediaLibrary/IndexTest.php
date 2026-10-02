@@ -9,6 +9,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Storage\S3HealthCheckService;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -166,6 +167,20 @@ test('user with media_library.unggah can upload a file into a new BerkasUmum', f
 
     expect(BerkasUmum::count())->toBe(1)
         ->and(Media::where('file_name', 'laporan.xlsx')->exists())->toBeTrue();
+});
+
+test('upload works when the livewire temporary upload disk is not local', function () {
+    // Livewire selalu memakai disk 'tmp-for-tests' saat test; buat path()-nya relatif seperti s3.
+    $local = Storage::fake('tmp-for-tests');
+    Storage::set('tmp-for-tests', new FilesystemAdapter($local->getDriver(), $local->getAdapter(), ['root' => '']));
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->set('uploads', [UploadedFile::fake()->create('billing.png', 10)])
+        ->call('uploadFiles')
+        ->assertHasNoErrors();
+
+    expect(Media::where('file_name', 'billing.png')->exists())->toBeTrue();
 });
 
 test('upload rejects disallowed file types', function () {

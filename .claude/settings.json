@@ -14,7 +14,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "php \"$CLAUDE_PROJECT_DIR/vendor/bin/sloppy\" hook post-edit"
+            "command": "php -d memory_limit=1G \"$CLAUDE_PROJECT_DIR/vendor/bin/sloppy\" hook post-edit"
           }
         ]
       }
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "php \"$CLAUDE_PROJECT_DIR/vendor/bin/sloppy\" hook stop"
+            "command": "php -d memory_limit=1G \"$CLAUDE_PROJECT_DIR/vendor/bin/sloppy\" hook stop"
           }
         ]
       }

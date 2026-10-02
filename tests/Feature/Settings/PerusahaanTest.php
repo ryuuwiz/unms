@@ -130,6 +130,18 @@ test('super_admin dapat memilih logo dari Media Library tanpa mengunggah berkas 
         ->and($ticket->getFirstMedia('foto_kendala')->id)->toBe($gambar->id);
 });
 
+test('memilih logo dari media library yang berkasnya hilang di disk tidak melempar exception', function () {
+    $gambar = buatGambarDummyDi(Ticket::factory()->create(), 'foto_kendala');
+    Storage::disk($gambar->disk)->delete($gambar->getPathRelativeToRoot());
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(PerusahaanComponent::class)
+        ->call('pilihDariMediaLibrary', $gambar->id)
+        ->assertOk();
+
+    expect(Perusahaan::default()->hasMedia('logo'))->toBeFalse();
+});
+
 test('memilih logo dari media library mengecualikan dokumen pribadi pelanggan', function () {
     $pelanggan = Pelanggan::factory()->create();
     $ktp = buatGambarDummyDi($pelanggan, 'ktp');

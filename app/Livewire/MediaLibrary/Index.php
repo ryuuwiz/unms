@@ -14,6 +14,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -70,7 +71,7 @@ class Index extends Component
 
         foreach ($this->uploads as $file) {
             BerkasUmum::create(['uploaded_by' => auth()->id()])
-                ->addMedia($file->getRealPath())
+                ->addMediaFromDisk(FileUploadConfiguration::path($file->getFilename(), false), FileUploadConfiguration::disk())
                 ->usingFileName($file->getClientOriginalName())
                 ->toMediaCollection('berkas');
         }
