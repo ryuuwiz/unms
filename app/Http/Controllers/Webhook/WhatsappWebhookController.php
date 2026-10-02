@@ -6,6 +6,7 @@ use App\Enums\StatusWebhookLog;
 use App\Http\Controllers\Controller;
 use App\Jobs\Whatsapp\ProcessWhatsappWebhookJob;
 use App\Services\Whatsapp\WhatsappWebhookService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Sentry\Severity;
@@ -49,7 +50,16 @@ class WhatsappWebhookController extends Controller
         // Dicatat SEBELUM verifikasi signature (bukan di dalam WhatsappWebhookService::process()
         // seperti sebelumnya) agar percobaan yang ditolak juga meninggalkan jejak audit, bukan
         // hanya percobaan yang berhasil -- lihat WebhookLog::status_proses = Gagal di bawah.
-        $log = $this->webhookService->logWebhook($payload);
+        try {
+            $log = $this->webhookService->logWebhook($payload);
+        } catch (UniqueConstraintViolationException) {
+            // Redelivery event yang sudah tercatat: balas 200 agar gateway berhenti retry.
+            return response()->json([
+                'status' => true,
+                'type' => 'duplicate',
+                'message' => 'Webhook ini sudah diterima sebelumnya.',
+            ], 200);
+        }
 
         if (! $log) {
             return response()->json([

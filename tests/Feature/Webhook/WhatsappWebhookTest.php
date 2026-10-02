@@ -95,6 +95,31 @@ test('webhook gowa message.ack gagal menandai antrian gagal', function () {
     expect($antrian->fresh()->status)->toBe(StatusAntrianWa::Gagal);
 });
 
+test('event berbeda untuk pesan yang sama tanpa id event tidak bentrok di webhook log', function () {
+    foreach (['message', 'message.revoked'] as $event) {
+        kirimWebhookGowa([
+            'event' => $event,
+            'session' => 'org_gowa_1',
+            'payload' => ['id' => 'ACED76A3EFBDD9123A3F6DF3BBAABE88'],
+        ])->assertOk();
+    }
+
+    expect(WebhookLog::where('provider_event_id', 'like', 'org_gowa_1:%:ACED76A3EFBDD9123A3F6DF3BBAABE88')->count())->toBe(2);
+});
+
+test('redelivery event yang sama dibalas 200 duplicate tanpa mencatat ulang', function () {
+    $payload = [
+        'event' => 'message.revoked',
+        'session' => 'org_gowa_1',
+        'payload' => ['id' => 'ACED76A3EFBDD9123A3F6DF3BBAABE88'],
+    ];
+
+    kirimWebhookGowa($payload)->assertOk()->assertJson(['type' => 'queued']);
+    kirimWebhookGowa($payload)->assertOk()->assertJson(['status' => true, 'type' => 'duplicate']);
+
+    expect(WebhookLog::where('provider_event_id', 'org_gowa_1:message.revoked:ACED76A3EFBDD9123A3F6DF3BBAABE88')->count())->toBe(1);
+});
+
 test('webhook gowa pesan masuk dicatat ke histori tiket aktif tanpa auto-reply', function () {
     $pelanggan = Pelanggan::factory()->create(['no_hp' => '087711223344']);
 
