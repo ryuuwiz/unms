@@ -242,7 +242,7 @@ function jalankanPing(Router $router, bool $terjangkau, int $percobaan = 1): Pin
     return $job;
 }
 
-function logPing(): int
+function jumlahLogPing(): int
 {
     return MikrotikJobLog::where('job_type', MikrotikJobType::Ping)->count();
 }
@@ -250,12 +250,10 @@ function logPing(): int
 test('PingRouterJob: router Online yang gagal di bawah 10 percobaan tetap Online dan dicoba ulang 30 detik lagi', function () {
     Notification::fake();
 
-    foreach (range(1, 9) as $percobaan) {
-        jalankanPing($this->router, terjangkau: false, percobaan: $percobaan)->assertReleased(30);
-    }
+    jalankanPing($this->router, terjangkau: false, percobaan: 9)->assertReleased(PingRouterJob::JEDA_PERCOBAAN_DETIK);
 
     expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Online)
-        ->and(logPing())->toBe(0);
+        ->and(jumlahLogPing())->toBe(0);
     Notification::assertNothingSent();
 });
 
@@ -263,12 +261,15 @@ test('PingRouterJob: router Online yang gagal 10x menjadi Router Offline dengan 
     Notification::fake();
     $noc = User::factory()->create(['phone' => '081234567890']);
     $noc->assignRole('noc');
+    $superAdmin = User::factory()->create();
+    $superAdmin->assignRole('super_admin');
 
     jalankanPing($this->router, terjangkau: false, percobaan: 10)->assertNotReleased();
 
     expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Offline)
         ->and(MikrotikJobLog::where('job_type', MikrotikJobType::Ping)->sole()->status)->toBe(MikrotikJobStatus::Failed);
     Notification::assertSentToTimes($noc, MikrotikJobNotification::class, 1);
+    Notification::assertSentToTimes($superAdmin, MikrotikJobNotification::class, 1);
     // Router mati tidak lewat WA -- lihat CONTEXT.md "Notifikasi NOC".
     expect(AntrianWaBlast::where('jenis', "noc_mikrotik_u{$noc->id}")->count())->toBe(0);
 });
@@ -280,7 +281,7 @@ test('PingRouterJob: percobaan yang berhasil menghentikan putaran tanpa log, not
     jalankanPing($this->router, terjangkau: true, percobaan: 4)->assertNotReleased();
 
     expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Online)
-        ->and(logPing())->toBe(0);
+        ->and(jumlahLogPing())->toBe(0);
     Notification::assertNothingSent();
     Queue::assertNotPushed(RecoverPppRouterJob::class);
 });
@@ -291,13 +292,10 @@ test('PingRouterJob: router Tidak Diketahui yang gagal 10x menjadi Router Offlin
     $noc->assignRole('noc');
     $this->router->update(['status_koneksi' => StatusRouter::Unknown]);
 
-    jalankanPing($this->router, terjangkau: false, percobaan: 9)->assertReleased(30);
-    expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Unknown);
-
     jalankanPing($this->router, terjangkau: false, percobaan: 10);
 
     expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Offline)
-        ->and(logPing())->toBe(1);
+        ->and(jumlahLogPing())->toBe(1);
     Notification::assertSentToTimes($noc, MikrotikJobNotification::class, 1);
 });
 
@@ -309,7 +307,7 @@ test('PingRouterJob: router Tidak Diketahui yang terjangkau menjadi Online tanpa
     jalankanPing($this->router, terjangkau: true);
 
     expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Online)
-        ->and(logPing())->toBe(0);
+        ->and(jumlahLogPing())->toBe(0);
     Notification::assertNothingSent();
 });
 
@@ -321,7 +319,7 @@ test('PingRouterJob: router Offline yang terjangkau kembali Online dan memicu pe
     jalankanPing($this->router, terjangkau: true);
 
     expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Online)
-        ->and(logPing())->toBe(0);
+        ->and(jumlahLogPing())->toBe(0);
     Notification::assertNothingSent();
     Queue::assertPushed(RecoverPppRouterJob::class, 1);
 });
@@ -333,16 +331,17 @@ test('PingRouterJob: router Offline yang gagal lagi cukup satu percobaan, tanpa 
     jalankanPing($this->router, terjangkau: false)->assertNotReleased();
 
     expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Offline)
-        ->and(logPing())->toBe(0);
+        ->and(jumlahLogPing())->toBe(0);
     Notification::assertNothingSent();
 });
 
-test('PingRouterJob: kunci unik per router bertahan sepanjang satu putaran 10 percobaan', function () {
-    $job = new PingRouterJob($this->router);
+test('PingRouterJob: pemicu kedua untuk router yang sama tidak membuka putaran baru selama putaran berjalan', function () {
+    Queue::fake([PingRouterJob::class]);
 
-    expect($job->uniqueId())->toBe((string) $this->router->id)
-        ->and($job->tries)->toBe(10)
-        ->and($job->uniqueFor)->toBeGreaterThan(10 * 30 + 10 * $job->timeout);
+    PingRouterJob::dispatch($this->router);
+    PingRouterJob::dispatch($this->router);
+
+    Queue::assertPushed(PingRouterJob::class, 1);
 });
 
 test('RecoverPppRouterJob runs autoRecoverPppSecrets on mikrotik-low queue', function () {

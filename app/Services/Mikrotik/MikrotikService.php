@@ -175,16 +175,11 @@ class MikrotikService
         $previousStatus = $router->status_koneksi;
 
         try {
-            return $this->bacaResourceRouter($router, $timeout, $client);
+            return $this->bacaResourceDanTandaiOnline($router, $timeout, $client);
         } catch (Throwable $e) {
-            $router->update([
-                'status_koneksi' => StatusRouter::Offline,
-                'last_ping_at' => Carbon::now(),
-                'last_ping_status' => 'failed',
-                'last_ping_message' => Str::limit($e->getMessage(), 250),
-            ]);
+            $this->catatPingGagal($router, $e, ['status_koneksi' => StatusRouter::Offline]);
 
-            // Hanya saat transisi (seperti log sukses di bacaResourceRouter()): uji berulang ke router mati tidak membanjiri log.
+            // Hanya saat transisi (seperti log sukses di bacaResourceDanTandaiOnline()): uji berulang ke router mati tidak membanjiri log.
             if ($previousStatus !== StatusRouter::Offline) {
                 MikrotikJobLog::create([
                     'router_id' => $router->id,
@@ -211,28 +206,38 @@ class MikrotikService
     public function pingRouter(Router $router, int $timeout = 3): bool
     {
         try {
-            $this->bacaResourceRouter($router, $timeout);
+            $this->bacaResourceDanTandaiOnline($router, $timeout);
 
             return true;
         } catch (Throwable $e) {
-            $router->update([
-                'last_ping_at' => Carbon::now(),
-                'last_ping_status' => 'failed',
-                'last_ping_message' => Str::limit($e->getMessage(), 250),
-            ]);
+            $this->catatPingGagal($router, $e);
 
             return false;
         }
     }
 
     /**
-     * Baca /system/resource lalu tandai router Online beserta metriknya.
+     * @param  array<string, mixed>  $atributLain
+     */
+    private function catatPingGagal(Router $router, Throwable $e, array $atributLain = []): void
+    {
+        $router->update([
+            'last_ping_at' => Carbon::now(),
+            'last_ping_status' => 'failed',
+            'last_ping_message' => Str::limit($e->getMessage(), 250),
+            ...$atributLain,
+        ]);
+    }
+
+    /**
+     * Baca /system/resource lalu tandai router Online beserta metriknya; transisi ke Online dicatat
+     * sebagai log TestConnection.
      *
      * @return array<string, mixed>
      *
      * @throws Throwable
      */
-    private function bacaResourceRouter(Router $router, int $timeout, ?Client $client = null): array
+    private function bacaResourceDanTandaiOnline(Router $router, int $timeout, ?Client $client = null): array
     {
         $previousStatus = $router->status_koneksi;
         $client = $client ?? $this->getClient($router, $timeout, $timeout, 1);

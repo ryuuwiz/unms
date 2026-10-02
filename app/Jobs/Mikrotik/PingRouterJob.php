@@ -33,7 +33,10 @@ class PingRouterJob implements ShouldBeUnique, ShouldQueue
 
     public int $timeout = 10;
 
-    /** Kunci unik bertahan satu putaran penuh (10 x jeda + timeout) agar pemicu baru tidak membuka putaran kedua. */
+    /**
+     * Kunci unik bertahan satu putaran penuh agar pemicu baru tidak membuka putaran kedua. Satu putaran
+     * sekitar 5 menit (9 x jeda + 10 x percobaan); dua kali lipatnya memberi cadangan saat mikrotik-high sibuk.
+     */
     public int $uniqueFor = 600;
 
     public function __construct(
@@ -83,8 +86,8 @@ class PingRouterJob implements ShouldBeUnique, ShouldQueue
             'router_id' => $this->router->id,
             'job_type' => MikrotikJobType::Ping,
             'status' => MikrotikJobStatus::Failed,
-            'attempt_count' => $this->tries,
-            'payload' => ['pesan' => "Router {$this->router->nama_router} offline setelah {$this->tries} percobaan: {$this->router->last_ping_message}"],
+            'attempt_count' => $this->attempts(),
+            'payload' => ['pesan' => "Router {$this->router->nama_router} offline setelah {$this->attempts()} percobaan: {$this->router->last_ping_message}"],
             'error_message' => $this->router->last_ping_message,
             'finished_at' => Carbon::now(),
         ]);
