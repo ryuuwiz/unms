@@ -45,6 +45,8 @@ beforeEach(function () {
 
     // Pembayaran PAID per koneksi yang dikembalikan driver palsu: [pengaturan_gateway_id => list<array>].
     $this->pembayaranXendit = [];
+    $this->invoiceDikedaluwarsakan = [];
+    $this->expireGagal = false;
     $this->manager = app(PaymentGatewayManager::class);
     $test = $this;
     $this->manager->registerDriver('xendit', new class($test) extends XenditDriver
@@ -58,6 +60,15 @@ beforeEach(function () {
             }
 
             return array_map(fn (array $item) => $this->petakanPayload($item), $this->test->pembayaranXendit[$setting->id] ?? []);
+        }
+
+        public function kedaluwarsakanInvoice(TransaksiPaymentGateway $transaksi, PengaturanGateway $setting): void
+        {
+            if ($this->test->expireGagal) {
+                throw new RuntimeException('HTTP 503 Xendit tidak tersedia');
+            }
+
+            $this->test->invoiceDikedaluwarsakan[] = $transaksi->xendit_reference_id;
         }
     });
     $this->app->instance(PaymentGatewayManager::class, $this->manager);
@@ -193,4 +204,69 @@ test('koneksi sandbox dilewati, koneksi nonaktif tetap diperiksa, dan satu konek
 
     expect($dariSandbox->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran)
         ->and($dariLama->fresh()->status)->toBe(StatusInvoice::Lunas);
+});
+
+/**
+ * Invoice September (Rp150.000) yang sudah digabung ke invoice Oktober (Rp300.000, tunggakan Rp150.000).
+ *
+ * @return array{0: Invoice, 1: TransaksiPaymentGateway, 2: Invoice}
+ */
+function invoiceDigabungKeOktober(LayananPelanggan $layanan, PengaturanGateway $koneksi, StatusInvoice $statusOktober = StatusInvoice::MenungguPembayaran): array
+{
+    $oktober = invoiceSusulan($layanan, $statusOktober, [
+        'periode_tagihan' => '2026-10',
+        'jumlah' => 150000,
+        'jumlah_setelah_promo' => 300000,
+        'jumlah_tunggakan' => 150000,
+    ]);
+    $september = invoiceSusulan($layanan, StatusInvoice::Digabung, ['periode_tagihan' => '2026-09', 'digabung_ke_invoice_id' => $oktober->id]);
+
+    return [$september, transaksiSusulan($september, $koneksi), $oktober];
+}
+
+test('invoice Digabung yang dibayar dilunasi, dilepas dari penggabung, dan nominal serta link penggabung dikoreksi', function () {
+    [$september, $trxSeptember, $oktober] = invoiceDigabungKeOktober($this->layanan, $this->koneksi);
+    $trxOktober = transaksiSusulan($oktober, $this->koneksi, StatusTransaksiGateway::Pending);
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit($trxSeptember)];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful()->expectsOutputToContain('DILUNASI');
+
+    $september->refresh();
+    $oktober->refresh();
+    expect($september->status)->toBe(StatusInvoice::Lunas)
+        ->and($september->digabung_ke_invoice_id)->toBeNull()
+        ->and((float) $oktober->jumlah_setelah_promo)->toBe(150000.0)
+        ->and((float) $oktober->jumlah_tunggakan)->toBe(0.0)
+        ->and($oktober->status)->toBe(StatusInvoice::MenungguPembayaran)
+        ->and($trxOktober->fresh()->status)->toBe(StatusTransaksiGateway::Expired)
+        ->and($this->invoiceDikedaluwarsakan)->toBe([$trxOktober->xendit_reference_id]);
+
+    $linkBaru = $oktober->transaksiPaymentGatewayAktif();
+    expect($linkBaru->id)->not->toBe($trxOktober->id)
+        ->and($linkBaru->status)->toBe(StatusTransaksiGateway::Pending)
+        ->and((float) $linkBaru->total_tagihan - (float) $linkBaru->fee_gateway)->toBe(150000.0);
+});
+
+test('invoice Digabung yang penggabungnya sudah Lunas dilaporkan sebagai pembayaran ganda', function () {
+    [$september, $trxSeptember, $oktober] = invoiceDigabungKeOktober($this->layanan, $this->koneksi, StatusInvoice::Lunas);
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit($trxSeptember)];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful()->expectsOutputToContain('Pembayaran ganda');
+
+    expect($september->fresh()->status)->toBe(StatusInvoice::Digabung)
+        ->and((float) $oktober->fresh()->jumlah_setelah_promo)->toBe(300000.0);
+});
+
+test('gagal mematikan link penggabung di Xendit tidak membatalkan pelunasan dan dilaporkan', function () {
+    [$september, $trxSeptember, $oktober] = invoiceDigabungKeOktober($this->layanan, $this->koneksi);
+    transaksiSusulan($oktober, $this->koneksi, StatusTransaksiGateway::Pending);
+    $this->expireGagal = true;
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit($trxSeptember)];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful()->expectsOutputToContain('Xendit tidak tersedia');
+
+    $oktober->refresh();
+    expect($september->fresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and((float) $oktober->jumlah_setelah_promo)->toBe(150000.0)
+        ->and($oktober->payment_gateway_url)->toBeNull();
 });

@@ -2,6 +2,7 @@
 
 use App\Enums\GatewayChannel;
 use App\Models\PengaturanGateway;
+use App\Models\TransaksiPaymentGateway;
 use App\Services\PaymentGateway\Drivers\XenditDriver;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
@@ -92,3 +93,13 @@ test('gagal mengambil daftar dari Xendit melempar exception, bukan daftar kosong
 
     (new XenditDriver)->daftarPembayaranLunas($this->koneksi, now()->subDay());
 })->throws(RuntimeException::class);
+
+test('mematikan invoice Xendit memanggil endpoint expire dengan kredensial koneksi', function () {
+    Http::fake(['api.xendit.co/invoices/*' => Http::response(['status' => 'EXPIRED'])]);
+    $transaksi = new TransaksiPaymentGateway(['xendit_reference_id' => 'inv_lama']);
+
+    (new XenditDriver)->kedaluwarsakanInvoice($transaksi, $this->koneksi);
+
+    Http::assertSent(fn (Request $request) => $request->method() === 'POST'
+        && $request->url() === 'https://api.xendit.co/invoices/inv_lama/expire!');
+});

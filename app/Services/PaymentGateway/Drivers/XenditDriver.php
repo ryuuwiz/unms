@@ -482,6 +482,28 @@ class XenditDriver extends AbstractPaymentDriver
     }
 
     /**
+     * Matikan invoice Xendit milik transaksi agar link lamanya tidak bisa dibayar lagi
+     * (mis. setelah nominal invoice dikoreksi oleh Pelunasan Susulan, ADR-0069).
+     *
+     * @throws RuntimeException bila Xendit menolak permintaan
+     */
+    public function kedaluwarsakanInvoice(TransaksiPaymentGateway $transaksi, PengaturanGateway $setting): void
+    {
+        $xenditId = $transaksi->xendit_reference_id ?: $transaksi->provider_reference_id;
+        if (empty($xenditId)) {
+            return;
+        }
+
+        $response = Http::withBasicAuth($this->getApiKey($setting), '')
+            ->timeout(20)
+            ->post('https://api.xendit.co/invoices/'.rawurlencode($xenditId).'/expire!');
+
+        if (! $response->successful()) {
+            throw new RuntimeException("Gagal mematikan invoice Xendit {$xenditId}: HTTP {$response->status()} {$response->body()}");
+        }
+    }
+
+    /**
      * Petakan payload invoice/pembayaran Xendit (callback maupun hasil daftar invoice).
      *
      * @param  array<string, mixed>  $payload

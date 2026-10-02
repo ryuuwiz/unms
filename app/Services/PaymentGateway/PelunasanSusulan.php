@@ -7,6 +7,7 @@ use App\DTO\PaymentGateway\PaymentCallbackData;
 use App\Enums\AksiPelunasanSusulan;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusTransaksiGateway;
+use App\Exceptions\PembayaranSandboxDiabaikan;
 use App\Models\Invoice;
 use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
@@ -14,6 +15,7 @@ use App\Models\TransaksiPaymentGateway;
 use App\Services\PaymentGateway\Drivers\XenditDriver;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -89,7 +91,14 @@ class PelunasanSusulan
             return $hasil(AksiPelunasanSusulan::Dilaporkan, 'Pembayaran ganda: invoice sudah Lunas lewat pembayaran lain, refund di Xendit.');
         }
 
-        if (! in_array($invoice->status, [StatusInvoice::MenungguPembayaran, StatusInvoice::Kadaluarsa], true)) {
+        $penggabung = null;
+        if ($invoice->isDigabung()) {
+            $penggabung = Invoice::query()->find($invoice->digabung_ke_invoice_id);
+
+            if (! $penggabung || $penggabung->isLunas()) {
+                return $hasil(AksiPelunasanSusulan::Dilaporkan, "Pembayaran ganda: tunggakan ini sudah dilunasi lewat invoice penggabung {$penggabung?->no_invoice}, refund di Xendit.");
+            }
+        } elseif (! in_array($invoice->status, [StatusInvoice::MenungguPembayaran, StatusInvoice::Kadaluarsa], true)) {
             return $hasil(AksiPelunasanSusulan::Dilaporkan, "Invoice berstatus {$invoice->status->label()}: perlu tindakan manual.");
         }
 
@@ -97,15 +106,83 @@ class PelunasanSusulan
             return $hasil(AksiPelunasanSusulan::Dilaporkan, $alasan);
         }
 
+        $catatanPenggabung = $penggabung ? "Dilepas dari invoice penggabung {$penggabung->no_invoice}, nominalnya dikoreksi." : '';
+
         if ($dryRun) {
-            return $hasil(AksiPelunasanSusulan::AkanDilunasi);
+            return $hasil(AksiPelunasanSusulan::AkanDilunasi, $catatanPenggabung);
         }
 
-        $dilunasi = $this->manager->prosesPelunasan($invoice, $pembayaran, $transaksi);
+        try {
+            DB::transaction(function () use ($invoice, $penggabung, $pembayaran, $transaksi): void {
+                if ($penggabung) {
+                    $this->lepaskanDariPenggabung($invoice, $penggabung);
+                }
 
-        return $dilunasi
-            ? $hasil(AksiPelunasanSusulan::Dilunasi)
-            : $hasil(AksiPelunasanSusulan::Dilaporkan, 'Diabaikan: transaksi berasal dari koneksi sandbox.');
+                if (! $this->manager->prosesPelunasan($invoice, $pembayaran, $transaksi)) {
+                    throw new PembayaranSandboxDiabaikan;
+                }
+            });
+        } catch (PembayaranSandboxDiabaikan) {
+            return $hasil(AksiPelunasanSusulan::Dilaporkan, 'Diabaikan: transaksi berasal dari koneksi sandbox.');
+        }
+
+        $gagalLink = $penggabung ? $this->terbitkanUlangLinkPenggabung($penggabung) : null;
+
+        return $hasil(AksiPelunasanSusulan::Dilunasi, trim($catatanPenggabung.' '.$gagalLink));
+    }
+
+    /**
+     * Tunggakan yang dibayar terpisah keluar dari invoice penggabungnya: nominal penggabung
+     * berkurang sebesar tunggakan itu agar pelanggan tidak tertagih dua kali (ADR-0069).
+     */
+    protected function lepaskanDariPenggabung(Invoice $invoice, Invoice $penggabung): void
+    {
+        $penggabung = Invoice::query()->whereKey($penggabung->id)->lockForUpdate()->firstOrFail();
+        $nominal = (float) $invoice->jumlah_setelah_promo;
+
+        $penggabung->update([
+            'jumlah_setelah_promo' => max(0.0, (float) $penggabung->jumlah_setelah_promo - $nominal),
+            'jumlah_tunggakan' => max(0.0, (float) $penggabung->jumlah_tunggakan - $nominal),
+        ]);
+
+        $invoice->update([
+            'status' => StatusInvoice::MenungguPembayaran,
+            'digabung_ke_invoice_id' => null,
+        ]);
+    }
+
+    /**
+     * Link aktif penggabung masih menagih nominal lama: matikan di gateway lalu terbitkan link
+     * baru. Bila gagal, link lokal tetap dikosongkan (diterbitkan ulang saat dibutuhkan) dan
+     * alasannya dikembalikan untuk dilaporkan.
+     */
+    protected function terbitkanUlangLinkPenggabung(Invoice $penggabung): ?string
+    {
+        $transaksiAktif = $penggabung->transaksiPaymentGateways()
+            ->where('status', StatusTransaksiGateway::Pending)
+            ->latest('id')
+            ->first();
+
+        if (! $transaksiAktif) {
+            return null;
+        }
+
+        try {
+            $driver = $this->manager->driver($transaksiAktif->gateway ?: 'xendit');
+            if ($driver instanceof XenditDriver) {
+                $driver->kedaluwarsakanInvoice($transaksiAktif, $this->manager->settingUntukTransaksi($transaksiAktif));
+            }
+
+            $this->manager->invalidateExpiredInvoice($penggabung, $transaksiAktif);
+            $this->manager->buatPaymentLink($penggabung->fresh(), $transaksiAktif->gateway, forceRegenerate: true);
+
+            return null;
+        } catch (Throwable $e) {
+            Log::error("Pelunasan Susulan: link invoice penggabung {$penggabung->no_invoice} belum diterbitkan ulang: ".$e->getMessage());
+            rescue(fn () => $this->manager->invalidateExpiredInvoice($penggabung->fresh(), $transaksiAktif->fresh()), report: false);
+
+            return "Link invoice penggabung {$penggabung->no_invoice} belum diterbitkan ulang ({$e->getMessage()}).";
+        }
     }
 
     /**
