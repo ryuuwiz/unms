@@ -14,6 +14,7 @@ use App\Models\Pelanggan;
 use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
 use App\Models\Router;
+use App\Models\TransaksiPaymentGateway;
 use App\Models\WebhookLog;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -339,19 +340,21 @@ test('database unique constraint mencegah duplikasi pembayaran untuk metode dan 
     ]))->toThrow(QueryException::class);
 });
 
-test('ProcessPaymentWebhookJob tidak melunasi invoice yang sudah digabung dan menandainya untuk penanganan manual', function () {
-    $this->invoice->update(['status' => StatusInvoice::Digabung]);
-
-    $webhookLog = WebhookLog::create([
+/**
+ * Log webhook PAID untuk transaksi uji, seperti yang dikirim Xendit.
+ */
+function webhookPaidUntuk(TransaksiPaymentGateway $transaksi, string $eventId): WebhookLog
+{
+    return WebhookLog::create([
         'provider' => 'xendit',
         'event_type' => 'payment.xendit',
-        'provider_event_id' => 'evt_digabung_105',
+        'provider_event_id' => $eventId,
         'payload' => [
-            'id' => 'evt_digabung_105',
-            'external_id' => $this->transaksi->external_id,
+            'id' => $eventId,
+            'external_id' => $transaksi->external_id,
             'status' => 'PAID',
-            'amount' => $this->transaksi->total_tagihan,
-            'paid_amount' => $this->transaksi->total_tagihan,
+            'amount' => $transaksi->total_tagihan,
+            'paid_amount' => $transaksi->total_tagihan,
             'currency' => 'IDR',
             'payment_method' => 'VIRTUAL_ACCOUNT',
             'payment_channel' => 'BCA',
@@ -360,12 +363,61 @@ test('ProcessPaymentWebhookJob tidak melunasi invoice yang sudah digabung dan me
         'status_proses' => StatusWebhookLog::Diterima,
         'diterima_pada' => now(),
     ]);
+}
+
+test('webhook PAID untuk invoice Digabung dengan penggabung terbuka melunasinya dan melepasnya dari penggabung (ADR-0069)', function () {
+    $penggabung = Invoice::create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'periode_tagihan' => now()->addMonth()->format('Y-m'),
+        'jumlah' => 200000,
+        'jumlah_setelah_promo' => 200000 + (float) $this->invoice->jumlah_setelah_promo,
+        'jumlah_tunggakan' => $this->invoice->jumlah_setelah_promo,
+        'tanggal_terbit' => now()->toDateString(),
+        'tanggal_jatuh_tempo' => now()->addDays(7)->toDateString(),
+        'status' => StatusInvoice::MenungguPembayaran,
+    ]);
+    $this->invoice->update(['status' => StatusInvoice::Digabung, 'digabung_ke_invoice_id' => $penggabung->id]);
+    $webhookLog = webhookPaidUntuk($this->transaksi, 'evt_digabung_105');
+
+    (new ProcessPaymentWebhookJob($webhookLog->id))->handle($this->manager);
+
+    expect($this->invoice->fresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and($this->invoice->fresh()->digabung_ke_invoice_id)->toBeNull()
+        ->and((float) $penggabung->fresh()->jumlah_setelah_promo)->toBe(200000.0)
+        ->and($webhookLog->fresh()->status_proses)->toBe(StatusWebhookLog::Diproses);
+    Event::assertDispatched(InvoicePaidEvent::class);
+});
+
+test('webhook PAID untuk invoice Digabung yang penggabungnya sudah Lunas ditandai untuk tindakan manual', function () {
+    $penggabung = Invoice::create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'layanan_pelanggan_id' => $this->layanan->id,
+        'periode_tagihan' => now()->addMonth()->format('Y-m'),
+        'jumlah' => 200000,
+        'jumlah_setelah_promo' => 400000,
+        'tanggal_terbit' => now()->toDateString(),
+        'tanggal_jatuh_tempo' => now()->addDays(7)->toDateString(),
+        'status' => StatusInvoice::Lunas,
+    ]);
+    $this->invoice->update(['status' => StatusInvoice::Digabung, 'digabung_ke_invoice_id' => $penggabung->id]);
+    $webhookLog = webhookPaidUntuk($this->transaksi, 'evt_digabung_106');
 
     (new ProcessPaymentWebhookJob($webhookLog->id))->handle($this->manager);
 
     expect($this->invoice->fresh()->status)->toBe(StatusInvoice::Digabung)
         ->and($webhookLog->fresh()->status_proses)->toBe(StatusWebhookLog::Gagal)
-        ->and($webhookLog->fresh()->catatan_error)->toContain('sudah digabung');
-
+        ->and($webhookLog->fresh()->catatan_error)->toContain('Pembayaran ganda');
     Event::assertNotDispatched(InvoicePaidEvent::class);
+});
+
+test('webhook PAID untuk invoice Dibatalkan memulihkan dan melunasinya bila periodenya belum Lunas (ADR-0069)', function () {
+    $this->invoice->update(['status' => StatusInvoice::Dibatalkan]);
+    $this->invoice->delete();
+    $webhookLog = webhookPaidUntuk($this->transaksi, 'evt_dibatalkan_107');
+
+    (new ProcessPaymentWebhookJob($webhookLog->id))->handle($this->manager);
+
+    expect(Invoice::query()->find($this->invoice->id)?->status)->toBe(StatusInvoice::Lunas)
+        ->and($webhookLog->fresh()->status_proses)->toBe(StatusWebhookLog::Diproses);
 });

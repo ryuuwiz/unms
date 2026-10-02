@@ -3,11 +3,13 @@
 namespace App\Jobs\PaymentGateway;
 
 use App\DTO\PaymentGateway\PaymentCallbackData;
+use App\Enums\AksiPelunasanSusulan;
 use App\Enums\StatusWebhookLog;
 use App\Models\Invoice;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\WebhookLog;
 use App\Services\PaymentGateway\PaymentGatewayManager;
+use App\Services\PaymentGateway\PelunasanSusulan;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Request;
@@ -134,6 +136,19 @@ class ProcessPaymentWebhookJob implements ShouldQueue
             }
         }
 
+        // Invoice Dibatalkan (soft-deleted) tidak terlihat oleh pencarian di atas; Pelunasan Susulan
+        // yang memutuskan apakah pembayarannya dipulihkan atau dilaporkan (ADR-0069).
+        if (! $invoice && $callbackData->isPaid() && ! $callbackData->isTest) {
+            $pelunasanSusulan = new PelunasanSusulan($manager);
+            [$invoiceDibatalkan] = $pelunasanSusulan->cariTarget($callbackData);
+
+            if ($invoiceDibatalkan?->trashed()) {
+                $this->tanganiLewatPelunasanSusulan($pelunasanSusulan, $callbackData, $webhookLog, $transaksi);
+
+                return;
+            }
+        }
+
         if (! $invoice) {
             if ($callbackData->isTest) {
                 $webhookLog->update([
@@ -183,21 +198,10 @@ class ProcessPaymentWebhookJob implements ShouldQueue
                 return;
             }
 
-            // Invoice yang sudah digabung (Tunggakan Akumulatif) tidak boleh dilunasi otomatis:
-            // uangnya sudah masuk, jadi tandai untuk penanganan manual alih-alih menerbitkan
-            // perpanjangan ganda.
+            // Invoice Digabung (Tunggakan Akumulatif): dilunasi dan dilepas dari penggabungnya, atau
+            // dilaporkan sebagai pembayaran ganda -- keputusan yang sama dengan Pelunasan Susulan (ADR-0069).
             if ($invoice->isDigabung()) {
-                $catatan = "Pembayaran {$provider} diterima untuk Invoice {$invoice->no_invoice} yang sudah digabung ke invoice lain; perlu penanganan manual";
-                $webhookLog->update([
-                    'status_proses' => StatusWebhookLog::Gagal,
-                    'catatan_error' => $catatan,
-                ]);
-
-                Log::error($catatan, [
-                    'invoice_id' => $invoice->id,
-                    'digabung_ke_invoice_id' => $invoice->digabung_ke_invoice_id,
-                    'external_id' => $callbackData->externalId,
-                ]);
+                $this->tanganiLewatPelunasanSusulan(new PelunasanSusulan($manager), $callbackData, $webhookLog, $transaksi);
 
                 return;
             }
@@ -251,6 +255,31 @@ class ProcessPaymentWebhookJob implements ShouldQueue
 
         // Event status lainnya (misal PENDING)
         $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
+    }
+
+    /**
+     * Pembayaran invoice Digabung/Dibatalkan diputuskan oleh Pelunasan Susulan. Yang dilunasi
+     * menutup Log Webhook; yang dilaporkan tetap Gagal dengan alasannya untuk tindakan manual.
+     */
+    protected function tanganiLewatPelunasanSusulan(
+        PelunasanSusulan $pelunasanSusulan,
+        PaymentCallbackData $callbackData,
+        WebhookLog $webhookLog,
+        ?TransaksiPaymentGateway $transaksi
+    ): void {
+        $hasil = $pelunasanSusulan->tangani($callbackData, 'Webhook '.($transaksi?->pengaturanGateway?->nama ?? $webhookLog->provider));
+
+        $selesai = in_array($hasil->aksi, [AksiPelunasanSusulan::Dilunasi, AksiPelunasanSusulan::SudahTercatat], true);
+        $webhookLog->update([
+            'status_proses' => $selesai ? StatusWebhookLog::Diproses : StatusWebhookLog::Gagal,
+            'catatan_error' => $hasil->keterangan ?: null,
+        ]);
+
+        // Hanya pelunasan yang dikabarkan dari sini: log Gagal di-dispatch ulang oleh rekonsiliasi
+        // berkala, dan kasus yang dilaporkan sudah dirangkum harian oleh pembayaran:cek-lunas-xendit.
+        if ($hasil->aksi === AksiPelunasanSusulan::Dilunasi) {
+            $pelunasanSusulan->laporkan([$hasil]);
+        }
     }
 
     /**
