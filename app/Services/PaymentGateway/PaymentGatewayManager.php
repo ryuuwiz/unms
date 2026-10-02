@@ -394,7 +394,9 @@ class PaymentGatewayManager
                 status: 'PAID',
                 paidAmount: (float) ($statusData['paid_amount'] ?? ($statusData['amount'] ?? $invoice->jumlah_setelah_promo)),
                 eventId: (string) ($statusData['id'] ?? null),
-                paidAt: now()->toIso8601String(),
+                // Waktu bayar asli dari gateway (Pelunasan Susulan): tanggal lunas dan perpanjangan
+                // masa aktif tidak boleh bergeser ke waktu sinkron berjalan.
+                paidAt: (string) ($statusData['paid_at'] ?? now()->toIso8601String()),
                 rawPayload: $statusData
             );
 
