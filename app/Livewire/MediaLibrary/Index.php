@@ -71,8 +71,6 @@ class Index extends Component
 
         foreach ($this->uploads as $file) {
             BerkasUmum::create(['uploaded_by' => auth()->id()])
-                // Dibaca lewat disk upload sementara Livewire: getRealPath() hanya berupa path lokal bila
-                // disk itu local, sedangkan di S3 hasilnya path relatif `livewire-tmp/...` yang tidak ada.
                 ->addMediaFromDisk(FileUploadConfiguration::path($file->getFilename(), false), FileUploadConfiguration::disk())
                 ->usingFileName($file->getClientOriginalName())
                 ->toMediaCollection('berkas');

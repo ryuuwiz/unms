@@ -13,7 +13,6 @@ use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\Livewire;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Permission\Models\Role;
@@ -170,27 +169,18 @@ test('user with media_library.unggah can upload a file into a new BerkasUmum', f
         ->and(Media::where('file_name', 'laporan.xlsx')->exists())->toBeTrue();
 });
 
-test('upload berkas tetap berhasil saat disk upload sementara Livewire bukan disk local (S3)', function () {
-    // Disk upload sementara non-local (S3 di produksi): path() memberi path relatif `livewire-tmp/...`,
-    // bukan path berkas lokal yang bisa dibaca addMedia().
-    $lokal = Storage::build(['driver' => 'local', 'root' => storage_path('framework/testing/disks/tmp-s3-mirip')]);
-    Storage::set('tmp-for-tests', new class($lokal->getDriver(), $lokal->getAdapter(), ['root' => '']) extends FilesystemAdapter
-    {
-        public function path($path)
-        {
-            return $path;
-        }
-    });
-    $namaSementara = TemporaryUploadedFile::generateHashNameWithOriginalNameEmbedded(UploadedFile::fake()->image('gobilling.png'));
-    Storage::disk('tmp-for-tests')->put('livewire-tmp/'.$namaSementara, UploadedFile::fake()->image('gobilling.png')->get());
+test('upload works when the livewire temporary upload disk is not local', function () {
+    // Livewire selalu memakai disk 'tmp-for-tests' saat test; buat path()-nya relatif seperti s3.
+    $local = Storage::fake('tmp-for-tests');
+    Storage::set('tmp-for-tests', new FilesystemAdapter($local->getDriver(), $local->getAdapter(), ['root' => '']));
 
     Livewire::actingAs($this->superAdmin)
         ->test(Index::class)
-        ->call('_finishUpload', 'uploads', [TemporaryUploadedFile::signPath($namaSementara)], true)
+        ->set('uploads', [UploadedFile::fake()->create('billing.png', 10)])
         ->call('uploadFiles')
         ->assertHasNoErrors();
 
-    expect(Media::where('file_name', 'gobilling.png')->exists())->toBeTrue();
+    expect(Media::where('file_name', 'billing.png')->exists())->toBeTrue();
 });
 
 test('upload rejects disallowed file types', function () {

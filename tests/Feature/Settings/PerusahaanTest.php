@@ -6,11 +6,15 @@ use App\Models\Pelanggan;
 use App\Models\Perusahaan;
 use App\Models\Ticket;
 use App\Models\User;
+use Aws\Command;
+use Aws\S3\Exception\S3Exception;
 use Database\Seeders\PerusahaanSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\UnableToCheckFileExistence;
 use Livewire\Livewire;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -128,6 +132,53 @@ test('super_admin dapat memilih logo dari Media Library tanpa mengunggah berkas 
     $ticket->refresh();
     expect($ticket->hasMedia('foto_kendala'))->toBeTrue()
         ->and($ticket->getFirstMedia('foto_kendala')->id)->toBe($gambar->id);
+});
+
+test('memilih logo dari media library yang berkasnya hilang di disk tidak melempar exception', function () {
+    $gambar = buatGambarDummyDi(Ticket::factory()->create(), 'foto_kendala');
+    Storage::disk($gambar->disk)->delete($gambar->getPathRelativeToRoot());
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(PerusahaanComponent::class)
+        ->call('pilihDariMediaLibrary', $gambar->id)
+        ->assertOk();
+
+    expect(Perusahaan::default()->hasMedia('logo'))->toBeFalse();
+});
+
+/**
+ * Ganti disk media dengan mock yang exists()-nya melempar seperti adapter S3 (doesObjectExistV2 hanya memetakan 404 ke false).
+ */
+function cekKeberadaanMediaGagal(Media $media, ?int $statusHttp): void
+{
+    $sebab = new S3Exception('HeadObject gagal', new Command('HeadObject'), $statusHttp ? ['response' => new Response($statusHttp)] : []);
+    $disk = Mockery::mock(Storage::disk($media->disk))->makePartial();
+    $disk->shouldReceive('exists')->andThrow(UnableToCheckFileExistence::forLocation($media->getPathRelativeToRoot(), $sebab));
+    Storage::set($media->disk, $disk);
+}
+
+test('memilih logo yang hilang saat s3 menjawab 403 dilaporkan sebagai berkas tidak ditemukan', function () {
+    $gambar = buatGambarDummyDi(Ticket::factory()->create(), 'foto_kendala');
+    cekKeberadaanMediaGagal($gambar, 403);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(PerusahaanComponent::class)
+        ->call('pilihDariMediaLibrary', $gambar->id)
+        ->assertDispatched('toast-show', slots: ['text' => 'Berkas tidak ditemukan di penyimpanan.'], dataset: ['variant' => 'danger']);
+
+    expect(Perusahaan::default()->hasMedia('logo'))->toBeFalse();
+});
+
+test('memilih logo saat s3 tidak terjangkau dilaporkan sebagai penyimpanan tidak terjangkau', function () {
+    $gambar = buatGambarDummyDi(Ticket::factory()->create(), 'foto_kendala');
+    cekKeberadaanMediaGagal($gambar, null);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(PerusahaanComponent::class)
+        ->call('pilihDariMediaLibrary', $gambar->id)
+        ->assertDispatched('toast-show', slots: ['text' => 'Penyimpanan sedang tidak terjangkau, coba lagi nanti.'], dataset: ['variant' => 'danger']);
+
+    expect(Perusahaan::default()->hasMedia('logo'))->toBeFalse();
 });
 
 test('memilih logo dari media library mengecualikan dokumen pribadi pelanggan', function () {

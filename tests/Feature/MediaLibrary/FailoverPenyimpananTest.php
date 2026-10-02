@@ -94,3 +94,16 @@ test('pindah path memindahkan berkas lama {id}/ ke path acak dan melewati KTP', 
     Storage::disk('public')->assertMissing("{$foto->id}/a.jpg");
     Storage::disk('local')->assertExists("{$ktp->id}/ktp.jpg");
 });
+
+test('logo di S3 tidak dibaca selama S3 ditandai mati, agar tidak menunggu timeout', function () {
+    Storage::fake('s3');
+    config(['media-library.disk_name' => 's3']);
+    $perusahaan = Perusahaan::create(['nama_perusahaan' => 'PT Uji', 'nama_brand' => 'UJI', 'is_default' => true]);
+    $perusahaan->addMedia(UploadedFile::fake()->image('logo.png'))->toMediaCollection('logo');
+
+    PenyimpananMedia::tandaiS3Mati();
+    expect($perusahaan->getLogoContent())->toBeNull();
+
+    PenyimpananMedia::tandaiS3Pulih();
+    expect($perusahaan->getLogoContent())->not->toBeNull();
+});
