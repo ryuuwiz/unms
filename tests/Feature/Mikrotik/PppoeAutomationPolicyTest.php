@@ -191,6 +191,25 @@ test('batas hapus tercapai memberi tahu NOC hanya sekali per router per jam', fu
     expect(MikrotikJobLog::where('router_id', $router->id)->where('status', MikrotikJobStatus::Failed)->count())->toBe(2);
 });
 
+test('profile EXPIRED gagal disiapkan saat rekonsiliasi memberi tahu NOC sekali per router per jam', function () {
+    Notification::fake();
+    $noc = User::factory()->create();
+    $noc->assignRole('noc');
+    $router = Router::factory()->online()->create();
+
+    $service = Mockery::mock(MikrotikService::class);
+    $service->shouldReceive('autoRecoverPppSecrets')->twice()->andReturn([
+        'recovered' => 0, 'disabled' => 0, 'duplicates_removed' => 0, 'delete_cap_exceeded' => false,
+        'profiles' => ['total' => 1, 'synced' => 0, 'errors' => ['Subnet isolir bentrok'], 'isolir_error' => 'Subnet isolir bentrok'],
+        'errors' => ['Subnet isolir bentrok'],
+    ]);
+
+    (new RecoverPppRouterJob($router))->handle($service);
+    (new RecoverPppRouterJob($router))->handle($service);
+
+    Notification::assertSentToTimes($noc, MikrotikJobNotification::class, 1);
+});
+
 // --- Q5/Q6: IP Pool ---
 
 test('rentang pool tidak boleh memuat gateway (network + 1) dan ip_network harus alamat network', function () {

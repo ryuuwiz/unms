@@ -73,4 +73,39 @@ class IpNetworkHelper
             'end' => long2ip($endLong),
         ];
     }
+
+    /**
+     * Alamat pertama dan terakhir (sebagai long) dari `a-b`, alamat tunggal, atau `alamat/cidr` (format `ranges`
+     * RouterOS dan `address` interface); null bila tidak valid.
+     *
+     * @return array{0: int, 1: int}|null
+     */
+    public static function batasRentang(string $rentang): ?array
+    {
+        if (str_contains($rentang, '/')) {
+            [$ip, $cidr] = explode('/', $rentang, 2);
+            $dari = ip2long($ip);
+
+            if ($dari === false || ! ctype_digit($cidr) || (int) $cidr > 32) {
+                return null;
+            }
+
+            $host = (1 << (32 - (int) $cidr)) - 1;
+
+            return [$dari & ~$host, ($dari & ~$host) | $host];
+        }
+
+        [$dari, $sampai] = array_map(ip2long(...), array_pad(explode('-', $rentang, 2), 2, $rentang));
+
+        return $dari === false || $sampai === false ? null : [$dari, $sampai];
+    }
+
+    /**
+     * @param  array{0: int, 1: int}|null  $a
+     * @param  array{0: int, 1: int}  $b
+     */
+    public static function beririsan(?array $a, array $b): bool
+    {
+        return $a !== null && $a[0] <= $b[1] && $b[0] <= $a[1];
+    }
 }

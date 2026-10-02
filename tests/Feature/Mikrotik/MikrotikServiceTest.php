@@ -409,7 +409,7 @@ test('pool dan profile EXPIRED mengikuti subnet dan rate-limit di config, dan pr
         ->and(sentAttributes($sent, '/ppp/secret/add'))->toMatchArray(['profile' => 'EXPIRED', 'disabled' => 'no']);
 });
 
-test('isolir ditolak tanpa menimpa apa pun bila subnet isolir bentrok dengan pool NOC di router atau pool billing lain', function () {
+test('isolir ditolak tanpa menimpa apa pun bila subnet isolir bentrok dengan pool NOC di router atau pool paket billing', function () {
     [$router, $layanan] = layananPppoeDinamis();
 
     $secret = ['/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']]];
@@ -420,7 +420,7 @@ test('isolir ditolak tanpa menimpa apa pun bila subnet isolir bentrok dengan poo
         ->toThrow(MikrotikException::class, 'noc-mgmt');
     expect($tulis($sent))->toBeEmpty();
 
-    IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Lama', 'ip_network' => '172.30.1.0', 'cidr' => 24, 'rentang_ip_awal' => '172.30.1.2', 'rentang_ip_akhir' => '172.30.1.254']);
+    $layanan->ipPool->update(['nama_pool' => 'Pool-Lama', 'ip_network' => '172.30.1.0', 'cidr' => 24, 'rentang_ip_awal' => '172.30.1.2', 'rentang_ip_akhir' => '172.30.1.254']);
     [$client, $sent] = fakeRouterOs($secret);
     expect(fn () => $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client))
         ->toThrow(MikrotikException::class, 'Pool-Lama');
@@ -438,6 +438,7 @@ test('pool isolir lama pilihan admin yang tumpang tindih tidak menghalangi EXPIR
     ]);
 
     $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client);
+    (new MikrotikService)->isolirPppoeSecret($router->fresh(), $layanan, $client);
 
     expect($router->fresh()->ipPoolIsolir->nama_pool)->toBe('EXPIRED')
         ->and($lama->fresh()->canBeDeleted())->toBeTrue()
@@ -445,11 +446,11 @@ test('pool isolir lama pilihan admin yang tumpang tindih tidak menghalangi EXPIR
         ->and(sentAttributes($sent, '/ip/pool/remove'))->toBeNull();
 });
 
-test('pool bernama EXPIRED buatan NOC dengan rentang lain tidak diambil alih billing', function () {
+test('pool bernama EXPIRED di router yang belum dicatat billing tidak diambil alih walau rentangnya sama', function () {
     [$router, $layanan] = layananPppoeDinamis();
     [$client, $sent] = fakeRouterOs([
         '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']],
-        '/ip/pool/print' => [['.id' => '*8', 'name' => 'EXPIRED', 'ranges' => '10.99.0.2-10.99.0.254']],
+        '/ip/pool/print' => [['.id' => '*8', 'name' => 'EXPIRED', 'ranges' => '172.30.0.2-172.30.255.254']],
     ]);
 
     expect(fn () => $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client))
@@ -467,6 +468,55 @@ test('rentang alamat/cidr di pool NOC dihitung dari awal jaringannya', function 
 
     expect(fn () => $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client))
         ->toThrow(MikrotikException::class, 'noc');
+});
+
+test('pool DB bernama EXPIRED yang dipakai Router Paket tidak diambil alih sebagai pool isolir', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    $layanan->ipPool->update(['nama_pool' => 'EXPIRED']);
+    [$client] = fakeRouterOs(['/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']]]);
+
+    expect(fn () => $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client))
+        ->toThrow(MikrotikException::class, 'dipakai paket');
+    expect($router->fresh()->ip_pool_isolir_id)->toBeNull();
+});
+
+test('alamat interface NOC di dalam subnet isolir dianggap bentrok, dan rentang router yang rusak diabaikan', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    [$client, $sent] = fakeRouterOs([
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']],
+        '/ip/pool/print' => [['.id' => '*9', 'name' => 'rusak', 'ranges' => '10.0.0.0/40,bukan-ip']],
+        '/ip/address/print' => [['.id' => '*2', 'address' => '172.30.200.1/24', 'interface' => 'vlan-mgmt']],
+    ]);
+
+    expect(fn () => $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client))
+        ->toThrow(MikrotikException::class, 'vlan-mgmt');
+    expect(sentAttributes($sent, '/ip/pool/add'))->toBeNull();
+});
+
+test('subnet isolir config dinormalisasi ke alamat jaringan, dan config tanpa cidr ditolak sebagai tidak valid', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    $reads = ['/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']]];
+
+    config(['mikrotik.isolir_subnet' => '172.30.5.7/16']);
+    [$client, $sent] = fakeRouterOs($reads);
+    $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client);
+
+    expect($router->fresh()->ipPoolIsolir->ip_network)->toBe('172.30.0.0')
+        ->and(sentAttributes($sent, '/ppp/profile/add'))->toMatchArray(['local-address' => '172.30.0.1']);
+
+    config(['mikrotik.isolir_subnet' => '172.30.0.0']);
+    expect(fn () => (new MikrotikService)->isolirPppoeSecret($router->fresh(), $layanan, fakeRouterOs($reads)[0]))
+        ->toThrow(MikrotikException::class, 'tidak valid');
+});
+
+test('sinkronisasi profile melaporkan kegagalan EXPIRED terpisah agar NOC bisa diberi tahu', function () {
+    [$router] = layananPppoeDinamis();
+    [$client] = fakeRouterOs(['/ip/pool/print' => [['.id' => '*9', 'name' => 'noc', 'ranges' => '172.30.0.10-172.30.0.20']]]);
+
+    $res = $this->service->syncPaketProfiles($router->fresh(), $client);
+
+    expect($res['isolir_error'])->toContain('noc')
+        ->and($res['errors'])->toContain($res['isolir_error']);
 });
 
 test('sinkronisasi profile router selalu menyiapkan pool dan profile EXPIRED walau router belum punya IP Pool Isolir', function () {
