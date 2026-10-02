@@ -227,7 +227,7 @@
                         @endif
                     </div>
 
-                    @php($usulan = $ticket->pemasangan)
+                    @php $usulan = $ticket->pemasangan; @endphp
                     @if ($usulan?->status_usulan_odp)
                         <div class="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 space-y-2 text-sm">
                             <div class="flex flex-wrap items-center gap-2">
@@ -278,32 +278,54 @@
                                 <flux:error name="odp_port_id" />
                             </flux:field>
 
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <flux:field>
-                                    <flux:label>Foto Speedtest <span class="text-red-500">* (wajib untuk selesai)</span></flux:label>
-                                    <input type="file" wire:model="fotoSpeedtest" multiple accept="image/*" class="block w-full text-xs text-zinc-500" />
-                                    <flux:error name="fotoSpeedtest.*" />
-                                </flux:field>
-
-                                <flux:field>
-                                    <flux:label>Foto Tanda Tangan MOU <span class="text-red-500">* (wajib untuk selesai)</span></flux:label>
-                                    <input type="file" wire:model="fotoMou" accept="image/*" class="block w-full text-xs text-zinc-500" />
-                                    <flux:error name="fotoMou" />
-                                </flux:field>
-                            </div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <flux:field>
-                                    <flux:label>Foto Bukti Pemasangan / Kabel (opsional)</flux:label>
-                                    <input type="file" wire:model="fotoPemasangan" multiple accept="image/*" class="block w-full text-xs text-zinc-500" />
-                                    <flux:error name="fotoPemasangan.*" />
-                                </flux:field>
-
-                                <flux:field>
-                                    <flux:label>Foto Bersama Pelanggan & Teknisi (opsional)</flux:label>
-                                    <input type="file" wire:model="fotoBersama" multiple accept="image/*" class="block w-full text-xs text-zinc-500" />
-                                    <flux:error name="fotoBersama.*" />
-                                </flux:field>
+                            @php
+                                $fieldFoto = [
+                                    ['model' => 'fotoSpeedtest', 'koleksi' => 'foto_speedtest', 'label' => 'Foto Speedtest', 'wajib' => true, 'multiple' => true],
+                                    ['model' => 'fotoMou', 'koleksi' => 'foto_tanda_tangan_mou', 'label' => 'Foto Tanda Tangan MOU', 'wajib' => true, 'multiple' => false],
+                                    ['model' => 'fotoPemasangan', 'koleksi' => 'foto_pemasangan', 'label' => 'Foto Bukti Pemasangan / Kabel', 'wajib' => false, 'multiple' => true],
+                                    ['model' => 'fotoBersama', 'koleksi' => 'foto_bersama_pelanggan_teknisi', 'label' => 'Foto Bersama Pelanggan & Teknisi', 'wajib' => false, 'multiple' => true],
+                                ];
+                            @endphp
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                @foreach ($fieldFoto as $field)
+                                    @php
+                                        $jumlahTersimpan = $ticket->getMedia($field['koleksi'])->count();
+                                        $terpilih = $field['multiple'] ? $this->{$field['model']} : array_filter([$this->{$field['model']}]);
+                                    @endphp
+                                    <flux:field>
+                                        <flux:label>
+                                            {{ $field['label'] }}
+                                            @if ($field['wajib'])
+                                                <span class="text-red-500">* (wajib untuk selesai)</span>
+                                            @else
+                                                <span class="text-zinc-400">(opsional)</span>
+                                            @endif
+                                        </flux:label>
+                                        <div class="text-xs {{ $jumlahTersimpan ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-500' }}">
+                                            {{ $jumlahTersimpan ? "✓ {$jumlahTersimpan} foto tersimpan — lihat di Galeri Foto Tiket" : 'Belum ada foto tersimpan' }}
+                                        </div>
+                                        <input type="file" wire:model="{{ $field['model'] }}" @if ($field['multiple']) multiple @endif accept="image/*" class="block w-full text-sm text-zinc-500 file:mr-3 file:min-h-11 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-4 file:text-sm file:font-medium dark:file:bg-zinc-700 dark:file:text-zinc-200" />
+                                        <div wire:loading wire:target="{{ $field['model'] }}" class="text-xs text-zinc-500">Mengunggah pratinjau…</div>
+                                        @if ($terpilih)
+                                            <div class="grid grid-cols-3 gap-2 pt-1">
+                                                @foreach ($terpilih as $index => $foto)
+                                                    <div class="relative overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700" wire:key="pratinjau-{{ $field['model'] }}-{{ $index }}">
+                                                        @if ($foto->isPreviewable())
+                                                            <img src="{{ $foto->temporaryUrl() }}" alt="Pratinjau {{ $field['label'] }}" class="aspect-[4/3] w-full object-cover" />
+                                                        @else
+                                                            <div class="flex aspect-[4/3] items-center justify-center p-1 text-[10px] text-zinc-500">{{ $foto->getClientOriginalName() }}</div>
+                                                        @endif
+                                                        <button type="button" wire:click="batalkanFotoTerpilih('{{ $field['model'] }}', {{ $field['multiple'] ? $index : 'null' }})" class="absolute right-1 top-1 flex size-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80" title="Batalkan foto ini">
+                                                            <flux:icon name="x-mark" class="size-4" />
+                                                        </button>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                            <flux:description>Belum tersimpan. Tekan "Simpan Progress" untuk menyimpan.</flux:description>
+                                        @endif
+                                        <flux:error name="{{ $field['multiple'] ? $field['model'].'.*' : $field['model'] }}" />
+                                    </flux:field>
+                                @endforeach
                             </div>
 
                             <div class="flex flex-wrap items-center gap-2 pt-1">
@@ -320,28 +342,6 @@
                         @endif
                     @endcan
 
-                    <!-- Galeri Foto yang Sudah Diunggah -->
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2">
-                        @foreach ([
-                            'foto_speedtest' => 'Speedtest',
-                            'foto_tanda_tangan_mou' => 'Tanda Tangan MOU',
-                            'foto_pemasangan' => 'Foto Pemasangan',
-                            'foto_bersama_pelanggan_teknisi' => 'Foto Bersama',
-                        ] as $collection => $label)
-                            <div>
-                                <span class="text-zinc-500 block mb-1 font-medium">{{ $label }}</span>
-                                <div class="flex flex-wrap gap-1">
-                                    @forelse ($ticket->getMedia($collection) as $media)
-                                        <a href="{{ $media->getUrl() }}" target="_blank">
-                                            <img src="{{ $media->getUrl() }}" class="h-14 w-14 object-cover rounded border border-zinc-200 dark:border-zinc-700 hover:opacity-90" />
-                                        </a>
-                                    @empty
-                                        <span class="text-zinc-400 italic">Belum ada</span>
-                                    @endforelse
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
                 </div>
 
                 <!-- Aktivasi Pemasangan (NOC) -->
@@ -443,14 +443,13 @@
             </div>
 
             @if($ticket->getFirstMedia('foto_kendala'))
-                <div class="pt-2">
-                    <span class="text-xs font-semibold text-zinc-600 dark:text-zinc-400 block mb-2">Lampiran Foto Kendala:</span>
-                    <a href="{{ $ticket->getFirstMediaUrl('foto_kendala') }}" target="_blank" class="inline-block group">
-                        <img src="{{ $ticket->getFirstMediaUrl('foto_kendala') }}" alt="Foto Kendala" class="h-32 w-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-sm group-hover:opacity-90 transition-opacity" />
-                    </a>
-                </div>
+                <button type="button" x-data x-on:click="$dispatch('buka-galeri', { id: {{ $ticket->getFirstMedia('foto_kendala')->id }} })" class="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-zinc-100 px-4 text-xs font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600">
+                    📷 Lihat foto kendala
+                </button>
             @endif
         </div>
+
+        <x-galeri-foto-tiket :galeri="$galeri" />
 
         <!-- 3. Grid 3 Kartu Informasi: Pelanggan, Layanan, Tim/Sales -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -583,7 +582,7 @@
                         @endif
                     </div>
 
-                    @php($sales = $ticket->salesPenanggungJawab())
+                    @php $sales = $ticket->salesPenanggungJawab(); @endphp
                     @if ($sales !== false)
                         <div class="pt-2 border-t border-zinc-100 dark:border-zinc-700/50">
                             <span class="text-zinc-500 block mb-1">Sales Penanggung Jawab:</span>
@@ -791,14 +790,11 @@
                                 </div>
                             @endif
 
-                            <!-- Foto Bukti Pengerjaan -->
+                            <!-- Foto Bukti Pengerjaan: ditampilkan besar di Galeri Foto Tiket -->
                             @if($hist->getFirstMedia('foto_pengerjaan'))
-                                <div class="pt-1">
-                                    <span class="text-xs font-medium text-zinc-500 block mb-1">Bukti Foto / Pengerjaan:</span>
-                                    <a href="{{ $hist->getFirstMediaUrl('foto_pengerjaan') }}" target="_blank" class="inline-block group">
-                                        <img src="{{ $hist->getFirstMediaUrl('foto_pengerjaan') }}" alt="Bukti Pengerjaan" class="h-28 w-auto object-cover rounded-lg border border-zinc-200 dark:border-zinc-700 group-hover:opacity-90 shadow-sm" />
-                                    </a>
-                                </div>
+                                <button type="button" x-data x-on:click="$dispatch('buka-galeri', { id: {{ $hist->getFirstMedia('foto_pengerjaan')->id }} })" class="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-white px-4 text-xs font-medium text-zinc-700 border border-zinc-200 hover:bg-zinc-100 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200">
+                                    📷 Lihat foto
+                                </button>
                             @endif
                         </div>
                     </div>
@@ -1129,7 +1125,7 @@
                 @endif
 
                 @foreach ($panduan['divisi'] as $divisiValue => $langkahDivisi)
-                    @php($divisi = \App\Enums\Ticket\DivisiTicket::from($divisiValue))
+                    @php $divisi = \App\Enums\Ticket\DivisiTicket::from($divisiValue); @endphp
                     @continue(! $ticket->divisis->contains('divisi', $divisi))
                     {{-- Nilai DivisiTicket sama dengan nama peran, jadi bagian divisi milik user terbuka otomatis. --}}
                     <details {{ auth()->user()->hasRole(['super_admin', $divisiValue]) ? 'open' : '' }} class="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">

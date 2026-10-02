@@ -35,6 +35,7 @@ use App\Models\TicketPemasangan;
 use App\Models\User;
 use App\Services\Mikrotik\MikrotikService;
 use App\Services\Mikrotik\NotifikasiNoc;
+use App\Support\GaleriFotoTiket;
 use App\Support\PetaPortOdp;
 use Exception;
 use Flux\Flux;
@@ -231,6 +232,7 @@ class Show extends Component
             'dibuatOleh',
             'divisis',
             'histori.olehPengguna',
+            'histori.media',
             'media',
         ]);
     }
@@ -506,6 +508,26 @@ class Show extends Component
         );
 
         return true;
+    }
+
+    /**
+     * Teknisi membuang satu foto terpilih (belum tersimpan) dari pratinjau upload.
+     */
+    public function batalkanFotoTerpilih(string $field, ?int $index = null): void
+    {
+        if ($field === 'fotoMou') {
+            $this->fotoMou = null;
+
+            return;
+        }
+
+        if (! in_array($field, ['fotoSpeedtest', 'fotoPemasangan', 'fotoBersama'], true) || $index === null) {
+            return;
+        }
+
+        $foto = $this->{$field};
+        unset($foto[$index]);
+        $this->{$field} = array_values($foto);
     }
 
     /**
@@ -1072,6 +1094,7 @@ class Show extends Component
             'odps' => $odps,
             'petaPort' => $this->petaPort(),
             'petaPortLayanan' => $this->petaPortLayanan(),
+            'galeri' => GaleriFotoTiket::untuk($this->ticket),
             'routersAktivasi' => $routersAktivasi,
             'routersProses' => $routersProses,
             'paketLayananList' => $paketLayananList,
