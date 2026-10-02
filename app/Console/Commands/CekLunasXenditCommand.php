@@ -4,7 +4,9 @@ namespace App\Console\Commands;
 
 use App\DTO\PaymentGateway\HasilPelunasanSusulan;
 use App\Enums\AksiPelunasanSusulan;
+use App\Services\PaymentGateway\LaporanPelunasanSusulan;
 use App\Services\PaymentGateway\PelunasanSusulan;
+use App\Support\Rupiah;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -17,7 +19,7 @@ class CekLunasXenditCommand extends Command
      * @var string
      */
     protected $signature = 'pembayaran:cek-lunas-xendit
-                            {--dari= : Tanggal awal waktu bayar di Xendit (Y-m-d), default 35 hari lalu}
+                            {--dari= : Tanggal awal waktu bayar di Xendit (Y-m-d, WIB), default 35 hari lalu}
                             {--dry-run : Tampilkan yang akan dilunasi tanpa mengubah data}';
 
     /**
@@ -25,18 +27,19 @@ class CekLunasXenditCommand extends Command
      */
     protected $description = 'Pelunasan Susulan: lunasi invoice yang sudah PAID di Xendit tetapi belum Lunas di sistem (ADR-0069)';
 
-    public function handle(PelunasanSusulan $pelunasanSusulan): int
+    public function handle(PelunasanSusulan $pelunasanSusulan, LaporanPelunasanSusulan $laporan): int
     {
+        $zonaWaktu = config('app.zona_waktu_bisnis');
         $sejak = $this->option('dari')
-            ? Carbon::parse((string) $this->option('dari'))->startOfDay()
-            : now()->subDays(self::HARI_JENDELA)->startOfDay();
+            ? Carbon::parse((string) $this->option('dari'), $zonaWaktu)->startOfDay()
+            : now($zonaWaktu)->subDays(self::HARI_JENDELA)->startOfDay();
         $dryRun = (bool) $this->option('dry-run');
 
         $this->info(($dryRun ? '[DRY RUN] ' : '')."Memeriksa pembayaran PAID di Xendit sejak {$sejak->toDateString()}...");
 
         $hasil = $pelunasanSusulan->jalankan($sejak, $dryRun);
         if (! $dryRun) {
-            $pelunasanSusulan->laporkan($hasil);
+            $laporan->laporkan($hasil);
         }
 
         $this->tampilkanTabel($hasil);
@@ -56,7 +59,7 @@ class CekLunasXenditCommand extends Command
                 $item->koneksi,
                 $item->invoice?->no_invoice ?? $item->pembayaran?->externalId ?? '-',
                 $item->invoice?->pelanggan?->namaLengkap() ?? '-',
-                $item->pembayaran ? 'Rp '.number_format($item->pembayaran->paidAmount, 0, ',', '.') : '-',
+                $item->pembayaran ? Rupiah::format($item->pembayaran->paidAmount) : '-',
                 $item->pembayaran?->paidAt ?? '-',
                 $item->statusSebelum ?? '-',
                 $item->aksi->value,

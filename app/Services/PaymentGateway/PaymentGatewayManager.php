@@ -378,6 +378,9 @@ class PaymentGatewayManager
     }
 
     /**
+     * Status PAID memakai waktu bayar asli dari gateway (`paid_at`) agar tanggal lunas dan
+     * perpanjangan masa aktif tidak bergeser ke waktu sinkron berjalan (Pelunasan Susulan).
+     *
      * @param  array<string, mixed>  $statusData
      */
     protected function applySyncedStatus(
@@ -394,8 +397,6 @@ class PaymentGatewayManager
                 status: 'PAID',
                 paidAmount: (float) ($statusData['paid_amount'] ?? ($statusData['amount'] ?? $invoice->jumlah_setelah_promo)),
                 eventId: (string) ($statusData['id'] ?? null),
-                // Waktu bayar asli dari gateway (Pelunasan Susulan): tanggal lunas dan perpanjangan
-                // masa aktif tidak boleh bergeser ke waktu sinkron berjalan.
                 paidAt: (string) ($statusData['paid_at'] ?? now()->toIso8601String()),
                 rawPayload: $statusData
             );
@@ -622,7 +623,7 @@ class PaymentGatewayManager
             // 3. Update Status Invoice
             $lockedInvoice->update([
                 'status' => StatusInvoice::Lunas,
-                'tanggal_lunas' => $dibayarPada->toDateString(),
+                'tanggal_lunas' => $dibayarPada->copy()->setTimezone(config('app.zona_waktu_bisnis'))->toDateString(),
                 'metode_pembayaran' => MetodePembayaran::PaymentGateway,
                 'payment_gateway_status' => 'PAID',
                 'xendit_status' => 'PAID',

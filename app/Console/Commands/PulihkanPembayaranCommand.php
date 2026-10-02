@@ -2,11 +2,16 @@
 
 namespace App\Console\Commands;
 
+use App\DTO\PaymentGateway\HasilPelunasanSusulan;
+use App\Enums\AksiPelunasanSusulan;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusTransaksiGateway;
 use App\Models\Invoice;
 use App\Models\TransaksiPaymentGateway;
+use App\Services\PaymentGateway\Drivers\XenditDriver;
+use App\Services\PaymentGateway\LaporanPelunasanSusulan;
 use App\Services\PaymentGateway\PaymentGatewayManager;
+use App\Services\PaymentGateway\PelunasanSusulan;
 use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
@@ -24,7 +29,7 @@ class PulihkanPembayaranCommand extends Command
                             {--dari= : Tanggal awal pembuatan transaksi (Y-m-d), default 30 hari lalu}
                             {--sampai= : Tanggal akhir pembuatan transaksi (Y-m-d), default hari ini}
                             {--limit=500 : Batas jumlah transaksi yang diperiksa}
-                            {--dry-run : Hanya tampilkan status gateway tanpa mengubah data}';
+                            {--dry-run : Hanya tampilkan status gateway dan keputusan Pelunasan Susulan tanpa mengubah data}';
 
     /**
      * The console command description.
@@ -33,7 +38,7 @@ class PulihkanPembayaranCommand extends Command
      */
     protected $description = 'Pindai ulang transaksi Expired/Pending ke gateway dan lunasi yang ternyata sudah dibayar (pemulihan sekali jalan, ADR-0067)';
 
-    public function handle(PaymentGatewayManager $manager): int
+    public function handle(PaymentGatewayManager $manager, PelunasanSusulan $pelunasanSusulan, LaporanPelunasanSusulan $laporan): int
     {
         [$dari, $sampai] = $this->rentangTanggal();
         $dryRun = (bool) $this->option('dry-run');
@@ -47,10 +52,22 @@ class PulihkanPembayaranCommand extends Command
             $sampai->toDateString(),
         ));
 
-        $baris = $transaksis->map(fn (TransaksiPaymentGateway $transaksi): array => $this->pulihkan($manager, $transaksi, $dryRun));
-        $dilunasi = $baris->filter(fn (array $row): bool => $row[4] === 'DILUNASI')->count();
+        $hasilSusulan = [];
+        $baris = $transaksis->map(function (TransaksiPaymentGateway $transaksi) use ($manager, $pelunasanSusulan, $dryRun, &$hasilSusulan): array {
+            [$row, $hasil] = $this->pulihkan($manager, $pelunasanSusulan, $transaksi, $dryRun);
+            if ($hasil) {
+                $hasilSusulan[] = $hasil;
+            }
 
-        $this->table(['No Invoice', 'External ID', 'Status Lokal', 'Status Gateway', 'Aksi'], $baris->all());
+            return $row;
+        });
+
+        if (! $dryRun) {
+            $laporan->laporkan($hasilSusulan);
+        }
+
+        $dilunasi = $baris->filter(fn (array $row): bool => $row[4] === AksiPelunasanSusulan::Dilunasi->value)->count();
+        $this->table(['No Invoice', 'External ID', 'Status Lokal', 'Status Gateway', 'Aksi', 'Keterangan'], $baris->all());
         $this->info($dryRun ? 'Dry run selesai, tidak ada data yang diubah.' : "Selesai. {$dilunasi} invoice dilunasi.");
 
         return self::SUCCESS;
@@ -75,7 +92,7 @@ class PulihkanPembayaranCommand extends Command
         return TransaksiPaymentGateway::query()
             ->whereIn('status', [StatusTransaksiGateway::Expired, StatusTransaksiGateway::Pending])
             ->whereBetween('created_at', [$dari, $sampai])
-            ->whereHas('invoice', fn ($query) => $query->where('status', '!=', StatusInvoice::Lunas))
+            ->whereHas('invoice', fn ($query) => $query->withTrashed()->where('status', '!=', StatusInvoice::Lunas))
             ->with(['invoice', 'pengaturanGateway'])
             ->orderBy('id')
             ->limit(max(1, (int) $this->option('limit')))
@@ -83,42 +100,45 @@ class PulihkanPembayaranCommand extends Command
     }
 
     /**
-     * @return array{0: string|null, 1: string, 2: string, 3: string, 4: string}
+     * Status gateway PAID diputuskan oleh Pelunasan Susulan (aturan yang sama dengan sapuan harian
+     * dan webhook, ADR-0069); status lain disinkronkan seperti biasa (mis. Kedaluwarsa).
+     *
+     * @return array{0: array{0: string|null, 1: string, 2: string, 3: string, 4: string, 5: string}, 1: HasilPelunasanSusulan|null}
      */
-    protected function pulihkan(PaymentGatewayManager $manager, TransaksiPaymentGateway $transaksi, bool $dryRun): array
+    protected function pulihkan(PaymentGatewayManager $manager, PelunasanSusulan $pelunasanSusulan, TransaksiPaymentGateway $transaksi, bool $dryRun): array
     {
-        $statusLokal = $transaksi->status->value;
-        // Dibaca ulang per baris: transaksi sebelumnya untuk invoice yang sama mungkin sudah
-        // melunasinya, dan invoice itu tidak boleh terhitung dua kali.
-        $lunasSebelumnya = $this->invoiceLunas($transaksi);
+        $row = fn (string $statusGateway, string $aksi, string $keterangan = ''): array => [
+            Invoice::withTrashed()->find($transaksi->invoice_id)?->no_invoice,
+            $transaksi->external_id,
+            $transaksi->status->value,
+            $statusGateway,
+            $aksi,
+            $keterangan,
+        ];
 
         try {
-            $statusData = $dryRun ? $manager->cekStatusTransaksi($transaksi) : $manager->sinkronkanTransaksi($transaksi);
+            $statusData = $manager->cekStatusTransaksi($transaksi);
         } catch (Throwable $e) {
-            $statusData = ['error' => $e->getMessage()];
+            return [$row('ERROR: '.$e->getMessage(), '-'), null];
         }
 
         $statusGateway = strtoupper((string) ($statusData['status'] ?? ''));
-        $aksi = match (true) {
-            $dryRun => '-',
-            ! $lunasSebelumnya && $this->invoiceLunas($transaksi) => 'DILUNASI',
-            default => 'tidak berubah',
-        };
+        if ($statusGateway === '') {
+            return [$row('ERROR: '.($statusData['error'] ?? '-'), '-'), null];
+        }
 
-        return [
-            $transaksi->invoice?->no_invoice,
-            $transaksi->external_id,
-            $statusLokal,
-            $statusGateway ?: 'ERROR: '.($statusData['error'] ?? '-'),
-            $aksi,
-        ];
-    }
+        $driver = $manager->driver($transaksi->gateway ?: XenditDriver::PROVIDER);
+        if ($driver instanceof XenditDriver && in_array($statusGateway, ['PAID', 'SETTLED', 'SUCCEEDED'], true)) {
+            $pembayaran = $driver->petakanPayload(array_merge(['external_id' => $transaksi->external_id], $statusData));
+            $hasil = $pelunasanSusulan->tangani($pembayaran, $transaksi->pengaturanGateway, $dryRun);
 
-    /**
-     * Status terkini dari database, bukan dari relasi yang sudah termuat.
-     */
-    protected function invoiceLunas(TransaksiPaymentGateway $transaksi): bool
-    {
-        return Invoice::query()->whereKey($transaksi->invoice_id)->where('status', StatusInvoice::Lunas)->exists();
+            return [$row($statusGateway, $hasil->aksi->value, $hasil->keterangan), $hasil];
+        }
+
+        if (! $dryRun) {
+            rescue(fn () => $manager->sinkronkanTransaksi($transaksi), report: false);
+        }
+
+        return [$row($statusGateway, $dryRun ? '-' : 'tidak berubah'), null];
     }
 }

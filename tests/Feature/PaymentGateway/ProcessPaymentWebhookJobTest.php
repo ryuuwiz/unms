@@ -406,7 +406,7 @@ test('webhook PAID untuk invoice Digabung yang penggabungnya sudah Lunas ditanda
     (new ProcessPaymentWebhookJob($webhookLog->id))->handle($this->manager);
 
     expect($this->invoice->fresh()->status)->toBe(StatusInvoice::Digabung)
-        ->and($webhookLog->fresh()->status_proses)->toBe(StatusWebhookLog::Gagal)
+        ->and($webhookLog->fresh()->status_proses)->toBe(StatusWebhookLog::Diabaikan)
         ->and($webhookLog->fresh()->catatan_error)->toContain('Pembayaran ganda');
     Event::assertNotDispatched(InvoicePaidEvent::class);
 });

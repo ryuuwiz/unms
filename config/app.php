@@ -84,6 +84,12 @@ return [
     'timezone' => 'UTC',
 
     /*
+    | Zona waktu bisnis (WIB): tanggal yang dibaca orang -- input tanggal di command, tanggal
+    | lunas -- mengikuti hari lokal pelanggan, sementara penyimpanan waktu tetap UTC.
+    */
+    'zona_waktu_bisnis' => env('APP_ZONA_WAKTU_BISNIS', 'Asia/Jakarta'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------

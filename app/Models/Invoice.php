@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -305,6 +306,44 @@ class Invoice extends Model
     public function isDigabung(): bool
     {
         return $this->status === StatusInvoice::Digabung;
+    }
+
+    /**
+     * Invoice penggabung berantai (Tunggakan Akumulatif): penggabung langsung, lalu penggabungnya,
+     * sampai invoice yang tidak lagi Digabung -- elemen terakhir adalah yang benar-benar menagih.
+     * Panjang rantai dibatasi agar data rusak (saling menunjuk) tidak membuat loop tanpa akhir.
+     *
+     * @return Collection<int, Invoice>
+     */
+    public function rantaiPenggabung(): Collection
+    {
+        $rantai = collect();
+        $berikutnya = $this->digabung_ke_invoice_id;
+
+        while ($berikutnya !== null && $rantai->count() < 120) {
+            $penggabung = static::query()->find($berikutnya);
+            if (! $penggabung) {
+                break;
+            }
+
+            $rantai->push($penggabung);
+            $berikutnya = $penggabung->isDigabung() ? $penggabung->digabung_ke_invoice_id : null;
+        }
+
+        return $rantai;
+    }
+
+    /**
+     * Layanan yang sama sudah punya invoice Lunas lain untuk Periode Tagihan invoice ini.
+     */
+    public function periodeSudahLunasLewatInvoiceLain(): bool
+    {
+        return $this->periode_tagihan !== null && static::query()
+            ->where('layanan_pelanggan_id', $this->layanan_pelanggan_id)
+            ->where('periode_tagihan', $this->periode_tagihan)
+            ->where('status', StatusInvoice::Lunas)
+            ->whereKeyNot($this->id)
+            ->exists();
     }
 
     /**

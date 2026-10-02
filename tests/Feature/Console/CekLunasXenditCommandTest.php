@@ -61,6 +61,8 @@ beforeEach(function () {
 
         public function daftarPembayaranLunas(PengaturanGateway $setting, CarbonInterface $sejak, ?CarbonInterface $sampai = null): array
         {
+            $this->test->sejakDiminta = $sejak;
+
             if (($this->test->pembayaranXendit[$setting->id] ?? null) === 'error') {
                 throw new RuntimeException('HTTP 401 INVALID_API_KEY');
             }
@@ -82,10 +84,9 @@ beforeEach(function () {
 
 function invoiceSusulan(LayananPelanggan $layanan, StatusInvoice $status = StatusInvoice::MenungguPembayaran, array $atribut = []): Invoice
 {
-    return Invoice::create(array_merge([
+    return Invoice::factory()->create(array_merge([
         'pelanggan_id' => $layanan->pelanggan_id,
         'layanan_pelanggan_id' => $layanan->id,
-        'periode_tagihan' => now()->format('Y-m'),
         'jumlah' => 150000,
         'jumlah_setelah_promo' => 150000,
         'tanggal_terbit' => now()->subDays(20)->toDateString(),
@@ -359,4 +360,98 @@ test('pembayaran:cek-lunas-xendit dijadwalkan harian', function () {
 
     expect($jadwal)->not->toBeNull()
         ->and($jadwal->expression)->toBe('15 2 * * *');
+});
+
+test('rantai penggabungan diikuti sampai penggabung terbuka: setiap invoice di rantai dikoreksi dan link penggabung terakhir diterbitkan ulang', function () {
+    $oktober = invoiceSusulan($this->layanan, atribut: ['periode_tagihan' => '2026-10', 'jumlah_setelah_promo' => 450000, 'jumlah_tunggakan' => 300000]);
+    $september = invoiceSusulan($this->layanan, StatusInvoice::Digabung, [
+        'periode_tagihan' => '2026-09', 'jumlah_setelah_promo' => 300000, 'jumlah_tunggakan' => 150000, 'digabung_ke_invoice_id' => $oktober->id,
+    ]);
+    $agustus = invoiceSusulan($this->layanan, StatusInvoice::Digabung, ['periode_tagihan' => '2026-08', 'digabung_ke_invoice_id' => $september->id]);
+    $trxOktober = transaksiSusulan($oktober, $this->koneksi, StatusTransaksiGateway::Pending);
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit(transaksiSusulan($agustus, $this->koneksi))];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful()->expectsOutputToContain('DILUNASI');
+
+    expect($agustus->fresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and($agustus->fresh()->digabung_ke_invoice_id)->toBeNull()
+        ->and((float) $september->fresh()->jumlah_setelah_promo)->toBe(150000.0)
+        ->and((float) $september->fresh()->jumlah_tunggakan)->toBe(0.0)
+        ->and($september->fresh()->status)->toBe(StatusInvoice::Digabung)
+        ->and((float) $oktober->fresh()->jumlah_setelah_promo)->toBe(300000.0)
+        ->and((float) $oktober->fresh()->jumlah_tunggakan)->toBe(150000.0)
+        ->and($this->invoiceDikedaluwarsakan)->toBe([$trxOktober->xendit_reference_id]);
+});
+
+test('kasus yang dilaporkan hanya dicatat dan dikabarkan sekali walau muncul lagi di eksekusi berikutnya', function () {
+    Notification::fake();
+    $admin = User::factory()->create(['status' => UserStatus::Active]);
+    $admin->assignRole('admin');
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit(transaksiSusulan(invoiceSusulan($this->layanan), $this->koneksi), 99000)];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
+
+    expect(Activity::inLog('pelunasan_susulan')->count())->toBe(1);
+    Notification::assertSentToTimes($admin, PelunasanSusulanNotification::class, 1);
+});
+
+test('pembayaran tanpa transaksi lokal dari koneksi live non-default dilunasi walau koneksi default sandbox, dan transaksinya tercatat pada koneksi itu', function () {
+    app()->detectEnvironment(fn () => 'production');
+    $this->koneksi->update(['is_default' => false]);
+    PengaturanGateway::create([
+        'provider' => 'xendit', 'gateway' => 'xendit', 'nama' => 'Xendit Sandbox Default',
+        'credentials' => ['secret_key' => 'xnd_development_x'], 'is_active' => true, 'is_default' => true, 'sandbox_mode' => true,
+    ]);
+    $invoice = invoiceSusulan($this->layanan);
+    $trxLama = transaksiSusulan($invoice, $this->koneksi);
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit($invoice->no_invoice.'-1699999999')];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
+
+    $transaksiBayar = TransaksiPaymentGateway::where('external_id', $invoice->no_invoice.'-1699999999')->first();
+    expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and($transaksiBayar?->status)->toBe(StatusTransaksiGateway::Paid)
+        ->and($transaksiBayar?->pengaturan_gateway_id)->toBe($this->koneksi->id)
+        ->and($trxLama->fresh()->status)->toBe(StatusTransaksiGateway::Expired);
+});
+
+test('pembayaran tanpa transaksi lokal yang sudah termasuk biaya gateway koneksi tetap dilunasi', function () {
+    $this->koneksi->update(['bebankan_ke_pelanggan' => true, 'fee_va_nominal' => 4000]);
+    $invoice = invoiceSusulan($this->layanan);
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit($invoice->no_invoice.'-1699999999', 154000)];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
+
+    expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas);
+});
+
+test('--dari dan tanggal lunas mengikuti hari WIB', function () {
+    $invoice = invoiceSusulan($this->layanan);
+    // 18:30 UTC = 01:30 WIB keesokan harinya.
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit(transaksiSusulan($invoice, $this->koneksi), paidAt: '2026-09-25T18:30:00.000Z')];
+
+    $this->artisan('pembayaran:cek-lunas-xendit', ['--dari' => '2026-09-01'])->assertSuccessful();
+
+    expect($this->sejakDiminta->toIso8601ZuluString())->toBe('2026-08-31T17:00:00Z')
+        ->and($invoice->fresh()->tanggal_lunas->toDateString())->toBe('2026-09-26');
+});
+
+test('pembayaran:pulihkan memakai aturan Pelunasan Susulan untuk invoice Digabung', function () {
+    [$september, $trxSeptember, $oktober] = invoiceDigabungKeOktober($this->layanan, $this->koneksi);
+    $this->manager->registerDriver('xendit', new class extends XenditDriver
+    {
+        public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
+        {
+            $nominal = $target instanceof TransaksiPaymentGateway ? (float) $target->total_tagihan : 0.0;
+
+            return ['id' => 'inv_pulih', 'status' => 'PAID', 'amount' => $nominal, 'paid_amount' => $nominal, 'paid_at' => '2026-09-25T03:15:00.000Z'];
+        }
+    });
+
+    $this->artisan('pembayaran:pulihkan', ['--dari' => now()->subDays(5)->toDateString()])->assertSuccessful();
+
+    expect($september->fresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and($september->fresh()->digabung_ke_invoice_id)->toBeNull()
+        ->and((float) $oktober->fresh()->jumlah_setelah_promo)->toBe(150000.0);
 });

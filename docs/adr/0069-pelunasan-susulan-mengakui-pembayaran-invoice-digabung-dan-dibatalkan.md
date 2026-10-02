@@ -13,6 +13,10 @@ Kasus yang tetap dilaporkan untuk ditangani manual (umumnya refund di gateway):
 - invoice Dibatalkan yang dulunya menggabung tunggakan, karena memulihkan rantai penggabungan secara otomatis terlalu berisiko;
 - nominal tidak sama persis (Validasi Ketat Nominal Gateway).
 
+Penggabungan bisa berantai (Agustus digabung ke September, lalu September ke Oktober). Setiap invoice dalam rantai memuat nominal tunggakan itu, jadi masing-masing dikurangi; hanya link invoice ujung yang masih terbuka yang diterbitkan ulang. Bila ujung rantai sudah Lunas atau bukan invoice terbuka, kasusnya dilaporkan.
+
+Webhook untuk kasus yang dilaporkan menutup Log Webhook sebagai Diabaikan beserta alasannya, bukan Gagal, agar tidak di-dispatch ulang terus oleh rekonsiliasi berkala. Laporan dan notifikasinya datang dari sapuan harian, dan satu kasus (pembayaran dan alasan yang sama) hanya dilaporkan sekali.
+
 ## Considered Options
 
 - Hanya melaporkan Digabung/Dibatalkan untuk ditangani manual: lebih aman, tetapi selisih bisa menumpuk tanpa tertangani dan pelanggan yang sudah bayar tetap terisolir.

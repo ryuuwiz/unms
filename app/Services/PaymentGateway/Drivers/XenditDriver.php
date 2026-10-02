@@ -32,9 +32,11 @@ class XenditDriver extends AbstractPaymentDriver
     /** Batas invoice per halaman daftar Xendit (maksimum API). */
     private const BATAS_HALAMAN_DAFTAR = 100;
 
+    public const PROVIDER = 'xendit';
+
     public function getProviderName(): string
     {
-        return 'xendit';
+        return self::PROVIDER;
     }
 
     public function getProviderLabel(): string
@@ -435,7 +437,7 @@ class XenditDriver extends AbstractPaymentDriver
         $sampai ??= now();
         $hasil = [];
 
-        for ($awal = Carbon::parse($sejak)->startOfDay(); $awal->lessThan($sampai); $awal = $awal->copy()->addDay()) {
+        for ($awal = Carbon::instance($sejak)->startOfDay(); $awal->lessThan($sampai); $awal = $awal->copy()->addDay()) {
             $akhir = $awal->copy()->addDay()->min($sampai);
             $kursor = null;
 
@@ -455,11 +457,12 @@ class XenditDriver extends AbstractPaymentDriver
     }
 
     /**
+     * Parameter array dikirim berulang (`statuses=PAID&statuses=SETTLED`), sama seperti SDK resmi.
+     *
      * @return list<array<string, mixed>>
      */
     private function ambilHalamanInvoiceLunas(string $apiKey, CarbonInterface $awal, CarbonInterface $akhir, ?string $kursor): array
     {
-        // Parameter array dikirim berulang (statuses=PAID&statuses=SETTLED), sama seperti SDK resmi.
         $query = implode('&', array_filter([
             'statuses=PAID&statuses=SETTLED',
             'limit='.self::BATAS_HALAMAN_DAFTAR,
@@ -504,7 +507,8 @@ class XenditDriver extends AbstractPaymentDriver
     }
 
     /**
-     * Petakan payload invoice/pembayaran Xendit (callback maupun hasil daftar invoice).
+     * Petakan payload invoice/pembayaran Xendit (callback maupun hasil daftar invoice). Mata uang
+     * ikut dipetakan untuk penegakan strict-IDR (ADR 0028 §2).
      *
      * @param  array<string, mixed>  $payload
      */
@@ -525,7 +529,6 @@ class XenditDriver extends AbstractPaymentDriver
             paymentReference: $this->referensiPembayaranDari($payload),
             isTest: $this->payloadUjiCoba($payload, $externalId),
             rawPayload: $payload,
-            // Dipakai untuk penegakan strict-IDR di ProcessPaymentWebhookJob (ADR 0028 §2).
             currency: $this->mataUangDari($payload),
         );
     }
