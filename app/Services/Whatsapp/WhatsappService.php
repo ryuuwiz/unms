@@ -15,7 +15,6 @@ use App\Support\BrandPelanggan;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\URL;
 
 class WhatsappService
 {
@@ -132,18 +131,9 @@ class WhatsappService
         $layanan = $invoice->layananPelanggan;
         $namaPaket = $layanan?->paketLayanan->nama_paket ?? 'Layanan Internet';
 
-        // Tautan checkout tanpa login: signed URL, bukan xendit_invoice_url langsung -- agar
-        // pelanggan selalu mendarat di halaman rincian tagihan kami dulu (bisa sinkronisasi
-        // status & tampilkan rincian biaya) sebelum diarahkan ke payment gateway.
-        // Masa berlaku diselaraskan dengan tanggal jatuh tempo + 3 hari grace period (atau 30 hari bila belum ada).
-        // Lihat AuthorizesInvoiceAccess::authorizeAksesTagihan().
-        $expiresAt = $invoice->tanggal_jatuh_tempo
-            ? Carbon::parse($invoice->tanggal_jatuh_tempo)->endOfDay()->addDays(3)
-            : now()->addDays(30);
-
-        $linkBayar = $invoice->id
-            ? URL::signedRoute('portal.invoice.show', ['invoice' => $invoice->id], $expiresAt)
-            : url('/');
+        // Tautan Tagihan tanpa login dan tanpa masa berlaku, bukan Link Pembayaran Gateway
+        // langsung: pelanggan selalu mendarat di halaman rincian tagihan kami dulu (ADR-0067).
+        $linkBayar = $invoice->exists ? $invoice->tautanTagihan() : url('/');
 
         return [
             'nama_pelanggan' => $pelanggan ? "{$pelanggan->nama_depan} {$pelanggan->nama_belakang}" : 'Pelanggan',

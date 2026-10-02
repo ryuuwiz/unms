@@ -6,7 +6,6 @@ use App\DTO\PaymentGateway\PaymentCallbackData;
 use App\Enums\StatusWebhookLog;
 use App\Http\Controllers\Controller;
 use App\Jobs\PaymentGateway\ProcessPaymentWebhookJob;
-use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\WebhookLog;
 use App\Services\PaymentGateway\PaymentGatewayManager;
@@ -40,16 +39,17 @@ class PaymentWebhookController extends Controller
             return response()->json(['message' => "Unsupported gateway: {$gateway}"], 400);
         }
 
-        $setting = PengaturanGateway::getSettingForProvider($gateway);
-        if (! $setting) {
-            $setting = PengaturanGateway::getDefault();
-        }
+        // 1. Normalisasi payload dan cari transaksinya lebih dulu -- hanya membaca, belum
+        // menulis apa pun -- karena token callback diverifikasi dengan kredensial Koneksi
+        // Payment Gateway yang menerbitkan transaksi itu, bukan koneksi pertama/default
+        // (ADR-0067). Transaksi tak dikenal (mis. tombol "Test" dashboard Xendit) memakai
+        // koneksi aktif & default.
+        /** @var PaymentCallbackData $callbackData */
+        $callbackData = $driver->parseWebhookPayload($request);
+        $transaksi = $this->cariTransaksi($callbackData);
+        $setting = $this->manager->settingUntukTransaksi($transaksi, $gateway);
 
-        if (! $setting) {
-            $setting = PengaturanGateway::getXenditSetting();
-        }
-
-        // 1. Verifikasi Signature / Token Callback
+        // 2. Verifikasi Signature / Token Callback
         // Tidak boleh ada bypass environment di sini: verifikasi wajib aktif juga saat pengujian
         // agar tes penolakan signature benar-benar membuktikan perilaku produksi.
         if (! $driver->verifyWebhook($request, $setting)) {
@@ -57,24 +57,27 @@ class PaymentWebhookController extends Controller
             Log::warning("Webhook signature/token tidak valid untuk gateway [{$gateway}].", [
                 'ip' => $request->ip(),
                 'user_agent' => $request->userAgent(),
+                'pengaturan_gateway_id' => $setting->id,
             ]);
 
-            // Catat percobaan yang ditolak sebagai jejak audit -- sebelumnya hanya percobaan
-            // yang berhasil/duplikat tercatat di WebhookLog, sehingga upaya forge/probe tidak
-            // pernah terlihat di trail audit.
+            // Payload sengaja tidak disimpan: tanpa token sah isinya tidak dapat dipercaya.
+            // Pemulihan pembayaran yang tertolak dilakukan dengan bertanya langsung ke API
+            // gateway (pembayaran:rekonsiliasi / pembayaran:pulihkan).
             WebhookLog::create([
                 'provider' => $gateway,
                 'event_type' => 'webhook.token_rejected',
                 'payload' => null,
                 'status_proses' => StatusWebhookLog::Gagal,
-                'catatan_error' => 'Signature/token webhook tidak valid.',
+                'catatan_error' => "Signature/token webhook tidak valid untuk koneksi [{$setting->nama}].",
                 'diterima_pada' => Carbon::now(),
             ]);
 
-            \Sentry\configureScope(function (Scope $scope) use ($gateway, $request): void {
+            \Sentry\configureScope(function (Scope $scope) use ($gateway, $request, $setting): void {
                 $scope->setContext('payment_webhook_rejected', [
                     'gateway' => $gateway,
                     'ip' => $request->ip(),
+                    'pengaturan_gateway_id' => $setting->id,
+                    'sandbox_mode' => $setting->sandbox_mode,
                 ]);
             });
             \Sentry\captureMessage("Webhook {$gateway}: signature/token tidak valid.", Severity::warning());
@@ -82,23 +85,7 @@ class PaymentWebhookController extends Controller
             return response()->json(['message' => 'Unauthorized / Invalid webhook signature'], 401);
         }
 
-        // 2. Normalisasi Payload Callback via Driver DTO
-        /** @var PaymentCallbackData $callbackData */
-        $callbackData = $driver->parseWebhookPayload($request);
-
-        // 3. Cari Transaksi Payment Gateway terkait untuk relasi audit trail instan
-        /** @var TransaksiPaymentGateway|null $transaksi */
-        $transaksi = null;
-        if (! empty($callbackData->externalId)) {
-            $transaksi = TransaksiPaymentGateway::where('external_id', $callbackData->externalId)->first();
-        }
-        if (! $transaksi && ! empty($callbackData->eventId)) {
-            $transaksi = TransaksiPaymentGateway::where('provider_reference_id', $callbackData->eventId)
-                ->orWhere('xendit_reference_id', $callbackData->eventId)
-                ->first();
-        }
-
-        // 4. Catat Webhook Log secara idempoten.
+        // 3. Catat Webhook Log secara idempoten.
         // Unique index `webhook_log_provider_event_unique` adalah penjaga sebenarnya:
         // firstOrCreate menangani redelivery berurutan, sedangkan tangkapan QueryException
         // menangani redelivery paralel yang kalah balapan pada index. Keduanya wajib membalas
@@ -138,7 +125,7 @@ class PaymentWebhookController extends Controller
             return $this->responsSudahDiproses($eventId);
         }
 
-        // 5. Tangani uji coba simulasi dummy dari dashboard gateway secara langsung
+        // 4. Tangani uji coba simulasi dummy dari dashboard gateway secara langsung
         if ($callbackData->isTest) {
             $webhookLog->update([
                 'status_proses' => StatusWebhookLog::Diproses,
@@ -158,7 +145,7 @@ class PaymentWebhookController extends Controller
             ], 200);
         }
 
-        // 6. Dispatch Asynchronous Queue Job untuk pemrosesan di latar belakang
+        // 5. Dispatch Asynchronous Queue Job untuk pemrosesan di latar belakang
         ProcessPaymentWebhookJob::dispatch($webhookLog->id);
 
         Log::info("Webhook {$gateway} diterima dan dimasukkan ke antrean pemrosesan.", [
@@ -167,12 +154,30 @@ class PaymentWebhookController extends Controller
             'external_id' => $callbackData->externalId,
         ]);
 
-        // 7. Respon HTTP 200 instan memenuhi SLA Webhook Gateway (< 100ms)
+        // 6. Respon HTTP 200 instan memenuhi SLA Webhook Gateway (< 100ms)
         return response()->json([
             'message' => 'Webhook received and queued for processing',
             'event_id' => $callbackData->eventId,
             'status' => 'QUEUED',
         ], 200);
+    }
+
+    private function cariTransaksi(PaymentCallbackData $callbackData): ?TransaksiPaymentGateway
+    {
+        if (! empty($callbackData->externalId)) {
+            $transaksi = TransaksiPaymentGateway::where('external_id', $callbackData->externalId)->first();
+            if ($transaksi) {
+                return $transaksi;
+            }
+        }
+
+        if (empty($callbackData->eventId)) {
+            return null;
+        }
+
+        return TransaksiPaymentGateway::where('provider_reference_id', $callbackData->eventId)
+            ->orWhere('xendit_reference_id', $callbackData->eventId)
+            ->first();
     }
 
     /**

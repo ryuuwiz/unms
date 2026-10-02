@@ -429,6 +429,9 @@ $registerRutePortalPelanggan = function () {
     // untuk redirect langsung ke Link Pembayaran Gateway (tanpa halaman estimasi biaya
     // terpisah -- lihat CONTEXT.md "Halaman Tagihan Mandiri").
     Route::get('/tagihan/{invoice}', Show::class)->name('invoice.show');
+    // Tautan Tagihan: alamat pendek tanpa login dan tanpa masa berlaku yang dikirim di
+    // notifikasi WhatsApp (ADR-0067). Tokennya sendiri adalah kunci akses ke satu invoice.
+    Route::get('/t/{invoice:token_tautan}', Show::class)->middleware('throttle:60,1')->name('tagihan.tautan');
     // Rute lama dipertahankan sebagai redirect (bukan dihapus) untuk tautan /bayar yang
     // mungkin sudah ter-cache di notifikasi lama/riwayat browser.
     Route::get('/tagihan/{invoice}/bayar', fn (App\Models\Invoice $invoice) => redirect()->route('portal.invoice.show', $invoice))->name('invoice.bayar');

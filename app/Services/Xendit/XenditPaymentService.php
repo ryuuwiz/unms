@@ -144,13 +144,6 @@ class XenditPaymentService
      */
     public function simulasikanWebhookLokal(TransaksiPaymentGateway|Invoice $target): array
     {
-        $setting = PengaturanGateway::getXenditSetting();
-        $token = (string) ($setting->getCredential('callback_token') ?: config('services.xendit.callback_token'));
-
-        if (empty($token)) {
-            $token = 'test_webhook_token';
-        }
-
         if ($target instanceof Invoice) {
             $invoice = $target;
             $transaksi = $invoice->transaksiPaymentGatewayAktif();
@@ -158,6 +151,9 @@ class XenditPaymentService
             $transaksi = $target;
             $invoice = $transaksi->invoice;
         }
+
+        // Token koneksi yang sama dengan yang akan dipakai webhook untuk memverifikasi (ADR-0067).
+        $token = (string) $this->manager->settingUntukTransaksi($transaksi, 'xendit')->getCredential('callback_token', '');
 
         // Invoice bisa sudah di-soft-delete/dibatalkan sementara transaksi gateway-nya masih ada.
         if ($invoice === null) {

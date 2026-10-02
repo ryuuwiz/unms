@@ -1,5 +1,7 @@
 # Panduan Webhook Xendit (Payment Gateway)
 
+> ⚠️ **Diperbarui oleh ADR-0067:** rute alias `/webhook/xendit*`, middleware `xendit.token`, dan `XenditWebhookVerifier` sudah dihapus. Satu-satunya URL callback adalah `POST /webhook/payment/xendit`, dan URL ini wajib dipasang di dashboard Xendit untuk mode Live maupun Test. Token diverifikasi dengan Koneksi Payment Gateway yang menerbitkan transaksi, atau koneksi aktif dan default bila transaksinya tidak dikenal. Bagian di bawah yang menyebut rute alias sudah tidak berlaku.
+
 Panduan operasional untuk memahami, menguji, dan men-debug webhook payment gateway (Xendit &
 iPaymu) di aplikasi ini. Dokumen ini menjelaskan implementasi **nyata** di kodebase — untuk
 keputusan arsitektur & alasan desainnya, lihat ADR terkait di §9.

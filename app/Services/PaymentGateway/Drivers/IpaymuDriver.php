@@ -97,7 +97,9 @@ class IpaymuDriver extends AbstractPaymentDriver
             : 'noreply@gobilling.id';
 
         $namaPaket = $invoice->layananPelanggan?->paketLayanan->nama_paket ?? 'Langganan Internet';
-        $redirectUrl = route('portal.invoice.show', $invoice->id);
+        // Tautan Tagihan, bukan /tagihan/{id}: pelanggan yang membayar tanpa login harus bisa
+        // kembali ke halaman tagihannya setelah membayar (ADR-0067).
+        $redirectUrl = $invoice->tautanTagihan();
         $notifyUrl = url('/webhook/payment/ipaymu');
 
         $body = [

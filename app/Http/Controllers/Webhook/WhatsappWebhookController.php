@@ -24,13 +24,10 @@ class WhatsappWebhookController extends Controller
     ) {}
 
     /**
-     * Unified entrypoint for all WhatsApp gateway webhook callbacks (GOWA/WAHA).
-     *
-     * Processing is queued (ProcessWhatsappWebhookJob), not synchronous: this route has no
-     * per-connection auth guaranteed (see resolveGowaSysblas()/verifyGowaSignature()), so
-     * running ticket/DB writes and outbound-send triggers inline on every request made this
-     * endpoint a trivial DoS vector against the shared PHP-FPM pool. Rate limiting (routes/web.php)
-     * and the body-size guard above are the other two legs of that fix.
+     * Entrypoint webhook WhatsApp. Hanya menerima event dari koneksi GOWA terdaftar yang
+     * memiliki secret dan mengirim signature HMAC valid -- payload WAHA, format flat legacy,
+     * dan koneksi tanpa secret ditolak 401 (ADR-0067). Pemrosesan tetap diantrekan
+     * (ProcessWhatsappWebhookJob) agar request HTTP publik tidak menjalankan tulis DB inline.
      */
     public function handle(Request $request): JsonResponse
     {
@@ -63,26 +60,28 @@ class WhatsappWebhookController extends Controller
         }
 
         $gowaSysblas = $this->webhookService->resolveGowaSysblas($payload);
-        if ($gowaSysblas && ! $this->webhookService->verifyGowaSignature($request, $gowaSysblas)) {
+        if (! $gowaSysblas || ! $this->webhookService->verifyGowaSignature($request, $gowaSysblas)) {
+            $alasan = $gowaSysblas ? 'Signature webhook tidak valid.' : 'Webhook bukan dari koneksi GOWA terdaftar.';
+
             $log->update([
                 'status_proses' => StatusWebhookLog::Gagal,
-                'catatan_error' => 'Signature webhook tidak valid.',
+                'catatan_error' => $alasan,
             ]);
 
             // Tidak ada exception object untuk sekadar signature yang tidak cocok -- captureMessage,
             // bukan captureException. Jangan pernah sertakan nilai signature/secret di context.
             \Sentry\configureScope(function (Scope $scope) use ($gowaSysblas): void {
                 $scope->setContext('whatsapp_webhook_rejected', [
-                    'sysblas_id' => $gowaSysblas->id,
-                    'session_name' => $gowaSysblas->session_name,
+                    'sysblas_id' => $gowaSysblas?->id,
+                    'session_name' => $gowaSysblas?->session_name,
                 ]);
             });
-            \Sentry\captureMessage('WhatsApp webhook signature tidak valid.', Severity::warning());
+            \Sentry\captureMessage('WhatsApp webhook ditolak: '.$alasan, Severity::warning());
 
             return response()->json([
                 'status' => false,
                 'type' => 'unauthorized',
-                'message' => 'Signature webhook tidak valid.',
+                'message' => $alasan,
             ], 401);
         }
 

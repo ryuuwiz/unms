@@ -56,4 +56,12 @@ class InvoicePolicy
     {
         return $user->hasRole('super_admin');
     }
+
+    /**
+     * Lihat dan ganti Tautan Tagihan -- mengganti mencabut tautan yang sudah beredar (ADR-0067).
+     */
+    public function gantiTautan(User $user, Invoice $invoice): bool
+    {
+        return $user->can('invoice.buat');
+    }
 }

@@ -16,12 +16,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property int $id
  * @property string $no_invoice
+ * @property string|null $token_tautan Token Tautan Tagihan, dibuat saat pertama dibutuhkan
  * @property int $pelanggan_id
  * @property int $layanan_pelanggan_id
  * @property float $jumlah
@@ -227,6 +229,31 @@ class Invoice extends Model
     public function transaksiPaymentGateways(): HasMany
     {
         return $this->hasMany(TransaksiPaymentGateway::class, 'invoice_id');
+    }
+
+    /**
+     * Tautan Tagihan: alamat pendek tanpa login dan tanpa masa berlaku menuju Halaman Tagihan
+     * Mandiri invoice ini (ADR-0067). Token dibuat saat pertama kali dibutuhkan.
+     */
+    public function tautanTagihan(): string
+    {
+        if (empty($this->token_tautan)) {
+            $this->gantiTokenTautan();
+        }
+
+        return route('portal.tagihan.tautan', ['invoice' => $this->token_tautan]);
+    }
+
+    /**
+     * Ganti token Tautan Tagihan; tautan lama langsung tidak berlaku.
+     */
+    public function gantiTokenTautan(): void
+    {
+        do {
+            $token = Str::random(16);
+        } while (static::withTrashed()->where('token_tautan', $token)->exists());
+
+        $this->forceFill(['token_tautan' => $token])->save();
     }
 
     /**

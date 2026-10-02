@@ -104,6 +104,16 @@ class PaymentGatewayManager
     }
 
     /**
+     * Koneksi yang kredensialnya dipakai untuk callback dan cek status sebuah transaksi:
+     * koneksi penerbitnya, atau koneksi aktif & default bila transaksi tidak dikenal atau
+     * dibuat sebelum koneksi penerbit dicatat (ADR-0067).
+     */
+    public function settingUntukTransaksi(?TransaksiPaymentGateway $transaksi, ?string $provider = null): PengaturanGateway
+    {
+        return $transaksi->pengaturanGateway ?? $this->getSetting($provider ?: $transaksi?->gateway);
+    }
+
+    /**
      * Terbitkan link pembayaran gateway resmi untuk invoice.
      *
      * Urutan sengaja: reservasi baris TransaksiPaymentGateway lokal DULU (dengan
@@ -148,6 +158,7 @@ class PaymentGatewayManager
         $transaksi = TransaksiPaymentGateway::create([
             'invoice_id' => $invoice->id,
             'gateway' => $driver->getProviderName(),
+            'pengaturan_gateway_id' => $setting->id,
             'external_id' => $externalId,
             'channel' => GatewayChannel::Invoice,
             'total_tagihan' => $totalTagihanEstimasi,
@@ -231,20 +242,72 @@ class PaymentGatewayManager
     }
 
     /**
-     * Sinkronisasikan status invoice langsung ke API gateway.
+     * Sinkronisasikan status invoice langsung ke API gateway melalui transaksi terakhirnya.
      *
      * @return array<string, mixed>
      */
     public function sinkronkanStatus(Invoice $invoice): array
     {
-        $provider = $invoice->payment_gateway_provider ?: 'xendit';
-        $setting = $this->getSetting($provider);
-        $driver = $this->driver($provider);
+        $transaksi = $invoice->transaksiPaymentGatewayAktif();
 
-        $statusData = $driver->checkStatus($invoice, $setting);
+        if ($transaksi) {
+            return $this->sinkronkanTransaksi($transaksi);
+        }
+
+        $provider = $invoice->payment_gateway_provider ?: 'xendit';
+        $statusData = $this->driver($provider)->checkStatus($invoice, $this->getSetting($provider));
+
+        return $this->terapkanStatusGateway($invoice, null, $provider, $statusData);
+    }
+
+    /**
+     * Sinkronisasikan satu transaksi ke gateway memakai kredensial koneksi penerbitnya.
+     * Dipakai juga untuk transaksi lama (bukan transaksi terakhir invoice), misalnya oleh
+     * pengecekan kedaluwarsa dan perintah pemulihan pembayaran.
+     *
+     * @return array<string, mixed>
+     */
+    public function sinkronkanTransaksi(TransaksiPaymentGateway $transaksi): array
+    {
+        $invoice = $transaksi->invoice;
+        $statusData = $this->cekStatusTransaksi($transaksi);
+
+        if (! $invoice) {
+            return $statusData;
+        }
+
+        return $this->terapkanStatusGateway($invoice, $transaksi, $this->providerTransaksi($transaksi), $statusData);
+    }
+
+    /**
+     * Tanyakan status transaksi ke gateway tanpa mengubah data lokal.
+     *
+     * @return array<string, mixed>
+     */
+    public function cekStatusTransaksi(TransaksiPaymentGateway $transaksi): array
+    {
+        $provider = $this->providerTransaksi($transaksi);
+
+        return $this->driver($provider)->checkStatus($transaksi, $this->settingUntukTransaksi($transaksi, $provider));
+    }
+
+    protected function providerTransaksi(TransaksiPaymentGateway $transaksi): string
+    {
+        return $transaksi->gateway ?: ($transaksi->invoice?->payment_gateway_provider ?: 'xendit');
+    }
+
+    /**
+     * @param  array<string, mixed>  $statusData
+     * @return array<string, mixed>
+     */
+    protected function terapkanStatusGateway(
+        Invoice $invoice,
+        ?TransaksiPaymentGateway $transaksi,
+        string $provider,
+        array $statusData
+    ): array {
         $statusStr = strtoupper((string) ($statusData['status'] ?? ''));
 
-        $transaksi = $invoice->transaksiPaymentGatewayAktif();
         if ($this->isMissingRemoteInvoice($statusData)) {
             if (($statusData['error_code'] ?? null) === 'ambiguous_external_id') {
                 return $statusData;
@@ -255,11 +318,23 @@ class PaymentGatewayManager
             return $statusData;
         }
 
-        $this->adoptRecoveredRemoteReference($invoice, $statusData);
+        if ($this->transaksiTerakhir($invoice, $transaksi)) {
+            $this->adoptRecoveredRemoteReference($invoice, $statusData);
+        }
+
         $this->recordStatusSync($provider, $statusStr, $statusData, $transaksi);
         $this->applySyncedStatus($invoice, $statusStr, $statusData, $transaksi, $provider);
 
         return $statusData;
+    }
+
+    /**
+     * Hanya transaksi terakhir yang boleh mengubah tautan pembayaran milik invoice; transaksi
+     * lama yang kedaluwarsa tidak boleh menghapus tautan baru yang masih aktif.
+     */
+    protected function transaksiTerakhir(Invoice $invoice, ?TransaksiPaymentGateway $transaksi): bool
+    {
+        return $transaksi === null || $invoice->transaksiPaymentGatewayAktif()?->is($transaksi) === true;
     }
 
     /**
@@ -336,11 +411,17 @@ class PaymentGatewayManager
 
     protected function invalidateExpiredInvoice(Invoice $invoice, ?TransaksiPaymentGateway $transaksi): void
     {
-        DB::transaction(function () use ($invoice, $transaksi): void {
+        $transaksiTerakhir = $this->transaksiTerakhir($invoice, $transaksi);
+
+        DB::transaction(function () use ($invoice, $transaksi, $transaksiTerakhir): void {
             /** @var Invoice $lockedInvoice */
             $lockedInvoice = Invoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
 
-            if ($lockedInvoice->isLunas()) {
+            if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
+                $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
+            }
+
+            if ($lockedInvoice->isLunas() || ! $transaksiTerakhir) {
                 return;
             }
 
@@ -350,10 +431,6 @@ class PaymentGatewayManager
                 'xendit_invoice_url' => null,
                 'xendit_status' => 'EXPIRED',
             ]);
-
-            if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
-                $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
-            }
         });
     }
 
@@ -392,14 +469,20 @@ class PaymentGatewayManager
 
     protected function invalidateMissingRemoteInvoice(Invoice $invoice, ?TransaksiPaymentGateway $transaksi): void
     {
-        DB::transaction(function () use ($invoice, $transaksi): void {
+        $transaksiTerakhir = $this->transaksiTerakhir($invoice, $transaksi);
+
+        DB::transaction(function () use ($invoice, $transaksi, $transaksiTerakhir): void {
             /** @var Invoice $lockedInvoice */
             $lockedInvoice = Invoice::query()
                 ->whereKey($invoice->id)
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($lockedInvoice->isLunas()) {
+            if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
+                $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
+            }
+
+            if ($lockedInvoice->isLunas() || ! $transaksiTerakhir) {
                 return;
             }
 
@@ -411,10 +494,6 @@ class PaymentGatewayManager
                 'xendit_invoice_id' => null,
                 'xendit_status' => 'EXPIRED',
             ]);
-
-            if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
-                $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
-            }
         });
     }
 
@@ -452,6 +531,17 @@ class PaymentGatewayManager
 
         if (! $transaksi) {
             $transaksi = $invoice->transaksiPaymentGatewayAktif();
+        }
+
+        if ($this->dariKoneksiSandbox($transaksi)) {
+            $catatan = "Pembayaran sandbox untuk Invoice {$invoice->no_invoice} diabaikan: transaksi koneksi sandbox tidak melunasi invoice.";
+            $webhookLog?->update([
+                'status_proses' => StatusWebhookLog::Diabaikan,
+                'catatan_error' => $catatan,
+            ]);
+            Log::warning($catatan, ['transaksi_id' => $transaksi?->id]);
+
+            return false;
         }
 
         DB::transaction(function () use ($invoice, $transaksi, $webhookLog, $rawPayload, $amount, $paidAtStr, $channel, $channelDetail, $paymentRef, $provider, &$eventToDispatch) {
@@ -541,6 +631,16 @@ class PaymentGatewayManager
         }
 
         return true;
+    }
+
+    /**
+     * Uang mode test bukan uang sungguhan: di production, transaksi yang diterbitkan koneksi
+     * sandbox tidak pernah melunasi invoice (ADR-0067). Di luar production (lokal, staging),
+     * sandbox tetap boleh melunasi agar alur pembayaran dapat diuji ujung ke ujung.
+     */
+    protected function dariKoneksiSandbox(?TransaksiPaymentGateway $transaksi): bool
+    {
+        return app()->isProduction() && $transaksi?->pengaturanGateway?->sandbox_mode === true;
     }
 
     /**

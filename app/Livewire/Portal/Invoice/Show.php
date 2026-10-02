@@ -13,6 +13,7 @@ use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Throwable;
 
 #[Layout('layouts.portal')]
 #[Title('Rincian Invoice')]
@@ -28,8 +29,14 @@ class Show extends Component
 
         // Sinkronisasi otomatis dengan payment gateway jika masih menunggu pembayaran
         // (Sangat berguna saat pelanggan kembali di-redirect dari halaman checkout gateway)
+        // Gangguan gateway tidak boleh membuat halaman tagihan gagal tampil: pelanggan tetap
+        // melihat rinciannya dan bisa menekan "Cek Status" / "Bayar Sekarang".
         if ($invoice->isMenungguPembayaran() && (! empty($invoice->payment_gateway_id) || ! empty($invoice->xendit_invoice_id))) {
-            $paymentManager->sinkronkanStatus($invoice);
+            try {
+                $paymentManager->sinkronkanStatus($invoice);
+            } catch (Throwable $e) {
+                report($e);
+            }
             $invoice->refresh();
         }
 

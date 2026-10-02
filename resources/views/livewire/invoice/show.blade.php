@@ -222,6 +222,26 @@
         </div>
     @endif
 
+    <!-- Tautan Tagihan (ADR-0067) -->
+    @can('gantiTautan', $invoice)
+        <flux:card class="p-6 space-y-4">
+            <div>
+                <flux:heading size="lg" class="flex items-center gap-2">
+                    <flux:icon name="link" class="size-5 text-indigo-600 dark:text-indigo-400" />
+                    Tautan Tagihan
+                </flux:heading>
+                <flux:subheading>Tautan tanpa login yang dikirim ke pelanggan via WhatsApp. Siapa pun yang memegang tautan ini dapat melihat dan membayar tagihan ini.</flux:subheading>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2">
+                <flux:input value="{{ $invoice->tautanTagihan() }}" readonly copyable class="flex-1" />
+                <flux:button wire:click="gantiTautanTagihan" wire:confirm="Ganti Tautan Tagihan? Tautan yang sudah dikirim ke pelanggan akan langsung tidak berlaku." variant="subtle" icon="arrow-path">
+                    Ganti Tautan
+                </flux:button>
+            </div>
+        </flux:card>
+    @endcan
+
     <!-- Uji Coba Notifikasi Tagihan (Super Admin) -->
     @can('kirimUjiCoba', $invoice)
         <flux:card class="p-6 space-y-4">

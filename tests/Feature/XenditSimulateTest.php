@@ -11,6 +11,7 @@ use App\Livewire\Pembayaran\TransaksiGateway\Show;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\Pelanggan;
+use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\User;
 use App\Services\Xendit\XenditPaymentService;
@@ -27,9 +28,20 @@ beforeEach(function () {
     $this->superAdmin = User::factory()->create(['status' => UserStatus::Active]);
     $this->superAdmin->assignRole('super_admin');
 
-    config([
-        'services.xendit.secret_key' => 'xnd_development_test_key_12345',
-        'services.xendit.callback_token' => 'test_callback_token_valid_123',
+    config(['services.xendit.secret_key' => 'xnd_development_test_key_12345']);
+
+    // Token callback hanya dibaca dari Koneksi Payment Gateway, bukan config (ADR-0067).
+    PengaturanGateway::create([
+        'provider' => 'xendit',
+        'gateway' => 'xendit',
+        'nama' => 'Xendit Test',
+        'credentials' => [
+            'secret_key' => 'xnd_development_test_key_12345',
+            'callback_token' => 'test_callback_token_valid_123',
+        ],
+        'is_default' => true,
+        'is_active' => true,
+        'sandbox_mode' => true,
     ]);
 
     Queue::fake([
@@ -42,7 +54,7 @@ test('command xendit:ping dapat dijalankan dan memvalidasi konfigurasi', functio
     $this->artisan('xendit:ping')
         ->assertExitCode(0)
         ->expectsOutputToContain('XENDIT GATEWAY DIAGNOSTIC & HEALTHCHECK')
-        ->expectsOutputToContain('Webhook Token Verifier: VALID');
+        ->expectsOutputToContain('Callback token terisi pada Koneksi Payment Gateway.');
 });
 
 test('command xendit:simulate --local berhasil memproses pembayaran dan melunasi invoice', function () {
