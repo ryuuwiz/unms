@@ -137,33 +137,41 @@
                                 </div>
                             @else
                                 <form wire:submit="simpanProgressLapangan" class="space-y-4">
-                                    <flux:field>
-                                        <flux:label>ODP <span class="text-red-500">*</span></flux:label>
-                                        <flux:select wire:model.live="odp_id" placeholder="Pilih ODP...">
-                                            <flux:select.option value="">-- Pilih ODP --</flux:select.option>
-                                            @foreach ($odps as $odp)
-                                                <flux:select.option value="{{ $odp->id }}">{{ $odp->nama_odp }}</flux:select.option>
-                                            @endforeach
-                                        </flux:select>
-                                        <flux:error name="odp_id" />
-                                    </flux:field>
+                                    @if ($bolehMemilihPort)
+                                        <flux:field>
+                                            <flux:label>ODP <span class="text-red-500">*</span></flux:label>
+                                            <flux:select wire:model.live="odp_id" placeholder="Pilih ODP...">
+                                                <flux:select.option value="">-- Pilih ODP --</flux:select.option>
+                                                @foreach ($odps as $odp)
+                                                    <flux:select.option value="{{ $odp->id }}">{{ $odp->nama_odp }}</flux:select.option>
+                                                @endforeach
+                                            </flux:select>
+                                            <flux:error name="odp_id" />
+                                        </flux:field>
 
-                                    <flux:field>
-                                        <flux:label>Port ODP <span class="text-red-500">*</span></flux:label>
-                                        @if ($petaPort)
-                                            <flux:description>Ketuk kotak hijau untuk memilih port. Ketuk kotak lain untuk melihat keterangannya.</flux:description>
-                                            <x-peta-port-odp :peta="$petaPort" interaktif />
-                                        @else
-                                            <flux:description>Pilih ODP terlebih dahulu untuk melihat Peta Port ODP.</flux:description>
-                                        @endif
-                                        <flux:error name="odp_port_id" />
-                                    </flux:field>
+                                        <flux:field>
+                                            <flux:label>Port ODP <span class="text-red-500">*</span></flux:label>
+                                            @if ($petaPort)
+                                                <flux:description>Ketuk kotak hijau untuk memilih port. Ketuk kotak lain untuk melihat keterangannya.</flux:description>
+                                                <x-peta-port-odp :peta="$petaPort" interaktif />
+                                            @else
+                                                <flux:description>Pilih ODP terlebih dahulu untuk melihat Peta Port ODP.</flux:description>
+                                            @endif
+                                            <flux:error name="odp_port_id" />
+                                        </flux:field>
+                                    @else
+                                        <flux:callout icon="lock-closed" variant="secondary">
+                                            <flux:callout.text>
+                                                Port terkunci sejak Aktivasi: {{ $ticket->layananPelanggan?->odpPort?->odp?->nama_odp ?? $ticket->pemasangan?->odpPort?->odp?->nama_odp }} · Port {{ $ticket->layananPelanggan?->odpPort?->nomor_port ?? $ticket->pemasangan?->odpPort?->nomor_port }}. Lihat Peta Port ODP di Ringkasan.
+                                            </flux:callout.text>
+                                        </flux:callout>
+                                    @endif
 
                                     @php
                                         $fieldFoto = [
                                             ['model' => 'fotoSpeedtest', 'koleksi' => 'foto_speedtest', 'label' => 'Foto Speedtest', 'wajib' => true, 'multiple' => true],
                                             ['model' => 'fotoMou', 'koleksi' => 'foto_tanda_tangan_mou', 'label' => 'Foto Tanda Tangan MOU', 'wajib' => true, 'multiple' => false],
-                                            ['model' => 'fotoPemasangan', 'koleksi' => 'foto_pemasangan', 'label' => 'Foto Bukti Pemasangan / Kabel', 'wajib' => false, 'multiple' => true],
+                                            ['model' => 'fotoPemasangan', 'koleksi' => 'foto_pemasangan', 'label' => 'Foto Bukti Pemasangan', 'wajib' => false, 'multiple' => true],
                                             ['model' => 'fotoBersama', 'koleksi' => 'foto_bersama_pelanggan_teknisi', 'label' => 'Foto Bersama Pelanggan & Teknisi', 'wajib' => false, 'multiple' => true],
                                         ];
                                     @endphp

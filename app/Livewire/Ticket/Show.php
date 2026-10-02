@@ -423,8 +423,8 @@ class Show extends Component
         $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
         $this->resetErrorBag('odp_port_id');
 
-        if (! $this->formPortTeknisiTersedia()) {
-            $this->addError('odp_port_id', 'Port hanya bisa dipilih Teknisi pada Ticket Pemasangan.');
+        if (! $this->bolehMemilihPort()) {
+            $this->addError('odp_port_id', 'Port hanya bisa dipilih pada Ticket Pemasangan terbuka yang belum diaktivasi.');
 
             return;
         }
@@ -441,27 +441,36 @@ class Show extends Component
     }
 
     /**
-     * Form ODP+Port Teknisi hanya ada di Ticket Pemasangan yang mengacu ke layanan, setelah
-     * Usulan ODP divalidasi -- lihat CONTEXT.md "Usulan ODP".
+     * Port ODP terkunci di luar Ticket Pemasangan terbuka yang mengacu ke layanan, dan sejak Aktivasi
+     * (port sudah terikat ke layanan) -- lihat CONTEXT.md "Peta Port ODP".
      */
-    public function formPortTeknisiTersedia(): bool
+    protected function portTerkunci(): bool
     {
-        return $this->ticket->jenis === JenisTicket::Pemasangan
-            && $this->ticket->layanan_pelanggan_id !== null
+        return $this->ticket->jenis !== JenisTicket::Pemasangan
+            || $this->ticket->layanan_pelanggan_id === null
+            || $this->ticket->status->isTerminal()
+            || (bool) $this->ticket->pemasangan?->sudahDiaktivasi();
+    }
+
+    /**
+     * Teknisi bisa memilih port bila port belum terkunci dan Usulan ODP sudah divalidasi
+     * -- lihat CONTEXT.md "Usulan ODP".
+     */
+    protected function bolehMemilihPort(): bool
+    {
+        return ! $this->portTerkunci()
             && $this->ticket->pemasangan?->status_usulan_odp !== StatusUsulanOdp::Menunggu;
     }
 
     /**
-     * Peta Port ODP baca-saja untuk port layanan tiket, kecuali saat Teknisi sedang memakai
-     * peta interaktif di form ODP+Port (agar peta tidak tampil dua kali).
+     * Peta Port ODP baca-saja untuk port layanan tiket. Port layanan baru terisi saat Aktivasi,
+     * dan sejak itu peta interaktif Teknisi tidak tampil lagi, jadi peta tidak pernah dobel.
      */
     protected function petaPortLayanan(): ?PetaPortOdp
     {
         $port = $this->ticket->layananPelanggan?->odpPort;
-        $formInteraktifTampil = $this->formPortTeknisiTersedia()
-            && Auth::user()?->can('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
 
-        return $port && ! $formInteraktifTampil ? PetaPortOdp::untuk($port->odp, portTerpilihId: $port->id) : null;
+        return $port ? PetaPortOdp::untuk($port->odp, portTerpilihId: $port->id) : null;
     }
 
     protected function petaPort(): ?PetaPortOdp
@@ -476,6 +485,12 @@ class Show extends Component
      */
     protected function simpanOdpPortTeknisi(): bool
     {
+        if ($this->portTerkunci()) {
+            $this->addError('odp_port_id', 'Port hanya bisa dipilih pada Ticket Pemasangan terbuka yang belum diaktivasi.');
+
+            return false;
+        }
+
         $this->validate([
             'odp_id' => ['required', 'integer', 'exists:odp,id'],
             'odp_port_id' => ['required', 'integer', Rule::exists('odp_port', 'id')->where('odp_id', $this->odp_id)],
@@ -603,7 +618,7 @@ class Show extends Component
     {
         $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
 
-        if (! $this->simpanOdpPortTeknisi()) {
+        if (! $this->portTerkunci() && ! $this->simpanOdpPortTeknisi()) {
             return;
         }
 
@@ -1093,7 +1108,8 @@ class Show extends Component
             'staffList' => $staffList,
             'transisiValid' => $transisiValid,
             'odps' => $odps,
-            'petaPort' => $this->petaPort(),
+            'bolehMemilihPort' => $this->bolehMemilihPort(),
+            'petaPort' => $this->bolehMemilihPort() ? $this->petaPort() : null,
             'petaPortLayanan' => $this->petaPortLayanan(),
             'galeri' => GaleriFotoTiket::untuk($this->ticket),
             'tugas' => TugasTiket::untuk($this->ticket, Auth::user()),

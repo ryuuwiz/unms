@@ -217,7 +217,7 @@ class Ticket extends Model implements HasMedia
 
     /**
      * Port ODP yang dicetak Label Port-nya dari tiket ini: port layanan yang sudah terikat, atau
-     * port yang baru Dipesan Ticket Pemasangan sebelum Aktivasi. Pencabutan tidak punya label
+     * port yang masih Dipesan Ticket Pemasangan terbuka sebelum Aktivasi. Pencabutan tidak punya label
      * karena port-nya akan dilepas -- lihat CONTEXT.md "Label Port".
      */
     public function portUntukLabel(): ?OdpPort
@@ -226,7 +226,8 @@ class Ticket extends Model implements HasMedia
             return null;
         }
 
-        return $this->layananPelanggan->odpPort ?? $this->pemasangan?->odpPort;
+        // Port yang hanya Dipesan berhenti dipesan begitu tiket Selesai/Batal.
+        return $this->layananPelanggan->odpPort ?? ($this->status->isTerminal() ? null : $this->pemasangan?->odpPort);
     }
 
     /**

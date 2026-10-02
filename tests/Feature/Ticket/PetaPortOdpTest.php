@@ -3,6 +3,7 @@
 use App\Enums\StatusLayanan;
 use App\Enums\StatusOdpPort;
 use App\Enums\Ticket\JenisTicket;
+use App\Enums\Ticket\StatusTicket;
 use App\Enums\UserStatus;
 use App\Livewire\Ticket\Create as TicketCreate;
 use App\Livewire\Ticket\Show;
@@ -16,6 +17,7 @@ use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
@@ -163,4 +165,45 @@ test('tiket yang layanannya tanpa port tidak menampilkan Peta Port ODP', functio
     Livewire::actingAs($this->teknisi)
         ->test(Show::class, ['ticket' => $tiket])
         ->assertDontSee('Port layanan ini');
+});
+
+test('port tidak bisa diganti setelah Aktivasi, tetapi Teknisi tetap bisa menyimpan foto', function () {
+    TicketPemasangan::updateOrCreate(['ticket_id' => $this->ticket->id], ['odp_port_id' => $this->portKosong->id, 'diaktivasi_pada' => now()]);
+    $portLain = OdpPort::factory()->create(['odp_id' => $this->odp->id, 'nomor_port' => 5]);
+
+    Livewire::actingAs($this->teknisi)
+        ->test(Show::class, ['ticket' => $this->ticket->fresh()])
+        ->call('pilihPort', $portLain->id)
+        ->assertHasErrors('odp_port_id')
+        ->set('odp_port_id', $portLain->id)
+        ->set('fotoSpeedtest', [UploadedFile::fake()->image('speed.jpg')])
+        ->call('simpanProgressLapangan');
+
+    $tiket = $this->ticket->fresh();
+    expect($tiket->pemasangan->odp_port_id)->toBe($this->portKosong->id)
+        ->and($tiket->getMedia('foto_speedtest'))->toHaveCount(1);
+});
+
+test('port tidak bisa dipilih pada Ticket Pemasangan yang sudah Batal', function () {
+    $this->ticket->update(['status' => StatusTicket::Batal]);
+
+    Livewire::actingAs($this->admin)
+        ->test(Show::class, ['ticket' => $this->ticket->fresh()])
+        ->set('odp_id', $this->odp->id)
+        ->call('pilihPort', $this->portKosong->id)
+        ->assertHasErrors('odp_port_id');
+});
+
+test('Peta Port ODP baca-saja tetap tampil di Pemasangan teraktivasi setelah Teknisi selesai', function () {
+    $layanan = $this->ticket->layananPelanggan;
+    $this->portKosong->update(['status' => StatusOdpPort::Terpakai, 'layanan_pelanggan_id' => $layanan->id]);
+    $layanan->update(['odp_port_id' => $this->portKosong->id]);
+    TicketPemasangan::updateOrCreate(['ticket_id' => $this->ticket->id], ['odp_port_id' => $this->portKosong->id, 'diaktivasi_pada' => now()]);
+    DB::table('ticket_divisi')->where('ticket_id', $this->ticket->id)->where('divisi', 'teknisi')->update(['status' => 'selesai']);
+
+    foreach ([$this->admin, $this->teknisi] as $user) {
+        Livewire::actingAs($user)
+            ->test(Show::class, ['ticket' => $this->ticket->fresh()])
+            ->assertSee('Port layanan ini');
+    }
 });

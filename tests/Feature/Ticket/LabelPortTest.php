@@ -3,6 +3,7 @@
 use App\Enums\StatusLayanan;
 use App\Enums\StatusOdpPort;
 use App\Enums\Ticket\JenisTicket;
+use App\Enums\Ticket\StatusTicket;
 use App\Enums\UserStatus;
 use App\Livewire\Ticket\Show;
 use App\Models\LayananPelanggan;
@@ -107,4 +108,14 @@ test('tombol Cetak Label Port hanya tampil di tiket yang punya port dan bukan Pe
     Livewire::actingAs($this->admin)
         ->test(Show::class, ['ticket' => tiketLabel($this->layanan, $this->teknisi, JenisTicket::Pencabutan)])
         ->assertDontSee('Cetak Label Port');
+});
+
+test('Label Port tidak tersedia dari Ticket Pemasangan Batal yang port-nya hanya pernah Dipesan', function () {
+    $layananBaru = LayananPelanggan::factory()->create(['pelanggan_id' => $this->pelanggan->id, 'status' => StatusLayanan::Proses, 'odp_port_id' => null]);
+    $port = OdpPort::factory()->create(['odp_id' => $this->odp->id, 'nomor_port' => 7]);
+    $tiket = tiketLabel($layananBaru, $this->teknisi, JenisTicket::Pemasangan);
+    TicketPemasangan::updateOrCreate(['ticket_id' => $tiket->id], ['odp_port_id' => $port->id]);
+    $tiket->update(['status' => StatusTicket::Batal]);
+
+    $this->actingAs($this->admin)->get(route('ticket.label-port', $tiket))->assertNotFound();
 });
