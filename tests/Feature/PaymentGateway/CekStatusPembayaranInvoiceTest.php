@@ -150,7 +150,7 @@ test('tombol Rekonsiliasi di detail Transaksi Gateway melunasi invoice yang diba
 
     Livewire::actingAs($this->staf)
         ->test(TransaksiGatewayShow::class, ['transaksi' => $transaksiTerbaru])
-        ->call('rekonsiliasiStatus')
+        ->call('cekStatusPembayaranXendit')
         ->assertSee('Hasil cek status pembayaran Xendit: Lunas');
 
     expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas);
@@ -161,7 +161,7 @@ test('tombol Cek Status Pembayaran di Portal melunasi invoice yang dibayar lewat
 
     Livewire::actingAs($this->pelanggan->akunPelanggan, 'pelanggan')
         ->test(PortalInvoiceShow::class, ['invoice' => $invoice])
-        ->call('sinkronkanStatus')
+        ->call('cekStatusPembayaran')
         ->assertDispatched('toast-show', fn (string $event, array $params) => $params['slots']['text'] === 'Pembayaran berhasil terkonfirmasi! Tagihan telah lunas.');
 
     expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas);
@@ -202,7 +202,7 @@ test('pembayaran yang dilaporkan tersimpan sebagai kasus: staf melihat alasannya
 
     Livewire::actingAs($this->pelanggan->akunPelanggan, 'pelanggan')
         ->test(PortalInvoiceShow::class, ['invoice' => $invoice])
-        ->call('sinkronkanStatus')
+        ->call('cekStatusPembayaran')
         ->assertDispatched('toast-show', fn (string $event, array $params) => $params['slots']['text'] === 'Pembayaran Anda sedang kami periksa. Tim kami akan menghubungi Anda.')
         ->assertDontSee('Nominal tidak sama');
 
@@ -220,7 +220,8 @@ test('invoice yang belum dibayar di semua link tampil belum dibayar', function (
         ->call('cekStatusPembayaranXendit')
         ->assertSee('Hasil cek status pembayaran Xendit: Belum dibayar');
 
-    expect($invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran);
+    expect($invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran)
+        ->and($this->dicek)->toBe(['inv_b', 'inv_a']);
 });
 
 test('tombol cek status di detail Invoice hanya untuk pengguna dengan izin pembayaran.lihat', function () {
@@ -237,4 +238,43 @@ test('tombol cek status di detail Invoice hanya untuk pengguna dengan izin pemba
     Livewire::actingAs($this->staf)
         ->test(InvoiceShow::class, ['invoice' => $invoice])
         ->assertSee('Cek Status Pembayaran Xendit');
+});
+
+test('tombol Rekonsiliasi di detail Transaksi Gateway mengikuti aturan Digabung dan menampilkan alasan kasus', function () {
+    $oktober = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-10', 'jumlah_setelah_promo' => 300000, 'jumlah_tunggakan' => 150000]);
+    $september = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-09', 'status' => StatusInvoice::Digabung, 'digabung_ke_invoice_id' => $oktober->id]);
+    $trxSeptember = transaksiCekStatus($september, $this->koneksi, 'inv_sep');
+    $this->statusXendit['inv_sep'] = lunasDiXendit($trxSeptember);
+
+    Livewire::actingAs($this->staf)
+        ->test(TransaksiGatewayShow::class, ['transaksi' => $trxSeptember])
+        ->call('cekStatusPembayaranXendit')
+        ->assertSee('Hasil cek status pembayaran Xendit: Lunas');
+
+    expect($september->fresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and((float) $oktober->fresh()->jumlah_setelah_promo)->toBe(150000.0);
+
+    $kurang = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-08']);
+    $trxKurang = transaksiCekStatus($kurang, $this->koneksi, 'inv_kurang');
+    $this->statusXendit['inv_kurang'] = lunasDiXendit($trxKurang, 99000);
+
+    Livewire::actingAs($this->staf)
+        ->test(TransaksiGatewayShow::class, ['transaksi' => $trxKurang])
+        ->call('cekStatusPembayaranXendit')
+        ->assertSee('Dilaporkan untuk tindakan manual')
+        ->assertSee('Nominal tidak sama');
+});
+
+test('tombol Cek Status Pembayaran di Portal dibatasi agar tidak membanjiri Xendit', function () {
+    $invoice = invoiceCekStatus($this->layanan);
+    transaksiCekStatus($invoice, $this->koneksi, 'inv_a');
+    $portal = Livewire::actingAs($this->pelanggan->akunPelanggan, 'pelanggan')->test(PortalInvoiceShow::class, ['invoice' => $invoice]);
+
+    foreach (range(1, 5) as $ignored) {
+        $portal->call('cekStatusPembayaran');
+    }
+    $portal->call('cekStatusPembayaran')
+        ->assertDispatched('toast-show', fn (string $event, array $params) => str_contains($params['slots']['text'], 'Terlalu sering'));
+
+    expect($this->dicek)->toHaveCount(5);
 });

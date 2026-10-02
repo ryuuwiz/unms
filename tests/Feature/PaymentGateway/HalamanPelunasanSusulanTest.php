@@ -3,6 +3,7 @@
 use App\Enums\GatewayChannel;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
+use App\Enums\StatusPemindaian;
 use App\Enums\StatusTransaksiGateway;
 use App\Enums\UserStatus;
 use App\Events\InvoicePaidEvent;
@@ -23,6 +24,7 @@ use App\Services\PaymentGateway\PemindaianPelunasanSusulan;
 use Carbon\CarbonInterface;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Queue\MaxAttemptsExceededException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
@@ -200,13 +202,16 @@ test('job lunasi melunasi, menyimpan kasus, dan mengabari Admin seperti command'
     $trxKurang->save();
     $this->pembayaranXendit = [pembayaranLunasXendit($this->transaksi), array_merge(pembayaranLunasXendit($trxKurang, 99000), ['id' => 'inv_paid_2'])];
 
-    (new PindaiPelunasanSusulanJob('id-uji', Carbon::parse('2026-01-01', 'Asia/Jakarta')->toIso8601String(), false, 'pemilik'))
-        ->handle(app(PemindaianPelunasanSusulan::class));
+    Queue::fake();
+    app(PemindaianPelunasanSusulan::class)->mulai(Carbon::parse('2026-01-01', 'Asia/Jakarta'), false, $this->superAdmin);
+    Queue::pushed(PindaiPelunasanSusulanJob::class)->first()->handle(app(PemindaianPelunasanSusulan::class));
 
     expect($this->invoice->fresh()->status)->toBe(StatusInvoice::Lunas)
         ->and(KasusPelunasanSusulan::count())->toBe(1)
         ->and($this->sejakDiminta->equalTo(Carbon::parse('2025-12-31 17:00:00', 'UTC')))->toBeTrue();
     Notification::assertSentTo($this->admin, PelunasanSusulanNotification::class);
+    expect(app(PemindaianPelunasanSusulan::class)->terakhir()['status'])->toBe(StatusPemindaian::Selesai)
+        ->and(Cache::lock(PemindaianPelunasanSusulan::KUNCI, 10)->get())->toBeTrue();
 });
 
 test('job yang gagal mencatat galat dan melepas kunci', function () {
@@ -217,7 +222,7 @@ test('job yang gagal mencatat galat dan melepas kunci', function () {
 
     $job->failed(new RuntimeException('Xendit tidak tersedia'));
 
-    expect($pemindaian->terakhir())->toMatchArray(['id' => $id, 'status' => 'gagal', 'galat' => 'Xendit tidak tersedia'])
+    expect($pemindaian->terakhir())->toMatchArray(['id' => $id, 'status' => StatusPemindaian::Gagal, 'galat' => 'Xendit tidak tersedia'])
         ->and(Cache::lock(PemindaianPelunasanSusulan::KUNCI, 10)->get())->toBeTrue();
 });
 
@@ -266,4 +271,62 @@ test('tanpa izin payment_gateway.ubah, menandai kasus ditolak', function () {
 test('URL notifikasi Pelunasan Susulan mengarah ke halaman Pelunasan Susulan', function () {
     expect((new PelunasanSusulanNotification(1, 2))->toArray($this->admin)['url'])
         ->toBe(route('pembayaran.pelunasan-susulan.index'));
+});
+
+test('job yang diambil ulang karena melewati retry_after tidak melepas kunci pemindaian yang masih berjalan', function () {
+    Queue::fake();
+    app(PemindaianPelunasanSusulan::class)->mulai(Carbon::parse('2026-01-01'), true, $this->superAdmin);
+    $job = Queue::pushed(PindaiPelunasanSusulanJob::class)->first();
+
+    $job->failed(new MaxAttemptsExceededException('attempted too many times'));
+
+    expect(Cache::lock(PemindaianPelunasanSusulan::KUNCI, 10)->get())->toBeFalse()
+        ->and(app(PemindaianPelunasanSusulan::class)->terakhir()['status'])->toBe(StatusPemindaian::Berjalan);
+});
+
+test('job yang kuncinya sudah kedaluwarsa tidak memindai dan ditandai gagal', function () {
+    Queue::fake();
+    $pemindaian = app(PemindaianPelunasanSusulan::class);
+    $pemindaian->mulai(Carbon::parse('2026-01-01'), false, $this->superAdmin);
+    $job = Queue::pushed(PindaiPelunasanSusulanJob::class)->first();
+    Cache::lock(PemindaianPelunasanSusulan::KUNCI)->forceRelease();
+    $this->pembayaranXendit = [pembayaranLunasXendit($this->transaksi)];
+
+    $job->handle($pemindaian);
+
+    expect($pemindaian->terakhir()['status'])->toBe(StatusPemindaian::Gagal)
+        ->and($this->invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran);
+});
+
+test('pemindaian yang tidak diambil worker dapat dibatalkan dan melepas kunci', function () {
+    Queue::fake();
+
+    $halaman = Livewire::actingAs($this->admin)->test(Index::class)->call('pratinjau');
+    $job = Queue::pushed(PindaiPelunasanSusulanJob::class)->first();
+
+    $halaman->call('batalkanPemindaian')
+        ->assertDispatched('toast-show', fn (string $event, array $params) => str_contains($params['slots']['text'], 'tidak dapat dibatalkan'));
+
+    Carbon::setTestNow(now()->addMinutes(3));
+
+    $halaman->call('batalkanPemindaian')
+        ->assertSee('Dibatalkan');
+
+    expect(Cache::lock(PemindaianPelunasanSusulan::KUNCI, 10)->get())->toBeTrue();
+
+    $job->handle(app(PemindaianPelunasanSusulan::class));
+    expect(app(PemindaianPelunasanSusulan::class)->terakhir()['status'])->toBe(StatusPemindaian::Dibatalkan);
+});
+
+test('tanggal hari ini menurut WIB diterima walau di UTC masih kemarin', function () {
+    Queue::fake();
+    Carbon::setTestNow('2026-10-01 20:00:00');
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->set('dari', '2026-10-02')
+        ->call('pratinjau')
+        ->assertHasNoErrors();
+
+    Queue::assertPushed(PindaiPelunasanSusulanJob::class);
 });

@@ -74,6 +74,24 @@ class LaporanPelunasanSusulan
         )->wasRecentlyCreated;
     }
 
+    /**
+     * Tandai kasus Sudah Ditangani (mis. setelah refund di Xendit) dan catat di audit trail.
+     */
+    public function tandaiDitangani(KasusPelunasanSusulan $kasus, User $oleh, ?string $catatan): void
+    {
+        $kasus->update([
+            'ditangani_pada' => now(),
+            'ditangani_oleh' => $oleh->id,
+            'catatan_penanganan' => $catatan ?: null,
+        ]);
+
+        activity(self::LOG)
+            ->performedOn($kasus)
+            ->causedBy($oleh)
+            ->withProperties(['external_id' => $kasus->external_id, 'alasan' => $kasus->alasan, 'catatan' => $kasus->catatan_penanganan])
+            ->log("Kasus Pelunasan Susulan {$kasus->external_id} ditandai Sudah Ditangani");
+    }
+
     private function catatAudit(HasilPelunasanSusulan $item): void
     {
         $log = activity(self::LOG)->withProperties([

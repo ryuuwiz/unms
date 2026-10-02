@@ -21,7 +21,7 @@ class Show extends Component
 {
     public TransaksiPaymentGateway $transaksi;
 
-    /** @var array{judul: string, keterangan: string|null, warna: string}|null */
+    /** @var array{lunas: bool, alasanDilaporkan: string|null, galat: string|null}|null */
     public ?array $hasilCekStatus = null;
 
     public function mount(TransaksiPaymentGateway $transaksi): void
@@ -33,7 +33,7 @@ class Show extends Component
     /**
      * Cek semua transaksi invoice ke gateway (termasuk link lama); PAID diputuskan Pelunasan Susulan.
      */
-    public function rekonsiliasiStatus(CekStatusPembayaranInvoice $cekStatus): void
+    public function cekStatusPembayaranXendit(CekStatusPembayaranInvoice $cekStatus): void
     {
         $this->authorize('viewAny', Pembayaran::class);
 
@@ -45,10 +45,11 @@ class Show extends Component
         }
 
         try {
-            $this->hasilCekStatus = $cekStatus->periksa($invoice)->untukStaf();
+            $this->hasilCekStatus = $cekStatus->periksa($invoice)->toArray();
             $this->transaksi->refresh();
             $this->transaksi->load(['invoice.pelanggan', 'webhookLogs' => fn ($q) => $q->latest('id')]);
         } catch (\Throwable $e) {
+            report($e);
             Flux::toast(variant: 'danger', text: 'Gagal rekonsiliasi: '.$e->getMessage());
         }
     }

@@ -269,8 +269,19 @@ class PaymentGatewayManager
      */
     public function sinkronkanTransaksi(TransaksiPaymentGateway $transaksi): array
     {
+        return $this->terapkanStatusTransaksi($transaksi, $this->cekStatusTransaksi($transaksi));
+    }
+
+    /**
+     * Terapkan status gateway yang sudah ditanyakan lewat `cekStatusTransaksi` tanpa memanggil
+     * gateway lagi.
+     *
+     * @param  array<string, mixed>  $statusData
+     * @return array<string, mixed>
+     */
+    public function terapkanStatusTransaksi(TransaksiPaymentGateway $transaksi, array $statusData): array
+    {
         $invoice = $transaksi->invoice;
-        $statusData = $this->cekStatusTransaksi($transaksi);
 
         if (! $invoice) {
             return $statusData;

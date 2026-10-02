@@ -1,4 +1,4 @@
-<div class="space-y-6" @if(($pemindaian['status'] ?? null) === 'berjalan') wire:poll.3s @endif>
+<div class="space-y-6" @if($sedangBerjalan) wire:poll.3s @endif>
     <div>
         <flux:heading size="xl">Pelunasan Susulan</flux:heading>
         <flux:subheading>Pembayaran yang sudah PAID di Xendit tetapi belum Lunas di sistem. Jadwal harian 02:15 memeriksa 35 hari terakhir; gunakan halaman ini untuk riwayat yang lebih lama.</flux:subheading>
@@ -9,11 +9,11 @@
             <flux:input type="date" wire:model="dari" label="Tanggal awal waktu bayar (WIB)" class="sm:max-w-56" />
 
             <div class="flex flex-wrap gap-2">
-                <flux:button wire:click="pratinjau" icon="eye" wire:loading.attr="disabled" :disabled="($pemindaian['status'] ?? null) === 'berjalan'">
+                <flux:button wire:click="pratinjau" icon="eye" wire:loading.attr="disabled" :disabled="$sedangBerjalan">
                     Pratinjau
                 </flux:button>
-                @can('payment_gateway.ubah')
-                    <flux:button wire:click="lunasiSekarang" variant="primary" icon="check-badge" wire:loading.attr="disabled" :disabled="($pemindaian['status'] ?? null) === 'berjalan'"
+                @can('kelolaPelunasanSusulan', \App\Models\Pembayaran::class)
+                    <flux:button wire:click="lunasiSekarang" variant="primary" icon="check-badge" wire:loading.attr="disabled" :disabled="$sedangBerjalan"
                         wire:confirm="Lunasi sekarang? Sistem akan memindai ulang Xendit dan melunasi invoice yang memenuhi aturan Pelunasan Susulan.">
                         Lunasi sekarang
                     </flux:button>
@@ -34,48 +34,51 @@
                         Oleh {{ $pemindaian['oleh'] }} · dimulai {{ \Illuminate\Support\Carbon::parse($pemindaian['dimulai_pada'])->timezone(config('app.zona_waktu_bisnis'))->translatedFormat('d M Y H:i') }} WIB
                     </flux:text>
                 </div>
-                @if($pemindaian['status'] === 'berjalan')
-                    <flux:badge color="blue" icon="arrow-path">Sedang memeriksa…</flux:badge>
-                @elseif($pemindaian['status'] === 'gagal')
-                    <flux:badge color="red">Gagal</flux:badge>
-                @else
-                    <flux:badge color="green">Selesai</flux:badge>
-                @endif
+                <flux:badge :color="$pemindaian['status']->color()">{{ $pemindaian['status']->label() }}</flux:badge>
             </div>
 
-            @if($pemindaian['status'] === 'gagal')
+            @if($macet)
+                <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50 dark:bg-amber-950/30 text-sm text-amber-800 dark:text-amber-200">
+                    <span>Pemindaian belum diambil worker antrean atau melewati batas waktunya. Pastikan queue worker berjalan, atau batalkan agar pemindaian lain dan jadwal harian tidak tertahan.</span>
+                    <flux:button size="sm" variant="filled" wire:click="batalkanPemindaian" wire:confirm="Batalkan pemindaian ini?">Batalkan</flux:button>
+                </div>
+            @endif
+
+            @if($pemindaian['status'] === \App\Enums\StatusPemindaian::Gagal)
                 <div class="p-4 text-sm text-red-600 dark:text-red-400">{{ $pemindaian['galat'] ?? 'Pemindaian gagal.' }}</div>
-            @elseif($pemindaian['status'] === 'selesai')
+            @elseif($pemindaian['status'] === \App\Enums\StatusPemindaian::Selesai)
                 <div class="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300">{{ $pemindaian['ringkasan'] }}</div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-xs text-left">
                         <thead class="bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-semibold border-y border-zinc-200 dark:border-zinc-700">
                             <tr>
-                                <th class="px-4 py-3">Koneksi</th>
-                                <th class="px-4 py-3">Invoice</th>
-                                <th class="px-4 py-3">Pelanggan</th>
-                                <th class="px-4 py-3 text-right">Nominal</th>
-                                <th class="px-4 py-3">Dibayar</th>
-                                <th class="px-4 py-3">Status Lokal</th>
-                                <th class="px-4 py-3">Aksi</th>
-                                <th class="px-4 py-3">Keterangan</th>
+                                @foreach($kolom as $kunci => $judul)
+                                    <th @class(['px-4 py-3', 'text-right' => $kunci === 'nominal'])>{{ $judul }}</th>
+                                @endforeach
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
                             @forelse($pemindaian['baris'] as $baris)
                                 <tr wire:key="baris-{{ $loop->index }}">
-                                    <td class="px-4 py-3">{{ $baris['koneksi'] }}</td>
-                                    <td class="px-4 py-3 font-mono">{{ $baris['invoice'] }}</td>
-                                    <td class="px-4 py-3">{{ $baris['pelanggan'] }}</td>
-                                    <td class="px-4 py-3 text-right whitespace-nowrap">{{ $baris['nominal'] }}</td>
-                                    <td class="px-4 py-3 whitespace-nowrap">{{ $baris['dibayar'] }}</td>
-                                    <td class="px-4 py-3">{{ $baris['status_lokal'] }}</td>
-                                    <td class="px-4 py-3"><flux:badge size="sm">{{ $baris['aksi'] }}</flux:badge></td>
-                                    <td class="px-4 py-3 min-w-64">{{ $baris['keterangan'] }}</td>
+                                    @foreach($kolom as $kunci => $judul)
+                                        <td @class([
+                                            'px-4 py-3',
+                                            'font-mono' => $kunci === 'invoice',
+                                            'text-right whitespace-nowrap' => $kunci === 'nominal',
+                                            'whitespace-nowrap' => $kunci === 'dibayar',
+                                            'min-w-64' => $kunci === 'keterangan',
+                                        ])>
+                                            @if($kunci === 'aksi')
+                                                <flux:badge size="sm">{{ $baris[$kunci] }}</flux:badge>
+                                            @else
+                                                {{ $baris[$kunci] }}
+                                            @endif
+                                        </td>
+                                    @endforeach
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-4 py-6 text-center text-zinc-500">Tidak ada pembayaran yang perlu dilunasi atau dilaporkan.</td>
+                                    <td colspan="{{ count($kolom) }}" class="px-4 py-6 text-center text-zinc-500">Tidak ada pembayaran yang perlu dilunasi atau dilaporkan.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -98,7 +101,7 @@
                         <th class="px-4 py-3">Invoice & Pelanggan</th>
                         <th class="px-4 py-3 text-right">Nominal</th>
                         <th class="px-4 py-3">Alasan</th>
-                        @can('payment_gateway.ubah')
+                        @can('kelolaPelunasanSusulan', \App\Models\Pembayaran::class)
                             <th class="px-4 py-3 text-center">Aksi</th>
                         @endcan
                     </tr>
@@ -122,7 +125,7 @@
                             </td>
                             <td class="px-4 py-3 text-right whitespace-nowrap">{{ $kasus->nominal !== null ? \App\Support\Rupiah::format((float) $kasus->nominal) : '-' }}</td>
                             <td class="px-4 py-3 min-w-64">{{ $kasus->alasan }}</td>
-                            @can('payment_gateway.ubah')
+                            @can('kelolaPelunasanSusulan', \App\Models\Pembayaran::class)
                                 <td class="px-4 py-3 text-center">
                                     <flux:button size="sm" variant="subtle" icon="check" wire:click="bukaTandaiDitangani({{ $kasus->id }})">Sudah Ditangani</flux:button>
                                 </td>

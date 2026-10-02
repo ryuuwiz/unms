@@ -20,7 +20,7 @@
                 </flux:button>
             @endif
 
-            <flux:button wire:click="rekonsiliasiStatus" size="sm" variant="ghost" icon="arrow-path" wire:loading.attr="disabled">
+            <flux:button wire:click="cekStatusPembayaranXendit" wire:target="cekStatusPembayaranXendit" size="sm" variant="ghost" icon="arrow-path" wire:loading.attr="disabled">
                 Rekonsiliasi Status Gateway
             </flux:button>
         </div>

@@ -42,10 +42,10 @@ class CekLunasXenditCommand extends Command
 
         $baris = $pemindaian->keBaris($hasil);
         if ($baris !== []) {
-            $this->table(
-                ['Koneksi', 'No Invoice', 'Pelanggan', 'Nominal', 'Dibayar', 'Status Lokal', 'Aksi', 'Keterangan'],
-                array_map(array_values(...), $baris),
-            );
+            $this->table(array_values(PemindaianPelunasanSusulan::KOLOM), array_map(
+                fn (array $item): array => array_map(fn (string $kolom): string => (string) $item[$kolom], array_keys(PemindaianPelunasanSusulan::KOLOM)),
+                $baris,
+            ));
         }
 
         $this->info('Selesai. '.$pemindaian->ringkasan($hasil));

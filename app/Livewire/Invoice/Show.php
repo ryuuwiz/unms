@@ -40,7 +40,7 @@ class Show extends Component
 
     public string $testPhone = '';
 
-    /** @var array{judul: string, keterangan: string|null, warna: string}|null */
+    /** @var array{lunas: bool, alasanDilaporkan: string|null, galat: string|null}|null */
     public ?array $hasilCekStatus = null;
 
     public function mount(Invoice $invoice): void
@@ -60,7 +60,7 @@ class Show extends Component
         $this->authorize('viewAny', Pembayaran::class);
 
         try {
-            $this->hasilCekStatus = $cekStatus->periksa($this->invoice)->untukStaf();
+            $this->hasilCekStatus = $cekStatus->periksa($this->invoice)->toArray();
             $this->invoice->refresh()->load(['pembayarans.dicatatOleh', 'transaksiPaymentGateways' => fn ($q) => $q->latest('id')]);
         } catch (Throwable $e) {
             report($e);

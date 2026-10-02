@@ -45,10 +45,12 @@ class CekStatusPembayaranInvoice
     private function periksaTransaksi(Invoice $invoice, Collection $transaksis): HasilCekStatusPembayaran
     {
         $galat = null;
+        $statusTerbaru = null;
 
         foreach ($transaksis as $transaksi) {
             try {
-                $hasil = $this->pelunasanSusulan->tanganiStatusGateway($transaksi, $this->manager->cekStatusTransaksi($transaksi));
+                $statusData = $this->manager->cekStatusTransaksi($transaksi);
+                $hasil = $this->pelunasanSusulan->tanganiStatusGateway($transaksi, $statusData);
             } catch (Throwable $e) {
                 report($e);
                 $galat ??= $e->getMessage();
@@ -61,10 +63,14 @@ class CekStatusPembayaranInvoice
 
                 return HasilCekStatusPembayaran::dariPelunasanSusulan($hasil, $invoice->refresh()->isLunas());
             }
+
+            if ($transaksi->is($transaksis->first())) {
+                $statusTerbaru = $statusData;
+            }
         }
 
-        if ($galat === null) {
-            $this->manager->sinkronkanTransaksi($transaksis->first());
+        if ($statusTerbaru !== null) {
+            $this->manager->terapkanStatusTransaksi($transaksis->first(), $statusTerbaru);
         }
 
         return new HasilCekStatusPembayaran($invoice->refresh()->isLunas(), galat: $galat);
