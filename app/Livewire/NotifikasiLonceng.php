@@ -8,11 +8,16 @@ use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
- * Lonceng notifikasi (tombol mengambang kanan bawah) milik user login (Notifikasi NOC MikroTik, tiket, Horizon).
- * Notifikasi baru juga diteruskan ke notifikasi browser (Notification API) bila user mengizinkan.
+ * Lonceng notifikasi milik user login (Notifikasi NOC MikroTik, tiket, Horizon), dipasang dua kali di layout:
+ * di bawah sidebar (desktop) dan di header (mobile). Notifikasi baru juga diteruskan ke notifikasi browser
+ * (Notification API) bila user mengizinkan.
  */
 class NotifikasiLonceng extends Component
 {
+    /** 'sidebar' (desktop) atau 'header' (mobile); hanya instance di breakpoint aktif yang mem-poll. */
+    #[Locked]
+    public string $posisi = 'sidebar';
+
     /** Batas bawah jendela [batas, detik sekarang) notifikasi yang belum diteruskan ke browser. */
     #[Locked]
     public string $batasBrowser = '';

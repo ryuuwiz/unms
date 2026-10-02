@@ -1,11 +1,16 @@
-{{-- Di bawah modal (z-50); toast dipindah ke kanan atas agar tidak bertumpuk. --}}
-{{-- keep-alive: tetap poll saat tab di latar belakang, justru saat notifikasi browser paling berguna. --}}
-<div wire:poll.10s.keep-alive="periksaBaru" class="fixed right-4 bottom-4 z-40 lg:right-6 lg:bottom-6"
+{{-- Dipasang dua kali (sidebar desktop & header mobile): hanya instance di breakpoint aktif yang mem-poll dan
+     memunculkan notifikasi browser. Poll lewat setInterval, bukan wire:poll, agar instance yang tersembunyi diam;
+     tetap berjalan saat tab di latar belakang, justru saat notifikasi browser paling berguna. --}}
+<div
     x-data="{
         izin: 'Notification' in window ? Notification.permission : 'unsupported',
+        timer: null,
+        aktif() { return window.matchMedia('(min-width: 1024px)').matches === {{ $posisi === 'sidebar' ? 'true' : 'false' }} },
+        init() { this.timer = setInterval(() => { if (this.aktif()) $wire.periksaBaru() }, 10000) },
+        destroy() { clearInterval(this.timer) },
         async minta() { this.izin = await Notification.requestPermission() },
         tampilkan(daftar) {
-            if (this.izin !== 'granted') return
+            if (this.izin !== 'granted' || ! this.aktif()) return
             daftar.forEach(n => {
                 // tag = id: beberapa tab terbuka tidak menggandakan notifikasi yang sama.
                 const notif = new Notification(n.title, { body: n.body, tag: n.id })
@@ -14,17 +19,22 @@
         },
     }"
     x-on:notifikasi-browser.window="tampilkan($event.detail.notifikasi)">
-    <flux:dropdown position="top" align="end">
-        <button type="button" aria-label="Notifikasi{{ $belumDibaca > 0 ? " ({$belumDibaca} belum dibaca)" : '' }}" title="Notifikasi"
-            class="group relative flex size-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-sky-500 to-indigo-600 text-white shadow-xl shadow-indigo-600/40 ring-4 ring-white transition duration-200 hover:scale-110 hover:shadow-2xl hover:shadow-indigo-600/50 focus:outline-none focus-visible:ring-sky-300 active:scale-95 dark:ring-zinc-900">
-            @if ($belumDibaca > 0)
-                <span class="absolute inset-0 animate-ping rounded-full bg-indigo-500 opacity-30 motion-reduce:hidden"></span>
-                <flux:icon name="bell-alert" variant="solid" class="relative size-7 origin-top group-hover:animate-bounce motion-reduce:animate-none" />
-                <span class="absolute -top-1.5 -right-1.5 flex min-w-6 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs leading-6 font-bold text-white shadow-md ring-2 ring-white dark:ring-zinc-900">{{ $belumDibaca > 99 ? '99+' : $belumDibaca }}</span>
-            @else
-                <flux:icon name="bell" variant="solid" class="relative size-7" />
-            @endif
-        </button>
+    @php
+        $label = 'Notifikasi'.($belumDibaca > 0 ? " ({$belumDibaca} belum dibaca)" : '');
+    @endphp
+    <flux:dropdown :position="$posisi === 'sidebar' ? 'top' : 'bottom'" :align="$posisi === 'sidebar' ? 'start' : 'end'">
+        @if ($posisi === 'sidebar')
+            <flux:sidebar.item :tooltip="$label" aria-label="{{ $label }}" class="cursor-pointer">
+                <x-slot:icon>
+                    @include('livewire.partials.ikon-lonceng')
+                </x-slot:icon>
+                Notifikasi
+            </flux:sidebar.item>
+        @else
+            <flux:button variant="ghost" square aria-label="{{ $label }}" title="{{ $label }}">
+                @include('livewire.partials.ikon-lonceng')
+            </flux:button>
+        @endif
 
         <flux:menu class="w-80 max-w-[calc(100vw-2rem)]">
             <div class="flex items-center justify-between px-2 py-1">
