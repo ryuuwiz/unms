@@ -219,41 +219,130 @@ test('SyncIpPoolToRouterJob syncs pool and logs success', function () {
         ->and($log->status)->toBe(MikrotikJobStatus::Success);
 });
 
-test('PingRouterJob hanya mencatat dan memberi tahu NOC saat status router berubah, tanpa WhatsApp', function () {
+/**
+ * Ping Router (CONTEXT.md "Router Offline"): MikrotikService::pingRouter() dipalsukan; hasil true = terjangkau.
+ */
+function jalankanPing(Router $router, bool $terjangkau, int $percobaan = 1): PingRouterJob
+{
+    $mikrotik = Mockery::mock(MikrotikService::class);
+    $mikrotik->shouldReceive('pingRouter')->once()->andReturnUsing(function (Router $router) use ($terjangkau) {
+        if ($terjangkau) {
+            $router->update(['status_koneksi' => StatusRouter::Online]);
+        } else {
+            $router->update(['last_ping_message' => 'Connection refused']);
+        }
+
+        return $terjangkau;
+    });
+
+    $job = (new PingRouterJob($router))->withFakeQueueInteractions();
+    $job->job->attempts = $percobaan;
+    $job->handle($mikrotik, app(NotifikasiNoc::class));
+
+    return $job;
+}
+
+function logPing(): int
+{
+    return MikrotikJobLog::where('job_type', MikrotikJobType::Ping)->count();
+}
+
+test('PingRouterJob: router Online yang gagal di bawah 10 percobaan tetap Online dan dicoba ulang 30 detik lagi', function () {
     Notification::fake();
-    Queue::fake([RecoverPppRouterJob::class]);
+
+    foreach (range(1, 9) as $percobaan) {
+        jalankanPing($this->router, terjangkau: false, percobaan: $percobaan)->assertReleased(30);
+    }
+
+    expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Online)
+        ->and(logPing())->toBe(0);
+    Notification::assertNothingSent();
+});
+
+test('PingRouterJob: router Online yang gagal 10x menjadi Router Offline dengan satu notifikasi browser, tanpa WhatsApp', function () {
+    Notification::fake();
     $noc = User::factory()->create(['phone' => '081234567890']);
     $noc->assignRole('noc');
 
-    $offline = fn () => Mockery::mock(MikrotikService::class)->shouldReceive('testConnection')
-        ->andReturnUsing(function (Router $router) {
-            $router->update(['status_koneksi' => StatusRouter::Offline, 'last_ping_message' => 'Connection refused']);
-            throw new MikrotikConnectionException('Connection refused');
-        })->getMock();
-    $online = fn () => Mockery::mock(MikrotikService::class)->shouldReceive('testConnection')
-        ->andReturnUsing(function (Router $router) {
-            $router->update(['status_koneksi' => StatusRouter::Online]);
+    jalankanPing($this->router, terjangkau: false, percobaan: 10)->assertNotReleased();
 
-            return ['status' => 'success'];
-        })->getMock();
-
-    // Online -> online: tidak ada log/notifikasi.
-    (new PingRouterJob($this->router))->handle($online(), app(NotifikasiNoc::class));
-    expect(MikrotikJobLog::where('job_type', MikrotikJobType::Ping)->count())->toBe(0);
-
-    // Online -> offline: log gagal + notifikasi; job tidak gagal.
-    (new PingRouterJob($this->router))->handle($offline(), app(NotifikasiNoc::class));
-    // Offline -> offline lagi: tidak menambah log.
-    (new PingRouterJob($this->router))->handle($offline(), app(NotifikasiNoc::class));
-    // Offline -> online: log sukses + notifikasi + recovery.
-    (new PingRouterJob($this->router))->handle($online(), app(NotifikasiNoc::class));
-
-    expect(MikrotikJobLog::where('job_type', MikrotikJobType::Ping)->orderBy('id')->pluck('status')->all())
-        ->toBe([MikrotikJobStatus::Failed, MikrotikJobStatus::Success]);
-    Notification::assertSentToTimes($noc, MikrotikJobNotification::class, 2);
-    Queue::assertPushed(RecoverPppRouterJob::class, 1);
-    // Router flapping tidak boleh mengantrikan WA ke NOC -- lihat CONTEXT.md "Notifikasi NOC".
+    expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Offline)
+        ->and(MikrotikJobLog::where('job_type', MikrotikJobType::Ping)->sole()->status)->toBe(MikrotikJobStatus::Failed);
+    Notification::assertSentToTimes($noc, MikrotikJobNotification::class, 1);
+    // Router mati tidak lewat WA -- lihat CONTEXT.md "Notifikasi NOC".
     expect(AntrianWaBlast::where('jenis', "noc_mikrotik_u{$noc->id}")->count())->toBe(0);
+});
+
+test('PingRouterJob: percobaan yang berhasil menghentikan putaran tanpa log, notifikasi, atau pemulihan', function () {
+    Notification::fake();
+    Queue::fake([RecoverPppRouterJob::class]);
+
+    jalankanPing($this->router, terjangkau: true, percobaan: 4)->assertNotReleased();
+
+    expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Online)
+        ->and(logPing())->toBe(0);
+    Notification::assertNothingSent();
+    Queue::assertNotPushed(RecoverPppRouterJob::class);
+});
+
+test('PingRouterJob: router Tidak Diketahui yang gagal 10x menjadi Router Offline dan NOC diberi tahu', function () {
+    Notification::fake();
+    $noc = User::factory()->create();
+    $noc->assignRole('noc');
+    $this->router->update(['status_koneksi' => StatusRouter::Unknown]);
+
+    jalankanPing($this->router, terjangkau: false, percobaan: 9)->assertReleased(30);
+    expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Unknown);
+
+    jalankanPing($this->router, terjangkau: false, percobaan: 10);
+
+    expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Offline)
+        ->and(logPing())->toBe(1);
+    Notification::assertSentToTimes($noc, MikrotikJobNotification::class, 1);
+});
+
+test('PingRouterJob: router Tidak Diketahui yang terjangkau menjadi Online tanpa log Ping dan tanpa notifikasi', function () {
+    Notification::fake();
+    Queue::fake([RecoverPppRouterJob::class]);
+    $this->router->update(['status_koneksi' => StatusRouter::Unknown]);
+
+    jalankanPing($this->router, terjangkau: true);
+
+    expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Online)
+        ->and(logPing())->toBe(0);
+    Notification::assertNothingSent();
+});
+
+test('PingRouterJob: router Offline yang terjangkau kembali Online dan memicu pemulihan, tanpa notifikasi', function () {
+    Notification::fake();
+    Queue::fake([RecoverPppRouterJob::class]);
+    $this->router->update(['status_koneksi' => StatusRouter::Offline]);
+
+    jalankanPing($this->router, terjangkau: true);
+
+    expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Online)
+        ->and(logPing())->toBe(0);
+    Notification::assertNothingSent();
+    Queue::assertPushed(RecoverPppRouterJob::class, 1);
+});
+
+test('PingRouterJob: router Offline yang gagal lagi cukup satu percobaan, tanpa log dan tanpa notifikasi baru', function () {
+    Notification::fake();
+    $this->router->update(['status_koneksi' => StatusRouter::Offline]);
+
+    jalankanPing($this->router, terjangkau: false)->assertNotReleased();
+
+    expect($this->router->fresh()->status_koneksi)->toBe(StatusRouter::Offline)
+        ->and(logPing())->toBe(0);
+    Notification::assertNothingSent();
+});
+
+test('PingRouterJob: kunci unik per router bertahan sepanjang satu putaran 10 percobaan', function () {
+    $job = new PingRouterJob($this->router);
+
+    expect($job->uniqueId())->toBe((string) $this->router->id)
+        ->and($job->tries)->toBe(10)
+        ->and($job->uniqueFor)->toBeGreaterThan(10 * 30 + 10 * $job->timeout);
 });
 
 test('RecoverPppRouterJob runs autoRecoverPppSecrets on mikrotik-low queue', function () {

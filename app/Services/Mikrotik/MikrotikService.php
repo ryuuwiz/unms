@@ -163,7 +163,8 @@ class MikrotikService
     }
 
     /**
-     * Uji koneksi ke router dan perbarui metrik sistem.
+     * Uji koneksi ke router dan perbarui metrik sistem. Satu kegagalan langsung menandai router Offline
+     * (Test Koneksi manual & provisi); Ping Router terjadwal memakai pingRouter().
      *
      * @return array<string, mixed>
      *
@@ -174,57 +175,7 @@ class MikrotikService
         $previousStatus = $router->status_koneksi;
 
         try {
-            $client = $client ?? $this->getClient($router, $timeout, $timeout, 1);
-            $query = new Query('/system/resource/print');
-            $response = $client->query($query)->read();
-
-            if (empty($response) || isset($response['after']['message'])) {
-                $errMsg = $response['after']['message'] ?? 'Respons tidak valid dari RouterOS';
-                throw new MikrotikException($errMsg);
-            }
-
-            $res = $response[0] ?? [];
-            $cpuLoad = isset($res['cpu-load']) ? (int) $res['cpu-load'] : null;
-            $freeMemory = isset($res['free-memory']) ? (int) $res['free-memory'] : null;
-            $totalMemory = isset($res['total-memory']) ? (int) $res['total-memory'] : null;
-            $uptime = $res['uptime'] ?? null;
-            $boardName = $res['board-name'] ?? null;
-            $version = $res['version'] ?? null;
-
-            $router->update([
-                'status_koneksi' => StatusRouter::Online,
-                'last_ping_at' => Carbon::now(),
-                'last_ping_status' => 'success',
-                'last_ping_message' => 'Koneksi berhasil dan responsif',
-                'cpu_load' => $cpuLoad,
-                'memory_free' => $freeMemory,
-                'memory_total' => $totalMemory,
-                'uptime' => $uptime,
-                'board_name' => $boardName,
-                'routeros_version' => $version,
-            ]);
-
-            if ($previousStatus !== StatusRouter::Online) {
-                MikrotikJobLog::create([
-                    'router_id' => $router->id,
-                    'job_type' => MikrotikJobType::TestConnection,
-                    'status' => MikrotikJobStatus::Success,
-                    'attempt_count' => 1,
-                    'payload' => [
-                        'version' => $version,
-                        'cpu_load' => $cpuLoad,
-                        'uptime' => $uptime,
-                        'board_name' => $boardName,
-                    ],
-                    'finished_at' => Carbon::now(),
-                ]);
-            }
-
-            return [
-                'status' => 'success',
-                'message' => 'Koneksi berhasil',
-                'resources' => $res,
-            ];
+            return $this->bacaResourceRouter($router, $timeout, $client);
         } catch (Throwable $e) {
             $router->update([
                 'status_koneksi' => StatusRouter::Offline,
@@ -233,7 +184,7 @@ class MikrotikService
                 'last_ping_message' => Str::limit($e->getMessage(), 250),
             ]);
 
-            // Hanya saat transisi (seperti log sukses di atas): ping tiap 10 dtk ke router mati tidak membanjiri log.
+            // Hanya saat transisi (seperti log sukses di bacaResourceRouter()): uji berulang ke router mati tidak membanjiri log.
             if ($previousStatus !== StatusRouter::Offline) {
                 MikrotikJobLog::create([
                     'router_id' => $router->id,
@@ -251,6 +202,90 @@ class MikrotikService
                 $e
             );
         }
+    }
+
+    /**
+     * Satu percobaan Ping Router. Berhasil: sama seperti testConnection(). Gagal: hanya mencatat ping
+     * terakhir; keputusan Router Offline (10 percobaan gagal) ada di PingRouterJob -- CONTEXT.md "Router Offline".
+     */
+    public function pingRouter(Router $router, int $timeout = 3): bool
+    {
+        try {
+            $this->bacaResourceRouter($router, $timeout);
+
+            return true;
+        } catch (Throwable $e) {
+            $router->update([
+                'last_ping_at' => Carbon::now(),
+                'last_ping_status' => 'failed',
+                'last_ping_message' => Str::limit($e->getMessage(), 250),
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Baca /system/resource lalu tandai router Online beserta metriknya.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws Throwable
+     */
+    private function bacaResourceRouter(Router $router, int $timeout, ?Client $client = null): array
+    {
+        $previousStatus = $router->status_koneksi;
+        $client = $client ?? $this->getClient($router, $timeout, $timeout, 1);
+        $query = new Query('/system/resource/print');
+        $response = $client->query($query)->read();
+
+        if (empty($response) || isset($response['after']['message'])) {
+            $errMsg = $response['after']['message'] ?? 'Respons tidak valid dari RouterOS';
+            throw new MikrotikException($errMsg);
+        }
+
+        $res = $response[0] ?? [];
+        $cpuLoad = isset($res['cpu-load']) ? (int) $res['cpu-load'] : null;
+        $freeMemory = isset($res['free-memory']) ? (int) $res['free-memory'] : null;
+        $totalMemory = isset($res['total-memory']) ? (int) $res['total-memory'] : null;
+        $uptime = $res['uptime'] ?? null;
+        $boardName = $res['board-name'] ?? null;
+        $version = $res['version'] ?? null;
+
+        $router->update([
+            'status_koneksi' => StatusRouter::Online,
+            'last_ping_at' => Carbon::now(),
+            'last_ping_status' => 'success',
+            'last_ping_message' => 'Koneksi berhasil dan responsif',
+            'cpu_load' => $cpuLoad,
+            'memory_free' => $freeMemory,
+            'memory_total' => $totalMemory,
+            'uptime' => $uptime,
+            'board_name' => $boardName,
+            'routeros_version' => $version,
+        ]);
+
+        if ($previousStatus !== StatusRouter::Online) {
+            MikrotikJobLog::create([
+                'router_id' => $router->id,
+                'job_type' => MikrotikJobType::TestConnection,
+                'status' => MikrotikJobStatus::Success,
+                'attempt_count' => 1,
+                'payload' => [
+                    'version' => $version,
+                    'cpu_load' => $cpuLoad,
+                    'uptime' => $uptime,
+                    'board_name' => $boardName,
+                ],
+                'finished_at' => Carbon::now(),
+            ]);
+        }
+
+        return [
+            'status' => 'success',
+            'message' => 'Koneksi berhasil',
+            'resources' => $res,
+        ];
     }
 
     /**

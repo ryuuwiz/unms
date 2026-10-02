@@ -7,6 +7,7 @@ use App\Exceptions\MikrotikConnectionException;
 use App\Exceptions\MikrotikException;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
+use App\Models\MikrotikJobLog;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
@@ -42,6 +43,24 @@ test('testConnection throws MikrotikException on unreachable host and updates ro
     expect($router->status_koneksi)->toBe(StatusRouter::Offline)
         ->and($router->last_ping_status)->toBe('failed')
         ->and($router->last_ping_at)->not->toBeNull();
+});
+
+test('pingRouter yang gagal mencatat ping terakhir tanpa mengubah status router', function () {
+    $router = Router::factory()->create([
+        'ip_address' => '192.0.2.1', // Non-routable test IP
+        'port' => 8728,
+        'username' => 'admin',
+        'password_terenkripsi' => 'password',
+        'status_koneksi' => StatusRouter::Online,
+    ]);
+
+    expect($this->service->pingRouter($router, 1))->toBeFalse();
+
+    $router->refresh();
+    expect($router->status_koneksi)->toBe(StatusRouter::Online)
+        ->and($router->last_ping_status)->toBe('failed')
+        ->and($router->last_ping_at)->not->toBeNull()
+        ->and(MikrotikJobLog::count())->toBe(0);
 });
 
 test('getClient throws MikrotikConnectionException on invalid credentials / connection failure', function () {
