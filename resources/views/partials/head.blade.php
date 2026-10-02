@@ -35,5 +35,8 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
+@auth('web')
+    <meta name="reverb-key" content="{{ config('broadcasting.connections.reverb.key') }}" />
+@endauth
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 @fluxAppearance
