@@ -70,7 +70,8 @@ class EnsurePublicMediaBucketCommand extends Command
                 'Effect' => 'Allow',
                 'Principal' => '*',
                 'Action' => ['s3:GetObject'],
-                'Resource' => ["arn:aws:s3:::{$bucket}/*"],
+                // Hanya Media Publik; Media Privat di `private/` lewat URL presigned (ADR-0068).
+                'Resource' => ["arn:aws:s3:::{$bucket}/public/*"],
             ]],
         ], JSON_THROW_ON_ERROR);
 

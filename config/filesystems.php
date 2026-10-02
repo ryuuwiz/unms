@@ -56,6 +56,9 @@ return [
             'url' => env('AWS_URL'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            // Gagal cepat saat S3 tidak terjangkau agar Failover Penyimpanan segera jalan (ADR-0068).
+            'http' => ['connect_timeout' => 3, 'timeout' => 60],
+            'retries' => 1,
             'throw' => false,
             'report' => false,
         ],

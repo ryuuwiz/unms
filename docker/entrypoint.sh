@@ -10,6 +10,7 @@
 #   5. Wait for DB & Redis (bisa di-skip)
 #   6. Migrasi (app:migrate-once, distributed lock)
 #   6b. Sinkron role & permission (db:seed RolesAndPermissionsSeeder)
+#   6c. Pindah path media lama ke path acak (media:pindah-path-acak)
 #   7. Bucket policy publik RustFS/S3
 #   8. Cache warm-up
 #   9. Keluar maintenance mode (php artisan up)
@@ -140,7 +141,19 @@ else
 fi
 
 # =============================================================================
-# 7. Bucket policy publik RustFS/S3 (ADR-0038)
+# 6c. Pindah path media lama ke public|private/{uuid}/ (ADR-0068)
+# Harus sebelum langkah 7: policy baru hanya membuka public/*, jadi media yang
+# masih di path lama {id}/ akan 403. Idempoten; media yang sudah pindah dilewati.
+# Satu listing per media setiap boot -- hapus langkah ini setelah semua
+# lingkungan sudah termigrasi.
+# =============================================================================
+log "Moving legacy media paths (media:pindah-path-acak)..."
+if ! php artisan media:pindah-path-acak; then
+    warn "Media path migration had failures (non-fatal). Continuing."
+fi
+
+# =============================================================================
+# 7. Bucket policy publik RustFS/S3 (ADR-0038, dipersempit ke public/* oleh ADR-0068)
 # =============================================================================
 log "Ensuring public media bucket policy..."
 if ! php artisan app:ensure-public-media-bucket; then

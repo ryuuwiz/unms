@@ -201,7 +201,7 @@ class Show extends Component
         $invoice = Invoice::where('pelanggan_id', $this->pelangganId)->findOrFail($this->selectedInvoiceId);
 
         $this->validate([
-            'bayarMetode' => ['required', 'string', 'in:manual_admin,transfer'],
+            'bayarMetode' => ['required', 'string', 'in:manual_admin'],
             'bayarJumlah' => ['required', 'numeric', Rule::in([(float) $invoice->jumlah_setelah_promo])],
             'bayarTanggal' => ['required', 'date'],
             'bayarReferensi' => ['nullable', 'string', 'max:100'],

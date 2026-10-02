@@ -45,14 +45,6 @@ class Perusahaan extends Component
 
     public ?string $website = null;
 
-    public ?string $npwp = null;
-
-    public ?string $nama_bank = null;
-
-    public ?string $nomor_rekening = null;
-
-    public ?string $atas_nama = null;
-
     public ?string $catatan_invoice = null;
 
     public ?string $syarat_ketentuan = null;
@@ -80,10 +72,6 @@ class Perusahaan extends Component
         $this->whatsapp = $perusahaan->whatsapp;
         $this->email = $perusahaan->email;
         $this->website = $perusahaan->website;
-        $this->npwp = $perusahaan->npwp;
-        $this->nama_bank = $perusahaan->nama_bank;
-        $this->nomor_rekening = $perusahaan->nomor_rekening;
-        $this->atas_nama = $perusahaan->atas_nama;
         $this->catatan_invoice = $perusahaan->catatan_invoice;
         $this->syarat_ketentuan = $perusahaan->syarat_ketentuan;
         $this->nama_penandatangan = $perusahaan->nama_penandatangan;
@@ -159,10 +147,6 @@ class Perusahaan extends Component
             'whatsapp' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'string', 'max:255'],
             'website' => ['nullable', 'string', 'max:255'],
-            'npwp' => ['nullable', 'string', 'max:50'],
-            'nama_bank' => ['nullable', 'string', 'max:100'],
-            'nomor_rekening' => ['nullable', 'string', 'max:100'],
-            'atas_nama' => ['nullable', 'string', 'max:255'],
             'catatan_invoice' => ['nullable', 'string', 'max:2000'],
             'syarat_ketentuan' => ['nullable', 'string', 'max:2000'],
             'nama_penandatangan' => ['nullable', 'string', 'max:255'],
@@ -184,10 +168,6 @@ class Perusahaan extends Component
             'whatsapp' => $this->whatsapp ? trim($this->whatsapp) : null,
             'email' => $this->email ? trim($this->email) : null,
             'website' => $this->website ? trim($this->website) : null,
-            'npwp' => $this->npwp ? trim($this->npwp) : null,
-            'nama_bank' => $this->nama_bank ? trim($this->nama_bank) : null,
-            'nomor_rekening' => $this->nomor_rekening ? trim($this->nomor_rekening) : null,
-            'atas_nama' => $this->atas_nama ? trim($this->atas_nama) : null,
             'catatan_invoice' => $this->catatan_invoice ? trim($this->catatan_invoice) : null,
             'syarat_ketentuan' => $this->syarat_ketentuan ? trim($this->syarat_ketentuan) : null,
             'nama_penandatangan' => $this->nama_penandatangan ? trim($this->nama_penandatangan) : null,

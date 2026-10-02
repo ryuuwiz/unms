@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\MediaLibrary\PathGeneratorAcak;
+use App\Support\MediaLibrary\UrlGeneratorPrivat;
 use Spatie\ImageOptimizer\Optimizers\Avifenc;
 use Spatie\ImageOptimizer\Optimizers\Cwebp;
 use Spatie\ImageOptimizer\Optimizers\Gifsicle;
@@ -23,8 +25,6 @@ use Spatie\MediaLibrary\ResponsiveImages\TinyPlaceholderGenerator\Blurred;
 use Spatie\MediaLibrary\ResponsiveImages\WidthCalculator\FileSizeOptimizedWidthCalculator;
 use Spatie\MediaLibrary\Support\FileNamer\DefaultFileNamer;
 use Spatie\MediaLibrary\Support\FileRemover\DefaultFileRemover;
-use Spatie\MediaLibrary\Support\PathGenerator\DefaultPathGenerator;
-use Spatie\MediaLibrary\Support\UrlGenerator\DefaultUrlGenerator;
 
 return [
 
@@ -32,7 +32,7 @@ return [
      * The disk on which to store added files and derived images by default. Choose
      * one or more of the disks you've configured in config/filesystems.php.
      */
-    'disk_name' => env('MEDIA_DISK', 'public'),
+    'disk_name' => env('MEDIA_DISK', env('FILESYSTEM_DISK', 'public')),
 
     /*
      * Customer identity documents must use shared storage in multi-replica
@@ -146,7 +146,7 @@ return [
     /*
      * The class that contains the strategy for determining a media file's path.
      */
-    'path_generator' => DefaultPathGenerator::class,
+    'path_generator' => PathGeneratorAcak::class,
 
     /*
      * The class that contains the strategy for determining how to remove files.
@@ -166,7 +166,7 @@ return [
      * When urls to files get generated, this class will be called. Use the default
      * if your files are stored locally above the site root or on s3.
      */
-    'url_generator' => DefaultUrlGenerator::class,
+    'url_generator' => UrlGeneratorPrivat::class,
 
     /*
      * Moves media on updating to keep path consistent. Enable it only with a custom

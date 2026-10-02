@@ -107,9 +107,6 @@
                         <tr><td>Sales / Teller</td><td>{{ $cetak->teller }}</td></tr>
                     @else
                         <tr><td style="width: 35%;">Jatuh Tempo</td><td>{{ $tanggal($invoice->tanggal_jatuh_tempo) }}</td></tr>
-                        @if ($perusahaan->nomor_rekening)
-                            <tr><td>Transfer Bank</td><td>{{ $perusahaan->nama_bank }} {{ $perusahaan->nomor_rekening }}<br>a.n. {{ $perusahaan->atas_nama }}</td></tr>
-                        @endif
                     @endif
                 </table>
             </td>

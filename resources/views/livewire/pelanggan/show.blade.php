@@ -980,7 +980,6 @@
                             <flux:label>Metode Pembayaran</flux:label>
                             <flux:select wire:model="bayarMetode">
                                 <flux:select.option value="manual_admin">Tunai / Kasir (Admin)</flux:select.option>
-                                <flux:select.option value="transfer">Transfer Bank Manual</flux:select.option>
                             </flux:select>
                             <flux:error name="bayarMetode" />
                         </flux:field>

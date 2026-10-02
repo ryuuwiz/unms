@@ -341,8 +341,11 @@
                             @if($pingResult->balance !== null)
                                 <div class="pt-2 border-t border-emerald-200 dark:border-emerald-800 text-xs flex justify-between">
                                     <span class="text-zinc-600 dark:text-zinc-400">Saldo Akun Merchant:</span>
-                                    <span class="font-bold font-mono">Rp {{ number_format($pingResult->balance, 0, ',', '.') }}</span>
+                                    <span @class(['font-bold font-mono', 'text-rose-600 dark:text-rose-400' => $pingResult->balance < 0])>Rp {{ number_format($pingResult->balance, 0, ',', '.') }}</span>
                                 </div>
+                                @if($pingResult->balance < 0)
+                                    <div class="text-xs text-rose-600 dark:text-rose-400">Saldo di akun Xendit minus — periksa Balance di dashboard Xendit.</div>
+                                @endif
                             @endif
                         </div>
                     @else

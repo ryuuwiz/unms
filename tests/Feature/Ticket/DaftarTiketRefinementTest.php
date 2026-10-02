@@ -49,9 +49,12 @@ test('urutan: overdue dulu, lalu prioritas, lalu SLA terdekat, dan yang selesai 
         $selesaiBaru->id, $selesaiLama->id,
     ]);
 
-    // Opsi "Terbaru" mengembalikan urutan id menurun.
-    $komponen = Livewire::actingAs($this->admin)->test(Index::class)->set('urut', 'terbaru');
+    // Default "Terbaru": tiket paling baru dibuat di atas.
+    $komponen = Livewire::actingAs($this->admin)->test(Index::class)->assertSet('urut', 'terbaru');
     expect($komponen->viewData('tickets')->pluck('id')->all())->toBe(collect($urutan)->sortDesc()->values()->all());
+
+    $komponen->set('urut', 'prioritas');
+    expect($komponen->viewData('tickets')->pluck('id')->all())->toBe($urutan);
 });
 
 test('tab awal: Tiket Saya bagi PIC tiket terbuka, Semua Tiket bagi lainnya, dan URL menang', function () {

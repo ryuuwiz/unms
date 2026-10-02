@@ -138,10 +138,10 @@ test('generateInvoice otomatis menerbitkan tagihan independen untuk setiap layan
 });
 
 test('pembayaran invoice layanan A melunasi tagihan layanan A tanpa mengubah status invoice layanan B', function () {
-    // tanggal_expired sengaja relatif terhadap "hari ini" (bukan tanggal absolut) agar tetap
-    // berada di masa depan kapan pun suite ini dijalankan -- lihat PerpanjangMasaAktifAction
-    // yang mengakumulasi hanya bila tanggal_expired masih isFuture().
+    // Periode tagihan dipilih sesudah tanggal_expired agar pelunasan benar-benar memperpanjang
+    // masa aktif (pelunasan menetapkan expired ke akhir periode invoice, lihat ADR 0004).
     $expiredAwal = now()->addDays(20)->startOfDay();
+    $periode = $expiredAwal->copy()->addMonthNoOverflow()->format('Y-m');
 
     $layananHome = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
@@ -169,8 +169,8 @@ test('pembayaran invoice layanan A melunasi tagihan layanan A tanpa mengubah sta
     Queue::fake();
 
     $billingService = app(BillingService::class);
-    $invoiceHome = $billingService->generateInvoice($layananHome, $this->admin->id, null, null, '2026-09');
-    $invoiceOffice = $billingService->generateInvoice($layananOffice, $this->admin->id, null, null, '2026-09');
+    $invoiceHome = $billingService->generateInvoice($layananHome, $this->admin->id, null, null, $periode);
+    $invoiceOffice = $billingService->generateInvoice($layananOffice, $this->admin->id, null, null, $periode);
 
     // Bayar lunas tagihan Layanan Home
     $billingService->prosesPembayaranManual($invoiceHome, [
@@ -186,9 +186,9 @@ test('pembayaran invoice layanan A melunasi tagihan layanan A tanpa mengubah sta
     expect($invoiceHome->status)->toBe(StatusInvoice::Lunas)
         ->and($invoiceHome->tanggal_lunas)->not->toBeNull();
 
-    // Masa aktif Layanan Home diperpanjang akumulatif dari expired lama + 1 bulan
+    // Masa aktif Layanan Home diperpanjang hingga akhir periode invoice
     $layananHome->refresh();
-    expect(Carbon::parse($layananHome->tanggal_expired)->toDateString())->toBe($expiredAwal->copy()->addMonthNoOverflow()->day(10)->toDateString());
+    expect(Carbon::parse($layananHome->tanggal_expired)->toDateString())->toBe(Carbon::parse($periode.'-01')->endOfMonth()->toDateString());
 
     // Invoice Office TETAP Menunggu Pembayaran
     expect($invoiceOffice->status)->toBe(StatusInvoice::MenungguPembayaran)

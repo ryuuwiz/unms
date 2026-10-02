@@ -57,6 +57,12 @@
 
             <p class="text-xs text-zinc-400">Terakhir dicek: {{ $healthResult->checkedAt ?? '-' }}</p>
         @endif
+
+        @if ($menungguSinkron > 0)
+            <div class="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs">
+                {{ number_format($menungguSinkron) }} media tersimpan lokal karena S3 sempat tidak terjangkau, menunggu sinkron ke S3 (otomatis tiap 10 menit).
+            </div>
+        @endif
     </div>
 
     {{-- Statistik --}}

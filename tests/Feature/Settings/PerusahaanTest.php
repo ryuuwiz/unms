@@ -67,9 +67,6 @@ test('super_admin dapat memperbarui informasi profil perusahaan', function () {
         ->set('telepon', '021-9998887')
         ->set('whatsapp', '0811-2233-4455')
         ->set('email', 'corporate@gobilling.id')
-        ->set('nama_bank', 'Bank Mandiri')
-        ->set('nomor_rekening', '1230009988771')
-        ->set('atas_nama', 'PT GOBILLING DIGITAL')
         ->set('catatan_invoice', 'Harap transfer sesuai nominal.')
         ->call('save')
         ->assertHasNoErrors();
@@ -82,9 +79,6 @@ test('super_admin dapat memperbarui informasi profil perusahaan', function () {
         ->and($company->telepon)->toBe('021-9998887')
         ->and($company->whatsapp)->toBe('0811-2233-4455')
         ->and($company->email)->toBe('corporate@gobilling.id')
-        ->and($company->nama_bank)->toBe('Bank Mandiri')
-        ->and($company->nomor_rekening)->toBe('1230009988771')
-        ->and($company->atas_nama)->toBe('PT GOBILLING DIGITAL')
         ->and($company->catatan_invoice)->toBe('Harap transfer sesuai nominal.');
 });
 

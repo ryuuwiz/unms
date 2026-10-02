@@ -61,7 +61,7 @@ class Show extends Component
         $this->authorize('create', Pembayaran::class);
 
         $this->validate([
-            'metode' => ['required', 'string', 'in:manual_admin,transfer'],
+            'metode' => ['required', 'string', 'in:manual_admin'],
             'jumlah_dibayar' => ['required', 'numeric', Rule::in([(float) $this->invoice->jumlah_setelah_promo])],
             'dibayar_pada' => ['required', 'date'],
             'referensi_transaksi' => ['nullable', 'string', 'max:100'],

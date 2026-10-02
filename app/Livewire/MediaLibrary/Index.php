@@ -5,6 +5,7 @@ namespace App\Livewire\MediaLibrary;
 use App\DTO\Storage\S3HealthCheckResult;
 use App\Models\BerkasUmum;
 use App\Services\Storage\S3HealthCheckService;
+use App\Support\MediaLibrary\PenyimpananMedia;
 use App\Support\MediaLibraryVisibility;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Builder;
@@ -139,6 +140,7 @@ class Index extends Component
             'totalCount' => $totalCount,
             'totalSize' => $totalSize,
             'perCollection' => $perCollection,
+            'menungguSinkron' => PenyimpananMedia::menungguSinkron()->count(),
         ]);
     }
 }

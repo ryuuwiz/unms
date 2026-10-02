@@ -19,6 +19,7 @@ use App\Observers\IpPoolObserver;
 use App\Observers\LayananPelangganObserver;
 use App\Observers\ProfilBandwidthObserver;
 use App\Services\Whatsapp\WhatsappClient;
+use App\Support\MediaLibrary\FailoverFileAdder;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -33,6 +34,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
+use Spatie\MediaLibrary\MediaCollections\FileAdder;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -44,6 +46,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(WhatsappClient::class, function () {
             return WhatsappClient::forSysblas();
         });
+
+        $this->app->bind(FileAdder::class, FailoverFileAdder::class);
     }
 
     /**
