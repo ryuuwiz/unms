@@ -2040,6 +2040,36 @@ class MikrotikService
         );
     }
 
+    /**
+     * Sidik sesi PPP aktif per username dari satu kali `/ppp/active/print`, untuk Pemantauan Sesi PPP.
+     * Sidik berubah saat sesi diganti (reconnect) atau alamat/caller-id berubah; uptime sengaja tidak ikut.
+     * Tidak pernah throw: null berarti router tidak terjangkau.
+     *
+     * @return array<string, string>|null ppp username => sidik sesi
+     */
+    public function getSidikSesiPppAktif(Router $router): ?array
+    {
+        try {
+            $client = $this->getClient($router, config('mikrotik.status_timeout', 3));
+            $sesi = [];
+
+            foreach ($client->query(new Query('/ppp/active/print'))->read() as $row) {
+                if (! empty($row['name'])) {
+                    $sesi[$row['name']] = implode('|', [$row['.id'] ?? '', $row['address'] ?? '', $row['caller-id'] ?? '']);
+                }
+            }
+
+            return $sesi;
+        } catch (Throwable $e) {
+            Log::warning('Gagal membaca sesi PPP aktif.', [
+                'router_id' => $router->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
     private function pppStatusCacheKey(Router $router, string $username): string
     {
         return "ppp-status:{$router->id}:{$username}";
