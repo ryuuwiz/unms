@@ -66,8 +66,11 @@ class Router extends Model
 
     protected $table = 'router';
 
-    /** Nama PPP Profile isolir yang dibuat billing di setiap router (CONTEXT.md "Isolir"). */
-    public const PROFILE_ISOLIR = 'ISOLIR';
+    /** Nama PPP Profile dan IP Pool isolir yang dibuat billing di setiap router (CONTEXT.md "Isolir", ADR-0071). */
+    public const PROFILE_ISOLIR = 'EXPIRED';
+
+    /** Nama profile isolir sebelum ADR-0071; dihapus rekonsiliasi setelah tidak dipakai secret mana pun. */
+    public const PROFILE_ISOLIR_LAMA = 'ISOLIR';
 
     /**
      * Konfigurasi logging aktivitas.
@@ -101,7 +104,7 @@ class Router extends Model
     }
 
     /**
-     * IP Pool Isolir: pool profile ISOLIR di router ini (CONTEXT.md "IP Pool Isolir").
+     * IP Pool Isolir: pool profile EXPIRED yang dibuat billing (CONTEXT.md "IP Pool Isolir", ADR-0071).
      *
      * @return BelongsTo<IpPool, $this>
      */

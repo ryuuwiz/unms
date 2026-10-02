@@ -83,18 +83,6 @@
         </div>
 
         <flux:field>
-            <flux:label>IP Pool Isolir</flux:label>
-            <flux:select wire:model="ip_pool_isolir_id" placeholder="Pilih pool isolir...">
-                <flux:select.option value="">Belum dipilih</flux:select.option>
-                @foreach ($ipPools as $pool)
-                    <flux:select.option value="{{ $pool->id }}">{{ $pool->nama_pool }} ({{ $pool->labelNetwork() }})</flux:select.option>
-                @endforeach
-            </flux:select>
-            <flux:description>Pool khusus pelanggan isolir. Billing membuat profile ISOLIR dari pool ini; firewall redirect ke halaman bayar diatur manual oleh NOC.</flux:description>
-            <flux:error name="ip_pool_isolir_id" />
-        </flux:field>
-
-        <flux:field>
             <flux:label>Deskripsi <span class="text-zinc-400 font-normal">(opsional)</span></flux:label>
             <flux:textarea wire:model="deskripsi" rows="3" />
             <flux:error name="deskripsi" />

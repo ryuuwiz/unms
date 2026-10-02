@@ -3,7 +3,6 @@
 use App\Enums\StatusLayanan;
 use App\Enums\UserStatus;
 use App\Jobs\Mikrotik\HapusPaketProfileJob;
-use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
 use App\Jobs\Mikrotik\SyncRouterPaketJob;
 use App\Livewire\PaketLayanan\Show;
 use App\Livewire\Router\Edit as RouterEdit;
@@ -87,23 +86,20 @@ test('sales hanya bisa melihat detail paket, tidak bisa mengelola router', funct
         ->assertForbidden();
 });
 
-test('IP Pool Isolir router dipilih di Edit Router, tidak boleh pool paket, dan pool isolir tidak bisa dipakai paket', function () {
+test('IP Pool Isolir tidak dipilih di Edit Router dan tidak berubah saat router disimpan, dan pool isolir tidak bisa dipakai paket', function () {
     $poolIsolir = IpPool::factory()->create(['router_id' => $this->router->id]);
-    RouterPaket::create(['paket_layanan_id' => $this->paket->id, 'router_id' => $this->router->id, 'ip_pool_id' => $this->pool->id]);
+    $this->router->update(['ip_pool_isolir_id' => $poolIsolir->id]);
     $admin = User::factory()->create(['status' => UserStatus::Active]);
     $admin->assignRole('super_admin');
 
     Livewire::actingAs($admin)
         ->test(RouterEdit::class, ['router' => $this->router])
-        ->set('ip_pool_isolir_id', $this->pool->id)
-        ->call('save')
-        ->assertHasErrors(['ip_pool_isolir_id' => 'unique'])
-        ->set('ip_pool_isolir_id', $poolIsolir->id)
+        ->assertDontSee('IP Pool Isolir')
+        ->set('deskripsi', 'diubah')
         ->call('save')
         ->assertHasNoErrors();
 
     expect($this->router->fresh()->ip_pool_isolir_id)->toBe($poolIsolir->id);
-    Queue::assertPushed(SyncIpPoolToRouterJob::class, fn ($job) => $job->ipPool->is($poolIsolir));
 
     Livewire::actingAs($this->noc)
         ->test(Show::class, ['paketLayanan' => PaketLayanan::factory()->create()])

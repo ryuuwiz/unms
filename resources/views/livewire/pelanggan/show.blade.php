@@ -316,8 +316,8 @@
                     $statusPpp = $pppStatuses[$layanan->id] ?? null;
                     $isConnected = $statusPpp['is_connected'] ?? false;
                     $isDisabled = $statusPpp['is_disabled'] ?? false;
-                    // Isolir = secret di profile ISOLIR (CONTEXT.md "Isolir"); tanpa data router, ikuti status layanan.
-                    $isIsolir = isset($statusPpp['profile']) ? $statusPpp['profile'] === \App\Models\Router::PROFILE_ISOLIR : $layanan->status === \App\Enums\StatusLayanan::Suspend;
+                    // Isolir = secret di profile EXPIRED (atau ISOLIR lama sebelum rekonsiliasi, ADR-0071); tanpa data router, ikuti status layanan.
+                    $isIsolir = isset($statusPpp['profile']) ? in_array($statusPpp['profile'], [\App\Models\Router::PROFILE_ISOLIR, \App\Models\Router::PROFILE_ISOLIR_LAMA], true) : $layanan->status === \App\Enums\StatusLayanan::Suspend;
                     $routerOnline = $statusPpp['router_online'] ?? true;
                 @endphp
                 <article wire:key="layanan-{{ $layanan->id }}" id="layanan-{{ $layanan->id }}" class="{{ $card }} scroll-mt-24">

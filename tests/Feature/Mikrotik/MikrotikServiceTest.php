@@ -144,8 +144,8 @@ test('syncPaketProfiles syncs one profile per Router Paket of that router only',
         ->map(fn ($q) => collect($q->getAttributes())->first(fn ($w) => str_starts_with($w, '=name=')))
         ->values()->all();
 
-    expect($res)->toMatchArray(['total' => 1, 'synced' => 1, 'errors' => []])
-        ->and($names)->toBe(['=name=P10']);
+    expect($res)->toMatchArray(['total' => 2, 'synced' => 2, 'errors' => []])
+        ->and($names)->toBe(['=name=P10', '=name=EXPIRED']);
 });
 
 test('syncPaketProfilesUsingPool only syncs paket profiles that use the given pool, not the whole router', function () {
@@ -282,7 +282,7 @@ test('syncPaketProfiles adds the missing profile when the router has none', func
 
     $res = $this->service->syncPaketProfiles($router, $mockClient);
 
-    expect($res)->toMatchArray(['total' => 1, 'synced' => 1, 'errors' => []]);
+    expect($res)->toMatchArray(['total' => 2, 'synced' => 2, 'errors' => []]);
 });
 
 test('autoRecoverPppSecrets retries on initial query timeout and recovers secret', function () {
@@ -360,13 +360,12 @@ test('autoRecoverPppSecrets removes unused legacy profiles but keeps paket, in-u
     $dihapus = collect($sent)->filter(fn ($q) => $q->getEndpoint() === '/ppp/profile/remove')
         ->map(fn ($q) => $q->getAttributes()[0])->values()->all();
 
-    expect($res['profile_lama_dihapus'])->toBe(['Karyawan_100Mbps'])
-        ->and($dihapus)->toBe(['=.id=*P2']);
+    expect($res['profile_lama_dihapus'])->toBe(['Karyawan_100Mbps', 'ISOLIR'])
+        ->and($dihapus)->toBe(['=.id=*P2', '=.id=*P4']);
 });
 
-test('isolir memindahkan secret ke profile ISOLIR dari IP Pool Isolir, tidak men-disable, dan memutus sesi; buka isolir mengembalikan profile paket', function () {
+test('isolir membuat pool dan profile EXPIRED dari config di router tanpa pool isolir, memindahkan secret tanpa disable, dan memutus sesi; buka isolir mengembalikan profile paket', function () {
     [$router, $layanan] = layananPppoeDinamis();
-    $router->update(['ip_pool_isolir_id' => IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Isolir', 'ip_network' => '172.16.99.0', 'cidr' => 24])->id]);
     $reads = [
         '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']],
         '/ppp/active/print' => [['.id' => '*A', 'name' => $layanan->ppp_username]],
@@ -375,8 +374,15 @@ test('isolir memindahkan secret ke profile ISOLIR dari IP Pool Isolir, tidak men
     [$client, $sent] = fakeRouterOs($reads);
     $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client);
 
-    expect(sentAttributes($sent, '/ppp/profile/add'))->toBe(['name' => 'ISOLIR', 'local-address' => '172.16.99.1', 'remote-address' => 'Pool-Isolir'])
-        ->and(sentAttributes($sent, '/ppp/secret/set'))->toMatchArray(['.id' => '*1', 'profile' => 'ISOLIR', 'disabled' => 'no'])
+    $pool = $router->fresh()->ipPoolIsolir;
+    expect($pool)->not->toBeNull()
+        ->and($pool->only(['nama_pool', 'ip_network', 'cidr', 'rentang_ip_awal', 'rentang_ip_akhir']))->toBe([
+            'nama_pool' => 'EXPIRED', 'ip_network' => '172.30.0.0', 'cidr' => 16,
+            'rentang_ip_awal' => '172.30.0.2', 'rentang_ip_akhir' => '172.30.255.254',
+        ])
+        ->and(sentAttributes($sent, '/ip/pool/add'))->toBe(['name' => 'EXPIRED', 'ranges' => '172.30.0.2-172.30.255.254'])
+        ->and(sentAttributes($sent, '/ppp/profile/add'))->toBe(['name' => 'EXPIRED', 'rate-limit' => '256k/256k', 'local-address' => '172.30.0.1', 'remote-address' => 'EXPIRED'])
+        ->and(sentAttributes($sent, '/ppp/secret/set'))->toMatchArray(['.id' => '*1', 'profile' => 'EXPIRED', 'disabled' => 'no'])
         ->and(sentAttributes($sent, '/ppp/active/remove'))->toMatchArray(['.id' => '*A']);
 
     [$client, $sent] = fakeRouterOs($reads);
@@ -386,19 +392,112 @@ test('isolir memindahkan secret ke profile ISOLIR dari IP Pool Isolir, tidak men
         ->and(sentAttributes($sent, '/ppp/active/remove'))->toMatchArray(['.id' => '*A']);
 });
 
-test('isolir gagal jelas bila router belum punya IP Pool Isolir, dan provisi layanan Suspend memakai profile ISOLIR', function () {
+test('pool dan profile EXPIRED mengikuti subnet dan rate-limit di config, dan provisi layanan Suspend memakai EXPIRED', function () {
+    config(['mikrotik.isolir_subnet' => '10.250.0.0/24', 'mikrotik.isolir_rate_limit' => '128k/128k']);
     [$router, $layanan] = layananPppoeDinamis();
     Queue::fake();
     $layanan->update(['status' => StatusLayanan::Suspend]);
 
-    expect(fn () => $this->service->isolirPppoeSecret($router, $layanan, fakeRouterOs()[0]))
-        ->toThrow(MikrotikException::class, 'belum punya IP Pool Isolir');
-
-    $router->update(['ip_pool_isolir_id' => IpPool::factory()->create(['router_id' => $router->id])->id]);
     [$client, $sent] = fakeRouterOs();
     $this->service->createOrUpdatePppoeSecret($router->fresh(), $layanan->fresh(), $client);
 
-    expect(sentAttributes($sent, '/ppp/secret/add'))->toMatchArray(['profile' => 'ISOLIR', 'disabled' => 'no']);
+    $ditambahkan = fn (string $endpoint) => collect($sent)->filter(fn ($q) => $q->getEndpoint() === $endpoint)
+        ->map(fn ($q) => $q->getAttributes())->first(fn ($attrs) => in_array('=name=EXPIRED', $attrs, true));
+
+    expect($ditambahkan('/ip/pool/add'))->toBe(['=name=EXPIRED', '=ranges=10.250.0.2-10.250.0.254'])
+        ->and($ditambahkan('/ppp/profile/add'))->toBe(['=name=EXPIRED', '=rate-limit=128k/128k', '=local-address=10.250.0.1', '=remote-address=EXPIRED'])
+        ->and(sentAttributes($sent, '/ppp/secret/add'))->toMatchArray(['profile' => 'EXPIRED', 'disabled' => 'no']);
+});
+
+test('isolir ditolak tanpa menimpa apa pun bila subnet isolir bentrok dengan pool NOC di router atau pool billing lain', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+
+    $secret = ['/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']]];
+    $tulis = fn ($sent) => collect($sent)->map(fn ($q) => $q->getEndpoint())->intersect(['/ip/pool/add', '/ip/pool/set', '/ppp/profile/add', '/ppp/secret/set']);
+
+    [$client, $sent] = fakeRouterOs($secret + ['/ip/pool/print' => [['.id' => '*9', 'name' => 'noc-mgmt', 'ranges' => '10.9.0.2-10.9.0.9,172.30.5.10-172.30.5.20']]]);
+    expect(fn () => $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client))
+        ->toThrow(MikrotikException::class, 'noc-mgmt');
+    expect($tulis($sent))->toBeEmpty();
+
+    IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Lama', 'ip_network' => '172.30.1.0', 'cidr' => 24, 'rentang_ip_awal' => '172.30.1.2', 'rentang_ip_akhir' => '172.30.1.254']);
+    [$client, $sent] = fakeRouterOs($secret);
+    expect(fn () => $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client))
+        ->toThrow(MikrotikException::class, 'Pool-Lama');
+    expect($tulis($sent))->toBeEmpty()
+        ->and(IpPool::where('nama_pool', 'EXPIRED')->exists())->toBeFalse();
+});
+
+test('pool isolir lama pilihan admin yang tumpang tindih tidak menghalangi EXPIRED dan tidak dihapus', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    $lama = IpPool::factory()->create(['router_id' => $router->id, 'nama_pool' => 'Pool-Isolir', 'ip_network' => '172.30.9.0', 'cidr' => 24, 'rentang_ip_awal' => '172.30.9.2', 'rentang_ip_akhir' => '172.30.9.254']);
+    $router->update(['ip_pool_isolir_id' => $lama->id]);
+    [$client, $sent] = fakeRouterOs([
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']],
+        '/ip/pool/print' => [['.id' => '*7', 'name' => 'Pool-Isolir', 'ranges' => '172.30.9.2-172.30.9.254']],
+    ]);
+
+    $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client);
+
+    expect($router->fresh()->ipPoolIsolir->nama_pool)->toBe('EXPIRED')
+        ->and($lama->fresh()->canBeDeleted())->toBeTrue()
+        ->and(sentAttributes($sent, '/ppp/secret/set'))->toMatchArray(['profile' => 'EXPIRED'])
+        ->and(sentAttributes($sent, '/ip/pool/remove'))->toBeNull();
+});
+
+test('pool bernama EXPIRED buatan NOC dengan rentang lain tidak diambil alih billing', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    [$client, $sent] = fakeRouterOs([
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']],
+        '/ip/pool/print' => [['.id' => '*8', 'name' => 'EXPIRED', 'ranges' => '10.99.0.2-10.99.0.254']],
+    ]);
+
+    expect(fn () => $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client))
+        ->toThrow(MikrotikException::class, 'EXPIRED');
+    expect(sentAttributes($sent, '/ip/pool/set'))->toBeNull()
+        ->and(IpPool::where('nama_pool', 'EXPIRED')->exists())->toBeFalse();
+});
+
+test('rentang alamat/cidr di pool NOC dihitung dari awal jaringannya', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    [$client] = fakeRouterOs([
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'P10']],
+        '/ip/pool/print' => [['.id' => '*9', 'name' => 'noc', 'ranges' => '172.31.0.5/15']],
+    ]);
+
+    expect(fn () => $this->service->isolirPppoeSecret($router->fresh(), $layanan, $client))
+        ->toThrow(MikrotikException::class, 'noc');
+});
+
+test('sinkronisasi profile router selalu menyiapkan pool dan profile EXPIRED walau router belum punya IP Pool Isolir', function () {
+    [$router] = layananPppoeDinamis();
+    expect($router->ip_pool_isolir_id)->toBeNull();
+
+    [$client, $sent] = fakeRouterOs();
+    $res = $this->service->syncPaketProfiles($router->fresh(), $client);
+
+    expect($res['errors'])->toBe([])
+        ->and($router->fresh()->ipPoolIsolir?->nama_pool)->toBe('EXPIRED')
+        ->and(collect($sent)->filter(fn ($q) => $q->getEndpoint() === '/ppp/profile/add')
+            ->contains(fn ($q) => in_array('=name=EXPIRED', $q->getAttributes(), true)))->toBeTrue();
+});
+
+test('rekonsiliasi memindahkan secret Suspend dari profile ISOLIR lama ke EXPIRED dan memutus sesinya, tanpa menghapus ISOLIR yang masih dipakai', function () {
+    [$router, $layanan] = layananPppoeDinamis();
+    Queue::fake();
+    $layanan->update(['status' => StatusLayanan::Suspend]);
+    [$client, $sent] = fakeRouterOs([
+        '/ppp/secret/print' => [['.id' => '*1', 'name' => $layanan->ppp_username, 'profile' => 'ISOLIR', 'password' => 'secret123']],
+        '/ppp/profile/print' => [['.id' => '*P4', 'name' => 'ISOLIR']],
+        '/ppp/active/print' => [['.id' => '*A', 'name' => $layanan->ppp_username]],
+    ]);
+
+    $res = $this->service->autoRecoverPppSecrets($router->fresh(), $client);
+
+    expect(sentAttributes($sent, '/ppp/secret/set'))->toMatchArray(['.id' => '*1', 'profile' => 'EXPIRED'])
+        ->and(sentAttributes($sent, '/ppp/active/remove'))->toMatchArray(['.id' => '*A'])
+        ->and(sentAttributes($sent, '/ip/pool/remove'))->toBeNull()
+        ->and($res['profile_lama_dihapus'])->toBe([]);
 });
 
 test('autoRecoverPppSecrets treats a disabled secret as drift because isolir no longer disables', function () {
