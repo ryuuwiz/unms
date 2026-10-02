@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -381,6 +382,24 @@ class Show extends Component
             text: 'Status realtime PPP berhasil diperbarui dari MikroTik.',
             variant: 'success',
         );
+    }
+
+    /**
+     * Pemantauan Sesi PPP melihat sesi satu layanan berubah (ADR-0070): ambil ulang status layanan itu saja,
+     * melewati cache karena isi cache justru yang sudah basi.
+     *
+     * @param  array{layanan_id: int}  $event
+     */
+    #[On('echo-private:pelanggan.{pelangganId},StatusSesiPppBerubah')]
+    public function segarkanStatusPppLayanan(array $event, MikrotikService $mikrotikService): void
+    {
+        $layanan = LayananPelanggan::with('router')
+            ->where('pelanggan_id', $this->pelangganId)
+            ->find($event['layanan_id']);
+
+        if ($layanan?->router && ! empty($layanan->ppp_username)) {
+            $this->pppStatuses[$layanan->id] = $mikrotikService->refreshPppStatus($layanan->router, $layanan->ppp_username);
+        }
     }
 
     /**

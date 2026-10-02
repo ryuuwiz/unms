@@ -182,6 +182,10 @@ _Avoid_: Background Queue Bebas, Single Queue Mikrotik
 Strategi sinkronisasi berkala PPP Secret di RouterOS yang membaca seluruh data dalam 1x bulk query, membandingkan data di RAM PHP (0 ms), dan hanya mengirim perintah mutasi secara targeted pada entri yang tidak sinkron tanpa query baca berulang per akun.
 _Avoid_: Query Nested Per Akun, Loop Sinkron Monolitik, Reconcile Lambat
 
+**Pemantauan Sesi PPP**:
+Pengamatan berkala sesi PPP aktif di setiap Router online untuk mendeteksi pelanggan yang connect, disconnect, atau reconnect (alamat sesi atau caller-id berubah), serta router yang berubah online/offline, lalu memberi tahu staf yang sedang membuka halaman pelanggan terkait secara langsung. Hanya mengamati, tidak pernah mengubah apa pun di router. Suspend/isolir dari UNMS ikut terlihat karena sesinya terputus. Uptime yang bertambah tidak dianggap perubahan.
+_Avoid_: Polling Status, Rekonsiliasi Sesi, Sinkronisasi Status
+
 **Kota**:
 Entitas tingkat administratif kota/kabupaten dalam cakupan operasional ISP.
 _Avoid_: City, Daerah
