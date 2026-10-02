@@ -63,7 +63,7 @@
             x-show="aktif !== null"
             x-cloak
             x-transition.opacity
-            class="fixed inset-0 z-[60] flex flex-col bg-black/90"
+            class="fixed inset-0 z-[9999] flex flex-col bg-black/95"
             x-on:touchstart="sentuhX = $event.changedTouches[0].clientX"
             x-on:touchend="selesaiSentuh($event.changedTouches[0].clientX)"
             role="dialog"

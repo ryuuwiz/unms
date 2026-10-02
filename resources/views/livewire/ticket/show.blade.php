@@ -210,7 +210,7 @@
                                     </div>
 
                                     <div class="flex flex-wrap items-center gap-2 pt-1">
-                                        <flux:button type="submit" size="sm" variant="subtle" icon="document-check">
+                                        <flux:button type="submit" size="sm" variant="filled" icon="document-check">
                                             Simpan Progress
                                         </flux:button>
                                         @if ($ticket->statusDivisi(\App\Enums\Ticket\DivisiTicket::Teknisi) !== \App\Enums\Ticket\StatusDivisiTicket::Selesai)
@@ -435,7 +435,7 @@
         </div>
 
         <!-- 3. Grid 3 Kartu Informasi: Pelanggan, Layanan, Tim/Sales -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Info Pelanggan -->
             <div class="bg-white dark:bg-zinc-800 p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm space-y-4">
                 <div class="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-700/60 pb-3">
@@ -548,7 +548,7 @@
             </div>
 
             <!-- Sales / Tim yang Menangani -->
-            <div class="bg-white dark:bg-zinc-800 p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm space-y-4">
+            <div class="md:col-span-2 bg-white dark:bg-zinc-800 p-4 sm:p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm space-y-4">
                 <h3 class="font-bold text-sm text-zinc-900 dark:text-white flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-700/60 pb-3">
                     <flux:icon name="identification" class="size-4 text-amber-600" />
                     Tim yang Menangani
@@ -566,7 +566,7 @@
                     </div>
 
                     @php $sales = $ticket->salesPenanggungJawab(); @endphp
-                    <div class="flex flex-wrap gap-4 pt-3 border-t border-zinc-100 dark:border-zinc-700/50">
+                    <div class="flex flex-wrap gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-700/50">
                         <x-foto-staf :user="$ticket->pic" peran="PIC Lapangan (Teknisi)" />
                         @if ($sales !== false)
                             <x-foto-staf :user="$sales" peran="Sales Penanggung Jawab" kosong="Tanpa Sales" />
