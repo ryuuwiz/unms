@@ -2,7 +2,7 @@
 
 namespace App\Models\Concerns;
 
-use Illuminate\Support\Facades\Storage;
+use App\Support\MediaLibrary\PenyimpananMedia;
 
 /**
  * Logo tunggal di media collection `logo`, untuk model yang memakai InteractsWithMedia.
@@ -54,9 +54,6 @@ trait HasLogo
             return null;
         }
 
-        $disk = Storage::disk($media->disk);
-        $path = $media->getPathRelativeToRoot();
-
-        return $disk->exists($path) ? $disk->get($path) : null;
+        return PenyimpananMedia::isiBerkas($media);
     }
 }

@@ -41,6 +41,19 @@ class PenyimpananMedia
     }
 
     /**
+     * Isi berkas media, atau null bila hilang atau S3 sedang mati. Saat S3 mati tidak menunggu timeout;
+     * `get()` tanpa `exists()` dulu karena HEAD objek hilang bisa dijawab 403 (melempar), bukan 404.
+     */
+    public static function isiBerkas(Media $media): ?string
+    {
+        if (self::diskS3($media->disk) && self::s3Mati()) {
+            return null;
+        }
+
+        return Storage::disk($media->disk)->get($media->getPathRelativeToRoot());
+    }
+
+    /**
      * Media Privat tidak boleh mendarat di `public` (disajikan langsung lewat /storage).
      */
     public static function diskCadangan(string $koleksi): string
