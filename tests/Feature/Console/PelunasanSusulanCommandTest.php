@@ -4,6 +4,7 @@ use App\Enums\GatewayChannel;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
 use App\Enums\StatusTransaksiGateway;
+use App\Enums\UserStatus;
 use App\Events\InvoicePaidEvent;
 use App\Models\Invoice;
 use App\Models\LayananPelanggan;
@@ -12,12 +13,17 @@ use App\Models\Pelanggan;
 use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
+use App\Models\User;
+use App\Notifications\PelunasanSusulanNotification;
 use App\Services\PaymentGateway\Drivers\XenditDriver;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Carbon\CarbonInterface;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
+use Spatie\Activitylog\Models\Activity;
 
 uses(RefreshDatabase::class);
 
@@ -308,4 +314,49 @@ test('invoice Dibatalkan yang dulunya menggabung tunggakan dilaporkan, tidak dip
     $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful()->expectsOutputToContain('menggabung tunggakan');
 
     expect(Invoice::query()->find($invoice->id))->toBeNull();
+});
+
+test('pelunasan susulan dan kasus yang dilaporkan tercatat di audit trail dan dikabarkan ke admin serta super_admin', function () {
+    Notification::fake();
+    $admin = User::factory()->create(['status' => UserStatus::Active]);
+    $admin->assignRole('admin');
+    $superAdmin = User::factory()->create(['status' => UserStatus::Active]);
+    $superAdmin->assignRole('super_admin');
+    $noc = User::factory()->create(['status' => UserStatus::Active]);
+    $noc->assignRole('noc');
+
+    $invoice = invoiceSusulan($this->layanan);
+    $this->pembayaranXendit[$this->koneksi->id] = [
+        bayarXendit(transaksiSusulan($invoice, $this->koneksi)),
+        bayarXendit('BFINV-TIDAKADA-1700000000'),
+    ];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
+
+    expect(Activity::inLog('pelunasan_susulan')->count())->toBe(2)
+        ->and(Activity::inLog('pelunasan_susulan')->where('subject_id', $invoice->id)->first()?->getProperty('aksi'))->toBe('DILUNASI');
+    Notification::assertSentTo([$admin, $superAdmin], PelunasanSusulanNotification::class);
+    Notification::assertNotSentTo($noc, PelunasanSusulanNotification::class);
+});
+
+test('tidak ada notifikasi saat tidak ada yang dilunasi atau dilaporkan, maupun saat dry-run', function () {
+    Notification::fake();
+    $admin = User::factory()->create(['status' => UserStatus::Active]);
+    $admin->assignRole('admin');
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
+
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit(transaksiSusulan(invoiceSusulan($this->layanan), $this->koneksi))];
+    $this->artisan('pembayaran:cek-lunas-xendit', ['--dry-run' => true])->assertSuccessful();
+
+    Notification::assertNothingSent();
+    expect(Activity::inLog('pelunasan_susulan')->count())->toBe(0);
+});
+
+test('pembayaran:cek-lunas-xendit dijadwalkan harian', function () {
+    $jadwal = collect(app(Schedule::class)->events())
+        ->first(fn ($event) => str_contains((string) $event->command, 'pembayaran:cek-lunas-xendit'));
+
+    expect($jadwal)->not->toBeNull()
+        ->and($jadwal->expression)->toBe('15 2 * * *');
 });

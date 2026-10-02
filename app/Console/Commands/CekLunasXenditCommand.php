@@ -34,7 +34,11 @@ class CekLunasXenditCommand extends Command
 
         $this->info(($dryRun ? '[DRY RUN] ' : '')."Memeriksa pembayaran PAID di Xendit sejak {$sejak->toDateString()}...");
 
-        $hasil = collect($pelunasanSusulan->jalankan($sejak, $dryRun));
+        $daftarHasil = $pelunasanSusulan->jalankan($sejak, $dryRun);
+        if (! $dryRun) {
+            $pelunasanSusulan->laporkan($daftarHasil);
+        }
+        $hasil = collect($daftarHasil);
         $ditampilkan = $hasil->reject(fn (HasilPelunasanSusulan $item): bool => $item->aksi === AksiPelunasanSusulan::SudahTercatat);
 
         if ($ditampilkan->isNotEmpty()) {

@@ -12,11 +12,14 @@ use App\Models\Invoice;
 use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
+use App\Models\User;
+use App\Notifications\PelunasanSusulanNotification;
 use App\Services\PaymentGateway\Drivers\XenditDriver;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 /**
@@ -53,6 +56,47 @@ class PelunasanSusulan
         }
 
         return $hasil;
+    }
+
+    /**
+     * Catat setiap pelunasan dan kasus yang perlu ditindaklanjuti ke audit trail, lalu kabari
+     * Admin dan super_admin sekali per eksekusi -- hanya bila ada isinya.
+     *
+     * @param  list<HasilPelunasanSusulan>  $hasil
+     */
+    public function laporkan(array $hasil): void
+    {
+        $dilaporkan = array_values(array_filter($hasil, fn (HasilPelunasanSusulan $item): bool => $item->aksi->perluDilaporkan()));
+
+        foreach ($dilaporkan as $item) {
+            $log = activity('pelunasan_susulan')->withProperties([
+                'aksi' => $item->aksi->value,
+                'koneksi' => $item->koneksi,
+                'external_id' => $item->pembayaran?->externalId,
+                'xendit_id' => $item->pembayaran?->eventId,
+                'nominal' => $item->pembayaran?->paidAmount,
+                'dibayar_pada' => $item->pembayaran?->paidAt,
+                'status_sebelum' => $item->statusSebelum,
+                'keterangan' => $item->keterangan,
+            ]);
+
+            if ($item->invoice) {
+                $log->performedOn($item->invoice);
+            }
+
+            $log->log("Pelunasan Susulan {$item->aksi->value}: ".($item->invoice?->no_invoice ?? $item->pembayaran?->externalId ?? $item->koneksi));
+        }
+
+        if ($dilaporkan === []) {
+            return;
+        }
+
+        $dilunasi = count(array_filter($dilaporkan, fn (HasilPelunasanSusulan $item): bool => $item->aksi === AksiPelunasanSusulan::Dilunasi));
+
+        Notification::send(
+            User::role(['super_admin', 'admin'])->get(),
+            new PelunasanSusulanNotification($dilunasi, count($dilaporkan) - $dilunasi),
+        );
     }
 
     /**
