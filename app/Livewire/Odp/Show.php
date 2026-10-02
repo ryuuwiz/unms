@@ -5,6 +5,7 @@ namespace App\Livewire\Odp;
 use App\Enums\StatusOdpPort;
 use App\Models\Odp;
 use App\Models\OdpPort;
+use App\Support\PetaPortOdp;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -64,6 +65,8 @@ class Show extends Component
             'totalKosong' => $totalKosong,
             'totalTerpakai' => $totalTerpakai,
             'totalRusak' => $totalRusak,
+            'petaPort' => PetaPortOdp::untuk($odp),
+            'portTerpakai' => $odp->ports->where('status', StatusOdpPort::Terpakai)->whereNotNull('layanan_pelanggan_id'),
         ]);
     }
 }

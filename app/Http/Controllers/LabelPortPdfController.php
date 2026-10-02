@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\StatusOdpPort;
 use App\Models\LayananPelanggan;
+use App\Models\Odp;
 use App\Models\OdpPort;
 use App\Models\Ticket;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
@@ -28,6 +31,27 @@ class LabelPortPdfController extends Controller
         $port->loadMissing('odp');
 
         return $this->cetak(collect([$this->label($port, $ticket->layananPelanggan)]), "Label-Port-{$ticket->nomor_ticket}");
+    }
+
+    /**
+     * Cetak massal untuk melabeli ulang ODP: semua port Terpakai, atau satu port lewat ?port=ID.
+     */
+    public function odp(Request $request, Odp $odp): Response
+    {
+        $request->validate(['port' => ['nullable', 'integer']]);
+
+        $labels = $odp->ports()
+            ->where('status', StatusOdpPort::Terpakai)
+            ->whereNotNull('layanan_pelanggan_id')
+            ->when($request->integer('port'), fn ($query, int $portId) => $query->whereKey($portId))
+            ->with('layananPelanggan.pelanggan')
+            ->orderBy('nomor_port')
+            ->get()
+            ->map(fn (OdpPort $port): array => $this->label($port->setRelation('odp', $odp), $port->layananPelanggan));
+
+        abort_if($labels->isEmpty(), 404, 'Tidak ada port Terpakai untuk dicetak labelnya.');
+
+        return $this->cetak($labels, "Label-Port-{$odp->nama_odp}");
     }
 
     /**

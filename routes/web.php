@@ -336,6 +336,7 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('permission:odp.lihat')->group(function () {
             Route::get('/', App\Livewire\Odp\Index::class)->name('index');
             Route::get('/{odp}', App\Livewire\Odp\Show::class)->name('show');
+            Route::get('/{odp}/label-port', [LabelPortPdfController::class, 'odp'])->name('label-port');
         });
     });
 

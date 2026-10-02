@@ -150,4 +150,35 @@
             </flux:card>
         </div>
     </div>
+
+    {{-- Port ODP & Label Port -- lihat CONTEXT.md "Peta Port ODP" dan "Label Port". --}}
+    <flux:card class="p-6 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <flux:heading size="base">Port ODP</flux:heading>
+            @if ($portTerpakai->isNotEmpty())
+                <flux:button size="sm" variant="primary" icon="printer" :href="route('odp.label-port', $odp)" target="_blank">
+                    Cetak semua port Terpakai
+                </flux:button>
+            @endif
+        </div>
+
+        <x-peta-port-odp :peta="$petaPort" />
+
+        @if ($portTerpakai->isNotEmpty())
+            <div class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 dark:divide-zinc-700 dark:border-zinc-700">
+                @foreach ($portTerpakai as $port)
+                    <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+                        <div class="min-w-0">
+                            <span class="font-semibold text-zinc-900 dark:text-white">Port {{ $port->nomor_port }}</span>
+                            <span class="text-zinc-500">· {{ $port->layananPelanggan?->pelanggan?->namaLengkap() }}</span>
+                            <div class="font-mono text-xs text-zinc-500">{{ $port->layananPelanggan?->pelanggan?->no_reg }} · {{ $port->layananPelanggan?->site_id }}</div>
+                        </div>
+                        <flux:button size="sm" variant="subtle" icon="printer" :href="route('odp.label-port', ['odp' => $odp, 'port' => $port->id])" target="_blank">
+                            Cetak Label
+                        </flux:button>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+    </flux:card>
 </div>
