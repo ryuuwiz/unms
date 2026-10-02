@@ -6,7 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
 /**
- * Gateway WhatsApp menolak/tidak terjangkau (401/403, timeout, 5xx) -- tampil di lonceng admin.
+ * Gateway WhatsApp menolak/tidak terjangkau (401/403, timeout, 5xx) -- tampil sebagai notifikasi browser admin.
  * Gagal per nomor tidak diberitahukan; cukup terlihat di halaman Antrian WA.
  */
 class GatewayWaBermasalahNotification extends Notification

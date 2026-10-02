@@ -8,7 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
 /**
- * Notifikasi NOC atas hasil job MikroTik (sukses/gagal) -- tampil di lonceng aplikasi.
+ * Notifikasi NOC atas hasil job MikroTik (sukses/gagal) -- tampil sebagai notifikasi browser.
  */
 class MikrotikJobNotification extends Notification
 {

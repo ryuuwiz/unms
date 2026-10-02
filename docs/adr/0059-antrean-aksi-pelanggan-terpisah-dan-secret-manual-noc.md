@@ -20,4 +20,4 @@ NOC melaporkan PPP Secret pelanggan baru tidak masuk ke router, tanpa notifikasi
 
 ## Konsekuensi
 - Beban router sedikit naik saat rekonsiliasi berjalan bersamaan dengan aksi pelanggan.
-- Secret lama tanpa komentar `UNMS:` yang seharusnya milik billing (mis. hasil migrasi) harus diberi komentar `UNMS:` oleh NOC sebelum bisa dikelola sistem; kegagalannya terlihat di lonceng dan WhatsApp.
+- Secret lama tanpa komentar `UNMS:` yang seharusnya milik billing (mis. hasil migrasi) harus diberi komentar `UNMS:` oleh NOC sebelum bisa dikelola sistem; kegagalannya terlihat di notifikasi browser dan WhatsApp.

@@ -71,7 +71,7 @@ test('rekonsiliasi membereskan duplikat bernama sama kecuali yang berkomentar pe
         ->and($dihapus)->not->toContain('=.id=*11');
 });
 
-test('job provisi yang gagal permanen tidak di-retry, tercatat, dan memberi tahu NOC lewat lonceng dan WhatsApp', function () {
+test('job provisi yang gagal permanen tidak di-retry, tercatat, dan memberi tahu NOC lewat notifikasi browser dan WhatsApp', function () {
     Notification::fake();
     $noc = User::factory()->create(['phone' => '081234567890']);
     $noc->assignRole('noc');

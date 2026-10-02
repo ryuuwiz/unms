@@ -179,7 +179,7 @@ class KirimWaBlastJob implements ShouldBeUnique, ShouldQueue
     }
 
     /**
-     * Lonceng admin & super_admin, maksimal sekali per jam per gateway.
+     * Notifikasi browser admin & super_admin, maksimal sekali per jam per gateway.
      */
     private function beritahuGatewayBermasalah(?Sysblas $sysblas, string $galat): void
     {

@@ -8,16 +8,12 @@ use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
- * Lonceng notifikasi milik user login (Notifikasi NOC MikroTik, tiket, Horizon), dipasang dua kali di layout:
- * di bawah sidebar (desktop) dan di header (mobile). Notifikasi baru juga diteruskan ke notifikasi browser
- * (Notification API) bila user mengizinkan.
+ * Meneruskan notifikasi milik user login (Notifikasi NOC MikroTik, tiket, Horizon) ke notifikasi browser
+ * (Notification API). Tanpa UI; dipasang sekali di layout, sehingga notifikasi hanya sampai selama aplikasi
+ * terbuka di browser dan user mengizinkan.
  */
-class NotifikasiLonceng extends Component
+class NotifikasiBrowser extends Component
 {
-    /** 'sidebar' (desktop) atau 'header' (mobile); hanya instance di breakpoint aktif yang mem-poll. */
-    #[Locked]
-    public string $posisi = 'sidebar';
-
     /** Batas bawah jendela [batas, detik sekarang) notifikasi yang belum diteruskan ke browser. */
     #[Locked]
     public string $batasBrowser = '';
@@ -60,18 +56,8 @@ class NotifikasiLonceng extends Component
         auth('web')->user()?->unreadNotifications()->whereKey($id)->update(['read_at' => now()]);
     }
 
-    public function tandaiSemuaDibaca(): void
-    {
-        auth('web')->user()?->unreadNotifications()->update(['read_at' => now()]);
-    }
-
     public function render(): View
     {
-        $user = auth('web')->user();
-
-        return view('livewire.notifikasi-lonceng', [
-            'notifikasi' => $user?->notifications()->latest()->limit(10)->get() ?? collect(),
-            'belumDibaca' => $user?->unreadNotifications()->count() ?? 0,
-        ]);
+        return view('livewire.notifikasi-browser');
     }
 }

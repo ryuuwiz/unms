@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Notification;
 use Throwable;
 
 /**
- * Notifikasi NOC -- lihat CONTEXT.md "Notifikasi NOC". Lonceng untuk user noc & super_admin;
+ * Notifikasi NOC -- lihat CONTEXT.md "Notifikasi NOC". Notifikasi browser untuk user noc & super_admin;
  * WhatsApp hanya untuk kejadian genting (gagal provisi permanen per pelanggan). Router
  * online/offline sengaja tidak lewat WhatsApp -- lihat PingRouterJob.
  */
@@ -36,7 +36,7 @@ class NotifikasiNoc
                 // jenis per user: antrean WA unik per (referensi, jenis, tanggal).
                 $this->whatsapp->antrikanPesanKustom((string) $user->phone, $pesan, referensi: $log, jenis: "noc_mikrotik_u{$user->id}");
             } catch (Throwable $e) {
-                // Gateway WA bermasalah tidak boleh menggagalkan job MikroTik; lonceng sudah terkirim.
+                // Gateway WA bermasalah tidak boleh menggagalkan job MikroTik; notifikasi browser sudah tersimpan.
                 report($e);
             }
         }

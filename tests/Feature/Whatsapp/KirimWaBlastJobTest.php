@@ -85,7 +85,7 @@ test('batas percobaan berbasis waktu dan job unik per antrean, sehingga penyapu 
     Queue::assertPushed(KirimWaBlastJob::class, 1);
 });
 
-test('galat sementara (HTTP 5xx) dicoba ulang dan lonceng admin maksimal sekali per jam', function () {
+test('galat sementara (HTTP 5xx) dicoba ulang dan notifikasi admin maksimal sekali per jam', function () {
     Http::fake(['*/send/message' => Http::response(['message' => 'bad gateway'], 502)]);
     $antrian = antrianWa($this->sysblas);
 
@@ -109,7 +109,7 @@ test('gateway menolak autentikasi: pesan gagal permanen dan admin diberi tahu', 
     Notification::assertSentTo($this->admin, GatewayWaBermasalahNotification::class);
 });
 
-test('penolakan per nomor gagal permanen tanpa lonceng dan tercatat di log whatsapp', function () {
+test('penolakan per nomor gagal permanen tanpa notifikasi admin dan tercatat di log whatsapp', function () {
     Http::fake(['*/send/message' => Http::response(['message' => 'nomor tidak terdaftar'], 400)]);
     $log = Mockery::mock();
     $log->shouldReceive('error')->once()->with('Pesan WA gagal terkirim', Mockery::on(fn (array $konteks) => $konteks['jenis'] === 'invoice_terbit' && $konteks['error'] === 'nomor tidak terdaftar'));

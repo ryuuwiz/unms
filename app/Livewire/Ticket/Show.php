@@ -797,7 +797,7 @@ class Show extends Component
         $this->authorize('aktivasiPemasangan', $this->ticket);
 
         ProvisionPppoeAccountJob::dispatch($layanan);
-        Flux::toast(variant: 'info', text: "Provisi {$layanan->ppp_username} diantrekan. Hasilnya muncul di lonceng notifikasi.");
+        Flux::toast(variant: 'info', text: "Provisi {$layanan->ppp_username} diantrekan. Hasilnya muncul di notifikasi browser.");
     }
 
     /**

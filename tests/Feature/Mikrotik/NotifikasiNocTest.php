@@ -4,7 +4,7 @@ use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
 use App\Jobs\Mikrotik\EnablePppoeAccountJob;
 use App\Jobs\Wa\KirimWaBlastJob;
-use App\Livewire\NotifikasiLonceng;
+use App\Livewire\NotifikasiBrowser;
 use App\Models\MikrotikJobLog;
 use App\Models\User;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -42,13 +42,11 @@ test('job yang gagal tanpa pernah menjalankan handle() tetap tercatat dan tidak 
         ->and($this->noc->unreadNotifications()->count())->toBe(1);
 });
 
-test('lonceng menampilkan notifikasi user dan bisa menandai dibaca', function () {
+test('notifikasi browser yang diklik ditandai dibaca', function () {
     (new EnablePppoeAccountJob($this->layanan))->failed(new MaxAttemptsExceededException('Router tidak merespons'));
 
-    Livewire::actingAs($this->noc)->test(NotifikasiLonceng::class)
-        ->assertSee('MikroTik Gagal')
-        ->assertSee('Router tidak merespons')
-        ->call('tandaiSemuaDibaca');
+    Livewire::actingAs($this->noc)->test(NotifikasiBrowser::class)
+        ->call('tandaiDibaca', $this->noc->unreadNotifications()->sole()->id);
 
     expect($this->noc->unreadNotifications()->count())->toBe(0);
 });
@@ -57,15 +55,15 @@ test('notifikasi baru diteruskan ke browser sekali, notifikasi lama saat halaman
     (new EnablePppoeAccountJob($this->layanan))->failed(new MaxAttemptsExceededException('Notifikasi lama'));
     $this->travel(2)->seconds();
 
-    $lonceng = Livewire::actingAs($this->noc)->test(NotifikasiLonceng::class);
-    $lonceng->call('periksaBaru')->assertNotDispatched('notifikasi-browser');
+    $komponen = Livewire::actingAs($this->noc)->test(NotifikasiBrowser::class);
+    $komponen->call('periksaBaru')->assertNotDispatched('notifikasi-browser');
 
     (new EnablePppoeAccountJob($this->layanan))->failed(new MaxAttemptsExceededException('Router tidak merespons'));
     $this->travel(2)->seconds();
 
-    $lonceng->call('periksaBaru')->assertDispatched('notifikasi-browser', fn (string $event, array $params) => count($params['notifikasi']) === 1
+    $komponen->call('periksaBaru')->assertDispatched('notifikasi-browser', fn (string $event, array $params) => count($params['notifikasi']) === 1
         && str_contains($params['notifikasi'][0]['body'], 'Router tidak merespons'));
 
     $this->travel(2)->seconds();
-    $lonceng->call('periksaBaru')->assertNotDispatched('notifikasi-browser');
+    $komponen->call('periksaBaru')->assertNotDispatched('notifikasi-browser');
 });

@@ -62,10 +62,6 @@
 
             <flux:spacer />
 
-            <flux:sidebar.nav class="hidden lg:block">
-                <livewire:notifikasi-lonceng posisi="sidebar" :key="'lonceng-sidebar'" />
-            </flux:sidebar.nav>
-
             <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
         </flux:sidebar>
 
@@ -76,8 +72,6 @@
                 <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
                 <flux:spacer />
-
-                <livewire:notifikasi-lonceng posisi="header" :key="'lonceng-header'" />
 
                 <flux:dropdown position="top" align="end">
                     <flux:profile
@@ -144,6 +138,8 @@
         </flux:header>
 
         {{ $slot }}
+
+        <livewire:notifikasi-browser />
 
         @persist('toast')
             <flux:toast.group position="top end">
