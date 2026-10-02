@@ -35,6 +35,7 @@ use App\Models\TicketPemasangan;
 use App\Models\User;
 use App\Services\Mikrotik\MikrotikService;
 use App\Services\Mikrotik\NotifikasiNoc;
+use App\Support\PetaPortOdp;
 use Exception;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
@@ -190,7 +191,7 @@ class Show extends Component
         );
 
         $pemasangan->update(['status_usulan_odp' => StatusUsulanOdp::Diganti]);
-        $this->catatHistoriUsulanOdp("Usulan ODP {$pemasangan->odpUsulan?->nama_odp} diganti Teknisi. Alasan: " . trim($this->alasanGantiOdp));
+        $this->catatHistoriUsulanOdp("Usulan ODP {$pemasangan->odpUsulan?->nama_odp} diganti Teknisi. Alasan: ".trim($this->alasanGantiOdp));
 
         $this->alasanGantiOdp = '';
         $this->odp_id = null;
@@ -281,7 +282,7 @@ class Show extends Component
     {
         $this->eksekusiAksiPencabutan(
             abilitas: 'hapusSecretPencabutan',
-            aksi: fn(User $actor) => $action->execute($this->ticket, $actor),
+            aksi: fn (User $actor) => $action->execute($this->ticket, $actor),
             pesanSukses: 'PPP Secret berhasil dihapus dari router. Tiket sudah bisa ditandai Selesai.',
         );
     }
@@ -293,7 +294,7 @@ class Show extends Component
     {
         $this->eksekusiAksiPencabutan(
             abilitas: 'lepasPortOdpPencabutan',
-            aksi: fn(User $actor) => $action->execute($this->ticket, $actor),
+            aksi: fn (User $actor) => $action->execute($this->ticket, $actor),
             pesanSukses: 'Port ODP berhasil dilepas.',
         );
     }
@@ -390,7 +391,7 @@ class Show extends Component
                     ->usingFileName($this->fotoPengerjaan->getClientOriginalName())
                     ->toMediaCollection('foto_pengerjaan');
             } catch (\Throwable $e) {
-                Log::error('Gagal menyimpan foto pengerjaan: ' . $e->getMessage());
+                Log::error('Gagal menyimpan foto pengerjaan: '.$e->getMessage());
             }
         }
 
@@ -407,6 +408,34 @@ class Show extends Component
     public function updatedOdpId(): void
     {
         $this->odp_port_id = null;
+    }
+
+    /**
+     * Teknisi mengetuk satu kotak di Peta Port ODP. Hanya port Kosong yang tidak Dipesan tiket
+     * lain, atau port milik tiket ini, yang diterima -- lihat CONTEXT.md "Peta Port ODP".
+     * Pilihan baru tersimpan lewat simpanProgressLapangan()/tandaiDivisiSelesai().
+     */
+    public function pilihPort(int $portId): void
+    {
+        $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
+        $this->resetErrorBag('odp_port_id');
+
+        $peta = $this->petaPort();
+        $alasan = $peta ? $peta->alasanTidakDapatDipilih($portId) : 'Pilih ODP terlebih dahulu.';
+        if ($alasan !== null) {
+            $this->addError('odp_port_id', $alasan);
+
+            return;
+        }
+
+        $this->odp_port_id = $portId;
+    }
+
+    protected function petaPort(): ?PetaPortOdp
+    {
+        $odp = $this->odp_id ? Odp::find($this->odp_id) : null;
+
+        return $odp ? PetaPortOdp::untuk($odp, $this->ticket->id, $this->ticket->pemasangan?->odp_port_id, $this->odp_port_id) : null;
     }
 
     /**
@@ -434,9 +463,9 @@ class Show extends Component
 
             return false;
         }
-        $dipesanOleh = TicketPemasangan::portDipesan($this->ticket->id)[$this->odp_port_id] ?? null;
-        if ($dipesanOleh) {
-            $this->addError('odp_port_id', "Port sudah dipesan tiket {$dipesanOleh}.");
+        $alasan = $this->petaPort()?->alasanTidakDapatDipilih($this->odp_port_id);
+        if ($alasan !== null) {
+            $this->addError('odp_port_id', $alasan);
 
             return false;
         }
@@ -574,7 +603,7 @@ class Show extends Component
     private function routerOnlineUntukPaket(?int $paketLayananId): Collection
     {
         return Router::where('status_koneksi', StatusRouter::Online)
-            ->whereHas('routerPakets', fn($query) => $query->where('paket_layanan_id', $paketLayananId))
+            ->whereHas('routerPakets', fn ($query) => $query->where('paket_layanan_id', $paketLayananId))
             ->orderBy('nama_router')
             ->get();
     }
@@ -681,7 +710,7 @@ class Show extends Component
             Flux::toast(
                 variant: 'warning',
                 heading: 'Router/IP Pool Tersimpan, Provisi Gagal',
-                text: "Provisi ke router gagal: {$e->getMessage()} " . ($dicobaLagi ? 'Sistem mencoba ulang otomatis dan NOC diberi tahu.' : 'Perbaiki penyebabnya lalu klik Coba Provisi Lagi.'),
+                text: "Provisi ke router gagal: {$e->getMessage()} ".($dicobaLagi ? 'Sistem mencoba ulang otomatis dan NOC diberi tahu.' : 'Perbaiki penyebabnya lalu klik Coba Provisi Lagi.'),
                 duration: 20000,
             );
         }
@@ -996,16 +1025,8 @@ class Show extends Component
 
         $usulanDisetujui = $this->ticket->pemasangan?->status_usulan_odp === StatusUsulanOdp::Disetujui;
         $odps = Odp::orderBy('nama_odp')
-            ->when($usulanDisetujui, fn($query) => $query->whereKey($this->ticket->pemasangan->odp_usulan_id))
+            ->when($usulanDisetujui, fn ($query) => $query->whereKey($this->ticket->pemasangan->odp_usulan_id))
             ->get(['id', 'nama_odp']);
-        $odpPorts = $this->odp_id
-            ? OdpPort::where('odp_id', $this->odp_id)
-            ->where(function ($q) {
-                $q->where('status', StatusOdpPort::Kosong)->orWhere('id', $this->odp_port_id);
-            })
-            ->orderBy('nomor_port')
-            ->get()
-            : collect();
 
         $layananTiket = $this->ticket->layananPelanggan;
         $routersAktivasi = $this->routerOnlineUntukPaket($layananTiket?->paket_layanan_id);
@@ -1019,8 +1040,7 @@ class Show extends Component
             'staffList' => $staffList,
             'transisiValid' => $transisiValid,
             'odps' => $odps,
-            'odpPorts' => $odpPorts,
-            'portDipesan' => $this->odp_id ? TicketPemasangan::portDipesan($this->ticket->id) : [],
+            'petaPort' => $this->petaPort(),
             'routersAktivasi' => $routersAktivasi,
             'routersProses' => $routersProses,
             'paketLayananList' => $paketLayananList,
