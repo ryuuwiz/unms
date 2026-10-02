@@ -15,6 +15,7 @@ use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -33,7 +34,16 @@ class Index extends Component
     #[Url]
     public string $expiry = '';
 
+    /**
+     * ID yang akan dihapus. Locked: state buka/tutup modal disimpan terpisah di $showHapusModal,
+     * karena flux:modal wire:model menulis true/false ke propertinya (true di-cast jadi ID 1).
+     */
+    #[Locked]
     public ?int $deletingId = null;
+
+    public bool $showHapusModal = false;
+
+    public string $konfirmasiHapus = '';
 
     public function updatingExpiry(): void
     {
@@ -55,6 +65,9 @@ class Index extends Component
         $layanan = LayananPelanggan::findOrFail($id);
         $this->authorize('delete', $layanan);
         $this->deletingId = $id;
+        $this->konfirmasiHapus = '';
+        $this->resetErrorBag('konfirmasiHapus');
+        $this->showHapusModal = true;
     }
 
     public function deleteLayanan(): void
@@ -63,11 +76,17 @@ class Index extends Component
             return;
         }
 
+        if (trim($this->konfirmasiHapus) !== 'HAPUS') {
+            $this->addError('konfirmasiHapus', 'Ketik HAPUS untuk mengonfirmasi penghapusan.');
+
+            return;
+        }
+
         $layanan = LayananPelanggan::findOrFail($this->deletingId);
         $this->authorize('delete', $layanan);
 
         $layanan->delete();
-        $this->deletingId = null;
+        $this->reset(['deletingId', 'showHapusModal', 'konfirmasiHapus']);
 
         Flux::toast(variant: 'success', text: 'Layanan berhasil dihapus.');
     }

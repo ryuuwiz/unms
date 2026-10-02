@@ -6,9 +6,11 @@ use App\Actions\IpPublik\LepasIpPublikAction;
 use App\Actions\IpPublik\TetapkanIpPublikAction;
 use App\Enums\JenisKoneksi;
 use App\Enums\StatusLayanan;
+use App\Enums\StatusOdpPort;
 use App\Jobs\Mikrotik\CleanupPppSecretOnOldRouterJob;
 use App\Jobs\Mikrotik\UpdatePppoeProfileJob;
 use App\Models\LayananPelanggan;
+use App\Models\OdpPort;
 use Illuminate\Support\Facades\Auth;
 
 class LayananPelangganObserver
@@ -98,12 +100,17 @@ class LayananPelangganObserver
      * Handle the LayananPelanggan "deleted" event (soft delete / force delete).
      *
      * Ketika layanan pelanggan dihapus dari UNMS, otomatis hapus PPP Secret
-     * terkait dari router MikroTik agar tidak tertinggal sebagai orphaned secret.
+     * terkait dari router MikroTik agar tidak tertinggal sebagai orphaned secret,
+     * dan lepas IP Publik serta port ODP-nya.
      */
     public function deleted(LayananPelanggan $layanan): void
     {
         $layanan->pelanggan?->sinkronkanStatusDariLayanan();
         $this->lepasIpPublik($layanan);
+        OdpPort::where('layanan_pelanggan_id', $layanan->id)->update([
+            'status' => StatusOdpPort::Kosong,
+            'layanan_pelanggan_id' => null,
+        ]);
 
         $routerId = (int) $layanan->router_id;
         $pppUsername = (string) $layanan->ppp_username;

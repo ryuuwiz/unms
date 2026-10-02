@@ -363,6 +363,26 @@ class LayananPelanggan extends Model
     }
 
     /**
+     * Layanan Berhenti atau yang sudah dihapus tidak lagi ditagih: tunggakan tetap tercatat,
+     * pengingat WhatsApp dan link bayar dihentikan (CONTEXT.md "Pencabutan", "Penghapusan Data Registrasi Billing").
+     */
+    public function tidakLagiDitagih(): bool
+    {
+        return $this->status === StatusLayanan::Berhenti || $this->trashed();
+    }
+
+    /**
+     * Padanan query dari tidakLagiDitagih(); hanya bermakna bila query menyertakan layanan terhapus (withTrashed).
+     *
+     * @param  Builder<LayananPelanggan>  $query
+     * @return Builder<LayananPelanggan>
+     */
+    public function scopeTidakLagiDitagih(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q->where('status', StatusLayanan::Berhenti)->orWhereNotNull('deleted_at'));
+    }
+
+    /**
      * Cek apakah masa aktif layanan sudah kedaluwarsa (expired).
      */
     public function isExpired(): bool

@@ -90,9 +90,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // admin: operasional harian — semua kecuali router provision/sync, wilayah config, WA gateway
         $adminRole->syncPermissions([
-            'pelanggan.lihat', 'pelanggan.buat', 'pelanggan.ubah', 'pelanggan.hapus',
+            'pelanggan.lihat', 'pelanggan.buat', 'pelanggan.ubah',
             'pelanggan.lihat_ktp', 'pelanggan.lihat_dokumen', 'pelanggan.unggah_dokumen', 'pelanggan.hapus_dokumen',
-            'layanan_pelanggan.lihat', 'layanan_pelanggan.buat', 'layanan_pelanggan.ubah', 'layanan_pelanggan.hapus',
+            'layanan_pelanggan.lihat', 'layanan_pelanggan.buat', 'layanan_pelanggan.ubah',
             'layanan_pelanggan.aktivasi',
             'invoice.lihat', 'invoice.buat', 'invoice.batalkan', 'invoice.cetak',
             'siklus_tagihan.ubah',

@@ -128,6 +128,14 @@ _Avoid_: Nama Saja Tanpa No Reg, No Reg Tanpa Nama, Format Strip Tak Beraturan (
 Entitas registrasi langganan billing (sebelumnya disebut Layanan Pelanggan, merujuk pada `docs/data_unms.md` bagian `# Layanan & Network -> ## Billing`) yang menghubungkan seorang pelanggan dengan paket layanan internet tertentu dan masa aktif. Dibuat murni komersial (paket, harga, alamat, tagihan pertama) berstatus `PROSES` — router gateway, alokasi IP Pool, dan kredensial PPP **belum diisi saat dibuat**, baru terisi lewat Aktivasi Pemasangan di dalam Ticket Pemasangan (lihat ADR terkait & `docs/plan/ticket-pemasangan-workflow.md`). Setiap Aktivasi divalidasi anti-duplikasi pada router & paket yang sama saat status masih aktif/proses/suspend, dengan tetap mendukung multi-site per pelanggan. Tidak memiliki halaman detail tersendiri — selalu ditampilkan di dalam halaman Detail Pelanggan (tab Subscriptions); dibuat lewat rute bertingkat `/layanan-pelanggan/create/{pelanggan}` yang mengunci pelanggan, bukan dipilih bebas.
 _Avoid_: Subscription, Akun Internet, Koneksi, Layanan Saja, Router/PPP Terisi Saat Registrasi Dibuat
 
+**Penghapusan Pelanggan**:
+Menghapus seorang Pelanggan dari daftar (bisa dipulihkan dari tempat sampah), khusus `super_admin`, setelah mengetik `HAPUS` di modal peringatan. Ditolak selama Pelanggan masih punya Data Registrasi Billing yang belum `Berhenti` (termasuk yang masih `proses`) -- layanan harus diakhiri lebih dulu lewat Pencabutan atau dihapus satu per satu. Tidak butuh alasan; jejaknya cukup di audit trail.
+_Avoid_: Hapus Kontak Pelanggan, Hapus Pelanggan Beserta Layanannya
+
+**Penghapusan Data Registrasi Billing**:
+Menghapus satu Data Registrasi Billing berstatus apa pun, khusus `super_admin`, setelah mengetik `HAPUS` di modal peringatan. PPP Secret-nya ikut dihapus dari router, IP Publik dan port ODP-nya dilepas. Invoice-nya tetap tercatat sebagai tunggakan seperti layanan Berhenti, tetapi pengingat WhatsApp dan link bayarnya dihentikan. Jalan pintas di luar Pencabutan, bukan pengganti Pencabutan.
+_Avoid_: Hapus Layanan sebagai Cara Berhenti Langganan
+
 **PPP Username Credential**:
 Identitas autentikasi PPPoE pelanggan di RouterOS dengan format `{No.Reg}_{NNNNN}` (contoh: `BF2308202601_84920`) — prefix adalah No.Reg pelanggan, suffix adalah 5-digit angka acak (*CSPRNG token* `10000`–`99999`) yang dijamin unik global di tabel `layanan_pelanggan`. Di-generate otomatis oleh sistem saat **Aktivasi Pemasangan** (bukan saat Data Registrasi Billing dibuat); staff dapat override lewat halaman Edit layanan asal format dipatuhi. Disimpan di kolom `ppp_username` tabel `layanan_pelanggan`.
 _Avoid_: Username Bebas, PPP User Manual, Format Lama (`user_budi_01`), Digenerate Saat Registrasi Dibuat

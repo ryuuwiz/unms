@@ -180,11 +180,13 @@ class Invoice extends Model
     }
 
     /**
+     * Termasuk layanan yang sudah dihapus: invoice-nya tetap tercatat sebagai tunggakan (CONTEXT.md "Penghapusan Data Registrasi Billing").
+     *
      * @return BelongsTo<LayananPelanggan, $this>
      */
     public function layananPelanggan(): BelongsTo
     {
-        return $this->belongsTo(LayananPelanggan::class, 'layanan_pelanggan_id');
+        return $this->belongsTo(LayananPelanggan::class, 'layanan_pelanggan_id')->withTrashed();
     }
 
     /**

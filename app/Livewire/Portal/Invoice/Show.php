@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Portal\Invoice;
 
-use App\Enums\StatusLayanan;
 use App\Livewire\Portal\Invoice\Concerns\AuthorizesInvoiceAccess;
 use App\Models\Invoice;
 use App\Services\PaymentGateway\CekStatusPembayaranInvoice;
@@ -104,8 +103,8 @@ class Show extends Component
             return null;
         }
 
-        if ($this->invoice->layananPelanggan?->status === StatusLayanan::Berhenti) {
-            Flux::toast(variant: 'warning', text: 'Layanan untuk tagihan ini sudah berhenti dan tidak lagi bisa dibayar online. Hubungi kami untuk penyelesaian tunggakan.');
+        if ($this->invoice->layananPelanggan?->tidakLagiDitagih()) {
+            Flux::toast(variant: 'warning', text: 'Layanan untuk tagihan ini sudah tidak aktif dan tidak lagi bisa dibayar online. Hubungi kami untuk penyelesaian tunggakan.');
 
             return null;
         }

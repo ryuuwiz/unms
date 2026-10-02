@@ -163,18 +163,20 @@
     @endif
 
     {{-- Modal Konfirmasi Hapus --}}
-    <flux:modal :open="$deletingId !== null" wire:model.self="deletingId" class="max-w-md">
-        <div class="space-y-4">
+    <flux:modal wire:model="showHapusModal" class="max-w-md">
+        <form wire:submit="deleteLayanan" class="space-y-5">
             <div>
                 <flux:heading size="lg">Hapus Data Registrasi Billing</flux:heading>
-                <flux:subheading>
-                    Apakah Anda yakin ingin menghapus data registrasi billing ini?
-                </flux:subheading>
+                <flux:subheading>Apakah Anda yakin ingin menghapus data registrasi billing ini?</flux:subheading>
             </div>
-            <div class="flex justify-end gap-3">
-                <flux:button wire:click="$set('deletingId', null)" variant="ghost">Batal</flux:button>
-                <flux:button wire:click="deleteLayanan" variant="danger">Hapus</flux:button>
+
+            <flux:input wire:model="konfirmasiHapus" label="Ketik HAPUS untuk melanjutkan" autocomplete="off" />
+            <flux:error name="konfirmasiHapus" />
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close><flux:button variant="filled">Batal</flux:button></flux:modal.close>
+                <flux:button type="submit" variant="danger" icon="trash">Hapus</flux:button>
             </div>
-        </div>
+        </form>
     </flux:modal>
 </div>

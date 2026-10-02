@@ -3,7 +3,9 @@
 use App\Enums\JenisKoneksi;
 use App\Enums\JenisTagihanPertama;
 use App\Enums\PriceMode;
+use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
+use App\Enums\StatusOdpPort;
 use App\Enums\StatusRouter;
 use App\Enums\Ticket\StatusTicket;
 use App\Enums\UserStatus;
@@ -11,9 +13,11 @@ use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Livewire\LayananPelanggan\Create;
 use App\Livewire\LayananPelanggan\Edit;
 use App\Livewire\LayananPelanggan\Index;
+use App\Models\AntrianWaBlast;
 use App\Models\Invoice;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
+use App\Models\OdpPort;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
 use App\Models\Perumahan;
@@ -24,7 +28,10 @@ use App\Models\Router;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\Billing\BillingService;
+use App\Services\PaymentGateway\PaymentGatewayManager;
+use Database\Seeders\AturanPengingatTagihanSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Database\Seeders\WaTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -669,4 +676,82 @@ test('menyimpan layanan dari ticket pemasangan menghubungkan dan menonaktifkan p
 
     expect($ticket->layanan_pelanggan_id)->toBe($layanan->id)
         ->and($ticket->perlu_aktivasi_manual)->toBeFalse();
+});
+
+test('hapus registrasi billing menghapus record yang diklik setelah mengetik HAPUS', function () {
+    Queue::fake();
+    $lain = LayananPelanggan::factory()->create();
+    $target = LayananPelanggan::factory()->create();
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->call('confirmDelete', $target->id)
+        ->assertSet('showHapusModal', true)
+        ->set('showHapusModal', true) // flux:modal menulis true ke wire:model saat terbuka
+        ->set('konfirmasiHapus', 'HAPUS')
+        ->call('deleteLayanan')
+        ->assertHasNoErrors()
+        ->assertSet('showHapusModal', false);
+
+    expect(LayananPelanggan::find($target->id))->toBeNull()
+        ->and(LayananPelanggan::find($lain->id))->not->toBeNull();
+});
+
+test('hapus registrasi billing ditolak tanpa ketik HAPUS', function () {
+    $target = LayananPelanggan::factory()->create();
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->call('confirmDelete', $target->id)
+        ->call('deleteLayanan')
+        ->assertHasErrors('konfirmasiHapus');
+
+    expect(LayananPelanggan::find($target->id))->not->toBeNull();
+});
+
+test('deletingId registrasi billing tidak bisa diubah dari client', function () {
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->set('deletingId', 1);
+})->throws(CannotUpdateLockedPropertyException::class);
+
+test('admin tidak bisa menghapus registrasi billing', function () {
+    $target = LayananPelanggan::factory()->create();
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->call('confirmDelete', $target->id)
+        ->assertForbidden();
+});
+
+test('hapus registrasi billing melepas port ODP dan menghentikan pengingat serta link bayar', function () {
+    Queue::fake();
+    $this->seed([WaTemplateSeeder::class, AturanPengingatTagihanSeeder::class]);
+
+    $kontrol = LayananPelanggan::factory()->create(['status' => StatusLayanan::Aktif, 'pelanggan_id' => Pelanggan::factory()->create(['no_hp' => '081111111111'])->id]);
+    $target = LayananPelanggan::factory()->create(['status' => StatusLayanan::Aktif, 'pelanggan_id' => Pelanggan::factory()->create(['no_hp' => '082222222222'])->id]);
+    $port = OdpPort::factory()->create(['status' => StatusOdpPort::Terpakai, 'layanan_pelanggan_id' => $target->id]);
+    $target->update(['odp_port_id' => $port->id]);
+
+    [$invoiceKontrol, $invoiceTarget] = collect([$kontrol, $target])->map(fn (LayananPelanggan $layanan) => Invoice::factory()->create([
+        'pelanggan_id' => $layanan->pelanggan_id,
+        'layanan_pelanggan_id' => $layanan->id,
+        'status' => StatusInvoice::MenungguPembayaran,
+        'tanggal_jatuh_tempo' => now(),
+    ]))->all();
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->call('confirmDelete', $target->id)
+        ->set('konfirmasiHapus', 'HAPUS')
+        ->call('deleteLayanan')
+        ->assertHasNoErrors();
+
+    expect($port->fresh())->status->toBe(StatusOdpPort::Kosong)->layanan_pelanggan_id->toBeNull();
+
+    $this->artisan('invoice:kirim-pengingat --force')->assertSuccessful();
+
+    expect(AntrianWaBlast::where('referensi_id', $invoiceKontrol->id)->exists())->toBeTrue()
+        ->and(AntrianWaBlast::where('referensi_id', $invoiceTarget->id)->exists())->toBeFalse()
+        ->and(app(PaymentGatewayManager::class)->resolvePaymentUrl($invoiceTarget->fresh()))->toBeNull();
 });

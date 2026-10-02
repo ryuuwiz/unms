@@ -9,6 +9,7 @@ use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -25,7 +26,16 @@ class Index extends Component
 
     public string $filterScope = 'all'; // 'all' or 'my'
 
+    /**
+     * ID yang akan dihapus. Locked: state buka/tutup modal disimpan terpisah di $showHapusModal,
+     * karena flux:modal wire:model menulis true/false ke propertinya (true di-cast jadi ID 1).
+     */
+    #[Locked]
     public ?int $deletingCustomerId = null;
+
+    public bool $showHapusModal = false;
+
+    public string $konfirmasiHapus = '';
 
     public function updatingSearch(): void
     {
@@ -44,7 +54,17 @@ class Index extends Component
 
     public function confirmDelete(int $id): void
     {
+        $pelanggan = Pelanggan::findOrFail($id);
+        $this->authorize('delete', $pelanggan);
+
+        if ($this->tolakJikaMasihPunyaLayananBerjalan($pelanggan)) {
+            return;
+        }
+
         $this->deletingCustomerId = $id;
+        $this->konfirmasiHapus = '';
+        $this->resetErrorBag('konfirmasiHapus');
+        $this->showHapusModal = true;
     }
 
     public function deleteCustomer(): void
@@ -53,9 +73,21 @@ class Index extends Component
             return;
         }
 
+        if (trim($this->konfirmasiHapus) !== 'HAPUS') {
+            $this->addError('konfirmasiHapus', 'Ketik HAPUS untuk mengonfirmasi penghapusan.');
+
+            return;
+        }
+
         $pelanggan = Pelanggan::findOrFail($this->deletingCustomerId);
 
         $this->authorize('delete', $pelanggan);
+
+        if ($this->tolakJikaMasihPunyaLayananBerjalan($pelanggan)) {
+            $this->reset(['deletingCustomerId', 'showHapusModal', 'konfirmasiHapus']);
+
+            return;
+        }
 
         /** @var User $actor */
         $actor = Auth::user();
@@ -63,8 +95,22 @@ class Index extends Component
 
         $pelanggan->delete();
 
-        $this->deletingCustomerId = null;
+        $this->reset(['deletingCustomerId', 'showHapusModal', 'konfirmasiHapus']);
         Flux::toast(variant: 'success', text: 'Data pelanggan berhasil dihapus.');
+    }
+
+    /**
+     * Tampilkan toast penolakan dan kembalikan true bila Pelanggan masih punya layanan yang belum Berhenti.
+     */
+    private function tolakJikaMasihPunyaLayananBerjalan(Pelanggan $pelanggan): bool
+    {
+        if (! $pelanggan->masihPunyaLayananBerjalan()) {
+            return false;
+        }
+
+        Flux::toast(variant: 'danger', text: 'Pelanggan masih punya Data Registrasi Billing yang belum Berhenti. Cabut lewat tiket Pencabutan atau hapus registrasinya lebih dulu.');
+
+        return true;
     }
 
     public function toggleStatus(int $id): void

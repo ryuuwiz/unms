@@ -210,6 +210,14 @@ class Pelanggan extends Model implements HasMedia
     }
 
     /**
+     * Penghapusan Pelanggan ditolak selama masih ada layanan yang belum Berhenti, termasuk yang masih Proses.
+     */
+    public function masihPunyaLayananBerjalan(): bool
+    {
+        return $this->layanans()->where('status', '!=', StatusLayanan::Berhenti)->exists();
+    }
+
+    /**
      * Relasi ke semua invoice tagihan pelanggan.
      *
      * @return HasMany<Invoice, $this>
