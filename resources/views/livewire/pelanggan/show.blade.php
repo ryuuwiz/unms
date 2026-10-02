@@ -273,7 +273,26 @@
 
     {{-- ═══════════ Tab 2: Layanan Internet ═══════════ --}}
     @if ($activeTab === 'subscriptions')
-        <div class="space-y-6" wire:poll.20s.visible="loadPppStatuses">
+        {{-- Status PPP didorong lewat Reverb (ADR-0070). Poll 20 dtk hanya selama WebSocket putus;
+             saat tersambung lagi status diambil ulang sekali untuk menutup event yang terlewat. --}}
+        <div class="space-y-6"
+            x-data="{
+                koneksi: window.Echo?.connector.pusher.connection,
+                terhubung: false,
+                timer: null,
+                ubahState({ current }) {
+                    const sebelumnya = this.terhubung
+                    this.terhubung = current === 'connected'
+                    if (this.terhubung && ! sebelumnya) $wire.loadPppStatuses()
+                },
+                init() {
+                    this.terhubung = this.koneksi?.state === 'connected'
+                    this.ubahState = this.ubahState.bind(this)
+                    this.koneksi?.bind('state_change', this.ubahState)
+                    this.timer = setInterval(() => { if (! this.terhubung && document.visibilityState === 'visible') $wire.loadPppStatuses() }, 20000)
+                },
+                destroy() { clearInterval(this.timer); this.koneksi?.unbind('state_change', this.ubahState) },
+            }">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <flux:heading size="lg">Layanan internet</flux:heading>
@@ -297,8 +316,8 @@
                     $statusPpp = $pppStatuses[$layanan->id] ?? null;
                     $isConnected = $statusPpp['is_connected'] ?? false;
                     $isDisabled = $statusPpp['is_disabled'] ?? false;
-                    // Isolir = secret di profile ISOLIR (CONTEXT.md "Isolir"); tanpa data router, ikuti status layanan.
-                    $isIsolir = isset($statusPpp['profile']) ? $statusPpp['profile'] === \App\Models\Router::PROFILE_ISOLIR : $layanan->status === \App\Enums\StatusLayanan::Suspend;
+                    // Isolir = secret di profile EXPIRED (atau ISOLIR lama sebelum rekonsiliasi, ADR-0071); tanpa data router, ikuti status layanan.
+                    $isIsolir = isset($statusPpp['profile']) ? in_array($statusPpp['profile'], [\App\Models\Router::PROFILE_ISOLIR, \App\Models\Router::PROFILE_ISOLIR_LAMA], true) : $layanan->status === \App\Enums\StatusLayanan::Suspend;
                     $routerOnline = $statusPpp['router_online'] ?? true;
                 @endphp
                 <article wire:key="layanan-{{ $layanan->id }}" id="layanan-{{ $layanan->id }}" class="{{ $card }} scroll-mt-24">

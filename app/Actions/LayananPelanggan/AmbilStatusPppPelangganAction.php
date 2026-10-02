@@ -7,7 +7,7 @@ use App\Services\Mikrotik\MikrotikService;
 
 /**
  * Status realtime PPP seluruh layanan pelanggan (yang punya router & PPP Username), dipakai
- * halaman detail Pelanggan dan stream SSE-nya. getPppStatus() tidak pernah throw, jadi
+ * halaman detail Pelanggan. getPppStatus() tidak pernah throw, jadi
  * kegagalan satu router tidak menghalangi layanan lain.
  */
 class AmbilStatusPppPelangganAction

@@ -182,6 +182,10 @@ _Avoid_: Background Queue Bebas, Single Queue Mikrotik
 Strategi sinkronisasi berkala PPP Secret di RouterOS yang membaca seluruh data dalam 1x bulk query, membandingkan data di RAM PHP (0 ms), dan hanya mengirim perintah mutasi secara targeted pada entri yang tidak sinkron tanpa query baca berulang per akun.
 _Avoid_: Query Nested Per Akun, Loop Sinkron Monolitik, Reconcile Lambat
 
+**Pemantauan Sesi PPP**:
+Pengamatan berkala sesi PPP aktif di setiap Router online untuk mendeteksi pelanggan yang connect, disconnect, atau reconnect (alamat sesi atau caller-id berubah), serta router yang berubah online/offline, lalu memberi tahu staf yang sedang membuka halaman pelanggan terkait secara langsung. Hanya mengamati, tidak pernah mengubah apa pun di router. Suspend/isolir dari UNMS ikut terlihat karena sesinya terputus. Uptime yang bertambah tidak dianggap perubahan.
+_Avoid_: Polling Status, Rekonsiliasi Sesi, Sinkronisasi Status
+
 **Kota**:
 Entitas tingkat administratif kota/kabupaten dalam cakupan operasional ISP.
 _Avoid_: City, Daerah
@@ -529,8 +533,8 @@ Layanan PPPoE hanya terikat ke satu Router (dipilih NOC dari Router Paket paketn
 _Avoid_: Billing Mengalokasikan IP, Memilih IP Pool per Layanan, Menampilkan Local Address, Nama Pool sebagai Remote Address di PPP Secret (RouterOS menolaknya; nama pool hanya valid di Profile PPP)
 
 **Isolir**:
-Layanan yang ditangguhkan (status `Suspend`: masa aktif habis, invoice pertama belum dibayar, atau isolir manual admin) dipindahkan PPP Secret-nya ke satu profile `ISOLIR` di router lalu sesinya diputus agar pelanggan tersambung ulang ke profile itu. Secret tidak pernah di-*disable*. Buka isolir mengembalikan secret ke profile paketnya dan memutus sesi lagi. Profile `ISOLIR` dibuat oleh billing. Router tanpa IP Pool Isolir tidak bisa mengisolir: aksinya gagal dan NOC diberi tahu. Secret yang masih ter-*disable* (cara isolir lama) diaktifkan kembali oleh rekonsiliasi.
-_Avoid_: Disable Secret untuk Isolir, Profile EXPIRED Terpisah, Menghapus Secret saat Isolir
+Layanan yang ditangguhkan (status `Suspend`: masa aktif habis, invoice pertama belum dibayar, atau isolir manual admin) dipindahkan PPP Secret-nya ke satu profile `EXPIRED` di router lalu sesinya diputus agar pelanggan tersambung ulang ke profile itu. Secret tidak pernah di-*disable*. Buka isolir mengembalikan secret ke profile paketnya dan memutus sesi lagi. Profile `EXPIRED` (kecepatan kecil, alamat dari IP Pool Isolir) dibuat billing di setiap router tanpa input admin. Secret yang masih ter-*disable* (cara isolir lama) diaktifkan kembali oleh rekonsiliasi.
+_Avoid_: Disable Secret untuk Isolir, Profile Isolir Berbeda per Alasan Suspend, Menghapus Secret saat Isolir
 
 **Pencabutan**:
 Satu-satunya jalan layanan menjadi `Berhenti`: tiket Pencabutan yang hanya dibuat Admin (dan super_admin), ditangani NOC (menghapus PPP Secret di router) dan Teknisi (mencabut perangkat dan melepas port ODP). Tiket tidak bisa Selesai sebelum penghapusan secret berhasil; saat Selesai layanan otomatis Berhenti. Data pelanggan dan layanan tetap tersimpan untuk jejak pelanggan bermasalah, dan layanan Berhenti tidak lagi ditagih: invoice yang masih terbuka tetap tercatat sebagai tunggakan, tetapi pengingat WhatsApp dan link bayarnya dihentikan. Melunasi tunggakan tidak memperpanjang masa aktif maupun mengaktifkan layanan kembali.
@@ -541,7 +545,7 @@ Pasangan Paket Layanan dengan Router yang boleh menjualnya, beserta satu IP Pool
 _Avoid_: Rantai IP Pool (next-pool), Profile per Profil Bandwidth, NOC Memilih Pool per Pelanggan, Router Bebas untuk Paket Apa Saja
 
 **IP Pool Isolir**:
-Satu IP Pool per router yang dipilih di data Router untuk profile `ISOLIR` (local-address `.1` pool itu, remote-address pool itu). Pool ini tidak boleh dipakai Router Paket dan tidak bisa dihapus selama menjadi IP Pool Isolir. Firewall redirect pelanggan isolir ke halaman bayar dikonfigurasi manual oleh NOC, bukan billing.
+Satu IP Pool per router yang dibuat billing dari subnet isolir yang sama untuk semua router, dipakai profile `EXPIRED` (local-address `.1` pool itu, remote-address pool itu). Admin tidak memilihnya. Bila subnet itu sudah dipakai objek lain di router, billing tidak menimpanya: router itu tidak bisa mengisolir dan NOC diberi tahu. Pool ini tidak boleh dipakai Router Paket dan tidak bisa dihapus selama menjadi IP Pool Isolir. Firewall redirect pelanggan isolir ke halaman bayar dikonfigurasi manual oleh NOC, bukan billing.
 _Avoid_: Billing Membuat Firewall Redirect, Pool Isolir Dipakai untuk Paket
 
 **Alamat Sesi PPP**:

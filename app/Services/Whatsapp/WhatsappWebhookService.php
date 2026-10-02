@@ -12,6 +12,7 @@ use App\Models\Sysblas;
 use App\Models\Ticket;
 use App\Models\TicketHistori;
 use App\Models\WebhookLog;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -311,7 +312,12 @@ class WhatsappWebhookService
      * log INI SENDIRI sebelum verifikasi signature -- agar percobaan yang ditolak (signature
      * tidak valid) tetap meninggalkan jejak audit, bukan hanya percobaan yang berhasil.
      *
+     * Redelivery event yang sama dilempar sebagai `UniqueConstraintViolationException` (bukan
+     * null) agar pemanggil bisa membalas "sudah diterima", bukan 503 yang memicu retry tanpa akhir.
+     *
      * @param  array<string, mixed>  $payload
+     *
+     * @throws UniqueConstraintViolationException
      */
     public function logWebhook(array $payload): ?WebhookLog
     {
@@ -328,6 +334,8 @@ class WhatsappWebhookService
                 'status_proses' => StatusWebhookLog::Diterima,
                 'diterima_pada' => Carbon::now(),
             ]);
+        } catch (UniqueConstraintViolationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             Log::warning('Gagal mencatat WebhookLog WhatsApp: '.$e->getMessage());
 
@@ -366,7 +374,8 @@ class WhatsappWebhookService
      * `webhook_log_provider_event_unique` untuk idempotensi.
      *
      * Payload event-driven asli (WAHA/GOWA) tidak selalu punya id di level teratas -- fallback
-     * ke id pesan bersarang (diprefiks session agar tidak bentrok lintas session). Payload flat
+     * ke id pesan bersarang, diprefiks session + event: satu pesan memicu beberapa event dengan
+     * id yang sama (`message`, `message.ack`, `message.revoked`), jadi id saja bentrok. Payload flat
      * legacy tanpa id sama sekali (format lama, masih dipakai gateway produksi) memakai hash
      * ter-bucket per menit sebagai id sintetis -- bukan id sempurna, tapi payload memang tidak
      * menyediakan apa pun yang lebih baik; risiko dedup-palsu dibatasi ke "teks identik, nomor
@@ -385,7 +394,7 @@ class WhatsappWebhookService
             $innerPayload = (array) ($payload['payload'] ?? []);
             $innerId = $innerPayload['id'] ?? null;
 
-            return $innerId ? "{$session}:{$innerId}" : null;
+            return $innerId ? "{$session}:{$payload['event']}:{$innerId}" : null;
         }
 
         if (! empty($payload['id'])) {

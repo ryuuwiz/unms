@@ -3,7 +3,7 @@
 # GOBILLING — Production Dockerfile untuk Dokploy (single service)
 #
 # Satu image, satu container: Caddy (web) + PHP-FPM + Horizon (queue) +
-# scheduler, semuanya diawasi supervisord. MySQL, Redis, dan RustFS berjalan
+# scheduler + Reverb (WebSocket, ADR-0070), semuanya diawasi supervisord. MySQL, Redis, dan RustFS berjalan
 # sebagai service Dokploy terpisah — image ini hanya perlu bisa menjangkau
 # mereka lewat env var (DB_HOST, REDIS_HOST, AWS_ENDPOINT, dst).
 #
@@ -51,7 +51,7 @@ COPY . .
 RUN npm run build
 
 # -----------------------------------------------------------------------------
-# Stage: runtime — Caddy + PHP-FPM + Horizon + scheduler via supervisord
+# Stage: runtime — Caddy + PHP-FPM + Horizon + scheduler + Reverb via supervisord
 # -----------------------------------------------------------------------------
 FROM php:${PHP_VERSION}-fpm-bookworm AS runtime
 

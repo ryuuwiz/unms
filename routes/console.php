@@ -54,6 +54,13 @@ Schedule::command('mikrotik:ping')
     ->onOneServer()
     ->runInBackground();
 
+// Pemantauan Sesi PPP (ADR-0070): perubahan sesi didorong ke Detail Pelanggan lewat Reverb.
+Schedule::command('mikrotik:pantau-sesi')
+    ->everyTenSeconds()
+    ->withoutOverlapping(1)
+    ->onOneServer()
+    ->runInBackground();
+
 // Pengingat Tagihan WhatsApp Otomatis (Setiap jam memeriksa aturan aktif)
 Schedule::command('invoice:kirim-pengingat')->hourly()->onOneServer();
 Schedule::command('wa:proses-antrian')->everyFiveMinutes()->onOneServer();

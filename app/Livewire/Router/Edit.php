@@ -4,14 +4,11 @@ namespace App\Livewire\Router;
 
 use App\Enums\MikrotikJobStatus;
 use App\Enums\MikrotikJobType;
-use App\Jobs\Mikrotik\SyncIpPoolToRouterJob;
 use App\Livewire\Concerns\ProvisionsRouter;
-use App\Models\IpPool;
 use App\Models\MikrotikJobLog;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use Flux\Flux;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -39,9 +36,6 @@ class Edit extends Component
 
     public string $deskripsi = '';
 
-    /** IP Pool Isolir (CONTEXT.md "IP Pool Isolir"): pool profile ISOLIR di router ini. */
-    public ?int $ip_pool_isolir_id = null;
-
     public function mount(Router $router): void
     {
         $this->authorize('update', $router);
@@ -52,7 +46,6 @@ class Edit extends Component
         $this->port = $router->port;
         $this->username = $router->username;
         $this->deskripsi = $router->deskripsi ?? '';
-        $this->ip_pool_isolir_id = $router->ip_pool_isolir_id;
     }
 
     /**
@@ -102,11 +95,6 @@ class Edit extends Component
             'username' => ['required', 'string', 'max:100'],
             'password' => ['nullable', 'string', 'max:255'],
             'deskripsi' => ['nullable', 'string', 'max:1000'],
-            'ip_pool_isolir_id' => [
-                'nullable', 'integer',
-                Rule::exists('ip_pool', 'id')->where('router_id', $this->routerId),
-                Rule::unique('router_paket', 'ip_pool_id'),
-            ],
         ];
     }
 
@@ -123,8 +111,6 @@ class Edit extends Component
             'port.integer' => 'Port API harus berupa angka.',
             'port.min' => 'Port API minimal 1.',
             'port.max' => 'Port API maksimal 65535.',
-            'ip_pool_isolir_id.exists' => 'IP Pool Isolir harus milik router ini.',
-            'ip_pool_isolir_id.unique' => 'Pool ini dipakai paket; pilih pool khusus untuk isolir.',
         ];
     }
 
@@ -143,7 +129,6 @@ class Edit extends Component
             'port' => $port,
             'username' => trim($this->username),
             'deskripsi' => $this->deskripsi ? trim($this->deskripsi) : null,
-            'ip_pool_isolir_id' => $this->ip_pool_isolir_id ?: null,
         ];
 
         if ($this->password !== '') {
@@ -151,11 +136,6 @@ class Edit extends Component
         }
 
         $router->update($updateData);
-
-        // Terapkan pool + profile ISOLIR ke router (profile dibuat billing, ADR-0063).
-        if ($router->wasChanged('ip_pool_isolir_id') && $router->ipPoolIsolir) {
-            SyncIpPoolToRouterJob::dispatch($router->ipPoolIsolir);
-        }
 
         Flux::toast(variant: 'success', text: 'Data router berhasil diperbarui.');
 
@@ -243,7 +223,6 @@ class Edit extends Component
 
         return view('livewire.router.edit', [
             'router' => $router,
-            'ipPools' => IpPool::where('router_id', $this->routerId)->orderBy('nama_pool')->get(),
         ]);
     }
 }

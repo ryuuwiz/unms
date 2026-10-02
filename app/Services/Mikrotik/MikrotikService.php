@@ -16,6 +16,7 @@ use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\RouterPaket;
 use App\Support\PppDeletionContext;
+use App\Utils\IpNetworkHelper;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -294,19 +295,118 @@ class MikrotikService
     }
 
     /**
-     * Pastikan profile `ISOLIR` router (CONTEXT.md "Isolir") dari IP Pool Isolir router itu; tanpa rate-limit.
+     * Pastikan IP Pool dan profile `EXPIRED` router (CONTEXT.md "Isolir", ADR-0071) dari subnet dan rate-limit
+     * isolir di config; pool dibuat billing, bukan dipilih admin. Subnet yang bentrok dengan pool lain (billing
+     * atau NOC) tidak pernah ditimpa: router itu tidak bisa mengisolir sampai NOC membereskannya.
      *
      * @throws MikrotikException
      */
     public function ensureIsolirProfile(Router $router, ?Client $client = null): string
     {
-        $pool = $router->ipPoolIsolir;
-
-        if (! $pool) {
-            throw new MikrotikException("Router {$router->nama_router} belum punya IP Pool Isolir. Pilih IP Pool Isolir di halaman Edit Router agar layanan bisa diisolir.");
+        if (isset($this->ensuredProfileCache["{$router->id}:".Router::PROFILE_ISOLIR])) {
+            return Router::PROFILE_ISOLIR;
         }
 
-        return $this->ensureProfile($router, Router::PROFILE_ISOLIR, $pool, [], $client);
+        $client = $client ?? $this->getClient($router);
+
+        return $this->ensureProfile($router, Router::PROFILE_ISOLIR, $this->siapkanPoolIsolir($router, $client), [
+            'rate-limit' => (string) config('mikrotik.isolir_rate_limit'),
+        ], $client);
+    }
+
+    /**
+     * Catat (atau selaraskan) baris IP Pool `EXPIRED` dari subnet config dan pasang sebagai IP Pool Isolir router,
+     * setelah memastikan subnetnya tidak bentrok. Pool billing lain hanya bentrok bila dipakai Router Paket, sehingga
+     * pool isolir lama pilihan admin (sebelum ADR-0071) dibiarkan di router tanpa menghalangi.
+     *
+     * @throws MikrotikException
+     */
+    private function siapkanPoolIsolir(Router $router, Client $client): IpPool
+    {
+        $subnet = (string) config('mikrotik.isolir_subnet');
+        $rentangSubnet = str_contains($subnet, '/') ? IpNetworkHelper::batasRentang($subnet) : null;
+
+        if ($rentangSubnet === null || $rentangSubnet[1] - $rentangSubnet[0] < 3) {
+            throw new MikrotikException("Subnet isolir {$subnet} di config mikrotik.isolir_subnet tidak valid.");
+        }
+
+        $poolBilling = IpPool::where('router_id', $router->id)->get();
+        $tercatat = $poolBilling->firstWhere('nama_pool', Router::POOL_ISOLIR);
+        $dipakaiPaket = array_flip(RouterPaket::where('router_id', $router->id)->pluck('ip_pool_id')->all());
+
+        if ($tercatat && isset($dipakaiPaket[$tercatat->id])) {
+            throw new MikrotikException('IP Pool '.Router::POOL_ISOLIR." di router {$router->nama_router} dipakai paket; ganti pool paket itu agar profile ".Router::PROFILE_ISOLIR.' bisa dibuat.');
+        }
+
+        $bentrok = $poolBilling->first(fn (IpPool $pool): bool => isset($dipakaiPaket[$pool->id])
+            && IpNetworkHelper::beririsan(IpNetworkHelper::batasRentang("{$pool->rentang_ip_awal}-{$pool->rentang_ip_akhir}"), $rentangSubnet));
+        if ($bentrok) {
+            throw $this->subnetIsolirBentrok($router, $subnet, "IP Pool {$bentrok->nama_pool}");
+        }
+
+        $this->assertSubnetIsolirBebasDiRouter($router, $client, $subnet, $rentangSubnet, $poolBilling->pluck('nama_pool')->all(), $tercatat !== null);
+
+        $pool = $tercatat ?? new IpPool(['router_id' => $router->id, 'nama_pool' => Router::POOL_ISOLIR]);
+        $pool->fill([
+            'ip_network' => long2ip($rentangSubnet[0]),
+            'cidr' => (int) explode('/', $subnet)[1],
+            'rentang_ip_awal' => long2ip($rentangSubnet[0] + 2),
+            'rentang_ip_akhir' => long2ip($rentangSubnet[1] - 1),
+        ])->save();
+
+        if ($router->ip_pool_isolir_id !== $pool->id) {
+            $router->update(['ip_pool_isolir_id' => $pool->id]);
+        }
+
+        return $pool;
+    }
+
+    /**
+     * Tolak bila pool atau alamat interface lain di router (mis. buatan NOC) berada dalam subnet isolir, atau ada
+     * pool bernama `EXPIRED` yang belum pernah dicatat billing. Pool yang tercatat di billing diperiksa dari data
+     * billing, bukan di sini.
+     *
+     * @param  array{0: int, 1: int}  $rentangSubnet
+     * @param  array<int, string>  $namaPoolBilling
+     *
+     * @throws MikrotikException
+     */
+    private function assertSubnetIsolirBebasDiRouter(Router $router, Client $client, string $subnet, array $rentangSubnet, array $namaPoolBilling, bool $sudahTercatat): void
+    {
+        $pools = $client->query(new Query('/ip/pool/print'))->read();
+        $this->assertNoTrap($pools, "pembacaan IP Pool di router {$router->nama_router}");
+
+        foreach ($pools as $pool) {
+            $nama = (string) ($pool['name'] ?? '');
+
+            if ($nama === Router::POOL_ISOLIR && ! $sudahTercatat) {
+                throw $this->subnetIsolirBentrok($router, $subnet, "IP Pool {$nama} yang bukan buatan billing");
+            }
+
+            if ($nama === Router::POOL_ISOLIR || in_array($nama, $namaPoolBilling, true)) {
+                continue;
+            }
+
+            foreach (explode(',', (string) ($pool['ranges'] ?? '')) as $rentang) {
+                if (IpNetworkHelper::beririsan(IpNetworkHelper::batasRentang(trim($rentang)), $rentangSubnet)) {
+                    throw $this->subnetIsolirBentrok($router, $subnet, "IP Pool {$nama}");
+                }
+            }
+        }
+
+        $alamat = $client->query(new Query('/ip/address/print'))->read();
+        $this->assertNoTrap($alamat, "pembacaan IP Address di router {$router->nama_router}");
+
+        foreach ($alamat as $entri) {
+            if (IpNetworkHelper::beririsan(IpNetworkHelper::batasRentang((string) ($entri['address'] ?? '')), $rentangSubnet)) {
+                throw $this->subnetIsolirBentrok($router, $subnet, "alamat {$entri['address']} di interface ".($entri['interface'] ?? '?'));
+            }
+        }
+    }
+
+    private function subnetIsolirBentrok(Router $router, string $subnet, string $pemakai): MikrotikException
+    {
+        return new MikrotikException("Subnet isolir {$subnet} bentrok dengan {$pemakai} di router {$router->nama_router}; profile ".Router::PROFILE_ISOLIR.' tidak dibuat.');
     }
 
     /**
@@ -498,7 +598,7 @@ class MikrotikService
     }
 
     /**
-     * Profile yang seharusnya dipakai secret layanan: `ISOLIR` bila Suspend, selain itu profile paketnya.
+     * Profile yang seharusnya dipakai secret layanan: `EXPIRED` bila Suspend, selain itu profile paketnya.
      * Paket tetap wajib terdaftar di router itu walau sedang diisolir.
      *
      * @throws MikrotikException
@@ -570,14 +670,14 @@ class MikrotikService
 
             $client = $client ?? $this->getClient($router);
 
-            // 4. Profile paket (atau ISOLIR bila Suspend) membawa pool; alamat literal di secret (IP Statis/Publik) menimpanya.
+            // 4. Profile paket (atau EXPIRED bila Suspend) membawa pool; alamat literal di secret (IP Statis/Publik) menimpanya.
             $profileName = $this->profilTujuan($router, $layanan, $client);
 
             // 6. local/remote-address hanya untuk alamat literal (IP Publik / IP Statis); null = dinamis, dibiarkan kosong.
             $remoteAddress = $layanan->resolveRemoteAddress();
             $localAddress = $layanan->resolveLocalAddress();
 
-            // Isolir memakai profile ISOLIR, bukan disable (CONTEXT.md "Isolir").
+            // Isolir memakai profile EXPIRED, bukan disable (CONTEXT.md "Isolir").
             $isDisabled = 'no';
 
             // 6. Cek apakah secret sudah ada di RouterOS
@@ -831,7 +931,7 @@ class MikrotikService
     }
 
     /**
-     * Isolir: pindahkan secret ke profile `ISOLIR` lalu putus sesi agar pelanggan tersambung ulang ke pool
+     * Isolir: pindahkan secret ke profile `EXPIRED` lalu putus sesi agar pelanggan tersambung ulang ke pool
      * isolir. Secret tidak pernah di-disable (CONTEXT.md "Isolir").
      *
      * @throws MikrotikException
@@ -1247,7 +1347,7 @@ class MikrotikService
      * profil bandwidth (poin 1), dan penghapusan duplikat (poin 4) di luar scope dry-run ini dan tetap berjalan normal.
      *
      * @return array{
-     *     profiles: array{total: int, synced: int, errors: array<string>},
+     *     profiles: array{total: int, synced: int, errors: array<string>, isolir_error?: string|null},
      *     secrets: array{
      *         total_checked: int,
      *         recovered: int,
@@ -1371,7 +1471,7 @@ class MikrotikService
                 continue;
             }
 
-            // Layanan Suspend diharapkan di profile ISOLIR (CONTEXT.md "Isolir").
+            // Layanan Suspend diharapkan di profile EXPIRED (CONTEXT.md "Isolir").
             $expectedProfile = $layanan->status === StatusLayanan::Suspend ? Router::PROFILE_ISOLIR : $routerPaket->namaProfile();
             $expectedPassword = (string) $layanan->ppp_password_terenkripsi;
             $expectedRemoteAddress = (string) ($layanan->resolveRemoteAddress() ?? '');
@@ -1589,7 +1689,7 @@ class MikrotikService
     }
 
     /**
-     * Hapus PPP Profile format lama (`{nama_bandwidth}` dan `{nama_bandwidth}@{nama_pool}`, ADR-0051/0060) yang
+     * Hapus PPP Profile format lama (`{nama_bandwidth}`, `{nama_bandwidth}@{nama_pool}`, dan `ISOLIR`) yang
      * namanya cocok dengan data billing, bukan profile paket router ini, dan tidak dipakai secret mana pun.
      * Profile yang masih dipakai dibiarkan dan akan dicoba lagi pada rekonsiliasi berikutnya.
      *
@@ -1626,8 +1726,8 @@ class MikrotikService
     }
 
     /**
-     * Nama profile format lama (`{nama_bandwidth}` dan `{nama_bandwidth}@{nama_pool}`, ADR-0051/0060)
-     * yang mungkin masih ada di router ini.
+     * Nama profile format lama (`{nama_bandwidth}` dan `{nama_bandwidth}@{nama_pool}`, ADR-0051/0060, serta
+     * profile isolir `ISOLIR` sebelum ADR-0071) yang mungkin masih ada di router ini.
      *
      * @return array<string, true>
      */
@@ -1636,7 +1736,7 @@ class MikrotikService
         $namaBandwidth = ProfilBandwidth::query()->pluck('nama_bandwidth')->filter()->all();
         $namaPool = $router->ipPools()->pluck('nama_pool')->all();
 
-        $kandidat = [];
+        $kandidat = [Router::PROFILE_ISOLIR_LAMA => true];
         foreach ($namaBandwidth as $bandwidth) {
             $kandidat[$bandwidth] = true;
             foreach ($namaPool as $pool) {
@@ -1688,25 +1788,24 @@ class MikrotikService
     }
 
     /**
-     * Sinkronisasikan PPP Profile seluruh Router Paket milik router ini, plus profile ISOLIR bila router punya
-     * IP Pool Isolir (ADR-0063). Galat per paket
-     * dikumpulkan, tidak menghentikan paket lain.
+     * Sinkronisasikan PPP Profile seluruh Router Paket milik router ini, plus pool dan profile EXPIRED yang
+     * selalu disiapkan di setiap router (ADR-0071). Galat per paket dikumpulkan, tidak menghentikan paket lain.
      *
-     * @return array{total: int, synced: int, errors: array<string>}
+     * @return array{total: int, synced: int, errors: array<string>, isolir_error: string|null}
      */
     public function syncPaketProfiles(Router $router, ?Client $client = null): array
     {
         $routerPakets = $router->routerPakets()->with(['router', 'ipPool', 'paketLayanan.profilBandwidth'])->get();
 
-        return $this->syncRouterPaketProfiles($router, $routerPakets, $router->ip_pool_isolir_id !== null, $client);
+        return $this->syncRouterPaketProfiles($router, $routerPakets, true, $client);
     }
 
     /**
-     * Sinkronisasikan hanya PPP Profile paket yang memakai IP Pool ini, plus profile ISOLIR bila pool ini
-     * adalah IP Pool Isolir router (ADR-0063). Dipakai saat cuma satu pool berubah (SyncIpPoolToRouterJob)
+     * Sinkronisasikan hanya PPP Profile paket yang memakai IP Pool ini, plus profile EXPIRED bila pool ini
+     * adalah IP Pool Isolir router (ADR-0071). Dipakai saat cuma satu pool berubah (SyncIpPoolToRouterJob)
      * agar router dengan banyak paket tidak perlu me-resync seluruh profilnya untuk satu perubahan pool.
      *
-     * @return array{total: int, synced: int, errors: array<string>}
+     * @return array{total: int, synced: int, errors: array<string>, isolir_error: string|null}
      */
     public function syncPaketProfilesUsingPool(Router $router, IpPool $ipPool, ?Client $client = null): array
     {
@@ -1720,7 +1819,7 @@ class MikrotikService
 
     /**
      * @param  Collection<int, RouterPaket>  $routerPakets
-     * @return array{total: int, synced: int, errors: array<string>}
+     * @return array{total: int, synced: int, errors: array<string>, isolir_error: string|null}
      */
     private function syncRouterPaketProfiles(Router $router, Collection $routerPakets, bool $sertakanIsolir, ?Client $client): array
     {
@@ -1736,13 +1835,15 @@ class MikrotikService
             }
         }
 
-        // Profile ISOLIR disiapkan lebih dulu agar isolir tidak menunggu dibuat (CONTEXT.md "Isolir").
+        // Profile EXPIRED disiapkan sebelum dibutuhkan agar isolir tidak menunggu dibuat (CONTEXT.md "Isolir").
+        $isolirError = null;
         if ($sertakanIsolir) {
             try {
                 $this->ensureIsolirProfile($router, $client);
                 $synced++;
             } catch (Throwable $e) {
-                $errors[] = $e->getMessage();
+                $isolirError = $e->getMessage();
+                $errors[] = $isolirError;
             }
         }
 
@@ -1750,6 +1851,7 @@ class MikrotikService
             'total' => $routerPakets->count() + (int) $sertakanIsolir,
             'synced' => $synced,
             'errors' => $errors,
+            'isolir_error' => $isolirError,
         ];
     }
 
@@ -2038,6 +2140,36 @@ class MikrotikService
                 }
             }
         );
+    }
+
+    /**
+     * Sidik sesi PPP aktif per username dari satu kali `/ppp/active/print`, untuk Pemantauan Sesi PPP.
+     * Sidik berubah saat sesi diganti (reconnect) atau alamat/caller-id berubah; uptime sengaja tidak ikut.
+     * Tidak pernah throw: null berarti router tidak terjangkau.
+     *
+     * @return array<string, string>|null ppp username => sidik sesi
+     */
+    public function getSidikSesiPppAktif(Router $router): ?array
+    {
+        try {
+            $client = $this->getClient($router, config('mikrotik.status_timeout', 3));
+            $sesi = [];
+
+            foreach ($client->query(new Query('/ppp/active/print'))->read() as $row) {
+                if (! empty($row['name'])) {
+                    $sesi[$row['name']] = implode('|', [$row['.id'] ?? '', $row['address'] ?? '', $row['caller-id'] ?? '']);
+                }
+            }
+
+            return $sesi;
+        } catch (Throwable $e) {
+            Log::warning('Gagal membaca sesi PPP aktif.', [
+                'router_id' => $router->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     private function pppStatusCacheKey(Router $router, string $username): string

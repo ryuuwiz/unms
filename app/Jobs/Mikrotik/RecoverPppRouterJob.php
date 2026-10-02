@@ -122,6 +122,11 @@ class RecoverPppRouterJob implements ShouldBeUnique, ShouldQueue
                         if ($capExceeded) {
                             $this->notifyOncePerHour('delete-cap', $log);
                         }
+
+                        // Router tanpa profile EXPIRED tidak bisa mengisolir (ADR-0071): NOC wajib tahu.
+                        if (! empty($result['profiles']['isolir_error'])) {
+                            $this->notifyOncePerHour('isolir', $log);
+                        }
                     }
                 }
             });

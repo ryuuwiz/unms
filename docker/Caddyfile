@@ -37,6 +37,10 @@
 		-Server
 	}
 
+	# WebSocket & HTTP API Reverb (ADR-0070); upgrade WebSocket ditangani reverse_proxy.
+	@reverb path /app /app/* /apps/*
+	reverse_proxy @reverb 127.0.0.1:6001
+
 	php_fastcgi 127.0.0.1:9000 {
 		trusted_proxies private_ranges
 	}

@@ -113,7 +113,7 @@ test('autoRecoverPppSecrets dryRun=true logs a Suspend layanan still on its pake
             'remote-address' => '10.20.30.5',
             'local-address' => '10.20.30.1',
             'password' => 'secret123',
-            'disabled' => 'false', // Layanan Suspend tapi secret masih di profile paket, belum di ISOLIR
+            'disabled' => 'false', // Layanan Suspend tapi secret masih di profile paket, belum di EXPIRED
         ],
     ]);
 
