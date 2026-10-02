@@ -174,3 +174,28 @@ test('transaksi pending yang invoicenya sudah lunas tidak lagi disentuh sweeper'
     $trx->refresh();
     expect($trx->status)->toBe(StatusTransaksiGateway::Pending);
 });
+
+test('arah B: pelunasan dari sinkron status memakai waktu bayar asli dari gateway, bukan waktu sinkron', function () {
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+    $dibayar = now()->subDays(3)->setTime(10, 15);
+
+    $this->manager->registerDriver('xendit', new class($dibayar->toIso8601String()) extends XenditDriver
+    {
+        public function __construct(private string $paidAt) {}
+
+        public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
+        {
+            $amount = $target instanceof TransaksiPaymentGateway ? (float) $target->total_tagihan : 0.0;
+
+            return ['id' => 'xnd_paid_lama', 'status' => 'PAID', 'paid_amount' => $amount, 'amount' => $amount, 'paid_at' => $this->paidAt];
+        }
+    });
+    $this->app->instance(PaymentGatewayManager::class, $this->manager);
+
+    $this->artisan('pembayaran:rekonsiliasi')->assertSuccessful();
+
+    $this->invoice->refresh();
+    expect($this->invoice->status)->toBe(StatusInvoice::Lunas)
+        ->and($this->invoice->tanggal_lunas->toDateString())->toBe($dibayar->toDateString())
+        ->and($this->invoice->pembayarans()->first()->dibayar_pada->toDateTimeString())->toBe($dibayar->toDateTimeString());
+});

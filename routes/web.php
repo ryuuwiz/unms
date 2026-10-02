@@ -5,6 +5,7 @@ use App\Http\Controllers\AplikasiPelangganController;
 use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\LabelBarangPdfController;
+use App\Http\Controllers\LabelPortPdfController;
 use App\Http\Controllers\PelangganMediaController;
 use App\Http\Controllers\PenggunaMediaController;
 use App\Http\Controllers\RabPdfController;
@@ -113,6 +114,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', Ticket\Index::class)->name('index');
             Route::get('/riwayat', Ticket\Riwayat::class)->name('riwayat');
             Route::get('/{ticket}', Ticket\Show::class)->name('show');
+            Route::get('/{ticket}/label-port', [LabelPortPdfController::class, 'tiket'])->name('label-port');
         });
     });
 
@@ -191,6 +193,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', Pembayaran\Index::class)->name('index');
             Route::get('/transaksi-gateway', Pembayaran\TransaksiGateway\Index::class)->name('transaksi-gateway.index');
             Route::get('/transaksi-gateway/{transaksi}', Pembayaran\TransaksiGateway\Show::class)->name('transaksi-gateway.show');
+            Route::get('/pelunasan-susulan', Pembayaran\PelunasanSusulan\Index::class)->name('pelunasan-susulan.index');
         });
     });
 
@@ -334,6 +337,7 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware('permission:odp.lihat')->group(function () {
             Route::get('/', App\Livewire\Odp\Index::class)->name('index');
             Route::get('/{odp}', App\Livewire\Odp\Show::class)->name('show');
+            Route::get('/{odp}/label-port', [LabelPortPdfController::class, 'odp'])->name('label-port');
         });
     });
 

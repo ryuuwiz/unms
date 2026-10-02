@@ -340,6 +340,14 @@ Catatan log kronologis *immutable* (hanya-baca) yang merekam setiap transisi sta
 _Technical Reference_: Spatie Activitylog (`spatie/laravel-activitylog`), Laravel Boost: `search-docs(packages=['spatie/laravel-activitylog'])`, Context7: `/spatie/laravel-activitylog`.
 _Avoid_: Riwayat Bebas, Log Tiket Manual, Catatan Lepas
 
+**Foto Pengerjaan Lapangan**:
+Foto bukti kerja Teknisi pada Ticket Pemasangan, dalam empat kategori: Speedtest dan Tanda Tangan MOU (wajib untuk Teknisi selesai), serta Bukti Pemasangan dan Foto Bersama Pelanggan & Teknisi (opsional).
+_Avoid_: Foto Tahap 2, Lampiran Bebas
+
+**Galeri Foto Tiket**:
+Satu-satunya tempat melihat foto bukti sebuah tiket dalam ukuran besar, dikelompokkan per kategori: Foto Pengerjaan Lapangan, Foto Kendala, dan Foto Bukti Pengerjaan dari catatan Histori Tiket. Foto Profil staf bukan bagian galeri. Tempat lain di halaman tiket hanya mengunggah foto atau merujuk ke galeri, tidak menampilkan foto besar kedua kalinya.
+_Avoid_: Thumbnail di Form Teknisi, Foto Tersebar per Kartu
+
 **PIC (Person in Charge)**:
 Staf pengguna internal (User) yang ditugaskan secara formal untuk bertanggung jawab menyelesaikan suatu tiket.
 _Avoid_: Assignee, Petugas Lapangan Bebas, Pelaksana
@@ -568,6 +576,14 @@ _Avoid_: Tombol Kosongkan Seluruh Tabel ODP, Melepas Port Layanan Diam-diam
 Slot fisik terminasi pada perangkat ODP yang melacak status pemakaian (*kosong, terpakai, rusak*) dan terikat 1:1 dengan satu entitas Layanan Pelanggan (Data Registrasi Billing). Port Kosong yang sudah dipilih Teknisi pada Ticket Pemasangan lain yang masih terbuka dianggap **Dipesan**: tidak bisa dipilih tiket lain dan ditampilkan "Dipesan oleh {nomor tiket}" di pilihan port Teknisi. Dipesan bukan status tersimpan; ia hilang sendiri saat tiket Batal, dan menjadi Terpakai saat Aktivasi Pemasangan.
 _Avoid_: Colokan Kabel, Slot ODP Lepas, Status Port Dipesan Tersimpan
 
+**Peta Port ODP**:
+Tampilan seluruh Port ODP pada satu ODP sebagai kotak bernomor yang menandai status masing-masing (Kosong, Terpakai, Rusak, Dipesan, dipilih tiket ini) beserta ringkasan pemakaiannya. Port Terpakai ditandai dengan Site ID layanan pemakainya (bukan No. Registrasi, yang bisa berganti prefix dan bisa sama untuk beberapa layanan), dengan nama pelanggan dan No. Registrasi sebagai keterangan saat dipilih. Menjadi cara Teknisi memilih port di Ticket Pemasangan (hanya port Kosong atau port milik tiket itu sendiri yang bisa dipilih), dan tampil baca-saja dengan port layanan disorot di tiket lain yang layanannya sudah punya port.
+_Avoid_: Dropdown Port Kosong Saja, Menyembunyikan Port Terpakai
+
+**Label Port**:
+Stiker thermal 50×30 mm untuk satu Port ODP yang dipakai sebuah layanan, berisi nama ODP dan nomor port, nama pelanggan, No. Registrasi, dan Site ID sebagai pengenal yang tidak berubah. Dicetak dari tiket yang sudah punya port (Dipesan maupun Terpakai, kecuali Pencabutan) atau secara massal dari halaman ODP untuk port Terpakai; pencetakan tidak tercatat di Histori Tiket. Satu label per port, bukan daftar per ODP.
+_Avoid_: Label ODP Berisi Daftar Port, Label Tanpa Site ID, Barcode di Label Port
+
 **Usulan ODP**:
 ODP yang dipilih pembuat Ticket Pemasangan (siapa pun perannya) saat membuat tiket yang merujuk layanan, hanya dari ODP Terdekat terhadap koordinat layanan itu yang masih punya port kosong. Wajib diisi bila ada kandidat; bila tidak ada ODP berport kosong dalam jangkauan, tiket tetap dibuat dengan tanda "Tanpa ODP dalam jangkauan" dan Teknisi memilih ODP sendiri. Layanan tanpa koordinat harus dilengkapi koordinatnya dulu. Berstatus `Menunggu Validasi Teknisi` sampai Teknisi menanganinya: `Disetujui` (Teknisi memakai ODP itu) atau `Diganti Teknisi` (Teknisi menolak dengan alasan tercatat di Histori Tiket dan memilih ODP lain sendiri, tanpa kembali ke pembuat tiket). Teknisi baru boleh memilih Port ODP setelah usulan berstatus `Disetujui` atau `Diganti Teknisi`. Hanya menentukan ODP, bukan port. Validasi memakai izin yang sama dengan progress lapangan Teknisi. Tiket Pemasangan tanpa layanan dan tiket lama tanpa Usulan ODP tetap memakai alur lama (Teknisi memilih ODP bebas).
 _Avoid_: Sales Memilih Port, Penolakan Dikembalikan ke Sales, Usulan ODP di Luar Toleransi ODP Terdekat
@@ -613,6 +629,14 @@ _Avoid_: Synchronous Webhook Processing, Long-Running Callback Handler
 **Validasi Ketat Nominal Gateway**:
 Mekanisme verifikasi integritas nominal bayar integer IDR tanpa toleransi selisih (`paid_amount === total_tagihan`) sebelum pelunasan invoice dan perpanjangan layanan internet dieksekusi, mencegah anomali *underpayment* atau *overpayment*.
 _Avoid_: Loose Amount Verification, Auto-Pay Tanpa Verifikasi Nominal
+
+**Pelunasan Susulan**:
+Pelunasan invoice dari pembayaran yang sudah berstatus PAID di gateway tetapi belum tercatat Lunas di sistem (webhook hilang, link lama yang dikira kedaluwarsa, atau transaksi di luar jangkauan rekonsiliasi rutin). Kandidatnya diambil dari daftar pembayaran PAID di gateway pada semua Koneksi non-sandbox, lalu dilunasi dengan waktu bayar asli dari gateway beserta semua efek pelunasan biasa (perpanjangan masa aktif, buka isolir, WhatsApp konfirmasi). Nominal yang tidak sama persis, pembayaran yang tidak bisa dicocokkan ke invoice, pembayaran ganda, dan invoice Dibatalkan yang dulunya menggabung tunggakan tidak dilunasi melainkan dilaporkan untuk tindakan manual.
+_Avoid_: Rekonsiliasi Manual, Force Lunas, Waktu Bayar = Waktu Sinkron
+
+**Kasus Pelunasan Susulan**:
+Pembayaran PAID di gateway yang tidak dilunasi otomatis oleh Pelunasan Susulan dan perlu tindakan staf: pembayaran ganda (umumnya di-refund di gateway), nominal yang tidak sama, pembayaran yang tidak dikenali, atau link invoice penggabung yang gagal diterbitkan ulang. Satu kasus dilaporkan sekali dan tetap terbuka sampai staf menandainya Sudah Ditangani; pelanggan hanya diberi tahu bahwa pembayarannya sedang diperiksa.
+_Avoid_: Error Pembayaran, Gagal Bayar, Refund Otomatis
 
 **Perintah Instalasi Produksi (Production Setup Command)**:
 Perintah Artisan resmi (`php artisan app:install` / `app:setup-production`) yang memfasilitasi migrasi database, symlink storage, injeksi master data produksi, serta provisioning akun `super_admin` awal secara interaktif maupun non-interaktif (*CI/CD headless mode*).

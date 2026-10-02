@@ -142,7 +142,7 @@ class WhatsappService
             'no_invoice' => $invoice->no_invoice,
             'periode' => $invoice->periode_tagihan ?? Carbon::parse($invoice->tanggal_terbit)->format('m/Y'),
             'total_tagihan' => 'Rp '.number_format($invoice->jumlah_setelah_promo ?? $invoice->jumlah, 0, ',', '.'),
-            'jatuh_tempo' => Carbon::parse($invoice->tanggal_jatuh_tempo)->translatedFormat('d F Y'),
+            'jatuh_tempo' => $this->tanggalPesan($invoice->tanggal_jatuh_tempo, 'd F Y'),
             'link_pembayaran' => $linkBayar,
             'nama_paket' => $namaPaket,
             'site_id' => $layanan->site_id ?? '-',
@@ -181,8 +181,8 @@ class WhatsappService
             'nama_pic' => $pic->name ?? 'Belum Ditugaskan',
             'catatan_histori' => $catatan ?? $ticket->deskripsi,
             'deskripsi' => $ticket->deskripsi,
-            'sla_target' => $ticket->sla_target_selesai ? Carbon::parse($ticket->sla_target_selesai)->translatedFormat('d F Y H:i') : '-',
-            'jadwal_teknisi' => $ticket->dijadwalkan_pada ? Carbon::parse($ticket->dijadwalkan_pada)->translatedFormat('d F Y H:i') : '-',
+            'sla_target' => $ticket->sla_target_selesai ? $this->tanggalPesan($ticket->sla_target_selesai) : '-',
+            'jadwal_teknisi' => $ticket->dijadwalkan_pada ? $this->tanggalPesan($ticket->dijadwalkan_pada) : '-',
             'link_tiket' => route('ticket.show', $ticket->id),
         ];
     }
@@ -197,7 +197,7 @@ class WhatsappService
         $params = $this->buildInvoiceParams($invoice);
 
         $params['jumlah_dibayar'] = 'Rp '.number_format((float) $pembayaran->jumlah_dibayar, 0, ',', '.');
-        $params['tanggal_bayar'] = Carbon::parse($pembayaran->dibayar_pada ?? now())->translatedFormat('d F Y H:i');
+        $params['tanggal_bayar'] = $this->tanggalPesan($pembayaran->dibayar_pada ?? now());
         $metodeText = $pembayaran->metode->value;
         $params['metode_bayar'] = strtoupper(str_replace('_', ' ', $metodeText));
         $params['referensi_transaksi'] = $pembayaran->referensi_transaksi ?? $invoice->no_invoice;
@@ -230,5 +230,13 @@ class WhatsappService
         }
 
         return $params;
+    }
+
+    /**
+     * Tanggal di pesan WhatsApp untuk pelanggan selalu berbahasa Indonesia, apa pun APP_LOCALE.
+     */
+    private function tanggalPesan(mixed $tanggal, string $format = 'd F Y H:i'): string
+    {
+        return Carbon::parse($tanggal)->locale('id')->translatedFormat($format);
     }
 }

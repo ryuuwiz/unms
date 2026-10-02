@@ -10,12 +10,14 @@ use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use App\Services\PaymentGateway\DeskripsiTagihanBuilder;
+use Carbon\CarbonInterface;
 use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Xendit\BalanceAndTransaction\BalanceApi;
 use Xendit\Configuration;
 use Xendit\Invoice\CreateInvoiceRequest;
@@ -27,9 +29,14 @@ use Xendit\XenditSdkException;
 
 class XenditDriver extends AbstractPaymentDriver
 {
+    /** Batas invoice per halaman daftar Xendit (maksimum API). */
+    private const BATAS_HALAMAN_DAFTAR = 100;
+
+    public const PROVIDER = 'xendit';
+
     public function getProviderName(): string
     {
-        return 'xendit';
+        return self::PROVIDER;
     }
 
     public function getProviderLabel(): string
@@ -406,12 +413,134 @@ class XenditDriver extends AbstractPaymentDriver
 
     public function parseWebhookPayload(Request $request): PaymentCallbackData
     {
-        $payload = $request->all();
+        return $this->petakanPayload($request->all());
+    }
 
-        // 1. Ekstrak Event Name (V3 format: 'event' e.g. 'payment.succeeded', 'payment_request.succeeded')
-        $eventName = strtolower(trim((string) ($payload['event'] ?? '')));
+    /**
+     * Semua invoice PAID/SETTLED satu Koneksi yang dibayar dalam rentang waktu, untuk Pelunasan
+     * Susulan (lihat CONTEXT.md). Dibaca lewat HTTP langsung karena model SDK membuang `paid_at`,
+     * `paid_amount`, dan `payment_channel`. Rentang dipecah per hari dan kursor `last_invoice`
+     * hanya dipakai saat satu hari penuh; paginasi berhenti begitu halaman tidak membawa invoice
+     * baru, sehingga tetap aman bila Xendit mengabaikan kursornya.
+     *
+     * @return list<PaymentCallbackData>
+     *
+     * @throws RuntimeException bila kredensial kosong atau Xendit menolak permintaan
+     */
+    public function daftarPembayaranLunas(PengaturanGateway $setting, CarbonInterface $sejak, ?CarbonInterface $sampai = null): array
+    {
+        $apiKey = $this->getApiKey($setting);
+        if (empty($apiKey)) {
+            throw new RuntimeException("Koneksi {$setting->nama} belum memiliki Xendit Secret Key.");
+        }
 
-        // 2. Tangani Payment Method baik berupa String (v1 / invoice) maupun Array/Object (v2 / v3 payment_requests)
+        $sampai ??= now();
+        $hasil = [];
+
+        for ($awal = Carbon::instance($sejak)->startOfDay(); $awal->lessThan($sampai); $awal = $awal->copy()->addDay()) {
+            $akhir = $awal->copy()->addDay()->min($sampai);
+            $kursor = null;
+
+            do {
+                $halaman = $this->ambilHalamanInvoiceLunas($apiKey, $awal, $akhir, $kursor);
+                $baru = array_filter($halaman, fn (array $invoice): bool => ! isset($hasil[$invoice['id'] ?? '']));
+
+                foreach ($baru as $invoice) {
+                    $hasil[(string) $invoice['id']] = $this->petakanPayload($invoice);
+                }
+
+                $kursor = $halaman === [] ? null : (string) (end($halaman)['id'] ?? '');
+            } while (count($halaman) >= self::BATAS_HALAMAN_DAFTAR && $baru !== [] && $kursor !== '');
+        }
+
+        return array_values($hasil);
+    }
+
+    /**
+     * Parameter array dikirim berulang (`statuses=PAID&statuses=SETTLED`), sama seperti SDK resmi.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function ambilHalamanInvoiceLunas(string $apiKey, CarbonInterface $awal, CarbonInterface $akhir, ?string $kursor): array
+    {
+        $query = implode('&', array_filter([
+            'statuses=PAID&statuses=SETTLED',
+            'limit='.self::BATAS_HALAMAN_DAFTAR,
+            'paid_after='.rawurlencode($awal->toIso8601ZuluString()),
+            'paid_before='.rawurlencode($akhir->toIso8601ZuluString()),
+            $kursor ? 'last_invoice='.rawurlencode($kursor) : null,
+        ]));
+
+        $response = Http::withBasicAuth($apiKey, '')
+            ->timeout(30)
+            ->get("https://api.xendit.co/v2/invoices?{$query}");
+
+        if (! $response->successful()) {
+            throw new RuntimeException("Gagal mengambil daftar invoice PAID dari Xendit: HTTP {$response->status()} {$response->body()}");
+        }
+
+        $data = $response->json();
+
+        return array_values(array_filter(is_array($data) ? $data : [], 'is_array'));
+    }
+
+    /**
+     * Matikan invoice Xendit milik transaksi agar link lamanya tidak bisa dibayar lagi
+     * (mis. setelah nominal invoice dikoreksi oleh Pelunasan Susulan, ADR-0069).
+     *
+     * @throws RuntimeException bila Xendit menolak permintaan
+     */
+    public function kedaluwarsakanInvoice(TransaksiPaymentGateway $transaksi, PengaturanGateway $setting): void
+    {
+        $xenditId = $transaksi->xendit_reference_id ?: $transaksi->provider_reference_id;
+        if (empty($xenditId)) {
+            return;
+        }
+
+        $response = Http::withBasicAuth($this->getApiKey($setting), '')
+            ->timeout(20)
+            ->post('https://api.xendit.co/invoices/'.rawurlencode($xenditId).'/expire!');
+
+        if (! $response->successful()) {
+            throw new RuntimeException("Gagal mematikan invoice Xendit {$xenditId}: HTTP {$response->status()} {$response->body()}");
+        }
+    }
+
+    /**
+     * Petakan payload invoice/pembayaran Xendit (callback maupun hasil daftar invoice). Mata uang
+     * ikut dipetakan untuk penegakan strict-IDR (ADR 0028 §2).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function petakanPayload(array $payload): PaymentCallbackData
+    {
+        $externalId = $this->externalIdDari($payload);
+        [$channel, $channelDetail] = $this->channelDari($payload);
+
+        return new PaymentCallbackData(
+            provider: 'xendit',
+            externalId: $externalId,
+            status: $this->statusDari($payload),
+            paidAmount: $this->nominalDari($payload),
+            eventId: $this->eventIdDari($payload),
+            paidAt: $this->waktuBayarDari($payload),
+            channel: $channel,
+            channelDetail: $channelDetail,
+            paymentReference: $this->referensiPembayaranDari($payload),
+            isTest: $this->payloadUjiCoba($payload, $externalId),
+            rawPayload: $payload,
+            currency: $this->mataUangDari($payload),
+        );
+    }
+
+    /**
+     * Payment method bisa berupa string (v1 / invoice) maupun objek (v2 / v3 payment_requests).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array{0: GatewayChannel, 1: string|null}
+     */
+    private function channelDari(array $payload): array
+    {
         $rawPm = $payload['payment_method'] ?? ($payload['data']['payment_method'] ?? ($payload['data']['type'] ?? ''));
         $channelDetail = null;
 
@@ -429,23 +558,8 @@ class XenditDriver extends AbstractPaymentDriver
             if (is_string($extractedChannel)) {
                 $channelDetail = strtolower(trim($extractedChannel));
             }
-        } elseif (is_string($rawPm)) {
-            $pm = strtoupper(trim($rawPm));
         } else {
-            $pm = '';
-        }
-
-        if (empty($channelDetail)) {
-            $rawChannel = $payload['payment_channel']
-                ?? ($payload['data']['payment_channel']
-                ?? ($payload['data']['channel_code']
-                ?? ($payload['channel_code'] ?? null)));
-
-            if (is_string($rawChannel)) {
-                $channelDetail = strtolower(trim($rawChannel));
-            } elseif (is_array($rawChannel)) {
-                $channelDetail = strtolower((string) ($rawChannel['channel_code'] ?? ($rawChannel['code'] ?? '')));
-            }
+            $pm = is_string($rawPm) ? strtoupper(trim($rawPm)) : '';
         }
 
         $channel = match ($pm) {
@@ -456,41 +570,87 @@ class XenditDriver extends AbstractPaymentDriver
             default => GatewayChannel::Invoice,
         };
 
-        // 3. External / Reference ID
+        return [$channel, $channelDetail ?: $this->kodeChannelDari($payload)];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function kodeChannelDari(array $payload): ?string
+    {
+        $rawChannel = $payload['payment_channel']
+            ?? ($payload['data']['payment_channel']
+            ?? ($payload['data']['channel_code']
+            ?? ($payload['channel_code'] ?? null)));
+
+        return match (true) {
+            is_string($rawChannel) => strtolower(trim($rawChannel)),
+            is_array($rawChannel) => strtolower((string) ($rawChannel['channel_code'] ?? ($rawChannel['code'] ?? ''))),
+            default => null,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function externalIdDari(array $payload): string
+    {
         $rawExternalId = $payload['external_id']
             ?? ($payload['data']['reference_id']
             ?? ($payload['data']['external_id']
             ?? ($payload['reference_id'] ?? '')));
-        $externalId = is_string($rawExternalId) ? trim($rawExternalId) : (is_numeric($rawExternalId) ? (string) $rawExternalId : '');
 
-        // 4. Normalisasi Status Transaksi dari Event V3 maupun status attribute
+        return is_string($rawExternalId) ? trim($rawExternalId) : (is_numeric($rawExternalId) ? (string) $rawExternalId : '');
+    }
+
+    /**
+     * Status dari nama event V3 (mis. `payment.succeeded`) bila ada, selain itu dari atribut status.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function statusDari(array $payload): string
+    {
+        $eventName = strtolower(trim((string) ($payload['event'] ?? '')));
         $rawStatus = $payload['status'] ?? ($payload['data']['status'] ?? '');
         $statusStr = is_string($rawStatus) ? strtoupper(trim($rawStatus)) : '';
 
         if (! empty($eventName)) {
-            $status = match (true) {
+            return match (true) {
                 str_contains($eventName, 'succeeded'), str_contains($eventName, 'paid'), str_contains($eventName, 'capture'), str_contains($eventName, 'settled') => 'PAID',
                 str_contains($eventName, 'failure'), str_contains($eventName, 'failed'), str_contains($eventName, 'declined') => 'FAILED',
                 str_contains($eventName, 'expired'), str_contains($eventName, 'cancelled') => 'EXPIRED',
                 default => in_array($statusStr, ['SUCCEEDED', 'PAID', 'SETTLED', 'CAPTURED', 'BERHASIL'], true) ? 'PAID' : (in_array($statusStr, ['FAILED', 'FAILURE', 'DECLINED'], true) ? 'FAILED' : (in_array($statusStr, ['EXPIRED', 'CANCELLED'], true) ? 'EXPIRED' : 'PENDING')),
             };
-        } else {
-            $status = match (true) {
-                in_array($statusStr, ['SUCCEEDED', 'PAID', 'SETTLED', 'CAPTURED', 'BERHASIL'], true) => 'PAID',
-                in_array($statusStr, ['FAILED', 'FAILURE', 'DECLINED', 'GAGAL'], true) => 'FAILED',
-                in_array($statusStr, ['EXPIRED', 'CANCELLED', 'KEDALUWARSA'], true) => 'EXPIRED',
-                default => 'PENDING',
-            };
         }
 
-        // 5. Nominal Transaksi
+        return match (true) {
+            in_array($statusStr, ['SUCCEEDED', 'PAID', 'SETTLED', 'CAPTURED', 'BERHASIL'], true) => 'PAID',
+            in_array($statusStr, ['FAILED', 'FAILURE', 'DECLINED', 'GAGAL'], true) => 'FAILED',
+            in_array($statusStr, ['EXPIRED', 'CANCELLED', 'KEDALUWARSA'], true) => 'EXPIRED',
+            default => 'PENDING',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function nominalDari(array $payload): float
+    {
         $rawAmount = $payload['paid_amount']
             ?? ($payload['amount']
             ?? ($payload['data']['capture_amount']
             ?? ($payload['data']['amount'] ?? 0)));
-        $amount = is_numeric($rawAmount) ? (float) $rawAmount : 0.0;
 
-        // 6. Identifier Event / Payment Request ID / Payment ID
+        return is_numeric($rawAmount) ? (float) $rawAmount : 0.0;
+    }
+
+    /**
+     * Identifier event / payment request / payment.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function eventIdDari(array $payload): ?string
+    {
         $rawEventId = $payload['id']
             ?? ($payload['data']['id'] ?? null)
             ?? ($payload['data']['payment_request_id'] ?? null)
@@ -500,57 +660,63 @@ class XenditDriver extends AbstractPaymentDriver
             ?? ($payload['callback_virtual_account_id'] ?? null)
             ?? ($payload['qr_id'] ?? null);
 
-        $eventId = (is_string($rawEventId) || is_numeric($rawEventId)) && ! empty($rawEventId) ? trim((string) $rawEventId) : null;
+        return (is_string($rawEventId) || is_numeric($rawEventId)) && ! empty($rawEventId) ? trim((string) $rawEventId) : null;
+    }
 
-        // 7. Waktu Pembayaran / Update
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function waktuBayarDari(array $payload): string
+    {
         $rawPaidAt = $payload['paid_at']
             ?? ($payload['updated']
             ?? ($payload['data']['updated']
             ?? ($payload['created']
             ?? ($payload['data']['created'] ?? null))));
-        $paidAt = is_string($rawPaidAt) ? $rawPaidAt : now()->toIso8601String();
 
-        // 8. Payment Reference (URL redirect actions / VA / QR / ID)
-        $paymentRef = null;
-        if (isset($payload['data']['actions']) && is_array($payload['data']['actions'])) {
-            foreach ($payload['data']['actions'] as $action) {
-                if (isset($action['url']) && is_string($action['url'])) {
-                    $paymentRef = $action['url'];
-                    break;
-                }
+        return is_string($rawPaidAt) ? $rawPaidAt : now()->toIso8601String();
+    }
+
+    /**
+     * URL redirect action bila ada, selain itu VA / QR / ID pembayaran.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function referensiPembayaranDari(array $payload): ?string
+    {
+        foreach ((array) ($payload['data']['actions'] ?? []) as $action) {
+            if (isset($action['url']) && is_string($action['url'])) {
+                return $action['url'];
             }
         }
-        if (empty($paymentRef)) {
-            $rawPaymentRef = $payload['payment_destination']
-                ?? ($payload['payment_id']
-                ?? ($payload['id']
-                ?? ($payload['data']['id'] ?? null)));
-            $paymentRef = (is_string($rawPaymentRef) || is_numeric($rawPaymentRef)) ? (string) $rawPaymentRef : null;
-        }
 
-        $isTestDummy = str_contains($externalId, '123124123')
+        $rawPaymentRef = $payload['payment_destination']
+            ?? ($payload['payment_id']
+            ?? ($payload['id']
+            ?? ($payload['data']['id'] ?? null)));
+
+        return (is_string($rawPaymentRef) || is_numeric($rawPaymentRef)) ? (string) $rawPaymentRef : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function payloadUjiCoba(array $payload, string $externalId): bool
+    {
+        return str_contains($externalId, '123124123')
             || str_contains($externalId, 'test-')
-            || ($payload['is_test'] ?? false)
-            || ($payload['data']['is_test'] ?? false);
+            || (bool) ($payload['is_test'] ?? false)
+            || (bool) ($payload['data']['is_test'] ?? false);
+    }
 
-        // 9. Mata Uang -- dipakai untuk penegakan strict-IDR di ProcessPaymentWebhookJob (ADR 0028 §2).
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function mataUangDari(array $payload): ?string
+    {
         $rawCurrency = $payload['currency'] ?? ($payload['data']['currency'] ?? null);
-        $currency = is_string($rawCurrency) && $rawCurrency !== '' ? strtoupper(trim($rawCurrency)) : null;
 
-        return new PaymentCallbackData(
-            provider: 'xendit',
-            externalId: $externalId,
-            status: $status,
-            paidAmount: $amount,
-            eventId: $eventId,
-            paidAt: $paidAt,
-            channel: $channel,
-            channelDetail: $channelDetail,
-            paymentReference: $paymentRef,
-            isTest: (bool) $isTestDummy,
-            rawPayload: $payload,
-            currency: $currency
-        );
+        return is_string($rawCurrency) && $rawCurrency !== '' ? strtoupper(trim($rawCurrency)) : null;
     }
 
     public function pingConnection(PengaturanGateway $setting): PingConnectionResult

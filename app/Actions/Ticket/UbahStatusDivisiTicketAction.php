@@ -2,7 +2,6 @@
 
 namespace App\Actions\Ticket;
 
-use App\Enums\StatusInvoice;
 use App\Enums\Ticket\DivisiTicket;
 use App\Enums\Ticket\StatusDivisiTicket;
 use App\Enums\Ticket\StatusTicket;
@@ -70,12 +69,7 @@ class UbahStatusDivisiTicketAction
             throw new InvalidArgumentException('Tiket ini belum terhubung ke Data Registrasi Billing.');
         }
 
-        $lunas = $layanan->invoices()
-            ->whereNull('periode_tagihan')
-            ->where('status', StatusInvoice::Lunas)
-            ->exists();
-
-        if (! $lunas) {
+        if (! $layanan->invoicePertamaLunas()) {
             throw new InvalidArgumentException('Invoice pertama layanan ini belum lunas -- Admin belum bisa menandai selesai.');
         }
     }

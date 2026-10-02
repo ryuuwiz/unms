@@ -13,7 +13,7 @@
             </p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <flux:button href="{{ route('invoice.index') }}" variant="subtle" icon="arrow-left" wire:navigate>
                 Kembali
             </flux:button>
@@ -21,6 +21,14 @@
                 <flux:button href="{{ route('invoice.cetak', $invoice) }}" target="_blank" variant="subtle" icon="printer">
                     Cetak PDF
                 </flux:button>
+            @endcan
+            @can('pembayaran.lihat')
+                @if(!$invoice->isLunas())
+                    <flux:button wire:click="cekStatusPembayaranXendit" variant="subtle" icon="arrow-path" wire:loading.attr="disabled" wire:target="cekStatusPembayaranXendit">
+                        <span wire:loading.remove wire:target="cekStatusPembayaranXendit">Cek Status Pembayaran Xendit</span>
+                        <span wire:loading wire:target="cekStatusPembayaranXendit">Mengecek...</span>
+                    </flux:button>
+                @endif
             @endcan
             @can('pembayaran.catat')
                 @if(!$invoice->isLunas())
@@ -31,6 +39,10 @@
             @endcan
         </div>
     </div>
+
+    @if($hasilCekStatus)
+        <x-pembayaran.hasil-cek-status :hasil="$hasilCekStatus" />
+    @endif
 
     <!-- Info Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

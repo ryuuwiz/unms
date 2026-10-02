@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\Pembayaran;
 use App\Models\WaTemplate;
 use App\Services\Billing\BillingService;
+use App\Services\PaymentGateway\CekStatusPembayaranInvoice;
 use App\Services\Whatsapp\WhatsappService;
 use Exception;
 use Flux\Flux;
@@ -17,6 +18,7 @@ use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Throwable;
 
 #[Layout('layouts.app')]
 #[Title('Detail Invoice')]
@@ -38,6 +40,9 @@ class Show extends Component
 
     public string $testPhone = '';
 
+    /** @var array{lunas: bool, alasanDilaporkan: string|null, galat: string|null}|null */
+    public ?array $hasilCekStatus = null;
+
     public function mount(Invoice $invoice): void
     {
         $this->authorize('view', $invoice);
@@ -45,6 +50,22 @@ class Show extends Component
 
         $this->jumlah_dibayar = (float) $invoice->jumlah_setelah_promo;
         $this->dibayar_pada = Carbon::now()->format('Y-m-d\TH:i');
+    }
+
+    /**
+     * Cek semua link pembayaran invoice ke Xendit (termasuk link lama); PAID diputuskan Pelunasan Susulan.
+     */
+    public function cekStatusPembayaranXendit(CekStatusPembayaranInvoice $cekStatus): void
+    {
+        $this->authorize('viewAny', Pembayaran::class);
+
+        try {
+            $this->hasilCekStatus = $cekStatus->periksa($this->invoice)->toArray();
+            $this->invoice->refresh()->load(['pembayarans.dicatatOleh', 'transaksiPaymentGateways' => fn ($q) => $q->latest('id')]);
+        } catch (Throwable $e) {
+            report($e);
+            Flux::toast(variant: 'danger', text: 'Gagal mengecek status pembayaran: '.$e->getMessage());
+        }
     }
 
     public function openBayarModal(): void

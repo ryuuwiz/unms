@@ -24,8 +24,10 @@ class CustomerDocumentService
         string $collection,
         array $customProperties = []
     ): Media {
-        $rawContent = file_get_contents($file->getRealPath());
-        if ($rawContent === false) {
+        // get() membaca lewat disk berkasnya (termasuk disk upload sementara Livewire di S3);
+        // getRealPath() hanya berupa path lokal bila disk itu local.
+        $rawContent = $file->get();
+        if (! is_string($rawContent)) {
             throw new RuntimeException("Gagal membaca berkas sumber: {$file->getClientOriginalName()}");
         }
 

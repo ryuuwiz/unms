@@ -5,10 +5,12 @@ namespace App\Livewire\Portal\Invoice;
 use App\Enums\StatusLayanan;
 use App\Livewire\Portal\Invoice\Concerns\AuthorizesInvoiceAccess;
 use App\Models\Invoice;
+use App\Services\PaymentGateway\CekStatusPembayaranInvoice;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use App\Support\BrandPelanggan;
 use Exception;
 use Flux\Flux;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -52,23 +54,43 @@ class Show extends Component
         BrandPelanggan::tetapkanUntukRequest(BrandPelanggan::untukNoReg($this->invoice->pelanggan?->no_reg));
     }
 
+    /** Batas tombol Cek Status Pembayaran per tagihan per menit -- setiap klik menanyakan semua link ke gateway. */
+    private const BATAS_CEK_PER_MENIT = 5;
+
     /**
-     * Cek dan sinkronisasikan status pembayaran terbaru dari gateway.
+     * Cek semua link pembayaran tagihan ke gateway (termasuk link lama). Kasus yang dilaporkan
+     * hanya menampilkan pesan umum; alasan internalnya untuk staf.
      */
-    public function sinkronkanStatus(PaymentGatewayManager $paymentManager): void
+    public function cekStatusPembayaran(CekStatusPembayaranInvoice $cekStatus): void
+    {
+        $diizinkan = RateLimiter::attempt(
+            'portal-cek-status-pembayaran:'.$this->invoice->id,
+            self::BATAS_CEK_PER_MENIT,
+            fn () => $this->jalankanCekStatus($cekStatus),
+        );
+
+        if (! $diizinkan) {
+            Flux::toast(variant: 'warning', text: 'Terlalu sering mengecek. Silakan coba lagi dalam satu menit.');
+        }
+    }
+
+    private function jalankanCekStatus(CekStatusPembayaranInvoice $cekStatus): void
     {
         try {
-            $paymentManager->sinkronkanStatus($this->invoice);
+            $hasil = $cekStatus->periksa($this->invoice);
             $this->invoice->refresh();
-
-            if ($this->invoice->isLunas()) {
-                Flux::toast(variant: 'success', text: 'Pembayaran berhasil terkonfirmasi! Tagihan telah lunas.');
-            } else {
-                Flux::toast(variant: 'info', text: 'Status tagihan: Menunggu pembayaran.');
-            }
         } catch (Exception $e) {
-            Flux::toast(variant: 'danger', text: 'Gagal memperbarui status: '.$e->getMessage());
+            report($e);
+            Flux::toast(variant: 'danger', text: 'Gagal memperbarui status. Silakan coba lagi beberapa saat lagi.');
+
+            return;
         }
+
+        match (true) {
+            $hasil->lunas => Flux::toast(variant: 'success', text: 'Pembayaran berhasil terkonfirmasi! Tagihan telah lunas.'),
+            $hasil->dilaporkan() => Flux::toast(variant: 'warning', text: 'Pembayaran Anda sedang kami periksa. Tim kami akan menghubungi Anda.'),
+            default => Flux::toast(variant: 'info', text: 'Status tagihan: Menunggu pembayaran.'),
+        };
     }
 
     /**

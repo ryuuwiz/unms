@@ -140,6 +140,13 @@ return [
                     'permission' => 'pembayaran.lihat',
                 ],
                 [
+                    'title' => 'Pelunasan Susulan',
+                    'icon' => 'check-badge',
+                    'route' => 'pembayaran.pelunasan-susulan.index',
+                    'active' => 'pembayaran.pelunasan-susulan.*',
+                    'permission' => 'pembayaran.lihat',
+                ],
+                [
                     'title' => 'Promo & Diskon',
                     'icon' => 'tag',
                     'route' => 'promo.index',

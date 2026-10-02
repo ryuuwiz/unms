@@ -37,6 +37,15 @@ Schedule::command('mikrotik:provisi-tertunda')
 
 Schedule::command('xendit:cek-va-expired')->hourly()->onOneServer();
 
+// Pelunasan Susulan (ADR-0069): pembayaran yang sudah PAID di Xendit tetapi belum Lunas di sistem
+// -- jendela 35 hari setiap malam; riwayat lebih lama lewat halaman Pembayaran > Pelunasan Susulan.
+// Memakai kunci yang sama dengan halaman itu (PemindaianPelunasanSusulan::KUNCI).
+Schedule::command('pembayaran:cek-lunas-xendit')
+    ->dailyAt('02:15')
+    ->withoutOverlapping(60)
+    ->onOneServer()
+    ->sentryMonitor();
+
 // Sweeper rekonsiliasi pembayaran dua arah: dispatch ulang webhook mandek + polling
 // gateway untuk transaksi pending -- jaring pengaman agar pembayaran tidak pernah
 // tertahan diam-diam jika webhook hilang atau job antrean gagal total.

@@ -40,6 +40,9 @@ beforeEach(function () {
     $this->noc = User::factory()->create(['status' => UserStatus::Active]);
     $this->noc->assignRole('noc');
 
+    $this->teknisiPic = User::factory()->create(['status' => UserStatus::Active]);
+    $this->teknisiPic->assignRole('teknisi');
+
     $this->pelanggan = Pelanggan::factory()->create();
     $this->profil = ProfilBandwidth::factory()->create();
     $this->paket = PaketLayanan::factory()->create(['profil_bandwidth_id' => $this->profil->id]);
@@ -63,7 +66,7 @@ beforeEach(function () {
         ->set('jenis', JenisTicket::Gangguan->value)
         ->set('pelanggan_id', $this->pelanggan->id)
         ->set('layanan_pelanggan_id', $this->layanan->id)
-        ->set('pic_id', $this->noc->id)
+        ->set('pic_id', $this->teknisiPic->id)
         ->set('deskripsi', 'Pelanggan lapor koneksi putus-putus.')
         ->call('save')
         ->assertHasNoErrors();

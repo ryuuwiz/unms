@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\WebhookLog;
 use App\Services\PaymentGateway\PaymentGatewayManager;
+use App\Services\PaymentGateway\WebhookPelunasanSusulan;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Request;
@@ -134,6 +135,13 @@ class ProcessPaymentWebhookJob implements ShouldQueue
             }
         }
 
+        $webhookSusulan = app(WebhookPelunasanSusulan::class);
+        if (! $invoice && $webhookSusulan->untukInvoiceDibatalkan($callbackData)) {
+            $webhookSusulan->tangani($callbackData, $webhookLog, $transaksi);
+
+            return;
+        }
+
         if (! $invoice) {
             if ($callbackData->isTest) {
                 $webhookLog->update([
@@ -183,21 +191,8 @@ class ProcessPaymentWebhookJob implements ShouldQueue
                 return;
             }
 
-            // Invoice yang sudah digabung (Tunggakan Akumulatif) tidak boleh dilunasi otomatis:
-            // uangnya sudah masuk, jadi tandai untuk penanganan manual alih-alih menerbitkan
-            // perpanjangan ganda.
             if ($invoice->isDigabung()) {
-                $catatan = "Pembayaran {$provider} diterima untuk Invoice {$invoice->no_invoice} yang sudah digabung ke invoice lain; perlu penanganan manual";
-                $webhookLog->update([
-                    'status_proses' => StatusWebhookLog::Gagal,
-                    'catatan_error' => $catatan,
-                ]);
-
-                Log::error($catatan, [
-                    'invoice_id' => $invoice->id,
-                    'digabung_ke_invoice_id' => $invoice->digabung_ke_invoice_id,
-                    'external_id' => $callbackData->externalId,
-                ]);
+                $webhookSusulan->tangani($callbackData, $webhookLog, $transaksi);
 
                 return;
             }

@@ -269,8 +269,19 @@ class PaymentGatewayManager
      */
     public function sinkronkanTransaksi(TransaksiPaymentGateway $transaksi): array
     {
+        return $this->terapkanStatusTransaksi($transaksi, $this->cekStatusTransaksi($transaksi));
+    }
+
+    /**
+     * Terapkan status gateway yang sudah ditanyakan lewat `cekStatusTransaksi` tanpa memanggil
+     * gateway lagi.
+     *
+     * @param  array<string, mixed>  $statusData
+     * @return array<string, mixed>
+     */
+    public function terapkanStatusTransaksi(TransaksiPaymentGateway $transaksi, array $statusData): array
+    {
         $invoice = $transaksi->invoice;
-        $statusData = $this->cekStatusTransaksi($transaksi);
 
         if (! $invoice) {
             return $statusData;
@@ -378,6 +389,9 @@ class PaymentGatewayManager
     }
 
     /**
+     * Status PAID memakai waktu bayar asli dari gateway (`paid_at`) agar tanggal lunas dan
+     * perpanjangan masa aktif tidak bergeser ke waktu sinkron berjalan (Pelunasan Susulan).
+     *
      * @param  array<string, mixed>  $statusData
      */
     protected function applySyncedStatus(
@@ -394,7 +408,7 @@ class PaymentGatewayManager
                 status: 'PAID',
                 paidAmount: (float) ($statusData['paid_amount'] ?? ($statusData['amount'] ?? $invoice->jumlah_setelah_promo)),
                 eventId: (string) ($statusData['id'] ?? null),
-                paidAt: now()->toIso8601String(),
+                paidAt: (string) ($statusData['paid_at'] ?? now()->toIso8601String()),
                 rawPayload: $statusData
             );
 
@@ -620,7 +634,7 @@ class PaymentGatewayManager
             // 3. Update Status Invoice
             $lockedInvoice->update([
                 'status' => StatusInvoice::Lunas,
-                'tanggal_lunas' => $dibayarPada->toDateString(),
+                'tanggal_lunas' => $dibayarPada->copy()->setTimezone(config('app.zona_waktu_bisnis'))->toDateString(),
                 'metode_pembayaran' => MetodePembayaran::PaymentGateway,
                 'payment_gateway_status' => 'PAID',
                 'xendit_status' => 'PAID',

@@ -117,9 +117,9 @@
                         Membuka Halaman Pembayaran...
                     </span>
                 </flux:button>
-                <flux:button wire:click="sinkronkanStatus" wire:loading.attr="disabled" variant="subtle" icon="arrow-path" class="w-full sm:w-auto">
-                    <span wire:loading.remove wire:target="sinkronkanStatus">Cek Status Pembayaran</span>
-                    <span wire:loading wire:target="sinkronkanStatus" class="animate-pulse">Mengecek...</span>
+                <flux:button wire:click="cekStatusPembayaran" wire:loading.attr="disabled" variant="subtle" icon="arrow-path" class="w-full sm:w-auto">
+                    <span wire:loading.remove wire:target="cekStatusPembayaran">Cek Status Pembayaran</span>
+                    <span wire:loading wire:target="cekStatusPembayaran" class="animate-pulse">Mengecek...</span>
                 </flux:button>
             </div>
         @elseif($invoice->isLunas() && $pelangganLogin)
