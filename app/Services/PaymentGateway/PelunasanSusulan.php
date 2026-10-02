@@ -131,39 +131,52 @@ class PelunasanSusulan
             return $hasil(AksiPelunasanSusulan::SudahTercatat);
         }
 
-        if ($invoice->isLunas()) {
-            return $hasil(AksiPelunasanSusulan::Dilaporkan, 'Pembayaran ganda: invoice sudah Lunas lewat pembayaran lain, refund di Xendit.');
-        }
+        $penggabung = $invoice->isDigabung() ? Invoice::query()->find($invoice->digabung_ke_invoice_id) : null;
 
-        $penggabung = null;
-        if ($invoice->isDigabung()) {
-            $penggabung = Invoice::query()->find($invoice->digabung_ke_invoice_id);
-
-            if (! $penggabung || $penggabung->isLunas()) {
-                return $hasil(AksiPelunasanSusulan::Dilaporkan, "Pembayaran ganda: tunggakan ini sudah dilunasi lewat invoice penggabung {$penggabung?->no_invoice}, refund di Xendit.");
-            }
-        } elseif ($invoice->status === StatusInvoice::Dibatalkan) {
-            if ($alasan = $this->alasanTidakDipulihkan($invoice)) {
-                return $hasil(AksiPelunasanSusulan::Dilaporkan, $alasan);
-            }
-        } elseif (! in_array($invoice->status, [StatusInvoice::MenungguPembayaran, StatusInvoice::Kadaluarsa], true)) {
-            return $hasil(AksiPelunasanSusulan::Dilaporkan, "Invoice berstatus {$invoice->status->label()}: perlu tindakan manual.");
-        }
-
-        if ($alasan = $this->alasanDitolak($pembayaran, $invoice, $transaksi)) {
+        if ($alasan = $this->alasanDilaporkan($pembayaran, $invoice, $transaksi, $penggabung)) {
             return $hasil(AksiPelunasanSusulan::Dilaporkan, $alasan);
         }
 
-        $catatanPenggabung = match (true) {
+        $catatan = match (true) {
             $penggabung !== null => "Dilepas dari invoice penggabung {$penggabung->no_invoice}, nominalnya dikoreksi.",
             $invoice->status === StatusInvoice::Dibatalkan => 'Invoice yang dibatalkan dipulihkan.',
             default => '',
         };
 
         if ($dryRun) {
-            return $hasil(AksiPelunasanSusulan::AkanDilunasi, $catatanPenggabung);
+            return $hasil(AksiPelunasanSusulan::AkanDilunasi, $catatan);
         }
 
+        if (! $this->lunasi($invoice, $penggabung, $pembayaran, $transaksi)) {
+            return $hasil(AksiPelunasanSusulan::Dilaporkan, 'Diabaikan: transaksi berasal dari koneksi sandbox.');
+        }
+
+        $gagalLink = $penggabung ? $this->terbitkanUlangLinkPenggabung($penggabung) : null;
+
+        return $hasil(AksiPelunasanSusulan::Dilunasi, trim($catatan.' '.$gagalLink));
+    }
+
+    /**
+     * Alasan pembayaran tidak dilunasi otomatis dan dilaporkan untuk tindakan manual (ADR-0069),
+     * atau null bila boleh dilunasi.
+     */
+    protected function alasanDilaporkan(PaymentCallbackData $pembayaran, Invoice $invoice, ?TransaksiPaymentGateway $transaksi, ?Invoice $penggabung): ?string
+    {
+        return match (true) {
+            $invoice->isLunas() => 'Pembayaran ganda: invoice sudah Lunas lewat pembayaran lain, refund di Xendit.',
+            $invoice->isDigabung() && (! $penggabung || $penggabung->isLunas()) => "Pembayaran ganda: tunggakan ini sudah dilunasi lewat invoice penggabung {$penggabung?->no_invoice}, refund di Xendit.",
+            $invoice->status === StatusInvoice::Dibatalkan => $this->alasanTidakDipulihkan($invoice) ?? $this->alasanDitolak($pembayaran, $invoice, $transaksi),
+            ! in_array($invoice->status, [StatusInvoice::MenungguPembayaran, StatusInvoice::Kadaluarsa, StatusInvoice::Digabung], true) => "Invoice berstatus {$invoice->status->label()}: perlu tindakan manual.",
+            default => $this->alasanDitolak($pembayaran, $invoice, $transaksi),
+        };
+    }
+
+    /**
+     * Lepas dari penggabung / pulihkan invoice Dibatalkan lalu lunasi dalam satu transaksi DB.
+     * False bila pelunasan diabaikan karena transaksi koneksi sandbox (semuanya di-rollback).
+     */
+    protected function lunasi(Invoice $invoice, ?Invoice $penggabung, PaymentCallbackData $pembayaran, ?TransaksiPaymentGateway $transaksi): bool
+    {
         try {
             DB::transaction(function () use ($invoice, $penggabung, $pembayaran, $transaksi): void {
                 if ($penggabung) {
@@ -178,12 +191,10 @@ class PelunasanSusulan
                 }
             });
         } catch (PembayaranSandboxDiabaikan) {
-            return $hasil(AksiPelunasanSusulan::Dilaporkan, 'Diabaikan: transaksi berasal dari koneksi sandbox.');
+            return false;
         }
 
-        $gagalLink = $penggabung ? $this->terbitkanUlangLinkPenggabung($penggabung) : null;
-
-        return $hasil(AksiPelunasanSusulan::Dilunasi, trim($catatanPenggabung.' '.$gagalLink));
+        return true;
     }
 
     /**

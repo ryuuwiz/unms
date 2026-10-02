@@ -34,39 +34,54 @@ class CekLunasXenditCommand extends Command
 
         $this->info(($dryRun ? '[DRY RUN] ' : '')."Memeriksa pembayaran PAID di Xendit sejak {$sejak->toDateString()}...");
 
-        $daftarHasil = $pelunasanSusulan->jalankan($sejak, $dryRun);
+        $hasil = $pelunasanSusulan->jalankan($sejak, $dryRun);
         if (! $dryRun) {
-            $pelunasanSusulan->laporkan($daftarHasil);
-        }
-        $hasil = collect($daftarHasil);
-        $ditampilkan = $hasil->reject(fn (HasilPelunasanSusulan $item): bool => $item->aksi === AksiPelunasanSusulan::SudahTercatat);
-
-        if ($ditampilkan->isNotEmpty()) {
-            $this->table(
-                ['Koneksi', 'No Invoice', 'Pelanggan', 'Nominal', 'Dibayar', 'Status Lokal', 'Aksi', 'Keterangan'],
-                $ditampilkan->map(fn (HasilPelunasanSusulan $item): array => [
-                    $item->koneksi,
-                    $item->invoice?->no_invoice ?? $item->pembayaran?->externalId ?? '-',
-                    $item->invoice?->pelanggan?->namaLengkap() ?? '-',
-                    $item->pembayaran ? 'Rp '.number_format($item->pembayaran->paidAmount, 0, ',', '.') : '-',
-                    $item->pembayaran?->paidAt ?? '-',
-                    $item->statusSebelum ?? '-',
-                    $item->aksi->value,
-                    $item->keterangan,
-                ])->all(),
-            );
+            $pelunasanSusulan->laporkan($hasil);
         }
 
-        $hitung = fn (AksiPelunasanSusulan $aksi): int => $hasil->filter(fn (HasilPelunasanSusulan $item): bool => $item->aksi === $aksi)->count();
-        $this->info(sprintf(
-            'Selesai. %d dilunasi, %d akan dilunasi (dry run), %d dilaporkan, %d sudah tercatat, %d koneksi gagal.',
-            $hitung(AksiPelunasanSusulan::Dilunasi),
-            $hitung(AksiPelunasanSusulan::AkanDilunasi),
-            $hitung(AksiPelunasanSusulan::Dilaporkan),
-            $hitung(AksiPelunasanSusulan::SudahTercatat),
-            $hitung(AksiPelunasanSusulan::GagalKoneksi),
-        ));
+        $this->tampilkanTabel($hasil);
+        $this->tampilkanRingkasan($hasil);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @param  list<HasilPelunasanSusulan>  $hasil
+     */
+    protected function tampilkanTabel(array $hasil): void
+    {
+        $baris = collect($hasil)
+            ->reject(fn (HasilPelunasanSusulan $item): bool => $item->aksi === AksiPelunasanSusulan::SudahTercatat)
+            ->map(fn (HasilPelunasanSusulan $item): array => [
+                $item->koneksi,
+                $item->invoice?->no_invoice ?? $item->pembayaran?->externalId ?? '-',
+                $item->invoice?->pelanggan?->namaLengkap() ?? '-',
+                $item->pembayaran ? 'Rp '.number_format($item->pembayaran->paidAmount, 0, ',', '.') : '-',
+                $item->pembayaran?->paidAt ?? '-',
+                $item->statusSebelum ?? '-',
+                $item->aksi->value,
+                $item->keterangan,
+            ]);
+
+        if ($baris->isNotEmpty()) {
+            $this->table(['Koneksi', 'No Invoice', 'Pelanggan', 'Nominal', 'Dibayar', 'Status Lokal', 'Aksi', 'Keterangan'], $baris->all());
+        }
+    }
+
+    /**
+     * @param  list<HasilPelunasanSusulan>  $hasil
+     */
+    protected function tampilkanRingkasan(array $hasil): void
+    {
+        $jumlah = collect($hasil)->countBy(fn (HasilPelunasanSusulan $item): string => $item->aksi->value);
+
+        $this->info(sprintf(
+            'Selesai. %d dilunasi, %d akan dilunasi (dry run), %d dilaporkan, %d sudah tercatat, %d koneksi gagal.',
+            $jumlah[AksiPelunasanSusulan::Dilunasi->value] ?? 0,
+            $jumlah[AksiPelunasanSusulan::AkanDilunasi->value] ?? 0,
+            $jumlah[AksiPelunasanSusulan::Dilaporkan->value] ?? 0,
+            $jumlah[AksiPelunasanSusulan::SudahTercatat->value] ?? 0,
+            $jumlah[AksiPelunasanSusulan::GagalKoneksi->value] ?? 0,
+        ));
     }
 }
