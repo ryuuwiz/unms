@@ -14,6 +14,7 @@ use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
 
 uses(RefreshDatabase::class);
 
@@ -44,6 +45,12 @@ test('tamu dapat membuka Halaman Tagihan Mandiri lewat Tautan Tagihan tanpa logi
         ->assertSee('Bayar Sekarang');
 });
 
+test('tamu lewat Tautan Tagihan tidak melihat tautan yang membutuhkan login', function () {
+    $this->get($this->invoice->tautanTagihan())
+        ->assertOk()
+        ->assertDontSee('Kembali ke Daftar Tagihan');
+});
+
 test('tautan tagihan memakai token pendek yang stabil', function () {
     $tautan = $this->invoice->tautanTagihan();
 
@@ -71,6 +78,11 @@ test('mengganti tautan tagihan mencabut tautan lama', function () {
 
     $this->get($tautanLama)->assertNotFound();
     $this->get($this->invoice->fresh()->tautanTagihan())->assertOk();
+
+    $log = Activity::forSubject($this->invoice)->latest('id')->first();
+    expect($log->description)->toContain('Tautan Tagihan diganti')
+        ->and($log->causer_id)->toBe($admin->id)
+        ->and(json_encode($log->toArray()))->not->toContain($this->invoice->fresh()->token_tautan);
 });
 
 test('signed URL lama yang sudah kedaluwarsa tetap dapat dibuka', function () {
