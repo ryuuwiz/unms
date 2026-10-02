@@ -5,6 +5,8 @@ use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
 use App\Enums\UserStatus;
 use App\Events\InvoicePaidEvent;
+use App\Jobs\Mikrotik\EnablePppoeAccountJob;
+use App\Jobs\Mikrotik\ProvisionPppoeAccountJob;
 use App\Livewire\Invoice\Show;
 use App\Livewire\Pembayaran\Index;
 use App\Models\Invoice;
@@ -265,3 +267,27 @@ test('pembayaran manual memancarkan InvoicePaidEvent agar notifikasi WA konfirma
             && $event->pembayaran->id === $pembayaran->id;
     });
 });
+
+test('pelunasan invoice layanan yang tidak lagi ditagih mencatat pembayaran tanpa menghidupkan layanan', function (Closure $akhiriLayanan) {
+    Queue::fake();
+    $akhiriLayanan($this->layanan);
+    $sebelum = LayananPelanggan::withTrashed()->find($this->layanan->id);
+
+    app(BillingService::class)->prosesPembayaranManual(
+        invoice: $this->invoice,
+        payload: ['metode' => 'transfer', 'jumlah_dibayar' => 200000, 'dibayar_pada' => Carbon::today()],
+        actor: $this->adminUser
+    );
+
+    $layanan = LayananPelanggan::withTrashed()->find($this->layanan->id);
+
+    expect($this->invoice->fresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and($layanan->status)->toBe($sebelum->status)
+        ->and($layanan->tanggal_expired?->toDateString())->toBe($sebelum->tanggal_expired?->toDateString());
+
+    Queue::assertNotPushed(EnablePppoeAccountJob::class);
+    Queue::assertNotPushed(ProvisionPppoeAccountJob::class);
+})->with([
+    'dihapus' => [fn (LayananPelanggan $layanan) => $layanan->delete()],
+    'berhenti' => [fn (LayananPelanggan $layanan) => $layanan->updateQuietly(['status' => StatusLayanan::Berhenti])],
+]);

@@ -20,7 +20,7 @@ class TriggerMikrotikAktivasiStubListener
     {
         $layanan = $event->invoice->layananPelanggan;
 
-        if (! $layanan || ! $layanan->router_id) {
+        if (! $layanan || ! $layanan->router_id || $layanan->tidakLagiDitagih()) {
             return;
         }
 

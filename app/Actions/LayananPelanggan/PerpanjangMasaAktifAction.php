@@ -23,9 +23,16 @@ class PerpanjangMasaAktifAction
      * Pemanggil bertanggung jawab mengunci baris $layanan (lockForUpdate) dan membungkus
      * pemanggilan ini dalam transaksi database miliknya sendiri -- action ini tidak membuka
      * transaksi baru agar tetap atomic bersama mutasi invoice/pembayaran di pemanggil.
+     *
+     * Layanan yang tidak lagi ditagih (Berhenti atau dihapus) tidak diperpanjang: pelunasan hanya
+     * menyelesaikan tunggakan, tidak pernah menghidupkan layanan kembali.
      */
     public function execute(LayananPelanggan $layanan, Invoice $invoice, Carbon $dibayarPada): LayananPelanggan
     {
+        if ($layanan->tidakLagiDitagih()) {
+            return $layanan;
+        }
+
         $invoice->update([
             'masa_aktif_sebelum' => $layanan->tanggal_expired?->toDateString(),
         ]);

@@ -133,7 +133,7 @@ Menghapus seorang Pelanggan dari daftar (bisa dipulihkan dari tempat sampah), kh
 _Avoid_: Hapus Kontak Pelanggan, Hapus Pelanggan Beserta Layanannya
 
 **Penghapusan Data Registrasi Billing**:
-Menghapus satu Data Registrasi Billing berstatus apa pun, khusus `super_admin`, setelah mengetik `HAPUS` di modal peringatan. PPP Secret-nya ikut dihapus dari router, IP Publik dan port ODP-nya dilepas. Invoice-nya tetap tercatat sebagai tunggakan seperti layanan Berhenti, tetapi pengingat WhatsApp dan link bayarnya dihentikan. Jalan pintas di luar Pencabutan, bukan pengganti Pencabutan.
+Menghapus satu Data Registrasi Billing berstatus apa pun, khusus `super_admin`, setelah mengetik `HAPUS` di modal peringatan. PPP Secret-nya ikut dihapus dari router, IP Publik dan port ODP-nya dilepas. Invoice-nya tetap tercatat sebagai tunggakan seperti layanan Berhenti, tetapi pengingat WhatsApp dan link bayarnya dihentikan. Melunasi tunggakan itu tidak pernah menghidupkan layanan kembali. Jalan pintas di luar Pencabutan, bukan pengganti Pencabutan.
 _Avoid_: Hapus Layanan sebagai Cara Berhenti Langganan
 
 **PPP Username Credential**:
@@ -533,7 +533,7 @@ Layanan yang ditangguhkan (status `Suspend`: masa aktif habis, invoice pertama b
 _Avoid_: Disable Secret untuk Isolir, Profile EXPIRED Terpisah, Menghapus Secret saat Isolir
 
 **Pencabutan**:
-Satu-satunya jalan layanan menjadi `Berhenti`: tiket Pencabutan yang hanya dibuat Admin (dan super_admin), ditangani NOC (menghapus PPP Secret di router) dan Teknisi (mencabut perangkat dan melepas port ODP). Tiket tidak bisa Selesai sebelum penghapusan secret berhasil; saat Selesai layanan otomatis Berhenti. Data pelanggan dan layanan tetap tersimpan untuk jejak pelanggan bermasalah, dan layanan Berhenti tidak lagi ditagih: invoice yang masih terbuka tetap tercatat sebagai tunggakan, tetapi pengingat WhatsApp dan link bayarnya dihentikan.
+Satu-satunya jalan layanan menjadi `Berhenti`: tiket Pencabutan yang hanya dibuat Admin (dan super_admin), ditangani NOC (menghapus PPP Secret di router) dan Teknisi (mencabut perangkat dan melepas port ODP). Tiket tidak bisa Selesai sebelum penghapusan secret berhasil; saat Selesai layanan otomatis Berhenti. Data pelanggan dan layanan tetap tersimpan untuk jejak pelanggan bermasalah, dan layanan Berhenti tidak lagi ditagih: invoice yang masih terbuka tetap tercatat sebagai tunggakan, tetapi pengingat WhatsApp dan link bayarnya dihentikan. Melunasi tunggakan tidak memperpanjang masa aktif maupun mengaktifkan layanan kembali.
 _Avoid_: Berhenti dari Form Edit Layanan, Menghapus Data Pelanggan saat Pencabutan
 
 **Router Paket**:
