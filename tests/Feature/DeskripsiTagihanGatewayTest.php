@@ -52,7 +52,7 @@ test('invoice periodik memakai template default dengan brand prefix, bulan, pake
     $invoice = $this->billing->generateInvoice($this->layanan, periodeTagihan: '2026-10');
 
     expect($this->builder->buat($invoice))
-        ->toBe('BESTFIBER (SITE-ABC12345) Pembayaran Internet Periode Oktober 2026 Paket Rumah 20M hingga 2026-11-10');
+        ->toBe('BESTFIBER (SITE-ABC12345) Pembayaran Internet Periode Oktober 2026 Paket Rumah 20M hingga 2026-10-31');
 });
 
 test('tanggal hingga sama persis dengan tanggal_expired setelah invoice dibayar', function () {
