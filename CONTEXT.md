@@ -340,6 +340,14 @@ Catatan log kronologis *immutable* (hanya-baca) yang merekam setiap transisi sta
 _Technical Reference_: Spatie Activitylog (`spatie/laravel-activitylog`), Laravel Boost: `search-docs(packages=['spatie/laravel-activitylog'])`, Context7: `/spatie/laravel-activitylog`.
 _Avoid_: Riwayat Bebas, Log Tiket Manual, Catatan Lepas
 
+**Foto Pengerjaan Lapangan**:
+Foto bukti kerja Teknisi pada Ticket Pemasangan, dalam empat kategori: Speedtest dan Tanda Tangan MOU (wajib untuk Teknisi selesai), serta Bukti Pemasangan dan Foto Bersama Pelanggan & Teknisi (opsional).
+_Avoid_: Foto Tahap 2, Lampiran Bebas
+
+**Galeri Foto Tiket**:
+Satu-satunya tempat melihat foto bukti sebuah tiket dalam ukuran besar, dikelompokkan per kategori: Foto Pengerjaan Lapangan, Foto Kendala, dan Foto Bukti Pengerjaan dari catatan Histori Tiket. Foto Profil staf bukan bagian galeri. Tempat lain di halaman tiket hanya mengunggah foto atau merujuk ke galeri, tidak menampilkan foto besar kedua kalinya.
+_Avoid_: Thumbnail di Form Teknisi, Foto Tersebar per Kartu
+
 **PIC (Person in Charge)**:
 Staf pengguna internal (User) yang ditugaskan secara formal untuk bertanggung jawab menyelesaikan suatu tiket.
 _Avoid_: Assignee, Petugas Lapangan Bebas, Pelaksana
@@ -551,6 +559,10 @@ _Avoid_: Tombol Kosongkan Seluruh Tabel ODP, Melepas Port Layanan Diam-diam
 **Port ODP**:
 Slot fisik terminasi pada perangkat ODP yang melacak status pemakaian (*kosong, terpakai, rusak*) dan terikat 1:1 dengan satu entitas Layanan Pelanggan (Data Registrasi Billing). Port Kosong yang sudah dipilih Teknisi pada Ticket Pemasangan lain yang masih terbuka dianggap **Dipesan**: tidak bisa dipilih tiket lain dan ditampilkan "Dipesan oleh {nomor tiket}" di pilihan port Teknisi. Dipesan bukan status tersimpan; ia hilang sendiri saat tiket Batal, dan menjadi Terpakai saat Aktivasi Pemasangan.
 _Avoid_: Colokan Kabel, Slot ODP Lepas, Status Port Dipesan Tersimpan
+
+**Peta Port ODP**:
+Tampilan seluruh Port ODP pada satu ODP sebagai kotak bernomor yang menandai status masing-masing (Kosong, Terpakai, Rusak, Dipesan, dipilih tiket ini) beserta ringkasan pemakaiannya. Menggantikan daftar port di halaman detail tiket dan menjadi cara Teknisi memilih port; hanya port Kosong (atau port milik tiket itu sendiri) yang bisa dipilih.
+_Avoid_: Dropdown Port Kosong Saja, Menyembunyikan Port Terpakai
 
 **Usulan ODP**:
 ODP yang dipilih pembuat Ticket Pemasangan (siapa pun perannya) saat membuat tiket yang merujuk layanan, hanya dari ODP Terdekat terhadap koordinat layanan itu yang masih punya port kosong. Wajib diisi bila ada kandidat; bila tidak ada ODP berport kosong dalam jangkauan, tiket tetap dibuat dengan tanda "Tanpa ODP dalam jangkauan" dan Teknisi memilih ODP sendiri. Layanan tanpa koordinat harus dilengkapi koordinatnya dulu. Berstatus `Menunggu Validasi Teknisi` sampai Teknisi menanganinya: `Disetujui` (Teknisi memakai ODP itu) atau `Diganti Teknisi` (Teknisi menolak dengan alasan tercatat di Histori Tiket dan memilih ODP lain sendiri, tanpa kembali ke pembuat tiket). Teknisi baru boleh memilih Port ODP setelah usulan berstatus `Disetujui` atau `Diganti Teknisi`. Hanya menentukan ODP, bukan port. Validasi memakai izin yang sama dengan progress lapangan Teknisi. Tiket Pemasangan tanpa layanan dan tiket lama tanpa Usulan ODP tetap memakai alur lama (Teknisi memilih ODP bebas).
