@@ -270,3 +270,42 @@ test('gagal mematikan link penggabung di Xendit tidak membatalkan pelunasan dan 
         ->and((float) $oktober->jumlah_setelah_promo)->toBe(150000.0)
         ->and($oktober->payment_gateway_url)->toBeNull();
 });
+
+function invoiceDibatalkan(LayananPelanggan $layanan, array $atribut = []): Invoice
+{
+    $invoice = invoiceSusulan($layanan, StatusInvoice::Dibatalkan, array_merge(['periode_tagihan' => '2026-08'], $atribut));
+    $invoice->delete();
+
+    return $invoice;
+}
+
+test('invoice Dibatalkan yang dibayar dipulihkan dan dilunasi bila periodenya belum Lunas', function () {
+    $invoice = invoiceDibatalkan($this->layanan);
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit(transaksiSusulan($invoice, $this->koneksi))];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful()->expectsOutputToContain('DILUNASI');
+
+    $invoice = Invoice::query()->find($invoice->id);
+    expect($invoice)->not->toBeNull()
+        ->and($invoice->status)->toBe(StatusInvoice::Lunas)
+        ->and($this->layanan->fresh()->tanggal_expired->greaterThan(now()))->toBeTrue();
+});
+
+test('invoice Dibatalkan yang periodenya sudah Lunas lewat invoice lain dilaporkan sebagai pembayaran ganda', function () {
+    $invoice = invoiceDibatalkan($this->layanan);
+    invoiceSusulan($this->layanan, StatusInvoice::Lunas, ['periode_tagihan' => '2026-08']);
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit(transaksiSusulan($invoice, $this->koneksi))];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful()->expectsOutputToContain('Pembayaran ganda');
+
+    expect(Invoice::query()->find($invoice->id))->toBeNull();
+});
+
+test('invoice Dibatalkan yang dulunya menggabung tunggakan dilaporkan, tidak dipulihkan', function () {
+    $invoice = invoiceDibatalkan($this->layanan, ['jumlah_setelah_promo' => 300000, 'jumlah_tunggakan' => 150000]);
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit(transaksiSusulan($invoice, $this->koneksi), 300000)];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful()->expectsOutputToContain('menggabung tunggakan');
+
+    expect(Invoice::query()->find($invoice->id))->toBeNull();
+});

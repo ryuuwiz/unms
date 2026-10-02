@@ -98,6 +98,10 @@ class PelunasanSusulan
             if (! $penggabung || $penggabung->isLunas()) {
                 return $hasil(AksiPelunasanSusulan::Dilaporkan, "Pembayaran ganda: tunggakan ini sudah dilunasi lewat invoice penggabung {$penggabung?->no_invoice}, refund di Xendit.");
             }
+        } elseif ($invoice->status === StatusInvoice::Dibatalkan) {
+            if ($alasan = $this->alasanTidakDipulihkan($invoice)) {
+                return $hasil(AksiPelunasanSusulan::Dilaporkan, $alasan);
+            }
         } elseif (! in_array($invoice->status, [StatusInvoice::MenungguPembayaran, StatusInvoice::Kadaluarsa], true)) {
             return $hasil(AksiPelunasanSusulan::Dilaporkan, "Invoice berstatus {$invoice->status->label()}: perlu tindakan manual.");
         }
@@ -106,7 +110,11 @@ class PelunasanSusulan
             return $hasil(AksiPelunasanSusulan::Dilaporkan, $alasan);
         }
 
-        $catatanPenggabung = $penggabung ? "Dilepas dari invoice penggabung {$penggabung->no_invoice}, nominalnya dikoreksi." : '';
+        $catatanPenggabung = match (true) {
+            $penggabung !== null => "Dilepas dari invoice penggabung {$penggabung->no_invoice}, nominalnya dikoreksi.",
+            $invoice->status === StatusInvoice::Dibatalkan => 'Invoice yang dibatalkan dipulihkan.',
+            default => '',
+        };
 
         if ($dryRun) {
             return $hasil(AksiPelunasanSusulan::AkanDilunasi, $catatanPenggabung);
@@ -116,6 +124,9 @@ class PelunasanSusulan
             DB::transaction(function () use ($invoice, $penggabung, $pembayaran, $transaksi): void {
                 if ($penggabung) {
                     $this->lepaskanDariPenggabung($invoice, $penggabung);
+                } elseif ($invoice->status === StatusInvoice::Dibatalkan) {
+                    $invoice->restore();
+                    $invoice->update(['status' => StatusInvoice::MenungguPembayaran]);
                 }
 
                 if (! $this->manager->prosesPelunasan($invoice, $pembayaran, $transaksi)) {
@@ -129,6 +140,28 @@ class PelunasanSusulan
         $gagalLink = $penggabung ? $this->terbitkanUlangLinkPenggabung($penggabung) : null;
 
         return $hasil(AksiPelunasanSusulan::Dilunasi, trim($catatanPenggabung.' '.$gagalLink));
+    }
+
+    /**
+     * Invoice Dibatalkan hanya dipulihkan bila tidak membuat masa aktif bertambah dua kali dan
+     * tidak dulunya menyerap tunggakan (rantai penggabungan tidak dibangun ulang otomatis).
+     */
+    protected function alasanTidakDipulihkan(Invoice $invoice): ?string
+    {
+        if ((float) $invoice->jumlah_tunggakan > 0) {
+            return 'Invoice yang dibatalkan dulunya menggabung tunggakan: perlu tindakan manual.';
+        }
+
+        $periodeSudahLunas = $invoice->periode_tagihan !== null && Invoice::query()
+            ->where('layanan_pelanggan_id', $invoice->layanan_pelanggan_id)
+            ->where('periode_tagihan', $invoice->periode_tagihan)
+            ->where('status', StatusInvoice::Lunas)
+            ->whereKeyNot($invoice->id)
+            ->exists();
+
+        return $periodeSudahLunas
+            ? "Pembayaran ganda: periode {$invoice->periode_tagihan} sudah Lunas lewat invoice lain, refund di Xendit."
+            : null;
     }
 
     /**
