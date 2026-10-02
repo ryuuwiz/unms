@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AksiPelunasanSusulan;
+use App\Services\PaymentGateway\LaporanPelunasanSusulan;
 use Database\Factories\KasusPelunasanSusulanFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -95,5 +96,23 @@ class KasusPelunasanSusulan extends Model
     public function sudahDitangani(): bool
     {
         return $this->ditangani_pada !== null;
+    }
+
+    /**
+     * Tandai Sudah Ditangani (mis. setelah refund di Xendit) dan catat di audit trail.
+     */
+    public function tandaiDitangani(User $oleh, ?string $catatan): void
+    {
+        $this->update([
+            'ditangani_pada' => now(),
+            'ditangani_oleh' => $oleh->id,
+            'catatan_penanganan' => $catatan ?: null,
+        ]);
+
+        activity(LaporanPelunasanSusulan::LOG)
+            ->performedOn($this)
+            ->causedBy($oleh)
+            ->withProperties(['external_id' => $this->external_id, 'alasan' => $this->alasan, 'catatan' => $this->catatan_penanganan])
+            ->log("Kasus Pelunasan Susulan {$this->external_id} ditandai Sudah Ditangani");
     }
 }

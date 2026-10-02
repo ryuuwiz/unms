@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Livewire\Livewire;
+use Spatie\Activitylog\Models\Activity;
 
 uses(RefreshDatabase::class);
 
@@ -218,4 +219,51 @@ test('job yang gagal mencatat galat dan melepas kunci', function () {
 
     expect($pemindaian->terakhir())->toMatchArray(['id' => $id, 'status' => 'gagal', 'galat' => 'Xendit tidak tersedia'])
         ->and(Cache::lock(PemindaianPelunasanSusulan::KUNCI, 10)->get())->toBeTrue();
+});
+
+test('kasus terbuka tampil, yang sudah ditangani tidak', function () {
+    $terbuka = KasusPelunasanSusulan::factory()->create(['invoice_id' => $this->invoice->id, 'alasan' => 'Pembayaran ganda: periode sudah Lunas.']);
+    KasusPelunasanSusulan::factory()->ditangani()->create(['alasan' => 'Nominal tidak sama dengan tagihan.']);
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->assertSee($this->invoice->no_invoice)
+        ->assertSee($terbuka->alasan)
+        ->assertDontSee('Nominal tidak sama dengan tagihan.');
+});
+
+test('menandai Sudah Ditangani menyimpan penanda, waktu, catatan, dan activity log', function () {
+    $kasus = KasusPelunasanSusulan::factory()->create(['invoice_id' => $this->invoice->id]);
+
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->call('bukaTandaiDitangani', $kasus->id)
+        ->set('catatanPenanganan', 'Sudah direfund di Xendit.')
+        ->call('tandaiDitangani')
+        ->assertHasNoErrors()
+        ->assertDontSee($kasus->alasan);
+
+    $kasus->refresh();
+    expect($kasus->ditangani_oleh)->toBe($this->superAdmin->id)
+        ->and($kasus->ditangani_pada)->not->toBeNull()
+        ->and($kasus->catatan_penanganan)->toBe('Sudah direfund di Xendit.')
+        ->and(Activity::inLog('pelunasan_susulan')->where('subject_type', $kasus->getMorphClass())->where('subject_id', $kasus->id)->where('causer_id', $this->superAdmin->id)->exists())->toBeTrue();
+});
+
+test('tanpa izin payment_gateway.ubah, menandai kasus ditolak', function () {
+    $kasus = KasusPelunasanSusulan::factory()->create();
+
+    Livewire::actingAs($this->admin)
+        ->test(Index::class)
+        ->assertDontSeeHtml('bukaTandaiDitangani')
+        ->set('kasusDitandai', $kasus->id)
+        ->call('tandaiDitangani')
+        ->assertForbidden();
+
+    expect($kasus->fresh()->sudahDitangani())->toBeFalse();
+});
+
+test('URL notifikasi Pelunasan Susulan mengarah ke halaman Pelunasan Susulan', function () {
+    expect((new PelunasanSusulanNotification(1, 2))->toArray($this->admin)['url'])
+        ->toBe(route('pembayaran.pelunasan-susulan.index'));
 });

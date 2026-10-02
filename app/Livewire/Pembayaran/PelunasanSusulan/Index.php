@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Pembayaran\PelunasanSusulan;
 
+use App\Models\KasusPelunasanSusulan;
 use App\Models\Pembayaran;
 use App\Services\PaymentGateway\PemindaianPelunasanSusulan;
 use Flux\Flux;
@@ -10,16 +11,26 @@ use Illuminate\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 /**
  * Halaman Pelunasan Susulan (CONTEXT.md): pratinjau dan lunasi pembayaran PAID di Xendit yang belum
- * Lunas di sistem untuk rentang yang dipilih staf, di latar belakang.
+ * Lunas di sistem untuk rentang yang dipilih staf, di latar belakang -- serta daftar Kasus Pelunasan
+ * Susulan yang masih terbuka.
  */
 #[Layout('layouts.app')]
 #[Title('Pelunasan Susulan')]
 class Index extends Component
 {
+    use WithPagination;
+
     public string $dari = '';
+
+    public ?int $kasusDitandai = null;
+
+    public string $catatanPenanganan = '';
+
+    public bool $tampilkanModalTandai = false;
 
     public function mount(): void
     {
@@ -55,10 +66,31 @@ class Index extends Component
         Flux::toast(variant: 'success', text: $dryRun ? 'Pratinjau dimulai di latar belakang.' : 'Pelunasan dimulai di latar belakang.');
     }
 
+    public function bukaTandaiDitangani(int $id): void
+    {
+        abort_unless(auth()->user()->can('payment_gateway.ubah'), 403);
+        $this->kasusDitandai = KasusPelunasanSusulan::terbuka()->findOrFail($id)->id;
+        $this->catatanPenanganan = '';
+        $this->tampilkanModalTandai = true;
+        $this->resetValidation();
+    }
+
+    public function tandaiDitangani(): void
+    {
+        abort_unless(auth()->user()->can('payment_gateway.ubah'), 403);
+        $this->validate(['catatanPenanganan' => ['nullable', 'string', 'max:1000']], attributes: ['catatanPenanganan' => 'catatan']);
+
+        KasusPelunasanSusulan::terbuka()->findOrFail($this->kasusDitandai)->tandaiDitangani(auth()->user(), trim($this->catatanPenanganan));
+
+        $this->reset('kasusDitandai', 'catatanPenanganan', 'tampilkanModalTandai');
+        Flux::toast(variant: 'success', text: 'Kasus ditandai Sudah Ditangani.');
+    }
+
     public function render(PemindaianPelunasanSusulan $pemindaian): View
     {
         return view('livewire.pembayaran.pelunasan-susulan.index', [
             'pemindaian' => $pemindaian->terakhir(),
+            'kasusTerbuka' => KasusPelunasanSusulan::terbuka()->with('invoice.pelanggan')->latest('id')->paginate(20),
         ]);
     }
 }

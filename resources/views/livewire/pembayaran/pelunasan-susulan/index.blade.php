@@ -84,4 +84,73 @@
             @endif
         </flux:card>
     @endif
+
+    <flux:card class="p-0 overflow-hidden">
+        <div class="p-4 border-b border-zinc-200 dark:border-zinc-700">
+            <flux:heading size="md">Kasus Pelunasan Susulan terbuka ({{ $kasusTerbuka->total() }})</flux:heading>
+            <flux:text class="text-xs">Pembayaran yang perlu tindakan manual, misalnya pembayaran ganda untuk direfund atau nominal yang tidak sama.</flux:text>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left">
+                <thead class="bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-semibold border-b border-zinc-200 dark:border-zinc-700">
+                    <tr>
+                        <th class="px-4 py-3">Waktu</th>
+                        <th class="px-4 py-3">Invoice & Pelanggan</th>
+                        <th class="px-4 py-3 text-right">Nominal</th>
+                        <th class="px-4 py-3">Alasan</th>
+                        @can('payment_gateway.ubah')
+                            <th class="px-4 py-3 text-center">Aksi</th>
+                        @endcan
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    @forelse($kasusTerbuka as $kasus)
+                        <tr wire:key="kasus-{{ $kasus->id }}">
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <div>{{ $kasus->created_at->timezone(config('app.zona_waktu_bisnis'))->translatedFormat('d M Y H:i') }}</div>
+                                @if($kasus->dibayar_pada)
+                                    <div class="text-[11px] text-zinc-400">Dibayar {{ $kasus->dibayar_pada->timezone(config('app.zona_waktu_bisnis'))->translatedFormat('d M Y H:i') }}</div>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                @if($kasus->invoice && ! $kasus->invoice->trashed())
+                                    <a href="{{ route('invoice.show', $kasus->invoice) }}" wire:navigate class="font-mono font-semibold text-blue-600 dark:text-blue-400 hover:underline">{{ $kasus->invoice->no_invoice }}</a>
+                                @else
+                                    <div class="font-mono">{{ $kasus->invoice?->no_invoice ?? $kasus->external_id }}</div>
+                                @endif
+                                <div class="text-[11px] text-zinc-500">{{ $kasus->invoice?->pelanggan?->namaLengkap() ?? '-' }} · {{ $kasus->koneksi }}</div>
+                            </td>
+                            <td class="px-4 py-3 text-right whitespace-nowrap">{{ $kasus->nominal !== null ? \App\Support\Rupiah::format((float) $kasus->nominal) : '-' }}</td>
+                            <td class="px-4 py-3 min-w-64">{{ $kasus->alasan }}</td>
+                            @can('payment_gateway.ubah')
+                                <td class="px-4 py-3 text-center">
+                                    <flux:button size="sm" variant="subtle" icon="check" wire:click="bukaTandaiDitangani({{ $kasus->id }})">Sudah Ditangani</flux:button>
+                                </td>
+                            @endcan
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-zinc-500">Tidak ada kasus terbuka.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if($kasusTerbuka->hasPages())
+            <div class="p-4">{{ $kasusTerbuka->links() }}</div>
+        @endif
+    </flux:card>
+
+    <flux:modal :open="$tampilkanModalTandai" wire:model.self="tampilkanModalTandai" class="max-w-lg">
+        <form wire:submit="tandaiDitangani" class="space-y-4">
+            <flux:heading size="lg">Tandai Sudah Ditangani</flux:heading>
+            <flux:textarea wire:model="catatanPenanganan" label="Catatan (opsional)" placeholder="Mis. sudah direfund di Xendit pada …" rows="3" />
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button variant="ghost">Batal</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Simpan</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 </div>

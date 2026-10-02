@@ -32,8 +32,8 @@ class PelunasanSusulanNotification extends Notification
     {
         return [
             'title' => 'Pelunasan Susulan Xendit',
-            'message' => "{$this->dilunasi} invoice dilunasi susulan dan {$this->perluTindakan} pembayaran perlu tindakan manual. Rinciannya tercatat di audit trail (log pelunasan_susulan).",
-            'url' => route('invoice.index'),
+            'message' => "{$this->dilunasi} invoice dilunasi susulan dan {$this->perluTindakan} pembayaran perlu tindakan manual. Kasus yang perlu tindakan ada di halaman Pelunasan Susulan.",
+            'url' => route('pembayaran.pelunasan-susulan.index'),
         ];
     }
 }
