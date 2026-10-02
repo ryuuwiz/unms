@@ -165,7 +165,7 @@ Entitas perangkat MikroTik RouterOS sebagai pengendali layanan dan bandwidth, di
 _Avoid_: Switch, Gateway Umum
 
 **Ping Router**:
-Pemeriksaan keterjangkauan Router oleh UNMS untuk menentukan Router Online atau Router Offline. Router yang Online dicek tiap 2 jam, karena pemantauan ketersediaan jaringan adalah tugas PRTG milik NOC, bukan UNMS. Router yang Offline dicek tiap 5 menit sampai pulih, supaya isolir dan buka-isolir yang tertahan Gate Proaktif Router Offline tidak menunggu sampai 2 jam.
+Pemeriksaan keterjangkauan Router oleh UNMS untuk menentukan Router Online atau Router Offline. Router yang Online dicek tiap 2 jam, karena pemantauan ketersediaan jaringan adalah tugas PRTG milik NOC, bukan UNMS. Router yang Offline atau belum pernah dicek (Tidak Diketahui) dicek tiap 5 menit sampai Online, supaya isolir dan buka-isolir yang tertahan Gate Proaktif Router Offline tidak menunggu sampai 2 jam.
 _Avoid_: Monitoring Router, Health Check Real-time
 
 **Router Offline**:
