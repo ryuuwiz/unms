@@ -14,5 +14,14 @@ readonly class HasilPelunasanSusulan
         public ?Invoice $invoice = null,
         public ?string $statusSebelum = null,
         public string $keterangan = '',
+        public ?string $tindakanManual = null,
     ) {}
+
+    /**
+     * Menjadi Kasus Pelunasan Susulan bila ada yang harus ditindaklanjuti staf untuk pembayaran yang dikenal.
+     */
+    public function menjadiKasus(): bool
+    {
+        return $this->tindakanManual !== null && $this->pembayaran !== null;
+    }
 }

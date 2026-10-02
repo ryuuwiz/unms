@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AksiPelunasanSusulan;
 use App\Enums\GatewayChannel;
 use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
@@ -7,6 +8,7 @@ use App\Enums\StatusTransaksiGateway;
 use App\Enums\UserStatus;
 use App\Events\InvoicePaidEvent;
 use App\Models\Invoice;
+use App\Models\KasusPelunasanSusulan;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
@@ -275,7 +277,9 @@ test('gagal mematikan link penggabung di Xendit tidak membatalkan pelunasan dan 
     $oktober->refresh();
     expect($september->fresh()->status)->toBe(StatusInvoice::Lunas)
         ->and((float) $oktober->jumlah_setelah_promo)->toBe(150000.0)
-        ->and($oktober->payment_gateway_url)->toBeNull();
+        ->and($oktober->payment_gateway_url)->toBeNull()
+        ->and(KasusPelunasanSusulan::sole()->aksi)->toBe(AksiPelunasanSusulan::Dilunasi)
+        ->and(KasusPelunasanSusulan::sole()->alasan)->toContain('belum diterbitkan ulang');
 });
 
 function invoiceDibatalkan(LayananPelanggan $layanan, array $atribut = []): Invoice
@@ -392,8 +396,49 @@ test('kasus yang dilaporkan hanya dicatat dan dikabarkan sekali walau muncul lag
     $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
     $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
 
-    expect(Activity::inLog('pelunasan_susulan')->count())->toBe(1);
+    expect(Activity::inLog('pelunasan_susulan')->count())->toBe(1)
+        ->and(KasusPelunasanSusulan::count())->toBe(1);
     Notification::assertSentToTimes($admin, PelunasanSusulanNotification::class, 1);
+});
+
+test('kasus yang dilaporkan tersimpan sebagai Kasus Pelunasan Susulan terbuka beserta data pembayarannya', function () {
+    $invoice = invoiceSusulan($this->layanan);
+    $transaksi = transaksiSusulan($invoice, $this->koneksi);
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit($transaksi, 99000)];
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
+
+    $kasus = KasusPelunasanSusulan::sole();
+    expect($kasus->external_id)->toBe($transaksi->external_id)
+        ->and($kasus->aksi)->toBe(AksiPelunasanSusulan::Dilaporkan)
+        ->and($kasus->invoice_id)->toBe($invoice->id)
+        ->and((float) $kasus->nominal)->toBe(99000.0)
+        ->and($kasus->koneksi)->toBe($this->koneksi->nama)
+        ->and($kasus->alasan)->not->toBe('')
+        ->and($kasus->sudahDitangani())->toBeFalse()
+        ->and(KasusPelunasanSusulan::terbuka()->count())->toBe(1);
+});
+
+test('kasus yang sudah ditangani tidak dibuka dan tidak dikabarkan ulang', function () {
+    Notification::fake();
+    $admin = User::factory()->create(['status' => UserStatus::Active]);
+    $admin->assignRole('admin');
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit(transaksiSusulan(invoiceSusulan($this->layanan), $this->koneksi), 99000)];
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
+    KasusPelunasanSusulan::sole()->update(['ditangani_pada' => now(), 'ditangani_oleh' => $admin->id]);
+
+    $this->artisan('pembayaran:cek-lunas-xendit')->assertSuccessful();
+
+    expect(KasusPelunasanSusulan::terbuka()->count())->toBe(0);
+    Notification::assertSentToTimes($admin, PelunasanSusulanNotification::class, 1);
+});
+
+test('dry-run tidak menyimpan kasus', function () {
+    $this->pembayaranXendit[$this->koneksi->id] = [bayarXendit(transaksiSusulan(invoiceSusulan($this->layanan), $this->koneksi), 99000)];
+
+    $this->artisan('pembayaran:cek-lunas-xendit', ['--dry-run' => true])->assertSuccessful();
+
+    expect(KasusPelunasanSusulan::count())->toBe(0);
 });
 
 test('pembayaran tanpa transaksi lokal dari koneksi live non-default dilunasi walau koneksi default sandbox, dan transaksinya tercatat pada koneksi itu', function () {

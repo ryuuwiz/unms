@@ -88,8 +88,9 @@ class PelunasanSusulan
     {
         $target = $this->cariTarget($pembayaran);
         $invoice = $target->invoice;
-        $hasil = fn (AksiPelunasanSusulan $aksi, string $keterangan = '') => new HasilPelunasanSusulan(
+        $hasil = fn (AksiPelunasanSusulan $aksi, string $keterangan = '', ?string $tindakanManual = null) => new HasilPelunasanSusulan(
             $aksi, $koneksi?->nama ?? 'Webhook', $pembayaran, $invoice, $invoice?->status->label(), $keterangan,
+            $aksi === AksiPelunasanSusulan::Dilaporkan ? $keterangan : $tindakanManual,
         );
 
         if (! $invoice) {
@@ -124,7 +125,7 @@ class PelunasanSusulan
 
         $gagalLink = $rantai->isNotEmpty() ? $this->koreksiPenggabung->terbitkanUlangLink($rantai->last()) : null;
 
-        return $hasil(AksiPelunasanSusulan::Dilunasi, trim($catatan.' '.$gagalLink));
+        return $hasil(AksiPelunasanSusulan::Dilunasi, trim($catatan.' '.$gagalLink), $gagalLink);
     }
 
     /**

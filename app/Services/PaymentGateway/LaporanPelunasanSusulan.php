@@ -4,22 +4,25 @@ namespace App\Services\PaymentGateway;
 
 use App\DTO\PaymentGateway\HasilPelunasanSusulan;
 use App\Enums\AksiPelunasanSusulan;
+use App\Models\KasusPelunasanSusulan;
 use App\Models\User;
 use App\Notifications\PelunasanSusulanNotification;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
-use Spatie\Activitylog\Models\Activity;
+use Illuminate\Support\Str;
 
 /**
- * Jejak Pelunasan Susulan: audit trail per pelunasan/kasus dan notifikasi Admin -- lihat CONTEXT.md.
+ * Jejak Pelunasan Susulan: audit trail per pelunasan/kasus, tabel Kasus Pelunasan Susulan,
+ * dan notifikasi Admin -- lihat CONTEXT.md.
  */
 class LaporanPelunasanSusulan
 {
     public const LOG = 'pelunasan_susulan';
 
     /**
-     * Catat ke audit trail setiap pelunasan dan kasus yang perlu ditindaklanjuti -- kasus yang
-     * sudah pernah dicatat (pembayaran dan alasan yang sama) dilewati agar sapuan harian tidak
-     * mengulang laporan -- lalu kabari Admin dan super_admin sekali bila ada yang baru.
+     * Simpan setiap Kasus Pelunasan Susulan (satu per pembayaran + alasan, sehingga sapuan
+     * berulang tidak menggandakannya), catat ke audit trail pelunasan dan kasus yang baru,
+     * lalu kabari Admin dan super_admin sekali bila ada yang baru.
      *
      * @param  list<HasilPelunasanSusulan>  $hasil
      */
@@ -27,7 +30,7 @@ class LaporanPelunasanSusulan
     {
         $baru = array_values(array_filter(
             $hasil,
-            fn (HasilPelunasanSusulan $item): bool => $item->aksi->perluDilaporkan() && ! $this->sudahPernahDilaporkan($item),
+            fn (HasilPelunasanSusulan $item): bool => $item->aksi->perluDilaporkan() && $this->kasusBaru($item),
         ));
 
         foreach ($baru as $item) {
@@ -46,15 +49,29 @@ class LaporanPelunasanSusulan
         );
     }
 
-    private function sudahPernahDilaporkan(HasilPelunasanSusulan $item): bool
+    /**
+     * Simpan kasus bila hasil ini menjadi kasus; false bila kasus yang sama sudah pernah tersimpan.
+     */
+    private function kasusBaru(HasilPelunasanSusulan $item): bool
     {
-        return $item->aksi === AksiPelunasanSusulan::Dilaporkan
-            && $item->pembayaran !== null
-            && Activity::query()
-                ->inLog(self::LOG)
-                ->where('properties->external_id', $item->pembayaran->externalId)
-                ->where('properties->keterangan', $item->keterangan)
-                ->exists();
+        if (! $item->menjadiKasus()) {
+            return true;
+        }
+
+        $pembayaran = $item->pembayaran;
+
+        return KasusPelunasanSusulan::firstOrCreate(
+            ['external_id' => $pembayaran->externalId, 'alasan' => Str::limit((string) $item->tindakanManual, 497)],
+            [
+                'aksi' => $item->aksi,
+                'xendit_id' => $pembayaran->eventId,
+                'koneksi' => $item->koneksi,
+                'invoice_id' => $item->invoice?->id,
+                'nominal' => $pembayaran->paidAmount,
+                'dibayar_pada' => $pembayaran->paidAt ? Carbon::parse($pembayaran->paidAt) : null,
+                'status_invoice_saat_itu' => $item->statusSebelum,
+            ],
+        )->wasRecentlyCreated;
     }
 
     private function catatAudit(HasilPelunasanSusulan $item): void
