@@ -630,6 +630,10 @@ _Avoid_: Synchronous Webhook Processing, Long-Running Callback Handler
 Mekanisme verifikasi integritas nominal bayar integer IDR tanpa toleransi selisih (`paid_amount === total_tagihan`) sebelum pelunasan invoice dan perpanjangan layanan internet dieksekusi, mencegah anomali *underpayment* atau *overpayment*.
 _Avoid_: Loose Amount Verification, Auto-Pay Tanpa Verifikasi Nominal
 
+**Pelunasan Susulan**:
+Pelunasan invoice dari pembayaran yang sudah berstatus PAID di gateway tetapi belum tercatat Lunas di sistem (webhook hilang, link lama yang dikira kedaluwarsa, atau transaksi di luar jangkauan rekonsiliasi rutin). Kandidatnya diambil dari daftar pembayaran PAID di gateway pada semua Koneksi non-sandbox, lalu dilunasi dengan waktu bayar asli dari gateway beserta semua efek pelunasan biasa (perpanjangan masa aktif, buka isolir, WhatsApp konfirmasi). Nominal yang tidak sama persis, pembayaran yang tidak bisa dicocokkan ke invoice, pembayaran ganda, dan invoice Dibatalkan yang dulunya menggabung tunggakan tidak dilunasi melainkan dilaporkan untuk tindakan manual.
+_Avoid_: Rekonsiliasi Manual, Force Lunas, Waktu Bayar = Waktu Sinkron
+
 **Perintah Instalasi Produksi (Production Setup Command)**:
 Perintah Artisan resmi (`php artisan app:install` / `app:setup-production`) yang memfasilitasi migrasi database, symlink storage, injeksi master data produksi, serta provisioning akun `super_admin` awal secara interaktif maupun non-interaktif (*CI/CD headless mode*).
 _Avoid_: Manual User Registration di Database, Hardcoded Admin Password, Setup Script Lepas
