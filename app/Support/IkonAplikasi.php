@@ -2,9 +2,9 @@
 
 namespace App\Support;
 
+use App\Support\MediaLibrary\PenyimpananMedia;
 use GdImage;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -45,7 +45,7 @@ final class IkonAplikasi
      */
     private static function dariGambar(?Media $media, int $ukuran, float $porsi, ?string $latar): ?GdImage
     {
-        $isi = $media ? self::isiMedia($media) : null;
+        $isi = $media ? PenyimpananMedia::isiBerkas($media) : null;
         $sumber = $isi !== null ? @imagecreatefromstring($isi) : false;
         if (! $sumber) {
             return null;
@@ -109,13 +109,5 @@ final class IkonAplikasi
         imagefill($kanvas, 0, 0, (int) imagecolorallocate($kanvas, ...BrandPelanggan::rgb($latar)));
 
         return $kanvas;
-    }
-
-    private static function isiMedia(Media $media): ?string
-    {
-        $disk = Storage::disk($media->disk);
-        $path = $media->getPathRelativeToRoot();
-
-        return $disk->exists($path) ? $disk->get($path) : null;
     }
 }

@@ -4,12 +4,15 @@ namespace App\Livewire\Settings;
 
 use App\Livewire\Concerns\KelolaIdentitasAplikasi;
 use App\Models\Perusahaan as PerusahaanModel;
+use App\Support\MediaLibrary\PenyimpananMedia;
 use App\Support\MediaLibraryVisibility;
+use Aws\Exception\AwsException;
 use Flux\Flux;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use League\Flysystem\UnableToCheckFileExistence;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -17,6 +20,7 @@ use Livewire\Features\SupportFileUploads\FileUploadConfiguration;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 #[Layout('layouts.app')]
 #[Title('Profil Perusahaan')]
@@ -94,11 +98,7 @@ class Perusahaan extends Component
             return;
         }
 
-        // Media::copy() menulis berkas 0 byte bila objeknya tidak ada di disk (disk s3 'throw' => false).
-        if (! Storage::disk($media->disk)->exists($media->getPathRelativeToRoot())) {
-            Log::warning('Berkas media untuk logo tidak ditemukan di disk.', ['media_id' => $media->id, 'disk' => $media->disk, 'path' => $media->getPathRelativeToRoot()]);
-            Flux::toast(variant: 'danger', text: 'Berkas tidak ditemukan di penyimpanan.');
-
+        if (! $this->berkasMediaTersedia($media)) {
             return;
         }
 
@@ -117,6 +117,45 @@ class Perusahaan extends Component
         $this->showMediaPicker = false;
 
         Flux::toast(variant: 'success', text: 'Logo dipilih dari Media Library.');
+    }
+
+    /**
+     * Media::copy() menulis berkas 0 byte bila objeknya tidak ada di disk (disk s3 'throw' => false),
+     * jadi keberadaannya dicek dulu. S3 tanpa izin ListBucket menjawab HEAD objek yang hilang dengan 403,
+     * yang dilempar Flysystem sebagai UnableToCheckFileExistence; selain 403 berarti S3 tidak terjangkau.
+     */
+    private function berkasMediaTersedia(Media $media): bool
+    {
+        $konteks = ['media_id' => $media->id, 'disk' => $media->disk, 'path' => $media->getPathRelativeToRoot()];
+
+        if (PenyimpananMedia::diskS3($media->disk) && PenyimpananMedia::s3Mati()) {
+            Flux::toast(variant: 'danger', text: 'Penyimpanan sedang tidak terjangkau, coba lagi nanti.');
+
+            return false;
+        }
+
+        try {
+            $ada = Storage::disk($media->disk)->exists($media->getPathRelativeToRoot());
+        } catch (UnableToCheckFileExistence $e) {
+            $sebab = $e->getPrevious();
+            $hilang = $sebab instanceof AwsException && $sebab->getStatusCode() === 403;
+            Log::warning('Keberadaan berkas media untuk logo tidak dapat dicek.', [...$konteks, 'exception' => $e]);
+
+            if (! $hilang) {
+                PenyimpananMedia::tandaiS3Mati();
+            }
+
+            Flux::toast(variant: 'danger', text: $hilang ? 'Berkas tidak ditemukan di penyimpanan.' : 'Penyimpanan sedang tidak terjangkau, coba lagi nanti.');
+
+            return false;
+        }
+
+        if (! $ada) {
+            Log::warning('Berkas media untuk logo tidak ditemukan di disk.', $konteks);
+            Flux::toast(variant: 'danger', text: 'Berkas tidak ditemukan di penyimpanan.');
+        }
+
+        return $ada;
     }
 
     public function hapusLogo(): void
