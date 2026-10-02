@@ -5,6 +5,7 @@ use App\Http\Controllers\AplikasiPelangganController;
 use App\Http\Controllers\ImpersonateController;
 use App\Http\Controllers\InvoicePdfController;
 use App\Http\Controllers\LabelBarangPdfController;
+use App\Http\Controllers\LabelPortPdfController;
 use App\Http\Controllers\PelangganMediaController;
 use App\Http\Controllers\PenggunaMediaController;
 use App\Http\Controllers\RabPdfController;
@@ -113,6 +114,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', Ticket\Index::class)->name('index');
             Route::get('/riwayat', Ticket\Riwayat::class)->name('riwayat');
             Route::get('/{ticket}', Ticket\Show::class)->name('show');
+            Route::get('/{ticket}/label-port', [LabelPortPdfController::class, 'tiket'])->name('label-port');
         });
     });
 

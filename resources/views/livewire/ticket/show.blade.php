@@ -150,7 +150,14 @@
 
             <!-- Bagian Infra Jaringan -->
             <div class="pt-3 border-t border-zinc-100 dark:border-zinc-700/60">
-                <h4 class="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Infrastruktur Jaringan</h4>
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <h4 class="text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Infrastruktur Jaringan</h4>
+                    @if ($ticket->portUntukLabel())
+                        <flux:button size="sm" variant="subtle" icon="printer" :href="route('ticket.label-port', $ticket)" target="_blank">
+                            Cetak Label Port
+                        </flux:button>
+                    @endif
+                </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-zinc-50 dark:bg-zinc-900/50 p-3.5 rounded-lg text-xs">
                     <div>
                         <span class="text-zinc-500 block">Titik ODP:</span>

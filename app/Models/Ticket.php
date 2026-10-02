@@ -216,6 +216,20 @@ class Ticket extends Model implements HasMedia
     }
 
     /**
+     * Port ODP yang dicetak Label Port-nya dari tiket ini: port layanan yang sudah terikat, atau
+     * port yang baru Dipesan Ticket Pemasangan sebelum Aktivasi. Pencabutan tidak punya label
+     * karena port-nya akan dilepas -- lihat CONTEXT.md "Label Port".
+     */
+    public function portUntukLabel(): ?OdpPort
+    {
+        if ($this->jenis === JenisTicket::Pencabutan || ! $this->layananPelanggan) {
+            return null;
+        }
+
+        return $this->layananPelanggan->odpPort ?? $this->pemasangan?->odpPort;
+    }
+
+    /**
      * Status sign-off sebuah divisi pada tiket ini (default Belum jika belum ditugaskan).
      */
     public function statusDivisi(DivisiTicket $divisi): StatusDivisiTicket
