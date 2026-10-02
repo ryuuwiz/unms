@@ -136,13 +136,19 @@ class PengaturanGateway extends Model
     }
 
     /**
-     * Ambil atau buat pengaturan untuk provider tertentu.
+     * Ambil koneksi untuk provider tertentu, mengutamakan yang aktif lalu yang default.
+     * Satu provider boleh punya beberapa koneksi (mis. live dan sandbox) -- mengambil baris
+     * pertama tanpa urutan membuat token/API key koneksi yang salah dipakai (ADR-0067).
      */
     public static function getSettingForProvider(string $provider): ?self
     {
+        $provider = strtolower($provider);
+
         return static::query()
-            ->where('provider', strtolower($provider))
-            ->orWhere('gateway', strtolower($provider))
+            ->where(fn ($query) => $query->where('provider', $provider)->orWhere('gateway', $provider))
+            ->orderByDesc('is_active')
+            ->orderByDesc('is_default')
+            ->orderBy('id')
             ->first();
     }
 

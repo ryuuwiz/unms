@@ -69,7 +69,7 @@ test('listener mengantrikan WA bertemplate invoice_terbit dengan tautan bayar', 
     expect($antrian->referensi_id)->toBe($invoice->id)
         ->and($antrian->pesan)->toContain('Tagihan baru layanan internet Anda telah terbit')
         ->and($antrian->pesan)->toContain($invoice->no_invoice)
-        ->and($antrian->pesan)->toContain('/tagihan/'.$invoice->id)
+        ->and($antrian->pesan)->toContain($invoice->fresh()->tautanTagihan())
         ->and($antrian->pesan)->not->toContain('{');
 });
 

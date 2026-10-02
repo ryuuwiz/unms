@@ -4,9 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\PengaturanGateway;
 use App\Services\Xendit\XenditPaymentService;
-use App\Services\Xendit\XenditWebhookVerifier;
 use Illuminate\Console\Command;
-use Illuminate\Http\Request;
 
 class XenditPingCommand extends Command
 {
@@ -27,20 +25,18 @@ class XenditPingCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(XenditPaymentService $paymentService, XenditWebhookVerifier $webhookVerifier): int
+    public function handle(XenditPaymentService $paymentService): int
     {
         $this->info('====================================================');
         $this->info('       XENDIT GATEWAY DIAGNOSTIC & HEALTHCHECK      ');
         $this->info('====================================================');
 
         $secretKey = (string) config('services.xendit.secret_key');
-        $callbackToken = (string) config('services.xendit.callback_token');
         $xenditEnv = (string) config('services.xendit.env', 'development');
-        $setting = PengaturanGateway::getXenditSetting();
+        $setting = PengaturanGateway::getSettingForProvider('xendit') ?? PengaturanGateway::getXenditSetting();
 
         // 1. Ringkasan Konfigurasi
         $maskedKey = ! empty($secretKey) ? substr($secretKey, 0, 16).'...'.substr($secretKey, -4) : '<KOSONG>';
-        $maskedToken = ! empty($callbackToken) ? substr($callbackToken, 0, 8).'...'.substr($callbackToken, -4) : '<KOSONG>';
 
         $this->table(
             ['Parameter', 'Status / Nilai'],
@@ -49,7 +45,6 @@ class XenditPingCommand extends Command
                 ['Sandbox Mode (DB)', $setting->sandbox_mode ? 'AKTIF (Sandbox)' : 'NONAKTIF (Production)'],
                 ['Gateway Active (DB)', $setting->is_active ? 'AKTIF' : 'NONAKTIF'],
                 ['Secret Key (.env)', $maskedKey],
-                ['Callback Token (.env)', $maskedToken],
             ]
         );
 
@@ -74,28 +69,14 @@ class XenditPingCommand extends Command
             $this->line('   Pesan: '.$apiResult['message']);
         }
 
-        // 3. Uji Webhook Token Verifier
+        // 3. Callback webhook: satu-satunya URL yang diterima, diverifikasi dengan token koneksi.
         $this->newLine();
-        $this->info('Menguji Verifikasi Webhook Callback Token...');
+        $this->line('   Callback URL Xendit: '.route('webhook.payment', ['gateway' => 'xendit']));
 
-        if (empty($callbackToken)) {
-            $this->warn('⚠️  XENDIT_CALLBACK_TOKEN belum diatur di .env. Webhook callback dari Xendit akan ditolak (401).');
+        if (empty($setting->getCredential('callback_token', ''))) {
+            $this->warn('⚠️  Callback token belum diisi pada Koneksi Payment Gateway. Webhook callback dari Xendit akan ditolak (401).');
         } else {
-            $mockRequestValid = Request::create('/webhook/xendit', 'POST', [], [], [], [
-                'HTTP_X_CALLBACK_TOKEN' => $callbackToken,
-            ]);
-            $mockRequestInvalid = Request::create('/webhook/xendit', 'POST', [], [], [], [
-                'HTTP_X_CALLBACK_TOKEN' => 'invalid_token_sample',
-            ]);
-
-            $validPassed = $webhookVerifier->verifikasi($mockRequestValid);
-            $invalidRejected = ! $webhookVerifier->verifikasi($mockRequestInvalid);
-
-            if ($validPassed && $invalidRejected) {
-                $this->info('✅ Webhook Token Verifier: VALID (Proteksi Hash-Equals Bekerja Sempurna)');
-            } else {
-                $this->error('❌ Webhook Token Verifier: GAGAL pada pengujian pencocokan token.');
-            }
+            $this->info('✅ Callback token terisi pada Koneksi Payment Gateway.');
         }
 
         $this->newLine();

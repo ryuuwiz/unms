@@ -1,5 +1,7 @@
 # Panduan Webhook WhatsApp (GOWA / WAHA)
 
+> ⚠️ **Diperbarui oleh ADR-0067:** `/webhook/whatsapp` kini hanya menerima event `{event, session, payload}` dari koneksi GOWA terdaftar yang **memiliki secret** dan mengirim signature HMAC yang valid. Payload WAHA, format flat legacy (`{phone, message}` / `{phone, status}`), dan koneksi tanpa secret ditolak dengan 401. Bagian di bawah tentang WAHA dan format flat sudah tidak berlaku.
+
 Panduan operasional untuk memahami, menguji, dan men-debug webhook WhatsApp di aplikasi ini.
 Dokumen ini menjelaskan implementasi **nyata** di kodebase — bukan dokumentasi API generik.
 Untuk detail lengkap REST API GOWA, lihat [`docs/gowa/openapi.yaml`](gowa/openapi.yaml).
@@ -24,7 +26,7 @@ WhatsappWebhookController::handle()
         │        └─ tidak valid → 401 Unauthorized (request dibuang, tidak diproses)
         └─ 3. WhatsappWebhookService::process($payload)   → SELALU log ke WebhookLog dulu, baru diproses
                  │
-                 ├─ format {event, session, payload}   → handleWahaEvent()      (GOWA & WAHA, shape sama)
+                 ├─ format {event, session, payload}   → handleGowaEvent()      (GOWA & WAHA, shape sama)
                  │      ├─ message.ack        → handleWahaMessageAck()   → update AntrianWaBlast
                  │      ├─ session.status      → handleWahaSessionStatus() → aktifkan Sysblas terkait
                  │      └─ message / message.any → handleIncomingMessage() → histori tiket

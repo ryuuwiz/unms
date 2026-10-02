@@ -44,13 +44,14 @@ test('ProcessWhatsappWebhookJob memperbarui status antrian_wa_blast dari Webhook
     ]);
 
     $webhookLog = WebhookLog::create([
-        'provider' => 'whatsapp',
-        'event_type' => 'whatsapp.tracking',
+        'provider' => 'gowa',
+        'event_type' => 'gowa.message.ack',
         'provider_event_id' => 'job_test_tracking_1',
         'payload' => [
             'id' => 'job_test_tracking_1',
-            'phone' => '6281234567890',
-            'status' => 'delivered',
+            'event' => 'message.ack',
+            'session' => 'device_1',
+            'payload' => ['id' => 'msg_1', 'to' => '6281234567890@s.whatsapp.net', 'ack' => 2, 'ackName' => 'DEVICE'],
         ],
         'status_proses' => StatusWebhookLog::Diterima,
         'diterima_pada' => now(),
@@ -78,12 +79,13 @@ test('ProcessWhatsappWebhookJob mencatat pesan masuk pelanggan ke histori tiket 
     ]);
 
     $webhookLog = WebhookLog::create([
-        'provider' => 'whatsapp',
-        'event_type' => 'whatsapp.incoming_message',
+        'provider' => 'gowa',
+        'event_type' => 'gowa.message',
         'provider_event_id' => 'job_test_message_1',
         'payload' => [
-            'phone' => '087700001111',
-            'message' => 'Sinyal masih naik turun pak',
+            'event' => 'message',
+            'session' => 'device_1',
+            'payload' => ['id' => 'msg_2', 'from' => '6287700001111@s.whatsapp.net', 'body' => 'Sinyal masih naik turun pak', 'fromMe' => false],
         ],
         'status_proses' => StatusWebhookLog::Diterima,
         'diterima_pada' => now(),

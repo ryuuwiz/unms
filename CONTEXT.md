@@ -271,7 +271,7 @@ Entitas kredensial autentikasi pengguna portal (guard `pelanggan`) yang terikat 
 _Avoid_: User Pelanggan, Akun Web Bebas
 
 **Transaksi Payment Gateway**:
-Catatan transaksi penerbitan tagihan digital ke payment gateway (seperti Xendit, iPaymu) dengan identitas `external_id` unik untuk penjaminan idempotensi dan riwayat sesi pembayaran.
+Catatan transaksi penerbitan tagihan digital ke payment gateway (seperti Xendit, iPaymu) dengan identitas `external_id` unik untuk penjaminan idempotensi dan riwayat sesi pembayaran. Setiap transaksi terikat pada satu Koneksi Payment Gateway yang menerbitkannya; callback dan pengecekan status untuk transaksi itu selalu diverifikasi memakai kredensial koneksi tersebut, bukan koneksi default saat ini. Transaksi baru dianggap Kedaluwarsa bila gateway sendiri menyatakannya kedaluwarsa, bukan semata karena waktu lokal telah lewat. Transaksi yang diterbitkan Koneksi mode sandbox tidak pernah melunasi Invoice.
 _Technical Reference_: Xendit PHP SDK (`xendit/xendit-php`), Context7: `/xendit/xendit-php`.
 _Avoid_: Billing Gateway, Tagihan Xendit Saja, Order ID Bebas
 
@@ -280,8 +280,12 @@ Tautan resmi sesi pembayaran terkelola dari payment gateway aktif (`payment_gate
 _Avoid_: Custom Checkout URL, Link Bayar Bebas, Xendit URL Saja
 
 **Halaman Tagihan Mandiri**:
-Halaman tunggal tanpa autentikasi/login yang dituju oleh tautan pada notifikasi WhatsApp pengingat tagihan, berisi rincian satu Invoice dan satu tombol yang mengarah ke Link Pembayaran Gateway. Tampil dengan Brand Pelanggan pemilik invoice (bukan Petunjuk Brand). Berbeda dari Portal Pelanggan (yang mencakup banyak halaman dan wajib login): halaman ini diakses via signed URL bertanggal kedaluwarsa yang mengikat ke satu Invoice spesifik, tanpa form perbandingan biaya custom internal apa pun. Pelanggan yang sudah login ke Portal Pelanggan tetap dapat mencapai halaman yang sama via sesi login sebagai jalur kedua.
+Halaman tunggal tanpa autentikasi/login yang dituju oleh tautan pada notifikasi WhatsApp pengingat tagihan, berisi rincian satu Invoice dan satu tombol yang mengarah ke Link Pembayaran Gateway. Tampil dengan Brand Pelanggan pemilik invoice (bukan Petunjuk Brand). Berbeda dari Portal Pelanggan (yang mencakup banyak halaman dan wajib login): halaman ini diakses via Tautan Tagihan yang mengikat ke satu Invoice spesifik dan tidak kedaluwarsa, tanpa form perbandingan biaya custom internal apa pun. Pelanggan yang sudah login ke Portal Pelanggan tetap dapat mencapai halaman yang sama via sesi login sebagai jalur kedua.
 _Avoid_: Portal Pelanggan Saja, Halaman Bayar Terpisah, Custom Checkout Form, Kartu Estimasi Biaya Internal
+
+**Tautan Tagihan**:
+Alamat pendek dan tidak dapat ditebak yang membuka Halaman Tagihan Mandiri untuk satu Invoice tanpa login dan tanpa masa berlaku; siapa pun yang memegang tautan dapat melihat dan membayar invoice itu. Tautan bertanda tangan lama yang sudah terkirim tetap diterima meskipun tanggal kedaluwarsanya telah lewat.
+_Avoid_: Link Bayar, Signed URL, Link Pembayaran Gateway
 
 **Log Webhook**:
 Catatan audit trail penerimaan callback HTTP dari payment gateway untuk mencatat event id, payload mentah, status verifikasi signature/token, dan proses eksekusi database.

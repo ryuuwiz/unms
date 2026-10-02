@@ -93,6 +93,23 @@ class Show extends Component
     }
 
     /**
+     * Ganti token Tautan Tagihan: tautan lama yang sudah beredar langsung tidak berlaku.
+     */
+    public function gantiTautanTagihan(): void
+    {
+        $this->authorize('gantiTautan', $this->invoice);
+
+        $this->invoice->gantiTokenTautan();
+
+        activity('invoice')
+            ->performedOn($this->invoice)
+            ->causedBy(auth('web')->user())
+            ->log('Tautan Tagihan diganti; tautan lama tidak berlaku.');
+
+        Flux::toast(variant: 'success', text: 'Tautan Tagihan baru dibuat. Tautan lama sudah tidak berlaku.');
+    }
+
+    /**
      * Kirim uji coba notifikasi tagihan via WhatsApp memakai jalur pengiriman produksi yang sama
      * (WhatsappService::antrikanPesan) -- super_admin only, lihat InvoicePolicy::kirimUjiCoba().
      */

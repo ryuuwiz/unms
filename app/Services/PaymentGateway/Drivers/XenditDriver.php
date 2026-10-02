@@ -114,12 +114,16 @@ class XenditDriver extends AbstractPaymentDriver
             ]);
         }
 
+        // Struk gerai retail (Alfamart/Indomaret) mencetak `given_names` sebagai Nama Konsumen,
+        // jadi diisi No. Registrasi agar kasir dan admin dapat mencocokkan pembayaran; nama asli
+        // tetap tercatat di `surname`.
+        $namaLengkap = trim(($pelanggan->nama_depan ?? '').' '.($pelanggan->nama_belakang ?? ''));
         $customerData = [
-            'given_names' => ! empty($pelanggan->nama_depan) ? trim($pelanggan->nama_depan) : 'Pelanggan',
+            'given_names' => ! empty($pelanggan->no_reg) ? $pelanggan->no_reg : ($namaLengkap ?: 'Pelanggan'),
         ];
 
-        if (! empty($pelanggan->nama_belakang)) {
-            $customerData['surname'] = trim($pelanggan->nama_belakang);
+        if (! empty($pelanggan->no_reg) && $namaLengkap !== '') {
+            $customerData['surname'] = $namaLengkap;
         }
         if (! empty($payerEmail)) {
             $customerData['email'] = $payerEmail;
@@ -130,7 +134,9 @@ class XenditDriver extends AbstractPaymentDriver
         }
 
         $customerObj = new CustomerObject($customerData);
-        $redirectUrl = route('portal.invoice.show', $invoice->id);
+        // Tautan Tagihan, bukan /tagihan/{id}: pelanggan yang membayar tanpa login harus bisa
+        // kembali ke halaman tagihannya setelah membayar (ADR-0067).
+        $redirectUrl = $invoice->tautanTagihan();
 
         // Mock (tanpa panggilan API sama sekali) HANYA boleh aktif di environment 'testing' --
         // satu-satunya nilai APP_ENV yang tidak pernah bisa muncul di server sungguhan (hanya
@@ -213,9 +219,12 @@ class XenditDriver extends AbstractPaymentDriver
 
     public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
     {
+        // Transaksi hanya dicek dengan referensinya sendiri: meminjam ID invoice terkini akan
+        // mengecek transaksi lama terhadap invoice Xendit milik transaksi lain (ADR-0067).
+        // Tanpa referensi, transaksi dicari lewat external_id-nya.
         $xenditId = $target instanceof Invoice
             ? ($target->payment_gateway_id ?: $target->xendit_invoice_id)
-            : ($target->xendit_reference_id ?: ($target->invoice?->payment_gateway_id ?: $target->invoice?->xendit_invoice_id));
+            : ($target->xendit_reference_id ?: $target->provider_reference_id);
 
         $apiKey = $this->getApiKey($setting);
 
@@ -233,6 +242,10 @@ class XenditDriver extends AbstractPaymentDriver
             return [
                 'error' => 'Xendit Secret Key belum dikonfigurasi.',
             ];
+        }
+
+        if (empty($xenditId) && $target instanceof TransaksiPaymentGateway && ! empty($target->external_id)) {
+            return $this->findInvoiceByExternalId($target->external_id, $apiKey);
         }
 
         if (empty($xenditId)) {

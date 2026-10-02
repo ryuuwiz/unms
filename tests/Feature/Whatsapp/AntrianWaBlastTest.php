@@ -115,8 +115,7 @@ test('buildInvoiceParams menyertakan kode_bayar 5 digit, status_internet, dan ta
 
     expect($params['kode_bayar'])->toMatch('/^\d{5}$/')
         ->and($params['status_internet'])->toBe('Aktif')
-        ->and($params['link_pembayaran'])->toContain(route('portal.invoice.show', $invoice->id))
-        ->and($params['link_pembayaran'])->toContain('signature=');
+        ->and($params['link_pembayaran'])->toBe($invoice->fresh()->tautanTagihan());
 });
 
 test('template pengingat tagihan tidak menyisakan placeholder setelah dirender', function () {

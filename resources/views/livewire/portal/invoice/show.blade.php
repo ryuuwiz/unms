@@ -1,32 +1,10 @@
 <div class="max-w-3xl mx-auto space-y-6">
-    <div class="flex items-center justify-between">
-        <a href="{{ route('portal.invoice.index') }}" wire:navigate class="text-xs font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 flex items-center gap-1">
+    @php($pelangganLogin = auth('pelanggan')->check())
+    @if($pelangganLogin)
+        <a href="{{ route('portal.invoice.index') }}" wire:navigate class="text-xs font-semibold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 inline-flex items-center gap-1">
             &larr; Kembali ke Daftar Tagihan
         </a>
-
-        <div class="flex items-center gap-2">
-            @if($invoice->isLunas())
-                <flux:button :href="route('portal.invoice.cetak', $invoice)" size="sm" variant="ghost" target="_blank" icon="arrow-down-tray">
-                    Unduh Bukti Bayar (PDF)
-                </flux:button>
-            @elseif($invoice->isMenungguPembayaran())
-                <flux:button wire:click="sinkronkanStatus" wire:loading.attr="disabled" size="sm" variant="subtle" icon="arrow-path">
-                    <span wire:loading.remove wire:target="sinkronkanStatus">Cek Status</span>
-                    <span wire:loading wire:target="sinkronkanStatus" class="animate-pulse">Mengecek...</span>
-                </flux:button>
-                <flux:button wire:click="bayar" wire:loading.attr="disabled" size="sm" variant="primary" class="bg-indigo-600 text-white">
-                    <span wire:loading.remove wire:target="bayar" class="flex items-center gap-1.5">
-                        <flux:icon icon="credit-card" class="size-4" />
-                        Bayar Sekarang
-                    </span>
-                    <span wire:loading wire:target="bayar" class="flex items-center gap-1.5">
-                        <flux:icon icon="arrow-path" class="size-4 animate-spin" />
-                        Membuka Halaman Pembayaran...
-                    </span>
-                </flux:button>
-            @endif
-        </div>
-    </div>
+    @endif
 
     @if($invoice->isDibatalkan())
         <div class="p-4 bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs space-y-1">
@@ -126,6 +104,32 @@
             </table>
         </div>
 
+        <!-- Aksi Tagihan: tombol utama selebar layar di ponsel -->
+        @if($invoice->isMenungguPembayaran())
+            <div class="flex flex-col sm:flex-row-reverse sm:items-center gap-2">
+                <flux:button wire:click="bayar" wire:loading.attr="disabled" variant="primary" class="w-full sm:w-auto bg-indigo-600 text-white">
+                    <span wire:loading.remove wire:target="bayar" class="flex items-center justify-center gap-1.5">
+                        <flux:icon icon="credit-card" class="size-4" />
+                        Bayar Sekarang
+                    </span>
+                    <span wire:loading wire:target="bayar" class="flex items-center justify-center gap-1.5">
+                        <flux:icon icon="arrow-path" class="size-4 animate-spin" />
+                        Membuka Halaman Pembayaran...
+                    </span>
+                </flux:button>
+                <flux:button wire:click="sinkronkanStatus" wire:loading.attr="disabled" variant="subtle" icon="arrow-path" class="w-full sm:w-auto">
+                    <span wire:loading.remove wire:target="sinkronkanStatus">Cek Status Pembayaran</span>
+                    <span wire:loading wire:target="sinkronkanStatus" class="animate-pulse">Mengecek...</span>
+                </flux:button>
+            </div>
+        @elseif($invoice->isLunas() && $pelangganLogin)
+            <div class="flex sm:justify-end">
+                <flux:button :href="route('portal.invoice.cetak', $invoice)" variant="ghost" target="_blank" icon="arrow-down-tray" class="w-full sm:w-auto">
+                    Unduh Bukti Bayar (PDF)
+                </flux:button>
+            </div>
+        @endif
+
         <!-- Riwayat Pembayaran Tercatat -->
         @if($invoice->pembayarans->isNotEmpty())
             <div class="pt-4 border-t border-zinc-100 dark:border-zinc-800 space-y-2">
@@ -134,7 +138,7 @@
                     Informasi Pembayaran Lunas
                 </h3>
                 @foreach($invoice->pembayarans as $pembayaran)
-                    <div class="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/50 rounded-xl text-xs flex justify-between items-center">
+                    <div class="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/50 rounded-xl text-xs flex justify-between items-center gap-3">
                         <div>
                             <div class="font-semibold text-emerald-900 dark:text-emerald-200">
                                 Dibayar pada {{ \Carbon\Carbon::parse($pembayaran->dibayar_pada)->translatedFormat('d F Y, H:i') }} WIB

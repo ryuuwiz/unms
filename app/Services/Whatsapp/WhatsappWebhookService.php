@@ -21,10 +21,9 @@ class WhatsappWebhookService
 {
     /**
      * Proses payload webhook WhatsApp secara sinkron: mencatat WebhookLog lalu langsung
-     * menanganinya. Dipakai oleh `whatsapp:simulate-webhook` (CLI lokal, bukan HTTP publik,
-     * sehingga tidak perlu antrean). Jalur HTTP publik (`WhatsappWebhookController`) mencatat
-     * WebhookLog sendiri lebih dulu (agar percobaan yang ditolak signature tetap tercatat),
-     * lalu memproses via `ProcessWhatsappWebhookJob` di antrean -- lihat `handlePayload()`.
+     * menanganinya. Dipakai oleh `whatsapp:simulate-webhook` (CLI lokal, bukan HTTP publik).
+     * Jalur HTTP publik (`WhatsappWebhookController`) mencatat WebhookLog dan memverifikasi
+     * signature GOWA lebih dulu, lalu memproses via `ProcessWhatsappWebhookJob`.
      *
      * @param  array<string, mixed>  $payload
      * @return array{status: bool, type: string, message: string}
@@ -35,13 +34,8 @@ class WhatsappWebhookService
     }
 
     /**
-     * Tangani payload webhook WhatsApp yang WebhookLog-nya sudah dicatat sebelumnya.
-     *
-     * Mendukung format event-driven `{event, session, payload}` (dipakai WAHA maupun GOWA —
-     * keduanya berbasis library whatsmeow dan memakai konvensi nama event yang sama seperti
-     * `message`/`message.ack`) serta format flat legacy `{phone, message}` / `{phone, status}`
-     * (dipakai perintah `whatsapp:simulate-webhook` untuk pengujian lokal, dan masih dipakai
-     * oleh pengirim gateway lama di produksi).
+     * Tangani payload event GOWA `{event, session, payload}` yang WebhookLog-nya sudah dicatat.
+     * Format flat legacy `{phone, message}` / `{phone, status}` tidak lagi diproses (ADR-0067).
      *
      * @param  array<string, mixed>  $payload
      * @return array{status: bool, type: string, message: string}
@@ -49,49 +43,20 @@ class WhatsappWebhookService
     public function handlePayload(array $payload, ?WebhookLog $log): array
     {
         try {
-            // 1. Deteksi format event WAHA/GOWA (event-driven)
-            if (isset($payload['event']) && isset($payload['payload'])) {
-                $result = $this->handleWahaEvent($payload);
-                $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
-
-                return $result;
-            }
-
-            // 2. Deteksi format flat legacy: Inbound chat / Pesan masuk
-            if (isset($payload['message']) && (isset($payload['phone']) || isset($payload['sender']))) {
-                $reply = $this->handleIncomingMessage([
-                    'phone' => $payload['phone'] ?? $payload['sender'] ?? '',
-                    'message' => $payload['message'],
-                    'raw' => $payload,
-                ]);
-                $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
+            if (! isset($payload['event'], $payload['payload'])) {
+                $log?->update(['status_proses' => StatusWebhookLog::Diabaikan]);
 
                 return [
                     'status' => true,
-                    'type' => 'incoming_message',
-                    'message' => $reply ? 'Pesan masuk diproses dan dibalas otomatis.' : 'Pesan masuk berhasil dicatat.',
+                    'type' => 'unknown',
+                    'message' => 'Payload diakui namun tidak memerlukan tindakan.',
                 ];
             }
 
-            // 3. Deteksi format flat legacy: Tracking status pengiriman (DLR)
-            if (isset($payload['status']) && (isset($payload['phone']) || isset($payload['id']))) {
-                $this->handleTrackingStatus($payload);
-                $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
+            $result = $this->handleGowaEvent($payload);
+            $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
 
-                return [
-                    'status' => true,
-                    'type' => 'tracking_status',
-                    'message' => 'Status pengiriman pesan berhasil diperbarui.',
-                ];
-            }
-
-            $log?->update(['status_proses' => StatusWebhookLog::Diabaikan]);
-
-            return [
-                'status' => true,
-                'type' => 'unknown',
-                'message' => 'Payload diakui namun tidak memerlukan tindakan.',
-            ];
+            return $result;
         } catch (\Throwable $e) {
             $log?->update([
                 'status_proses' => StatusWebhookLog::Gagal,
@@ -137,8 +102,8 @@ class WhatsappWebhookService
 
     /**
      * Verifikasi HMAC-SHA256 signature webhook GOWA memakai `webhook_secret` koneksi
-     * (disimpan pada kolom `api_secret`). Jika koneksi tidak memiliki secret terkonfigurasi,
-     * verifikasi dilewati (tidak ada apa pun untuk dicocokkan).
+     * (disimpan pada kolom `api_secret`). Koneksi tanpa secret selalu ditolak: tanpa secret,
+     * pengirim tidak dapat dibuktikan berasal dari GOWA (ADR-0067).
      *
      * Catatan: nama header signature GOWA belum terdokumentasi di openapi.yaml (hanya field
      * registrasi `webhook_secret` yang tercatat) — nama header di bawah ini perlu dikonfirmasi
@@ -148,7 +113,7 @@ class WhatsappWebhookService
     {
         $secret = (string) ($sysblas->api_secret ?? '');
         if ($secret === '') {
-            return true;
+            return false;
         }
 
         $signatureHeader = (string) ($request->header('X-Gowa-Signature') ?? $request->header('X-Hub-Signature-256') ?? '');
@@ -164,12 +129,12 @@ class WhatsappWebhookService
     }
 
     /**
-     * Tangani event terstruktur dari WAHA API.
+     * Tangani event terstruktur GOWA (konvensi nama event sama dengan WAHA).
      *
      * @param  array<string, mixed>  $data
      * @return array{status: bool, type: string, message: string}
      */
-    protected function handleWahaEvent(array $data): array
+    protected function handleGowaEvent(array $data): array
     {
         $event = (string) ($data['event'] ?? '');
         $session = (string) ($data['session'] ?? 'default');
@@ -210,17 +175,12 @@ class WhatsappWebhookService
                 $rawPhone = explode('@', $from)[0];
                 $body = (string) ($payload['body'] ?? '');
 
-                $reply = $this->handleIncomingMessage([
-                    'phone' => $rawPhone,
-                    'message' => $body,
-                    'session' => $session,
-                    'raw' => $data,
-                ]);
+                $this->handleIncomingMessage($rawPhone, $body);
 
                 return [
                     'status' => true,
                     'type' => 'incoming_message',
-                    'message' => $reply ? 'Pesan masuk WAHA diproses dan dibalas.' : 'Pesan masuk WAHA dicatat.',
+                    'message' => 'Pesan masuk dicatat.',
                 ];
 
             default:
@@ -304,60 +264,15 @@ class WhatsappWebhookService
     }
 
     /**
-     * Update status pengiriman pada AntrianWaBlast berdasarkan tracking DLR WABLAS legacy.
-     *
-     * @param  array<string, mixed>  $payload
+     * Catat pesan masuk pelanggan ke Histori Tiket aktifnya. Tidak ada balasan otomatis.
      */
-    public function handleTrackingStatus(array $payload): void
+    protected function handleIncomingMessage(string $rawPhone, string $messageText): void
     {
-        $phone = WhatsappClient::normalizePhoneNumber($payload['phone'] ?? $payload['sender'] ?? null);
-        $statusStr = strtolower((string) ($payload['status'] ?? ''));
-        $note = (string) ($payload['note'] ?? $payload['message'] ?? '');
-
-        $query = AntrianWaBlast::query()->latest('id');
-
-        if ($phone) {
-            $query->where('no_hp_tujuan', $phone);
-        }
-
-        $antrian = $query->where('created_at', '>=', Carbon::now()->subDays(3))->first();
-
-        if (! $antrian) {
-            return;
-        }
-
-        $existingLog = (array) ($antrian->response_log ?? []);
-        $existingLog['tracking_webhook'] = $payload;
-
-        if (in_array($statusStr, ['sent', 'delivered', 'read', 'success'], true)) {
-            $antrian->update([
-                'status' => StatusAntrianWa::Terkirim,
-                'dikirim_pada' => $antrian->dikirim_pada ?? Carbon::now(),
-                'response_log' => $existingLog,
-                'pesan_error' => null,
-            ]);
-        } elseif (in_array($statusStr, ['failed', 'rejected', 'error'], true)) {
-            $antrian->update([
-                'status' => StatusAntrianWa::Gagal,
-                'pesan_error' => $note ?: "Gagal terkirim ({$statusStr})",
-                'response_log' => $existingLog,
-            ]);
-        }
-    }
-
-    /**
-     * Tangani pesan masuk dari pelanggan (Inbound Chat).
-     *
-     * @param  array<string, mixed>  $payload
-     */
-    public function handleIncomingMessage(array $payload): ?string
-    {
-        $rawPhone = (string) ($payload['phone'] ?? $payload['sender'] ?? '');
         $phone = WhatsappClient::normalizePhoneNumber($rawPhone);
-        $messageText = trim((string) ($payload['message'] ?? ''));
+        $messageText = trim($messageText);
 
-        if (empty($phone) || empty($messageText)) {
-            return null;
+        if (empty($phone) || $messageText === '') {
+            return;
         }
 
         // Cari pelanggan terdaftar
@@ -387,8 +302,6 @@ class WhatsappWebhookService
                 ]);
             }
         }
-
-        return null;
     }
 
     /**

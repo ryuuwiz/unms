@@ -109,7 +109,7 @@ class RekonsiliasiPembayaranCommand extends Command
             ->where('status', StatusTransaksiGateway::Pending)
             ->where('created_at', '>=', $awalJendela)
             ->whereHas('invoice', fn ($query) => $query->where('status', '!=', StatusInvoice::Lunas))
-            ->with('invoice')
+            ->with(['invoice', 'pengaturanGateway'])
             ->orderBy('id')
             ->limit($limit)
             ->get();
@@ -124,7 +124,7 @@ class RekonsiliasiPembayaranCommand extends Command
             }
 
             try {
-                $manager->sinkronkanStatus($invoice);
+                $manager->sinkronkanTransaksi($transaksi);
                 $ditangani++;
             } catch (Throwable $e) {
                 Log::error("RekonsiliasiPembayaranCommand: gagal sinkronisasi status untuk Transaksi ID {$transaksi->id} (Invoice {$invoice->no_invoice}): ".$e->getMessage());

@@ -18,6 +18,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int $id
  * @property int $invoice_id
  * @property string $gateway
+ * @property int|null $pengaturan_gateway_id
  * @property string $external_id
  * @property string|null $provider_reference_id
  * @property string|null $xendit_reference_id
@@ -34,11 +35,13 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Invoice|null $invoice Null bila Invoice di-soft-delete
+ * @property-read PengaturanGateway|null $pengaturanGateway Koneksi penerbit; null untuk transaksi lama
  * @property-read Collection<int, WebhookLog> $webhookLogs
  */
 #[Fillable([
     'invoice_id',
     'gateway',
+    'pengaturan_gateway_id',
     'external_id',
     'provider_reference_id',
     'xendit_reference_id',
@@ -103,6 +106,16 @@ class TransaksiPaymentGateway extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class, 'invoice_id');
+    }
+
+    /**
+     * Koneksi Payment Gateway yang menerbitkan transaksi ini (ADR-0067).
+     *
+     * @return BelongsTo<PengaturanGateway, $this>
+     */
+    public function pengaturanGateway(): BelongsTo
+    {
+        return $this->belongsTo(PengaturanGateway::class, 'pengaturan_gateway_id');
     }
 
     /**

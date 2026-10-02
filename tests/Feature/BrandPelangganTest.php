@@ -35,7 +35,7 @@ test('pesan WA ke pelanggan dan teknisi memakai brand prefix, no_reg tak dikenal
         ->and($render('tiket_penugasan_teknisi', $this->wa->buildTicketParams($ticket)))->toContain(' - BESTFIBER (');
 });
 
-test('inbound WhatsApp tetap diterima tanpa membuat auto-reply', function () {
+test('inbound WhatsApp tanpa tanda tangan GOWA ditolak tanpa membuat auto-reply', function () {
     Pelanggan::factory()->create(['no_reg' => 'ARS2309202601', 'no_hp' => '081277776666']);
 
     $this->postJson(route('webhook.whatsapp'), [
@@ -43,7 +43,7 @@ test('inbound WhatsApp tetap diterima tanpa membuat auto-reply', function () {
         'phone' => '081277776666',
         'sender' => '081277776666',
         'message' => 'TAGIHAN',
-    ])->assertOk();
+    ])->assertUnauthorized();
 
     expect(AntrianWaBlast::where('jenis', 'webhook_autoreply')->exists())->toBeFalse();
 });
