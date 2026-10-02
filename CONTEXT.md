@@ -561,7 +561,7 @@ Slot fisik terminasi pada perangkat ODP yang melacak status pemakaian (*kosong, 
 _Avoid_: Colokan Kabel, Slot ODP Lepas, Status Port Dipesan Tersimpan
 
 **Peta Port ODP**:
-Tampilan seluruh Port ODP pada satu ODP sebagai kotak bernomor yang menandai status masing-masing (Kosong, Terpakai, Rusak, Dipesan, dipilih tiket ini) beserta ringkasan pemakaiannya. Menggantikan daftar port di halaman detail tiket dan menjadi cara Teknisi memilih port; hanya port Kosong (atau port milik tiket itu sendiri) yang bisa dipilih.
+Tampilan seluruh Port ODP pada satu ODP sebagai kotak bernomor yang menandai status masing-masing (Kosong, Terpakai, Rusak, Dipesan, dipilih tiket ini) beserta ringkasan pemakaiannya. Port Terpakai ditandai dengan Site ID layanan pemakainya (bukan No. Registrasi, yang bisa berganti prefix dan bisa sama untuk beberapa layanan). Menjadi cara Teknisi memilih port di Ticket Pemasangan (hanya port Kosong atau port milik tiket itu sendiri yang bisa dipilih), dan tampil baca-saja dengan port layanan disorot di tiket lain yang layanannya sudah punya port.
 _Avoid_: Dropdown Port Kosong Saja, Menyembunyikan Port Terpakai
 
 **Usulan ODP**:
