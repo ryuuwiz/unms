@@ -10,12 +10,14 @@ use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use App\Services\PaymentGateway\DeskripsiTagihanBuilder;
+use Carbon\CarbonInterface;
 use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use Xendit\BalanceAndTransaction\BalanceApi;
 use Xendit\Configuration;
 use Xendit\Invoice\CreateInvoiceRequest;
@@ -27,6 +29,9 @@ use Xendit\XenditSdkException;
 
 class XenditDriver extends AbstractPaymentDriver
 {
+    /** Batas invoice per halaman daftar Xendit (maksimum API). */
+    private const BATAS_HALAMAN_DAFTAR = 100;
+
     public function getProviderName(): string
     {
         return 'xendit';
@@ -406,7 +411,83 @@ class XenditDriver extends AbstractPaymentDriver
 
     public function parseWebhookPayload(Request $request): PaymentCallbackData
     {
-        $payload = $request->all();
+        return $this->petakanPayload($request->all());
+    }
+
+    /**
+     * Semua invoice PAID/SETTLED satu Koneksi yang dibayar dalam rentang waktu, untuk Pelunasan
+     * Susulan (lihat CONTEXT.md). Dibaca lewat HTTP langsung karena model SDK membuang `paid_at`,
+     * `paid_amount`, dan `payment_channel`. Rentang dipecah per hari dan kursor `last_invoice`
+     * hanya dipakai saat satu hari penuh; paginasi berhenti begitu halaman tidak membawa invoice
+     * baru, sehingga tetap aman bila Xendit mengabaikan kursornya.
+     *
+     * @return list<PaymentCallbackData>
+     *
+     * @throws RuntimeException bila kredensial kosong atau Xendit menolak permintaan
+     */
+    public function daftarPembayaranLunas(PengaturanGateway $setting, CarbonInterface $sejak, ?CarbonInterface $sampai = null): array
+    {
+        $apiKey = $this->getApiKey($setting);
+        if (empty($apiKey)) {
+            throw new RuntimeException("Koneksi {$setting->nama} belum memiliki Xendit Secret Key.");
+        }
+
+        $sampai ??= now();
+        $hasil = [];
+
+        for ($awal = Carbon::parse($sejak)->startOfDay(); $awal->lessThan($sampai); $awal = $awal->copy()->addDay()) {
+            $akhir = $awal->copy()->addDay()->min($sampai);
+            $kursor = null;
+
+            do {
+                $halaman = $this->ambilHalamanInvoiceLunas($apiKey, $awal, $akhir, $kursor);
+                $baru = array_filter($halaman, fn (array $invoice): bool => ! isset($hasil[$invoice['id'] ?? '']));
+
+                foreach ($baru as $invoice) {
+                    $hasil[(string) $invoice['id']] = $this->petakanPayload($invoice);
+                }
+
+                $kursor = $halaman === [] ? null : (string) (end($halaman)['id'] ?? '');
+            } while (count($halaman) >= self::BATAS_HALAMAN_DAFTAR && $baru !== [] && $kursor !== '');
+        }
+
+        return array_values($hasil);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function ambilHalamanInvoiceLunas(string $apiKey, CarbonInterface $awal, CarbonInterface $akhir, ?string $kursor): array
+    {
+        // Parameter array dikirim berulang (statuses=PAID&statuses=SETTLED), sama seperti SDK resmi.
+        $query = implode('&', array_filter([
+            'statuses=PAID&statuses=SETTLED',
+            'limit='.self::BATAS_HALAMAN_DAFTAR,
+            'paid_after='.rawurlencode($awal->toIso8601ZuluString()),
+            'paid_before='.rawurlencode($akhir->toIso8601ZuluString()),
+            $kursor ? 'last_invoice='.rawurlencode($kursor) : null,
+        ]));
+
+        $response = Http::withBasicAuth($apiKey, '')
+            ->timeout(30)
+            ->get("https://api.xendit.co/v2/invoices?{$query}");
+
+        if (! $response->successful()) {
+            throw new RuntimeException("Gagal mengambil daftar invoice PAID dari Xendit: HTTP {$response->status()} {$response->body()}");
+        }
+
+        $data = $response->json();
+
+        return array_values(array_filter(is_array($data) ? $data : [], 'is_array'));
+    }
+
+    /**
+     * Petakan payload invoice/pembayaran Xendit (callback maupun hasil daftar invoice).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function petakanPayload(array $payload): PaymentCallbackData
+    {
 
         // 1. Ekstrak Event Name (V3 format: 'event' e.g. 'payment.succeeded', 'payment_request.succeeded')
         $eventName = strtolower(trim((string) ($payload['event'] ?? '')));
