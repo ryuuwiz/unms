@@ -53,7 +53,7 @@ class WhatsappWebhookService
                 ];
             }
 
-            $result = $this->handleWahaEvent($payload);
+            $result = $this->handleGowaEvent($payload);
             $log?->update(['status_proses' => StatusWebhookLog::Diproses]);
 
             return $result;
@@ -134,7 +134,7 @@ class WhatsappWebhookService
      * @param  array<string, mixed>  $data
      * @return array{status: bool, type: string, message: string}
      */
-    protected function handleWahaEvent(array $data): array
+    protected function handleGowaEvent(array $data): array
     {
         $event = (string) ($data['event'] ?? '');
         $session = (string) ($data['session'] ?? 'default');

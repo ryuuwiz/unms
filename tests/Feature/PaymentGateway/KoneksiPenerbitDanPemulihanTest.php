@@ -225,3 +225,57 @@ test('pembayaran:pulihkan --dry-run tidak mengubah data', function () {
     expect($this->invoice->fresh()->isLunas())->toBeFalse()
         ->and($transaksi->fresh()->status)->toBe(StatusTransaksiGateway::Expired);
 });
+
+test('callback EXPIRED untuk transaksi lama tidak menghapus tautan pembayaran transaksi terbaru', function () {
+    $lama = buatTransaksi($this->invoice, $this->live);
+    buatTransaksi($this->invoice, $this->live);
+    $this->invoice->update(['payment_gateway_url' => 'https://checkout.xendit.co/web/baru']);
+
+    $this->postJson('/webhook/payment/xendit', [
+        'id' => $lama->xendit_reference_id,
+        'external_id' => $lama->external_id,
+        'status' => 'EXPIRED',
+        'amount' => 200000,
+    ], ['x-callback-token' => 'token_live'])->assertOk();
+
+    expect($lama->fresh()->status)->toBe(StatusTransaksiGateway::Expired)
+        ->and($this->invoice->fresh()->payment_gateway_url)->toBe('https://checkout.xendit.co/web/baru');
+});
+
+test('invoice yang tidak ditemukan di gateway tidak membuat transaksi Kedaluwarsa', function () {
+    $transaksi = buatTransaksi($this->invoice, $this->live, ['expired_at' => now()->subHour()]);
+    $this->manager->registerDriver('xendit', new class extends XenditDriver
+    {
+        public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
+        {
+            return ['error' => 'Invoice Xendit tidak ditemukan berdasarkan external_id.', 'error_code' => 'external_id_not_found'];
+        }
+    });
+    $this->app->instance(PaymentGatewayManager::class, $this->manager);
+
+    $this->artisan('xendit:cek-va-expired')->assertSuccessful();
+
+    expect($transaksi->fresh()->status)->toBe(StatusTransaksiGateway::Pending);
+});
+
+test('di production, callback yang diverifikasi dengan koneksi default sandbox tidak melunasi invoice', function () {
+    $this->sandbox->update(['is_active' => true]);
+    $this->sandbox->setAsDefault();
+    buatTransaksi($this->invoice, $this->live);
+    app()->detectEnvironment(fn () => 'production');
+
+    $hasil = $this->manager->prosesPelunasan($this->invoice, ['paid_amount' => 200000, 'id' => 'evt_tak_dikenal']);
+
+    expect($hasil)->toBeFalse()
+        ->and($this->invoice->fresh()->isLunas())->toBeFalse();
+});
+
+test('pembayaran:pulihkan menghitung satu invoice sekali walau punya beberapa transaksi', function () {
+    buatTransaksi($this->invoice, $this->live, ['status' => StatusTransaksiGateway::Expired]);
+    buatTransaksi($this->invoice, $this->live, ['status' => StatusTransaksiGateway::Expired]);
+    pasangDriverStatus($this->manager, 'PAID');
+
+    $this->artisan('pembayaran:pulihkan')
+        ->expectsOutputToContain('Selesai. 1 invoice dilunasi.')
+        ->assertSuccessful();
+});

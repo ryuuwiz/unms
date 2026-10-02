@@ -53,14 +53,14 @@ class CekVirtualAccountExpiredCommand extends Command
 
         foreach ($transaksis as $transaksi) {
             try {
-                $manager->sinkronkanTransaksi($transaksi);
+                $statusData = $manager->sinkronkanTransaksi($transaksi);
             } catch (Throwable $e) {
                 Log::error("xendit:cek-va-expired: gagal memeriksa Transaksi ID {$transaksi->id}: ".$e->getMessage());
 
                 continue;
             }
 
-            if ($transaksi->fresh()?->status === StatusTransaksiGateway::Expired) {
+            if (strtoupper((string) ($statusData['status'] ?? '')) === 'EXPIRED') {
                 $kedaluwarsa++;
             }
         }

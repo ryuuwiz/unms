@@ -3,7 +3,6 @@
 namespace App\Jobs\PaymentGateway;
 
 use App\DTO\PaymentGateway\PaymentCallbackData;
-use App\Enums\StatusTransaksiGateway;
 use App\Enums\StatusWebhookLog;
 use App\Models\Invoice;
 use App\Models\TransaksiPaymentGateway;
@@ -12,7 +11,6 @@ use App\Services\PaymentGateway\PaymentGatewayManager;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Sentry\State\Scope;
 use Throwable;
@@ -245,28 +243,8 @@ class ProcessPaymentWebhookJob implements ShouldQueue
         }
 
         if ($callbackData->isExpired() || $callbackData->isFailed()) {
-            DB::transaction(function () use ($invoice, $transaksi, $callbackData, $webhookLog) {
-                /** @var Invoice $lockedInvoice */
-                $lockedInvoice = Invoice::where('id', $invoice->id)->lockForUpdate()->firstOrFail();
-
-                if (! $lockedInvoice->isLunas()) {
-                    $lockedInvoice->update([
-                        'payment_gateway_url' => null,
-                        'payment_gateway_status' => 'EXPIRED',
-                        'xendit_invoice_url' => null,
-                        'xendit_status' => 'EXPIRED',
-                    ]);
-                }
-
-                if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
-                    $transaksi->update([
-                        'status' => StatusTransaksiGateway::Expired,
-                        'payload_response' => $callbackData->rawPayload,
-                    ]);
-                }
-
-                $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
-            });
+            $manager->invalidateExpiredInvoice($invoice, $transaksi, $callbackData->rawPayload);
+            $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
 
             return;
         }

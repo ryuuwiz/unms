@@ -409,16 +409,26 @@ class PaymentGatewayManager
         }
     }
 
-    protected function invalidateExpiredInvoice(Invoice $invoice, ?TransaksiPaymentGateway $transaksi): void
+    /**
+     * Gateway menyatakan transaksi kedaluwarsa/gagal: tandai transaksinya Expired, dan hapus
+     * tautan pembayaran invoice hanya bila ini transaksi terakhirnya -- callback atau sync
+     * untuk transaksi lama tidak boleh mematikan tautan baru yang masih aktif (ADR-0067).
+     *
+     * @param  array<string, mixed>|null  $payloadGateway
+     */
+    public function invalidateExpiredInvoice(Invoice $invoice, ?TransaksiPaymentGateway $transaksi, ?array $payloadGateway = null): void
     {
         $transaksiTerakhir = $this->transaksiTerakhir($invoice, $transaksi);
 
-        DB::transaction(function () use ($invoice, $transaksi, $transaksiTerakhir): void {
+        DB::transaction(function () use ($invoice, $transaksi, $transaksiTerakhir, $payloadGateway): void {
             /** @var Invoice $lockedInvoice */
             $lockedInvoice = Invoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
 
             if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
-                $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
+                $transaksi->update(array_filter([
+                    'status' => StatusTransaksiGateway::Expired,
+                    'payload_response' => $payloadGateway,
+                ]));
             }
 
             if ($lockedInvoice->isLunas() || ! $transaksiTerakhir) {
@@ -467,20 +477,21 @@ class PaymentGatewayManager
         ]);
     }
 
+    /**
+     * Invoice tidak ditemukan di gateway: lepaskan referensinya dari invoice agar pembayaran
+     * berikutnya membuat invoice baru (ADR-0065). Status transaksi sengaja tidak diubah --
+     * "tidak ditemukan" bukan pernyataan kedaluwarsa dari gateway (ADR-0067).
+     */
     protected function invalidateMissingRemoteInvoice(Invoice $invoice, ?TransaksiPaymentGateway $transaksi): void
     {
         $transaksiTerakhir = $this->transaksiTerakhir($invoice, $transaksi);
 
-        DB::transaction(function () use ($invoice, $transaksi, $transaksiTerakhir): void {
+        DB::transaction(function () use ($invoice, $transaksiTerakhir): void {
             /** @var Invoice $lockedInvoice */
             $lockedInvoice = Invoice::query()
                 ->whereKey($invoice->id)
                 ->lockForUpdate()
                 ->firstOrFail();
-
-            if ($transaksi && $transaksi->status === StatusTransaksiGateway::Pending) {
-                $transaksi->update(['status' => StatusTransaksiGateway::Expired]);
-            }
 
             if ($lockedInvoice->isLunas() || ! $transaksiTerakhir) {
                 return;
@@ -529,11 +540,16 @@ class PaymentGatewayManager
             $paymentRef = (string) ($rawPayload['payment_id'] ?? ($rawPayload['id'] ?? null));
         }
 
+        // Diperiksa SEBELUM transaksi diganti transaksi aktif invoice: callback yang tidak
+        // menyebut transaksi dikenal diverifikasi dengan koneksi default, jadi koneksi itulah
+        // yang menentukan apakah uangnya uang sungguhan.
+        $dariSandbox = $this->dariKoneksiSandbox($transaksi, $provider);
+
         if (! $transaksi) {
             $transaksi = $invoice->transaksiPaymentGatewayAktif();
         }
 
-        if ($this->dariKoneksiSandbox($transaksi)) {
+        if ($dariSandbox) {
             $catatan = "Pembayaran sandbox untuk Invoice {$invoice->no_invoice} diabaikan: transaksi koneksi sandbox tidak melunasi invoice.";
             $webhookLog?->update([
                 'status_proses' => StatusWebhookLog::Diabaikan,
@@ -638,9 +654,9 @@ class PaymentGatewayManager
      * sandbox tidak pernah melunasi invoice (ADR-0067). Di luar production (lokal, staging),
      * sandbox tetap boleh melunasi agar alur pembayaran dapat diuji ujung ke ujung.
      */
-    protected function dariKoneksiSandbox(?TransaksiPaymentGateway $transaksi): bool
+    protected function dariKoneksiSandbox(?TransaksiPaymentGateway $transaksi, string $provider): bool
     {
-        return app()->isProduction() && $transaksi?->pengaturanGateway?->sandbox_mode === true;
+        return app()->isProduction() && $this->settingUntukTransaksi($transaksi, $provider)->sandbox_mode === true;
     }
 
     /**

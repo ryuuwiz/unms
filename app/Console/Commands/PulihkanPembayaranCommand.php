@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\StatusInvoice;
 use App\Enums\StatusTransaksiGateway;
+use App\Models\Invoice;
 use App\Models\TransaksiPaymentGateway;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Carbon\CarbonInterface;
@@ -87,6 +88,9 @@ class PulihkanPembayaranCommand extends Command
     protected function pulihkan(PaymentGatewayManager $manager, TransaksiPaymentGateway $transaksi, bool $dryRun): array
     {
         $statusLokal = $transaksi->status->value;
+        // Dibaca ulang per baris: transaksi sebelumnya untuk invoice yang sama mungkin sudah
+        // melunasinya, dan invoice itu tidak boleh terhitung dua kali.
+        $lunasSebelumnya = $this->invoiceLunas($transaksi);
 
         try {
             $statusData = $dryRun ? $manager->cekStatusTransaksi($transaksi) : $manager->sinkronkanTransaksi($transaksi);
@@ -97,7 +101,7 @@ class PulihkanPembayaranCommand extends Command
         $statusGateway = strtoupper((string) ($statusData['status'] ?? ''));
         $aksi = match (true) {
             $dryRun => '-',
-            $transaksi->invoice?->fresh()?->isLunas() === true => 'DILUNASI',
+            ! $lunasSebelumnya && $this->invoiceLunas($transaksi) => 'DILUNASI',
             default => 'tidak berubah',
         };
 
@@ -108,5 +112,13 @@ class PulihkanPembayaranCommand extends Command
             $statusGateway ?: 'ERROR: '.($statusData['error'] ?? '-'),
             $aksi,
         ];
+    }
+
+    /**
+     * Status terkini dari database, bukan dari relasi yang sudah termuat.
+     */
+    protected function invoiceLunas(TransaksiPaymentGateway $transaksi): bool
+    {
+        return Invoice::query()->whereKey($transaksi->invoice_id)->where('status', StatusInvoice::Lunas)->exists();
     }
 }

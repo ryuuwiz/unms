@@ -26,7 +26,7 @@ WhatsappWebhookController::handle()
         │        └─ tidak valid → 401 Unauthorized (request dibuang, tidak diproses)
         └─ 3. WhatsappWebhookService::process($payload)   → SELALU log ke WebhookLog dulu, baru diproses
                  │
-                 ├─ format {event, session, payload}   → handleWahaEvent()      (GOWA & WAHA, shape sama)
+                 ├─ format {event, session, payload}   → handleGowaEvent()      (GOWA & WAHA, shape sama)
                  │      ├─ message.ack        → handleWahaMessageAck()   → update AntrianWaBlast
                  │      ├─ session.status      → handleWahaSessionStatus() → aktifkan Sysblas terkait
                  │      └─ message / message.any → handleIncomingMessage() → histori tiket

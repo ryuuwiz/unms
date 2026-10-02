@@ -219,9 +219,12 @@ class XenditDriver extends AbstractPaymentDriver
 
     public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
     {
+        // Transaksi hanya dicek dengan referensinya sendiri: meminjam ID invoice terkini akan
+        // mengecek transaksi lama terhadap invoice Xendit milik transaksi lain (ADR-0067).
+        // Tanpa referensi, transaksi dicari lewat external_id-nya.
         $xenditId = $target instanceof Invoice
             ? ($target->payment_gateway_id ?: $target->xendit_invoice_id)
-            : ($target->xendit_reference_id ?: ($target->invoice?->payment_gateway_id ?: $target->invoice?->xendit_invoice_id));
+            : ($target->xendit_reference_id ?: $target->provider_reference_id);
 
         $apiKey = $this->getApiKey($setting);
 
@@ -239,6 +242,10 @@ class XenditDriver extends AbstractPaymentDriver
             return [
                 'error' => 'Xendit Secret Key belum dikonfigurasi.',
             ];
+        }
+
+        if (empty($xenditId) && $target instanceof TransaksiPaymentGateway && ! empty($target->external_id)) {
+            return $this->findInvoiceByExternalId($target->external_id, $apiKey);
         }
 
         if (empty($xenditId)) {

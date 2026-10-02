@@ -157,7 +157,8 @@ test('invoice gateway yang tidak ditemukan ditandai invalid agar dapat diterbitk
         ->and($this->invoice->payment_gateway_id)->toBeNull()
         ->and($this->invoice->payment_gateway_url)->toBeNull()
         ->and($this->invoice->payment_gateway_status)->toBe('EXPIRED')
-        ->and($transaksi->status)->toBe(StatusTransaksiGateway::Expired);
+        // "Tidak ditemukan" bukan pernyataan kedaluwarsa dari gateway (ADR-0067).
+        ->and($transaksi->status)->toBe(StatusTransaksiGateway::Pending);
 });
 
 test('invoice lunas dapat dipulihkan melalui external_id setelah id gateway tidak ditemukan', function () {
