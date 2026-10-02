@@ -36,9 +36,9 @@ class Index extends Component
     #[Url]
     public string $tab = 'semua';
 
-    /** 'prioritas' (overdue -> prioritas -> SLA) atau 'terbaru'. */
+    /** 'terbaru' (default, paling baru dibuat di atas) atau 'prioritas' (overdue -> prioritas -> SLA). */
     #[Url]
-    public string $urut = 'prioritas';
+    public string $urut = 'terbaru';
 
     /**
      * Buka di "Tiket Saya" bagi user yang masih memegang tiket terbuka sebagai PIC (Teknisi), kecuali

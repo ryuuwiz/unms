@@ -92,6 +92,18 @@ test('admin can record manual payment and extend active service accumulatively (
         ->and($this->layanan->fresh()->status)->toBe(StatusLayanan::Aktif);
 });
 
+test('pembayaran manual tidak lagi menerima metode transfer (transfer bank diurus CS di luar sistem)', function () {
+    Livewire::actingAs($this->adminUser)
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->set('metode', 'transfer')
+        ->set('jumlah_dibayar', 200000)
+        ->set('dibayar_pada', now()->format('Y-m-d\TH:i'))
+        ->call('prosesBayar')
+        ->assertHasErrors(['metode' => 'in']);
+
+    expect($this->invoice->fresh()->status)->not->toBe(StatusInvoice::Lunas);
+});
+
 test('admin recording payment on suspended service with expiry already in the past extends from the old expiry, never from the payment date (Siklus Tagihan)', function () {
     // Service is suspended AND its tanggal_expired is already in the past: the cycle paid is the
     // one that lapsed, so the new expiry is old expiry + 1 month (snapped), not payment date + 1 month.

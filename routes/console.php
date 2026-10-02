@@ -81,3 +81,6 @@ Schedule::command('telescope:prune')->daily()->environments('local')->onOneServe
 foreach (Schedule::events() as $event) {
     $event->storeOutput();
 }
+
+// Failover Penyimpanan: kembalikan media yang sempat disimpan lokal ke S3 (ADR-0068).
+Schedule::command('media:sinkron-s3')->everyTenMinutes()->onOneServer()->withoutOverlapping();

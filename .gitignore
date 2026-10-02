@@ -27,5 +27,5 @@ yarn-error.log
 /graphify-out
 yarn.lock
 bun.lock
-repomix-output.md
+/repomix-output.md
 compose.smoke.yaml

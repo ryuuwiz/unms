@@ -94,8 +94,9 @@
                     </flux:field>
 
                     <flux:field>
-                        <flux:label>Nama Brand / Display Name <span class="text-red-500">*</span></flux:label>
+                        <flux:label>Nama Aplikasi <span class="text-red-500">*</span></flux:label>
                         <flux:input wire:model="nama_brand" placeholder="Contoh: GOBILLING" required />
+                        <flux:description>Tampil di aplikasi staf, halaman login, dan untuk pelanggan yang No. Registrasi-nya tidak cocok dengan Prefix Registrasi mana pun.</flux:description>
                         <flux:error name="nama_brand" />
                     </flux:field>
                 </div>
@@ -167,42 +168,7 @@
                 </div>
             </flux:card>
 
-            {{-- 3. Rekening Pembayaran & Legalitas --}}
-            <flux:card class="p-6 space-y-6">
-                <div>
-                    <flux:heading size="lg">Rekening Pembayaran & Pajak</flux:heading>
-                    <flux:subheading>Informasi rekening bank transfer manual dan nomor identitas pajak (NPWP).
-                    </flux:subheading>
-                </div>
-
-                <flux:field>
-                    <flux:label>Nomor Pokok Wajib Pajak (NPWP)</flux:label>
-                    <flux:input wire:model="npwp" placeholder="Contoh: 01.234.567.8-901.000" />
-                    <flux:error name="npwp" />
-                </flux:field>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <flux:field>
-                        <flux:label>Nama Bank</flux:label>
-                        <flux:input wire:model="nama_bank" placeholder="Contoh: Bank BCA / Mandiri / BRI" />
-                        <flux:error name="nama_bank" />
-                    </flux:field>
-
-                    <flux:field>
-                        <flux:label>Nomor Rekening</flux:label>
-                        <flux:input wire:model="nomor_rekening" placeholder="Contoh: 8830123456" />
-                        <flux:error name="nomor_rekening" />
-                    </flux:field>
-
-                    <flux:field>
-                        <flux:label>Atas Nama (Pemilik Rekening)</flux:label>
-                        <flux:input wire:model="atas_nama" placeholder="Contoh: PT GOBILLING NUSANTARA" />
-                        <flux:error name="atas_nama" />
-                    </flux:field>
-                </div>
-            </flux:card>
-
-            {{-- 4. Catatan Invoice & Penandatangan --}}
+            {{-- 3. Catatan Invoice & Penandatangan --}}
             <flux:card class="p-6 space-y-6">
                 <div>
                     <flux:heading size="lg">Kop Invoice & Catatan Tagihan</flux:heading>

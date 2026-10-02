@@ -28,10 +28,6 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property string|null $whatsapp
  * @property string|null $email
  * @property string|null $website
- * @property string|null $npwp
- * @property string|null $nama_bank
- * @property string|null $nomor_rekening
- * @property string|null $atas_nama
  * @property string|null $catatan_invoice
  * @property string|null $syarat_ketentuan
  * @property string|null $nama_penandatangan
@@ -55,10 +51,6 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
     'whatsapp',
     'email',
     'website',
-    'npwp',
-    'nama_bank',
-    'nomor_rekening',
-    'atas_nama',
     'catatan_invoice',
     'syarat_ketentuan',
     'nama_penandatangan',

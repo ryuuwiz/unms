@@ -12,7 +12,8 @@ use Throwable;
 
 class S3HealthCheckService
 {
-    private const PING_PATH = 'health-check/ping.txt';
+    /** Di bawah `public/`: satu-satunya prefix yang dibuka bucket policy (ADR-0068). */
+    private const PING_PATH = 'public/health-check/ping.txt';
 
     /**
      * Cek kesehatan disk S3/RustFS: bucket bisa diakses DAN URL publiknya benar-benar

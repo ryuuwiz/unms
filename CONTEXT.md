@@ -117,7 +117,7 @@ Kode singkat (2-5 huruf kapital, contoh `BEST` untuk BESTFIBER, `WIFI` untuk WIF
 _Avoid_: Kode Cabang Hardcode, Prefix Bebas Tanpa Kelola
 
 **Brand Pelanggan**:
-Merek ISP yang dilihat seorang pelanggan: nama (dan logo) Prefix Registrasi yang cocok dengan huruf awal No. Registrasi-nya, **termasuk prefix yang sudah dinonaktifkan** (nonaktif hanya berarti tidak bisa dipilih untuk registrasi baru). No. Registrasi yang tidak cocok dengan prefix mana pun jatuh ke brand Perusahaan. Satu-satunya brand yang tampil di setiap hal yang dilihat pelanggan (pesan WhatsApp, invoice PDF, deskripsi payment gateway) dan disebut di pesan staf tentang pelanggan itu. Brand hanya identitas merek (nama, nama pendek, logo, ikon aplikasi, warna utama); atribut yang belum diisi diturunkan dari brand itu sendiri (nama pendek dari nama, ikon dari logo, warna default aplikasi), tidak pernah dipinjam dari brand Perusahaan; identitas legal, rekening, kontak, dan NPWP tetap satu milik Perusahaan. Semua brand dikirim dari Koneksi Gateway WhatsApp yang sama.
+Merek ISP yang dilihat seorang pelanggan: nama (dan logo) Prefix Registrasi yang cocok dengan huruf awal No. Registrasi-nya, **termasuk prefix yang sudah dinonaktifkan** (nonaktif hanya berarti tidak bisa dipilih untuk registrasi baru). No. Registrasi yang tidak cocok dengan prefix mana pun jatuh ke Nama Aplikasi (dan logo) Perusahaan. Satu-satunya brand yang tampil di setiap hal yang dilihat pelanggan (pesan WhatsApp, invoice PDF, deskripsi payment gateway) dan disebut di pesan staf tentang pelanggan itu. Brand hanya identitas merek (nama, nama pendek, logo, ikon aplikasi, warna utama); atribut yang belum diisi diturunkan dari brand itu sendiri (nama pendek dari nama, ikon dari logo, warna default aplikasi), tidak pernah dipinjam dari Perusahaan; identitas legal dan kontak tetap satu milik Perusahaan. Semua brand dikirim dari Koneksi Gateway WhatsApp yang sama.
 _Avoid_: Brand Perusahaan untuk Pesan Pelanggan, Template WA per Brand, Nomor WA per Brand, Cabang
 
 **Format Identitas Pelanggan**:
@@ -247,11 +247,11 @@ Program diskon (nominal / persentase) atau bonus durasi yang dapat diaplikasikan
 _Avoid_: Voucher Bebas, Potongan Informal
 
 **Portal Pelanggan**:
-Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time. Tetap satu monolit dengan aplikasi staf (ADR-0007), tapi dapat diakses lewat domain khususnya sendiri (`app.portal_domain`, mis. `portal.gobilling.id`) sekaligus tetap hidup di path lama `/portal/*` pada domain staf (dipertahankan permanen untuk tautan tagihan bertanda tangan yang sudah terkirim) -- lihat ADR-0049. Tidak menampilkan PPP Username/Password, router, atau alamat IP. Tampil dengan identitas Brand Pelanggan (bukan brand Perusahaan) dan dapat dipasang ke layar utama ponsel sebagai Aplikasi Pelanggan.
+Antarmuka web mandiri untuk pelanggan internet ISP guna melihat informasi tagihan aktif, riwayat transaksi, profil langganan, dan melakukan pembayaran secara real-time. Tetap satu monolit dengan aplikasi staf (ADR-0007), tapi dapat diakses lewat domain khususnya sendiri (`app.portal_domain`, mis. `portal.gobilling.id`) sekaligus tetap hidup di path lama `/portal/*` pada domain staf (dipertahankan permanen untuk tautan tagihan bertanda tangan yang sudah terkirim) -- lihat ADR-0049. Tidak menampilkan PPP Username/Password, router, atau alamat IP. Tampil dengan identitas Brand Pelanggan (bukan Nama Aplikasi Perusahaan) dan dapat dipasang ke layar utama ponsel sebagai Aplikasi Pelanggan.
 _Avoid_: Client Area Bebas, Customer App Terpisah, Halaman Member, Portal Sebagai Aplikasi Terpisah
 
 **Aplikasi Pelanggan**:
-Portal Pelanggan yang dipasang pelanggan ke layar utama ponselnya, dengan nama pendek dan ikon Brand Pelanggan miliknya. Bukan aplikasi app store dan bukan codebase terpisah: isi dan fiturnya persis Portal Pelanggan. Satu aplikasi per Brand Pelanggan, bukan per Perusahaan/tenant. Semua brand berbagi satu domain Portal, sehingga brand baru diketahui setelah login: pemasangan ditawarkan setelah login dan identitasnya mengikuti brand pelanggan yang login; satu ponsel memasang satu Aplikasi Pelanggan. Sebelum login tampil Petunjuk Brand atau, bila tidak ada, brand Perusahaan. Tidak pernah menampilkan nama GOBILLING.
+Portal Pelanggan yang dipasang pelanggan ke layar utama ponselnya, dengan nama pendek dan ikon Brand Pelanggan miliknya. Bukan aplikasi app store dan bukan codebase terpisah: isi dan fiturnya persis Portal Pelanggan. Satu aplikasi per Brand Pelanggan, bukan per Perusahaan/tenant. Semua brand berbagi satu domain Portal, sehingga brand baru diketahui setelah login: pemasangan ditawarkan setelah login dan identitasnya mengikuti brand pelanggan yang login; satu ponsel memasang satu Aplikasi Pelanggan. Sebelum login tampil Petunjuk Brand atau, bila tidak ada, Nama Aplikasi Perusahaan. Tidak pernah menampilkan nama GOBILLING.
 _Avoid_: Aplikasi Whitelabel Native, Aplikasi Play Store per Brand, Aplikasi Per Tenant, Domain per Brand, Powered by GOBILLING
 
 **Petunjuk Brand**:
@@ -381,8 +381,12 @@ Batas waktu tenggat penyelesaian tiket yang dihitung otomatis berdasarkan skala 
 _Avoid_: Deadline Bebas, Target Waktu, Estimasi Jam
 
 **Profil Perusahaan**:
-Entitas identitas legal, brand bisnis, alamat operasional, kontak bantuan, nomor NPWP, rekening bank penerima, dan catatan resmi yang dikonfigurasi untuk kop tagihan (invoice header), kuitansi digital, dan antarmuka portal pelanggan.
-_Avoid_: Company Setting Bebas, Header Manual, Info PT Lepas
+Entitas identitas legal, Nama Aplikasi, alamat operasional, kontak bantuan, dan catatan resmi yang dikonfigurasi untuk kop tagihan (invoice header), kuitansi digital, dan antarmuka portal pelanggan. Tidak menyimpan NPWP maupun rekening bank, dan invoice tidak mencantumkan rekening. Transfer bank manual diurus Customer Service di luar sistem; staf hanya mencatat pembayaran sebagai Manual (Admin/Kasir) atau lewat payment gateway. Metode "Transfer Bank" hanya tersisa pada pembayaran lama.
+_Avoid_: Company Setting Bebas, Header Manual, Info PT Lepas, Rekening Transfer Manual di Invoice
+
+**Nama Aplikasi**:
+Nama tampilan milik Perusahaan untuk aplikasi staf (sidebar, halaman login, judul tab). Bersama logo Perusahaan menjadi identitas cadangan bagi pelanggan yang No. Registrasi-nya tidak cocok dengan Prefix Registrasi mana pun, dan bagi Portal sebelum login tanpa Petunjuk Brand. Bukan brand: kata "brand" selalu berarti Brand Pelanggan.
+_Avoid_: Brand Perusahaan, Nama Brand
 
 **Kesiapan Multi-Tenant (Multi-Tenant Readiness)**:
 Arsitektur pemisahan entitas data organisasi/perusahaan yang dirancang dengan skema relasional `perusahaan_id` (record default `is_default=true` untuk mode internal) sehingga dapat dinaikkan menjadi platform SaaS multi-penyewa di masa depan tanpa mengubah model domain inti.
@@ -392,6 +396,18 @@ _Avoid_: Hardcoded Single Company, Multi Database Terpisah Tanpa Pola
 Pengelolaan berkas digital (logo instansi, foto identitas/KTP, foto dokumentasi teknis tiket, dan bukti transfer pembayaran) yang terpusat melalui relasi polimorfik Spatie MediaLibrary dengan penanganan otomatis konversi gambar, mime checking, dan siklus hidup berkas.
 _Technical Reference_: Spatie MediaLibrary (`spatie/laravel-medialibrary`), Laravel Boost: `search-docs(packages=['spatie/laravel-medialibrary'])`, Context7: `/spatie/laravel-medialibrary`.
 _Avoid_: File Path Manual Bebas, Upload Lepas Tanpa Relasi
+
+**Media Publik**:
+Berkas Media yang memang ditujukan untuk dilihat siapa saja tanpa login: logo Perusahaan, logo Prefix Registrasi (Brand Pelanggan), dan ikon aplikasi. URL-nya permanen. Gambar dari Media Library yang dipilih menjadi logo disalin menjadi Media Publik.
+_Avoid_: Bucket Publik untuk Semua Media
+
+**Media Privat**:
+Semua Berkas Media selain Media Publik (foto tiket, foto profil, berkas umum). Hanya ditampilkan lewat URL bertanda tangan yang kedaluwarsa dalam 60 menit, dibuat untuk staf yang boleh membuka halamannya; URL yang bocor mati sendiri. KTP dan dokumen Pelanggan punya aturan sendiri (dienkripsi, lihat Media Library (Admin)).
+_Avoid_: URL Permanen untuk Foto Tiket, Path Berurutan yang Bisa Ditebak
+
+**Failover Penyimpanan**:
+Upload Berkas Media yang tetap berhasil ketika penyimpanan S3 tidak terjangkau: berkas disimpan sementara di penyimpanan server sendiri (Media Privat tetap privat) lalu dipindah otomatis ke S3 begitu S3 pulih. Hanya untuk upload baru; berkas yang sudah di S3 tidak tampil selama S3 mati.
+_Avoid_: Upload Gagal karena S3 Mati, Media Privat Mendarat di Folder Publik
 
 **Media Library (Admin)**:
 Halaman admin tunggal (menu Administrasi, permission `media_library.lihat`/`.hapus`/`.unggah`, khusus `super_admin`) yang menggabungkan tiga hal: (1) browse & hapus manual **semua** berkas Berkas Media lintas model, **kecuali** collection `ktp` dan `dokumen` milik Pelanggan (lihat ADR-0024 dan ADR-0046) — keduanya cuma muncul sebagai angka statistik, tidak bisa dilihat/diunduh dari sini; (2) kesehatan koneksi disk S3/RustFS aktif dan statistik pemakaian per collection (dulu halaman terpisah "Storage & S3 Monitoring", digabung — lihat ADR-0047); (3) unggah bebas berkas gambar/dokumen (jpg/png/webp/pdf/xlsx/xls/csv/docx, maks 20MB) yang tidak terkait record bisnis manapun, dianchor ke model kosong `BerkasUmum` (lihat ADR-0047). Pengecekan kesehatan storage bukan cuma tanya SDK (bucket exists) — juga benar-benar fetch satu URL publik lewat HTTP client, satu-satunya cara mendeteksi kebijakan public-read bucket yang salah/dicabut (lihat ADR-0038, gejalanya invisible dari sisi Laravel, baru ketahuan 403 saat browser fetch).
@@ -625,7 +641,7 @@ _Technical Reference_: Model `App\Models\Sysblas`, tabel `sysblas` (nama tabel w
 _Avoid_: Akun WhatsApp, Gateway WA Tunggal, WhatsApp Gateway (istilah lama yang salah kaprah dipakai untuk Template Pesan WhatsApp)
 
 **Template Pesan WhatsApp**:
-Master data isi teks pesan notifikasi otomatis (tagihan, konfirmasi pembayaran, tiket) berformat placeholder dinamis (`{nama_pelanggan}`, `{no_reg}`, dst.), independen dari Koneksi Gateway WhatsApp mana pun yang sedang dipakai untuk mengirimnya — mengelola *isi pesan*, bukan kredensial/koneksi. Satu template dipakai semua brand; `{nama_brand}` berisi Brand Pelanggan penerima (bukan brand Perusahaan). Pesan ke pelanggan tidak pernah memuat PPP Username/Password, router, atau alamat IP.
+Master data isi teks pesan notifikasi otomatis (tagihan, konfirmasi pembayaran, tiket) berformat placeholder dinamis (`{nama_pelanggan}`, `{no_reg}`, dst.), independen dari Koneksi Gateway WhatsApp mana pun yang sedang dipakai untuk mengirimnya — mengelola *isi pesan*, bukan kredensial/koneksi. Satu template dipakai semua brand; `{nama_brand}` berisi Brand Pelanggan penerima (bukan Nama Aplikasi Perusahaan). Pesan ke pelanggan tidak pernah memuat PPP Username/Password, router, atau alamat IP.
 _Technical Reference_: Model `App\Models\WaTemplate`, `App\Livewire\Settings\WhatsappSettings`, menu SysBlast > Template Pesan.
 _Avoid_: WhatsApp Gateway, Pengaturan WhatsApp Gateway
 

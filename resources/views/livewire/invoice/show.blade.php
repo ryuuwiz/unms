@@ -280,7 +280,6 @@
             <div class="space-y-4">
                 <flux:select wire:model="metode" label="Metode Pembayaran *">
                     <flux:select.option value="manual_admin">Manual (Admin/Kasir)</flux:select.option>
-                    <flux:select.option value="transfer">Transfer Bank Langsung</flux:select.option>
                 </flux:select>
 
                 <flux:input type="number" wire:model="jumlah_dibayar" label="Jumlah Dibayar (Rp) *" readonly description="Sistem belum mendukung pembayaran sebagian; nominal wajib sama persis dengan tagihan." />
