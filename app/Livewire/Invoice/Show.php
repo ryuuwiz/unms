@@ -40,7 +40,7 @@ class Show extends Component
 
     public string $testPhone = '';
 
-    /** @var array{lunas: bool, alasanDilaporkan: string|null, galat: string|null}|null */
+    /** @var array{lunas: bool, alasanManual: string|null, galat: string|null}|null */
     public ?array $hasilCekStatus = null;
 
     public function mount(Invoice $invoice): void
@@ -53,7 +53,7 @@ class Show extends Component
     }
 
     /**
-     * Cek semua link pembayaran invoice ke Xendit (termasuk link lama); PAID diputuskan Pelunasan Susulan.
+     * Cek semua link pembayaran invoice ke Xendit (termasuk link lama); PAID melunasi invoice lewat sinkron biasa.
      */
     public function cekStatusPembayaranXendit(CekStatusPembayaranInvoice $cekStatus): void
     {

@@ -193,7 +193,6 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', Pembayaran\Index::class)->name('index');
             Route::get('/transaksi-gateway', Pembayaran\TransaksiGateway\Index::class)->name('transaksi-gateway.index');
             Route::get('/transaksi-gateway/{transaksi}', Pembayaran\TransaksiGateway\Show::class)->name('transaksi-gateway.show');
-            Route::get('/pelunasan-susulan', Pembayaran\PelunasanSusulan\Index::class)->name('pelunasan-susulan.index');
         });
     });
 

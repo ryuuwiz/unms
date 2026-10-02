@@ -390,7 +390,7 @@ class PaymentGatewayManager
 
     /**
      * Status PAID memakai waktu bayar asli dari gateway (`paid_at`) agar tanggal lunas dan
-     * perpanjangan masa aktif tidak bergeser ke waktu sinkron berjalan (Pelunasan Susulan).
+     * perpanjangan masa aktif tidak bergeser ke waktu sinkron berjalan.
      *
      * @param  array<string, mixed>  $statusData
      */

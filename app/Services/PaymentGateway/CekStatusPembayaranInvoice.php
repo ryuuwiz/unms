@@ -11,16 +11,13 @@ use Throwable;
 /**
  * Pengecekan status pembayaran tingkat invoice untuk tombol cek status (staf dan Portal):
  * menanyakan SETIAP transaksi gateway invoice, termasuk link lama, mulai dari yang terbaru.
- * Pembayaran PAID pertama diputuskan oleh Pelunasan Susulan (ADR-0069). Sinkron otomatis
- * saat halaman dibuka tetap memakai `PaymentGatewayManager::sinkronkanStatus` (transaksi terakhir).
+ * PAID pertama melunasi invoice lewat sinkron biasa; invoice Digabung/Dibatalkan tidak
+ * dilunasi otomatis dan diserahkan ke staf. Sinkron otomatis saat halaman dibuka tetap
+ * memakai `PaymentGatewayManager::sinkronkanStatus` (transaksi terakhir).
  */
 class CekStatusPembayaranInvoice
 {
-    public function __construct(
-        private PaymentGatewayManager $manager,
-        private PelunasanSusulan $pelunasanSusulan,
-        private LaporanPelunasanSusulan $laporan,
-    ) {}
+    public function __construct(private PaymentGatewayManager $manager) {}
 
     public function periksa(Invoice $invoice): HasilCekStatusPembayaran
     {
@@ -50,7 +47,6 @@ class CekStatusPembayaranInvoice
         foreach ($transaksis as $transaksi) {
             try {
                 $statusData = $this->manager->cekStatusTransaksi($transaksi);
-                $hasil = $this->pelunasanSusulan->tanganiStatusGateway($transaksi, $statusData);
             } catch (Throwable $e) {
                 report($e);
                 $galat ??= $e->getMessage();
@@ -58,10 +54,8 @@ class CekStatusPembayaranInvoice
                 continue;
             }
 
-            if ($hasil) {
-                $this->laporan->laporkan([$hasil]);
-
-                return HasilCekStatusPembayaran::dariPelunasanSusulan($hasil, $invoice->refresh()->isLunas());
+            if (in_array(strtoupper((string) ($statusData['status'] ?? '')), ['PAID', 'SETTLED', 'SUCCEEDED', 'BERHASIL'], true)) {
+                return $this->tanganiPaid($invoice, $transaksi, $statusData);
             }
 
             if ($transaksi->is($transaksis->first())) {
@@ -74,5 +68,26 @@ class CekStatusPembayaranInvoice
         }
 
         return new HasilCekStatusPembayaran($invoice->refresh()->isLunas(), galat: $galat);
+    }
+
+    /**
+     * @param  array<string, mixed>  $statusData
+     */
+    private function tanganiPaid(Invoice $invoice, TransaksiPaymentGateway $transaksi, array $statusData): HasilCekStatusPembayaran
+    {
+        if ($invoice->isDigabung() || $invoice->isDibatalkan() || $invoice->trashed()) {
+            return new HasilCekStatusPembayaran(false, alasanManual: "Link {$transaksi->external_id} sudah dibayar di Xendit, tetapi invoice berstatus {$invoice->status->label()}: periksa dan proses manual.");
+        }
+
+        // Validasi Ketat Nominal Gateway, sama dengan webhook: selisih sekecil apa pun diproses manual.
+        $nominalTagihan = (int) round((float) $transaksi->total_tagihan);
+        $nominalDibayar = (int) round((float) ($statusData['paid_amount'] ?? ($statusData['amount'] ?? 0)));
+        if ($nominalDibayar !== $nominalTagihan) {
+            return new HasilCekStatusPembayaran(false, alasanManual: 'Nominal tidak sama: dibayar Rp '.number_format($nominalDibayar, 0, ',', '.').', seharusnya Rp '.number_format($nominalTagihan, 0, ',', '.').'. Periksa dan proses manual.');
+        }
+
+        $this->manager->terapkanStatusTransaksi($transaksi, $statusData);
+
+        return new HasilCekStatusPembayaran($invoice->refresh()->isLunas());
     }
 }

@@ -20,12 +20,4 @@ class PembayaranPolicy
     {
         return $user->can('pembayaran.catat');
     }
-
-    /**
-     * Lunasi Pelunasan Susulan dari halaman dan tandai kasusnya Sudah Ditangani.
-     */
-    public function kelolaPelunasanSusulan(User $user): bool
-    {
-        return $user->can('payment_gateway.ubah');
-    }
 }

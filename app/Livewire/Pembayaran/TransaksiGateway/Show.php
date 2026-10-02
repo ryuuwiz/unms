@@ -21,7 +21,7 @@ class Show extends Component
 {
     public TransaksiPaymentGateway $transaksi;
 
-    /** @var array{lunas: bool, alasanDilaporkan: string|null, galat: string|null}|null */
+    /** @var array{lunas: bool, alasanManual: string|null, galat: string|null}|null */
     public ?array $hasilCekStatus = null;
 
     public function mount(TransaksiPaymentGateway $transaksi): void
@@ -31,7 +31,7 @@ class Show extends Component
     }
 
     /**
-     * Cek semua transaksi invoice ke gateway (termasuk link lama); PAID diputuskan Pelunasan Susulan.
+     * Cek semua transaksi invoice ke gateway (termasuk link lama); PAID melunasi invoice lewat sinkron biasa.
      */
     public function cekStatusPembayaranXendit(CekStatusPembayaranInvoice $cekStatus): void
     {

@@ -9,7 +9,6 @@ use App\Livewire\Invoice\Show as InvoiceShow;
 use App\Livewire\Pembayaran\TransaksiGateway\Show as TransaksiGatewayShow;
 use App\Livewire\Portal\Invoice\Show as PortalInvoiceShow;
 use App\Models\Invoice;
-use App\Models\KasusPelunasanSusulan;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
@@ -64,8 +63,6 @@ beforeEach(function () {
 
             return $this->test->statusXendit[$id] ?? ['id' => $id, 'status' => 'EXPIRED'];
         }
-
-        public function kedaluwarsakanInvoice(TransaksiPaymentGateway $transaksi, PengaturanGateway $setting): void {}
     });
     $this->app->instance(PaymentGatewayManager::class, $manager);
 
@@ -167,37 +164,42 @@ test('tombol Cek Status Pembayaran di Portal melunasi invoice yang dibayar lewat
     expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas);
 });
 
-test('invoice Digabung yang dibayar mengikuti aturan Pelunasan Susulan', function () {
-    $oktober = invoiceCekStatus($this->layanan, [
-        'periode_tagihan' => '2026-10',
-        'jumlah_setelah_promo' => 300000,
-        'jumlah_tunggakan' => 150000,
-    ]);
-    $september = invoiceCekStatus($this->layanan, [
-        'periode_tagihan' => '2026-09',
-        'status' => StatusInvoice::Digabung,
-        'digabung_ke_invoice_id' => $oktober->id,
-    ]);
-    $this->statusXendit['inv_sep'] = lunasDiXendit(transaksiCekStatus($september, $this->koneksi, 'inv_sep'));
+test('invoice Digabung yang sudah dibayar tidak dilunasi otomatis: staf melihat alasannya, Portal hanya pesan umum', function () {
+    $oktober = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-10', 'jumlah_setelah_promo' => 300000, 'jumlah_tunggakan' => 150000]);
+    $september = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-09', 'status' => StatusInvoice::Digabung, 'digabung_ke_invoice_id' => $oktober->id]);
+    $trxSeptember = transaksiCekStatus($september, $this->koneksi, 'inv_sep');
+    $this->statusXendit['inv_sep'] = lunasDiXendit($trxSeptember);
 
     Livewire::actingAs($this->staf)
         ->test(InvoiceShow::class, ['invoice' => $september])
         ->call('cekStatusPembayaranXendit')
-        ->assertSee('Lunas');
+        ->assertSee('Perlu diproses manual')
+        ->assertSee('periksa dan proses manual');
 
-    expect($september->fresh()->status)->toBe(StatusInvoice::Lunas)
-        ->and($september->fresh()->digabung_ke_invoice_id)->toBeNull()
-        ->and((float) $oktober->fresh()->jumlah_setelah_promo)->toBe(150000.0);
+    Livewire::actingAs($this->staf)
+        ->test(TransaksiGatewayShow::class, ['transaksi' => $trxSeptember])
+        ->call('cekStatusPembayaranXendit')
+        ->assertSee('Perlu diproses manual');
+
+    Livewire::actingAs($this->pelanggan->akunPelanggan, 'pelanggan')
+        ->test(PortalInvoiceShow::class, ['invoice' => $september])
+        ->call('cekStatusPembayaran')
+        ->assertDispatched('toast-show', fn (string $event, array $params) => $params['slots']['text'] === 'Pembayaran Anda sedang kami periksa. Tim kami akan menghubungi Anda.')
+        ->assertDontSee('periksa dan proses manual');
+
+    expect($september->fresh()->status)->toBe(StatusInvoice::Digabung)
+        ->and($trxSeptember->fresh()->status)->toBe(StatusTransaksiGateway::Expired)
+        ->and((float) $oktober->fresh()->jumlah_setelah_promo)->toBe(300000.0);
 });
 
-test('pembayaran yang dilaporkan tersimpan sebagai kasus: staf melihat alasannya, Portal hanya pesan umum', function () {
+test('pembayaran dengan nominal tidak sama tidak dilunasi: staf melihat alasannya, Portal hanya pesan umum', function () {
     $invoice = invoiceCekStatus($this->layanan);
     $this->statusXendit['inv_kurang'] = lunasDiXendit(transaksiCekStatus($invoice, $this->koneksi, 'inv_kurang'), 99000);
 
     Livewire::actingAs($this->staf)
         ->test(InvoiceShow::class, ['invoice' => $invoice])
         ->call('cekStatusPembayaranXendit')
-        ->assertSee('Dilaporkan untuk tindakan manual')
+        ->assertSee('Perlu diproses manual')
         ->assertSee('Nominal tidak sama');
 
     Livewire::actingAs($this->pelanggan->akunPelanggan, 'pelanggan')
@@ -206,8 +208,7 @@ test('pembayaran yang dilaporkan tersimpan sebagai kasus: staf melihat alasannya
         ->assertDispatched('toast-show', fn (string $event, array $params) => $params['slots']['text'] === 'Pembayaran Anda sedang kami periksa. Tim kami akan menghubungi Anda.')
         ->assertDontSee('Nominal tidak sama');
 
-    expect($invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran)
-        ->and(KasusPelunasanSusulan::count())->toBe(1);
+    expect($invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran);
 });
 
 test('invoice yang belum dibayar di semua link tampil belum dibayar', function () {
@@ -238,31 +239,6 @@ test('tombol cek status di detail Invoice hanya untuk pengguna dengan izin pemba
     Livewire::actingAs($this->staf)
         ->test(InvoiceShow::class, ['invoice' => $invoice])
         ->assertSee('Cek Status Pembayaran Xendit');
-});
-
-test('tombol Rekonsiliasi di detail Transaksi Gateway mengikuti aturan Digabung dan menampilkan alasan kasus', function () {
-    $oktober = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-10', 'jumlah_setelah_promo' => 300000, 'jumlah_tunggakan' => 150000]);
-    $september = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-09', 'status' => StatusInvoice::Digabung, 'digabung_ke_invoice_id' => $oktober->id]);
-    $trxSeptember = transaksiCekStatus($september, $this->koneksi, 'inv_sep');
-    $this->statusXendit['inv_sep'] = lunasDiXendit($trxSeptember);
-
-    Livewire::actingAs($this->staf)
-        ->test(TransaksiGatewayShow::class, ['transaksi' => $trxSeptember])
-        ->call('cekStatusPembayaranXendit')
-        ->assertSee('Hasil cek status pembayaran Xendit: Lunas');
-
-    expect($september->fresh()->status)->toBe(StatusInvoice::Lunas)
-        ->and((float) $oktober->fresh()->jumlah_setelah_promo)->toBe(150000.0);
-
-    $kurang = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-08']);
-    $trxKurang = transaksiCekStatus($kurang, $this->koneksi, 'inv_kurang');
-    $this->statusXendit['inv_kurang'] = lunasDiXendit($trxKurang, 99000);
-
-    Livewire::actingAs($this->staf)
-        ->test(TransaksiGatewayShow::class, ['transaksi' => $trxKurang])
-        ->call('cekStatusPembayaranXendit')
-        ->assertSee('Dilaporkan untuk tindakan manual')
-        ->assertSee('Nominal tidak sama');
 });
 
 test('tombol Cek Status Pembayaran di Portal dibatasi agar tidak membanjiri Xendit', function () {

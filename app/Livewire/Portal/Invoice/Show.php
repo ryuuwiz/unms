@@ -58,7 +58,7 @@ class Show extends Component
     private const BATAS_CEK_PER_MENIT = 5;
 
     /**
-     * Cek semua link pembayaran tagihan ke gateway (termasuk link lama). Kasus yang dilaporkan
+     * Cek semua link pembayaran tagihan ke gateway (termasuk link lama). Pembayaran yang perlu diproses manual
      * hanya menampilkan pesan umum; alasan internalnya untuk staf.
      */
     public function cekStatusPembayaran(CekStatusPembayaranInvoice $cekStatus): void
@@ -88,7 +88,7 @@ class Show extends Component
 
         match (true) {
             $hasil->lunas => Flux::toast(variant: 'success', text: 'Pembayaran berhasil terkonfirmasi! Tagihan telah lunas.'),
-            $hasil->dilaporkan() => Flux::toast(variant: 'warning', text: 'Pembayaran Anda sedang kami periksa. Tim kami akan menghubungi Anda.'),
+            $hasil->perluDiprosesManual() => Flux::toast(variant: 'warning', text: 'Pembayaran Anda sedang kami periksa. Tim kami akan menghubungi Anda.'),
             default => Flux::toast(variant: 'info', text: 'Status tagihan: Menunggu pembayaran.'),
         };
     }

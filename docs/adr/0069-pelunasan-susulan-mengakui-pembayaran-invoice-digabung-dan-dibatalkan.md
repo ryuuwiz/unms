@@ -1,5 +1,7 @@
 # Pelunasan Susulan mengakui pembayaran gateway untuk invoice Digabung dan Dibatalkan
 
+> **Status: Superseded (2026-10-02).** Pelunasan Susulan dihapus seluruhnya: sapuan harian, halaman Pembayaran > Pelunasan Susulan, Kasus Pelunasan Susulan, dan jalur webhooknya. Admin memeriksa pembayaran gateway dan memproses LUNAS tagihan secara manual. Webhook untuk invoice Digabung/Dibatalkan kembali ditandai Gagal untuk penanganan manual, dan tombol Cek Status Pembayaran hanya melunasi invoice yang masih bisa dibayar; untuk invoice Digabung/Dibatalkan tombol itu hanya menunjukkan bahwa link sudah dibayar. Alasannya: mesin otomatis ini (rantai penggabung, pemulihan invoice Dibatalkan, pelacakan kasus) jauh lebih rumit daripada frekuensi kasusnya, sementara staf sudah bisa menanganinya manual. Jangan dibangun ulang tanpa bukti volume kasus yang membebani staf.
+
 Uang yang sudah PAID di gateway harus tercermin di sistem, termasuk bila pelanggan membayar link lama sebuah invoice yang sudah Digabung atau Dibatalkan. Kami memutuskan:
 
 - **Invoice Digabung** yang dibayar akan dilunasi. Invoice itu lalu dilepas dari invoice penggabungnya, dan nominal penggabung yang masih terbuka dikurangi sebesar nominal tersebut. Link Pembayaran Gateway lama milik penggabung dimatikan dan diterbitkan ulang.

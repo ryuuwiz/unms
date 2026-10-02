@@ -4,7 +4,7 @@
 @php
     [$judul, $keterangan, $warna] = match (true) {
         $hasil['lunas'] => ['Lunas', 'Pembayaran ditemukan di Xendit dan tagihan sudah Lunas.', 'green'],
-        $hasil['alasanDilaporkan'] !== null => ['Dilaporkan untuk tindakan manual', $hasil['alasanDilaporkan'], 'amber'],
+        $hasil['alasanManual'] !== null => ['Perlu diproses manual', $hasil['alasanManual'], 'amber'],
         $hasil['galat'] !== null => ['Belum dibayar / sebagian gagal dicek', 'Sebagian link gagal dicek ke Xendit: '.$hasil['galat'], 'red'],
         default => ['Belum dibayar', 'Tidak ada link pembayaran invoice ini yang lunas di Xendit.', 'zinc'],
     };
