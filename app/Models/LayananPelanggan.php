@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\JenisKoneksi;
 use App\Enums\PriceMode;
 use App\Enums\ProvisioningStatus;
+use App\Enums\StatusInvoice;
 use App\Enums\StatusLayanan;
 use App\Models\Concerns\GracefullyDecryptsAttributes;
 use Database\Factories\LayananPelangganFactory;
@@ -295,6 +296,18 @@ class LayananPelanggan extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class, 'layanan_pelanggan_id');
+    }
+
+    /**
+     * Invoice pertama (ad-hoc, periode_tagihan NULL) layanan ini sudah Lunas -- gate divisi
+     * Admin pada Ticket Pemasangan, lihat CONTEXT.md "Status Per-Divisi Tiket".
+     */
+    public function invoicePertamaLunas(): bool
+    {
+        return $this->invoices()
+            ->whereNull('periode_tagihan')
+            ->where('status', StatusInvoice::Lunas)
+            ->exists();
     }
 
     /**

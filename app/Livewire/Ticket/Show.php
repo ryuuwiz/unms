@@ -37,6 +37,7 @@ use App\Services\Mikrotik\MikrotikService;
 use App\Services\Mikrotik\NotifikasiNoc;
 use App\Support\GaleriFotoTiket;
 use App\Support\PetaPortOdp;
+use App\Support\TugasTiket;
 use Exception;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
@@ -1095,6 +1096,7 @@ class Show extends Component
             'petaPort' => $this->petaPort(),
             'petaPortLayanan' => $this->petaPortLayanan(),
             'galeri' => GaleriFotoTiket::untuk($this->ticket),
+            'tugas' => TugasTiket::untuk($this->ticket, Auth::user()),
             'routersAktivasi' => $routersAktivasi,
             'routersProses' => $routersProses,
             'paketLayananList' => $paketLayananList,
