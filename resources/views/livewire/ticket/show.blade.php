@@ -171,6 +171,10 @@
                         @endif
                     </div>
                 </div>
+
+                @if ($petaPortLayanan)
+                    <x-peta-port-odp :peta="$petaPortLayanan" class="mt-3" />
+                @endif
             </div>
         </div>
 

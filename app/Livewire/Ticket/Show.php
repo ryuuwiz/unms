@@ -420,6 +420,12 @@ class Show extends Component
         $this->authorize('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
         $this->resetErrorBag('odp_port_id');
 
+        if (! $this->formPortTeknisiTersedia()) {
+            $this->addError('odp_port_id', 'Port hanya bisa dipilih Teknisi pada Ticket Pemasangan.');
+
+            return;
+        }
+
         $peta = $this->petaPort();
         $alasan = $peta ? $peta->alasanTidakDapatDipilih($portId) : 'Pilih ODP terlebih dahulu.';
         if ($alasan !== null) {
@@ -429,6 +435,30 @@ class Show extends Component
         }
 
         $this->odp_port_id = $portId;
+    }
+
+    /**
+     * Form ODP+Port Teknisi hanya ada di Ticket Pemasangan yang mengacu ke layanan, setelah
+     * Usulan ODP divalidasi -- lihat CONTEXT.md "Usulan ODP".
+     */
+    public function formPortTeknisiTersedia(): bool
+    {
+        return $this->ticket->jenis === JenisTicket::Pemasangan
+            && $this->ticket->layanan_pelanggan_id !== null
+            && $this->ticket->pemasangan?->status_usulan_odp !== StatusUsulanOdp::Menunggu;
+    }
+
+    /**
+     * Peta Port ODP baca-saja untuk port layanan tiket, kecuali saat Teknisi sedang memakai
+     * peta interaktif di form ODP+Port (agar peta tidak tampil dua kali).
+     */
+    protected function petaPortLayanan(): ?PetaPortOdp
+    {
+        $port = $this->ticket->layananPelanggan?->odpPort;
+        $formInteraktifTampil = $this->formPortTeknisiTersedia()
+            && Auth::user()?->can('ubahStatusDivisi', [$this->ticket, DivisiTicket::Teknisi]);
+
+        return $port && ! $formInteraktifTampil ? PetaPortOdp::untuk($port->odp, portTerpilihId: $port->id) : null;
     }
 
     protected function petaPort(): ?PetaPortOdp
@@ -1041,6 +1071,7 @@ class Show extends Component
             'transisiValid' => $transisiValid,
             'odps' => $odps,
             'petaPort' => $this->petaPort(),
+            'petaPortLayanan' => $this->petaPortLayanan(),
             'routersAktivasi' => $routersAktivasi,
             'routersProses' => $routersProses,
             'paketLayananList' => $paketLayananList,

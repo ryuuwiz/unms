@@ -133,3 +133,34 @@ test('port milik tiket ini tetap bisa dipilih walau sudah Terpakai setelah Aktiv
         ->assertHasNoErrors()
         ->assertSet('odp_port_id', $this->portKosong->id);
 });
+
+test('tiket Gangguan dan Pencabutan menampilkan Peta Port ODP baca-saja dengan port layanan disorot', function (string $jenis) {
+    $tiket = Ticket::factory()->create([
+        'jenis' => $jenis,
+        'pelanggan_id' => $this->layananPemakai->pelanggan_id,
+        'layanan_pelanggan_id' => $this->layananPemakai->id,
+        'pic_id' => $this->teknisi->id,
+    ]);
+
+    Livewire::actingAs($this->teknisi)
+        ->test(Show::class, ['ticket' => $tiket])
+        ->assertSee('Port layanan ini')
+        ->assertSee('1/4 terpakai')
+        ->assertSeeHtml('aria-pressed="true"')
+        ->assertDontSeeHtml('wire:click="pilihPort(')
+        ->call('pilihPort', $this->portKosong->id)
+        ->assertHasErrors('odp_port_id');
+})->with([JenisTicket::Gangguan->value, JenisTicket::Pencabutan->value]);
+
+test('tiket yang layanannya tanpa port tidak menampilkan Peta Port ODP', function () {
+    $layanan = LayananPelanggan::factory()->create(['status' => StatusLayanan::Aktif, 'odp_port_id' => null]);
+    $tiket = Ticket::factory()->gangguan()->create([
+        'pelanggan_id' => $layanan->pelanggan_id,
+        'layanan_pelanggan_id' => $layanan->id,
+        'pic_id' => $this->teknisi->id,
+    ]);
+
+    Livewire::actingAs($this->teknisi)
+        ->test(Show::class, ['ticket' => $tiket])
+        ->assertDontSee('Port layanan ini');
+});
