@@ -271,7 +271,7 @@ Entitas kredensial autentikasi pengguna portal (guard `pelanggan`) yang terikat 
 _Avoid_: User Pelanggan, Akun Web Bebas
 
 **Transaksi Payment Gateway**:
-Catatan transaksi penerbitan tagihan digital ke payment gateway (seperti Xendit, iPaymu) dengan identitas `external_id` unik untuk penjaminan idempotensi dan riwayat sesi pembayaran.
+Catatan transaksi penerbitan tagihan digital ke payment gateway (seperti Xendit, iPaymu) dengan identitas `external_id` unik untuk penjaminan idempotensi dan riwayat sesi pembayaran. Setiap transaksi terikat pada satu Koneksi Payment Gateway yang menerbitkannya; callback dan pengecekan status untuk transaksi itu selalu diverifikasi memakai kredensial koneksi tersebut, bukan koneksi default saat ini. Transaksi baru dianggap Kedaluwarsa bila gateway sendiri menyatakannya kedaluwarsa, bukan semata karena waktu lokal telah lewat.
 _Technical Reference_: Xendit PHP SDK (`xendit/xendit-php`), Context7: `/xendit/xendit-php`.
 _Avoid_: Billing Gateway, Tagihan Xendit Saja, Order ID Bebas
 
