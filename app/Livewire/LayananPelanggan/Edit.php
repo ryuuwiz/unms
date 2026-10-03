@@ -69,8 +69,7 @@ class Edit extends Component
         $this->authorize('update', $layananPelanggan);
 
         $this->layananId = $layananPelanggan->id;
-        // Pelanggan bisa sudah di-soft-delete sementara layanan Berhenti-nya tetap ada; No.Reg tetap dibutuhkan untuk validasi username PPP.
-        $this->pelangganNoReg = $layananPelanggan->pelanggan()->withTrashed()->value('no_reg');
+        $this->pelangganNoReg = $layananPelanggan->pelanggan->no_reg;
         $this->paket_layanan_id = $layananPelanggan->paket_layanan_id;
         $this->router_id = $layananPelanggan->router_id;
         $this->ip_static = $layananPelanggan->ip_static;

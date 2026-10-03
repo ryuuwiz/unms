@@ -372,6 +372,15 @@ class LayananPelanggan extends Model
     }
 
     /**
+     * Pelanggan pemiliknya sudah dihapus (soft delete). Relasi default menyembunyikan pelanggan terhapus
+     * sehingga bernilai null; bila dimuat withTrashed, pelanggannya ada tetapi trashed (CONTEXT.md "Penghapusan Pelanggan").
+     */
+    public function milikPelangganTerhapus(): bool
+    {
+        return $this->pelanggan === null || $this->pelanggan->trashed();
+    }
+
+    /**
      * Padanan query dari tidakLagiDitagih(); hanya bermakna bila query menyertakan layanan terhapus (withTrashed).
      *
      * @param  Builder<LayananPelanggan>  $query

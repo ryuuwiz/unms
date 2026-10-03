@@ -211,7 +211,7 @@ class Index extends Component
         };
 
         $query = LayananPelanggan::query()
-            ->with(['pelanggan', 'paketLayanan', 'router'])
+            ->with(['pelanggan' => fn ($q) => $q->withTrashed(), 'paketLayanan', 'router'])
             ->when($this->search, fn ($q) => $q->whereHas('pelanggan', fn ($pq) => $pq->search($this->search)))
             ->when($this->filterStatus, function ($q) {
                 if ($this->filterStatus === 'expired') {

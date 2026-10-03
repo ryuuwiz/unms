@@ -643,6 +643,8 @@ class Show extends Component
             'layanans.odpPort.odp',
             'media',
         ])->findOrFail($this->pelangganId);
+        // Policy update layanan membaca pelanggannya; isi dari induk agar tidak query per baris.
+        $pelanggan->layanans->each->setRelation('pelanggan', $pelanggan);
 
         $activityLogs = Activity::forSubject($pelanggan)
             ->with('causer')

@@ -149,27 +149,26 @@ test('admin dapat mengedit layanan meskipun router terkait sedang offline', func
         ->and($layanan->nama_site)->toBe('Titik Pasang Baru');
 });
 
-test('layanan milik pelanggan yang sudah dihapus tetap bisa dibuka dan disimpan di halaman edit', function () {
+test('layanan milik pelanggan yang sudah dihapus tidak bisa dibuka di halaman edit maupun diisolir', function () {
     $layanan = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
         'router_id' => $this->router->id,
-        'jenis_koneksi' => JenisKoneksi::Pppoe,
         'ppp_username' => "{$this->pelanggan->no_reg}_00001",
         'status' => StatusLayanan::Berhenti,
     ]);
-    daftarkanRouterPaket($layanan);
     $this->pelanggan->delete();
 
-    Livewire::actingAs($this->admin)
+    Livewire::actingAs($this->superAdmin)
         ->test(Edit::class, ['layananPelanggan' => $layanan->fresh()])
-        ->assertSet('pelangganNoReg', $this->pelanggan->no_reg)
-        ->set('nama_site', 'Titik Pasang Arsip')
-        ->call('save')
-        ->assertHasNoErrors()
-        ->assertRedirect(route('layanan-pelanggan.index'));
+        ->assertForbidden();
 
-    expect($layanan->refresh()->nama_site)->toBe('Titik Pasang Arsip');
+    Livewire::actingAs($this->superAdmin)
+        ->test(Index::class)
+        ->call('toggleIsolir', $layanan->id)
+        ->assertForbidden();
+
+    expect($layanan->refresh()->status)->toBe(StatusLayanan::Berhenti);
 });
 
 test('admin can edit layanan pelanggan and switch to ip_static', function () {
@@ -276,19 +275,22 @@ test('can list and filter layanans by status', function () {
         ->assertSee($this->pelanggan->nama_depan);
 });
 
-test('can list layanan without a related pelanggan', function () {
+test('daftar menandai layanan milik pelanggan terhapus dan menyembunyikan tombol edit', function () {
     $layananTanpaPelanggan = LayananPelanggan::factory()->create([
         'pelanggan_id' => $this->pelanggan->id,
         'paket_layanan_id' => $this->paket->id,
         'router_id' => $this->router->id,
+        'status' => StatusLayanan::Berhenti,
     ]);
     $this->pelanggan->delete();
 
-    Livewire::actingAs($this->admin)
+    Livewire::actingAs($this->superAdmin)
         ->test(Index::class)
         ->assertOk()
         ->assertSee($layananTanpaPelanggan->site_id)
-        ->assertSee('>-</span>', escape: false);
+        ->assertSee($this->pelanggan->no_reg)
+        ->assertSee('Pelanggan dihapus')
+        ->assertDontSee(route('layanan-pelanggan.edit', $layananTanpaPelanggan));
 });
 
 test('pelanggan dapat mendaftarkan lebih dari satu layanan (multi-site, duplikat dicek nanti saat aktivasi)', function () {
