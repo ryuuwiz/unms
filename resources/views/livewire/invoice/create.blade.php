@@ -61,7 +61,7 @@
                         <flux:error name="keterangan" />
                     </div>
                     <div>
-                        <flux:input type="number" wire:model.live="jumlahManual" label="Total Jumlah (Rp) *" placeholder="250000" description="Masukkan hanya angka, tanpa titik/koma." />
+                        <flux:input type="number" wire:model.blur="jumlahManual" label="Total Jumlah (Rp) *" placeholder="250000" description="Masukkan hanya angka, tanpa titik/koma." />
                         <flux:error name="jumlahManual" />
                     </div>
                 </div>

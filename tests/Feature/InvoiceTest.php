@@ -480,3 +480,22 @@ test('index status filter belum_dibayar shows only menunggu_pembayaran and kadal
         ->assertSee($kadaluarsa->no_invoice)
         ->assertDontSee($lunas->no_invoice);
 });
+
+test('ringkasan invoice manual ikut berubah saat total jumlah diisi, termasuk setelah promo dipilih', function () {
+    $promo = Promo::factory()->create([
+        'diskon_nilai' => 50000,
+        'diskon_tipe' => 'nominal',
+        'minimal_nominal_invoice' => 0,
+    ]);
+
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('jenisInvoice', 'manual')
+        ->set('jumlahManual', 250000)
+        ->assertSet('totalTagihan', 250000.0)
+        ->set('promo_id', $promo->id)
+        ->set('jumlahManual', 300000)
+        ->assertSet('hargaAsli', 300000.0)
+        ->assertSet('totalTagihan', 250000.0)
+        ->assertSee('Rp 250.000');
+});
