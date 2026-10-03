@@ -3,7 +3,7 @@
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <flux:heading size="xl">Pengaturan Payment Gateway</flux:heading>
-            <flux:subheading>Kelola multi-gateway pembayaran (Xendit, iPaymu, dll), kredensial terenkripsi di database, dan kebijakan biaya transaksi</flux:subheading>
+            <flux:subheading>Kelola multi-gateway pembayaran (iPaymu), kredensial terenkripsi di database, dan kebijakan biaya transaksi</flux:subheading>
         </div>
         <div class="flex items-center gap-2">
             <flux:button variant="primary" icon="plus" wire:click="openCreateModal">
@@ -104,13 +104,7 @@
                                         {{ $gateway->bebankan_ke_pelanggan ? 'Beban Pelanggan' : 'Disubsidi ISP' }}
                                     </span>
                                 </div>
-                                @if($gateway->provider === 'xendit')
-                                    <div class="text-zinc-500">
-                                        VA: Rp {{ number_format((float) $gateway->fee_va_nominal, 0, ',', '.') }} • QRIS: {{ $gateway->fee_qris_persen }}%
-                                    </div>
-                                @else
-                                    <div class="text-zinc-500">Fee mengikuti tarif {{ $gateway->provider }}</div>
-                                @endif
+                                <div class="text-zinc-500">Fee mengikuti tarif {{ $gateway->provider }}</div>
                             </div>
                         </flux:table.cell>
 
@@ -206,7 +200,7 @@
                     <flux:input
                         wire:model="nama"
                         label="Nama / Label Koneksi"
-                        placeholder="Contoh: Xendit Utama atau iPaymu Official"
+                        placeholder="Contoh: iPaymu Official"
                     />
                 </div>
 
@@ -214,24 +208,7 @@
                 <div class="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-4">
                     <flux:heading size="sm">Kredensial API (Terenkripsi Database)</flux:heading>
 
-                    @if($provider === 'xendit')
-                        <flux:input
-                            wire:model="xendit_secret_key"
-                            type="password"
-                            viewable
-                            label="Xendit Secret API Key"
-                            placeholder="xnd_development_... atau xnd_production_..."
-                            description="API key rahasia dari Dashboard Xendit"
-                        />
-
-                        <flux:input
-                            wire:model="xendit_callback_token"
-                            type="text"
-                            label="Xendit Webhook Verification Token"
-                            placeholder="Contoh token webhook dari dashboard Xendit"
-                            description="Token untuk memvalidasi header x-callback-token webhook"
-                        />
-                    @elseif($provider === 'ipaymu')
+                    @if($provider === 'ipaymu')
                         <flux:input
                             wire:model="ipaymu_va"
                             label="Virtual Account (Merchant ID)"
@@ -279,28 +256,6 @@
                         <flux:description>Jika dicentang, biaya transaksi ditambahkan/dibebankan ke pelanggan. Jika tidak, disubsidi oleh ISP.</flux:description>
                     </flux:field>
 
-                    @if($provider === 'xendit')
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <flux:input
-                            wire:model="fee_va_nominal"
-                            type="number"
-                            step="100"
-                            min="0"
-                            label="Biaya Admin VA (Rp)"
-                            placeholder="Contoh: 4000"
-                        />
-
-                        <flux:input
-                            wire:model="fee_qris_persen"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            label="Biaya Admin QRIS (%)"
-                            placeholder="Contoh: 0.70"
-                        />
-                    </div>
-                    @endif
                 </div>
 
                 <flux:input
@@ -350,7 +305,7 @@
                                     <span @class(['font-bold font-mono', 'text-rose-600 dark:text-rose-400' => $pingResult->balance < 0])>Rp {{ number_format($pingResult->balance, 0, ',', '.') }}</span>
                                 </div>
                                 @if($pingResult->balance < 0)
-                                    <div class="text-xs text-rose-600 dark:text-rose-400">Saldo di akun Xendit minus — periksa Balance di dashboard Xendit.</div>
+                                    <div class="text-xs text-rose-600 dark:text-rose-400">Saldo di akun gateway minus — periksa saldo di dashboard gateway.</div>
                                 @endif
                             @endif
                         </div>
@@ -366,26 +321,10 @@
                 </div>
             @endif
 
-            @if($callbackTokenResult)
-                <div class="p-4 rounded-xl {{ $callbackTokenResult->success ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800' }} border space-y-2">
-                    <div class="flex items-center gap-2 font-semibold">
-                        <flux:icon :name="$callbackTokenResult->success ? 'check-circle' : 'exclamation-triangle'" class="size-5" />
-                        <span>Uji Callback Token Xendit</span>
-                    </div>
-                    <div class="text-xs">{{ $callbackTokenResult->message }}</div>
-                    <div class="text-xs font-mono">URL canonical: /webhook/payment/xendit</div>
-                </div>
-            @endif
-
             <div class="flex justify-end gap-2">
                 <flux:button variant="filled" wire:click="eksekusiPing" :disabled="$isPinging">
                     Uji Ulang
                 </flux:button>
-                @if($pingingGateway?->provider === 'xendit')
-                    <flux:button variant="filled" wire:click="ujiCallbackToken">
-                        Uji Token
-                    </flux:button>
-                @endif
                 <flux:modal.close>
                     <flux:button variant="primary">Tutup</flux:button>
                 </flux:modal.close>

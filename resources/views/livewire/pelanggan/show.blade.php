@@ -531,8 +531,8 @@
                                         @can('create', App\Models\Pembayaran::class)
                                             <flux:button type="button" wire:click="openBayarModal({{ $inv->id }})" variant="primary" icon="banknotes">Bayar</flux:button>
                                         @endcan
-                                        @if ($inv->hasActiveXenditInvoice())
-                                            <flux:button :href="$inv->xendit_invoice_url" target="_blank" variant="subtle" icon="arrow-top-right-on-square" aria-label="Buka tautan pembayaran Xendit" />
+                                        @if ($inv->hasActivePaymentLink())
+                                            <flux:button :href="$inv->payment_gateway_url" target="_blank" variant="subtle" icon="arrow-top-right-on-square" aria-label="Buka tautan pembayaran" />
                                         @endif
                                     </div>
                                 </div>

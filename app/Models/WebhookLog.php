@@ -14,7 +14,6 @@ use Illuminate\Support\Carbon;
  * @property int|null $transaksi_payment_gateway_id
  * @property string $event_type
  * @property string|null $provider_event_id
- * @property string|null $xendit_event_id
  * @property array<string, mixed>|null $payload
  * @property StatusWebhookLog $status_proses
  * @property string|null $catatan_error
@@ -28,7 +27,6 @@ use Illuminate\Support\Carbon;
     'transaksi_payment_gateway_id',
     'event_type',
     'provider_event_id',
-    'xendit_event_id',
     'payload',
     'status_proses',
     'catatan_error',
@@ -41,20 +39,6 @@ class WebhookLog extends Model
     public function setProviderEventIdAttribute(?string $value): void
     {
         $this->attributes['provider_event_id'] = ! empty($value) ? trim($value) : null;
-    }
-
-    public function setXenditEventIdAttribute(?string $value): void
-    {
-        $val = ! empty($value) ? trim($value) : null;
-        $this->attributes['xendit_event_id'] = $val;
-        if (empty($this->attributes['provider_event_id'])) {
-            $this->attributes['provider_event_id'] = $val;
-        }
-    }
-
-    public function getXenditEventIdAttribute(?string $value): ?string
-    {
-        return $value ?: ($this->attributes['provider_event_id'] ?? null);
     }
 
     /**

@@ -53,10 +53,6 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $payment_gateway_provider
  * @property string|null $payment_gateway_status
  * @property Carbon|null $payment_gateway_expired_at
- * @property string|null $xendit_invoice_id
- * @property string|null $xendit_invoice_url
- * @property string|null $xendit_status
- * @property Carbon|null $xendit_expired_at
  * @property-read Pelanggan|null $pelanggan Null bila Pelanggan di-soft-delete
  * @property-read LayananPelanggan|null $layananPelanggan Null bila layanan di-soft-delete
  * @property-read Promo|null $promo
@@ -88,10 +84,6 @@ use Spatie\Activitylog\Support\LogOptions;
     'payment_gateway_provider',
     'payment_gateway_status',
     'payment_gateway_expired_at',
-    'xendit_invoice_id',
-    'xendit_invoice_url',
-    'xendit_status',
-    'xendit_expired_at',
     'dibuat_oleh',
     'dihapus_oleh',
     'keterangan_hapus',
@@ -151,7 +143,6 @@ class Invoice extends Model
             'masa_aktif_selesai' => 'date',
             'masa_aktif_sebelum' => 'date',
             'payment_gateway_expired_at' => 'datetime',
-            'xendit_expired_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
     }
@@ -314,43 +305,16 @@ class Invoice extends Model
      */
     public function hasActivePaymentLink(): bool
     {
-        $url = $this->payment_gateway_url ?: ($this->attributes['xendit_invoice_url'] ?? null);
-        if (empty($url)) {
+        if (empty($this->payment_gateway_url)) {
             return false;
         }
 
-        // Link mock (dibuat oleh bug yang diperbaiki di ADR 0039, sebelum APP_ENV=testing
-        // menjadi satu-satunya syarat mock) tidak pernah menjadi invoice Xendit sungguhan --
-        // ID/URL-nya mengandung 'inv_mock_' dan tidak akan pernah bisa dibuka pelanggan.
-        // Invoice lama yang masih menyimpan link ini harus dipaksa regenerasi (bukan dianggap
-        // "masih aktif" hanya karena kolom status/expired_at belum lewat), walau tidak ada
-        // migrasi backfill -- self-healing begitu invoice ini disentuh lagi. Dikecualikan di
-        // APP_ENV=testing: di sana 'inv_mock_' SELALU sengaja dibuat (satu-satunya environment
-        // yang boleh mock sama sekali) dan test lain bergantung padanya berperilaku seperti link
-        // normal.
-        if (str_contains($url, 'inv_mock_') && ! app()->environment('testing')) {
-            return false;
-        }
-
-        $status = strtoupper((string) ($this->payment_gateway_status ?: ($this->attributes['xendit_status'] ?? '')));
+        $status = strtoupper((string) $this->payment_gateway_status);
         if ($status === 'EXPIRED' || $status === 'PAID') {
             return false;
         }
 
-        $expiredAt = $this->payment_gateway_expired_at ?: $this->xendit_expired_at;
-        if ($expiredAt && $expiredAt->isPast()) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Alias kompatibilitas mundur.
-     */
-    public function hasActiveXenditInvoice(): bool
-    {
-        return $this->hasActivePaymentLink();
+        return ! $this->payment_gateway_expired_at?->isPast();
     }
 
     /**
@@ -358,46 +322,11 @@ class Invoice extends Model
      */
     public function isPaymentLinkExpired(): bool
     {
-        $status = strtoupper((string) ($this->payment_gateway_status ?: ($this->attributes['xendit_status'] ?? '')));
-        if ($status === 'EXPIRED') {
+        if (strtoupper((string) $this->payment_gateway_status) === 'EXPIRED') {
             return true;
         }
 
-        $expiredAt = $this->payment_gateway_expired_at ?: $this->xendit_expired_at;
-
-        return $expiredAt ? $expiredAt->isPast() : false;
-    }
-
-    /**
-     * Alias kompatibilitas mundur.
-     */
-    public function isXenditInvoiceExpired(): bool
-    {
-        return $this->isPaymentLinkExpired();
-    }
-
-    /**
-     * Accessor URL link pembayaran (kompatibilitas mundur).
-     */
-    public function getXenditInvoiceUrlAttribute(?string $value): ?string
-    {
-        return $this->payment_gateway_url ?: $value;
-    }
-
-    /**
-     * Accessor ID invoice gateway (kompatibilitas mundur).
-     */
-    public function getXenditInvoiceIdAttribute(?string $value): ?string
-    {
-        return $this->payment_gateway_id ?: $value;
-    }
-
-    /**
-     * Accessor status gateway (kompatibilitas mundur).
-     */
-    public function getXenditStatusAttribute(?string $value): ?string
-    {
-        return $this->payment_gateway_status ?: $value;
+        return (bool) $this->payment_gateway_expired_at?->isPast();
     }
 
     public function formattedJumlah(): string

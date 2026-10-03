@@ -448,7 +448,7 @@ class Pelanggan extends Model implements HasMedia
     }
 
     /**
-     * Generate kode_pembayaran unik 10-char alphanumeric untuk VA Xendit.
+     * Generate kode_pembayaran unik 10-char alphanumeric untuk VA gateway.
      */
     public static function generateKodePembayaran(): string
     {

@@ -68,6 +68,7 @@ test('invoice PDF dan halaman invoice portal tidak memuat PPP username maupun ro
         'namaBrand' => 'BESTFIBER',
         'logoBase64' => null,
         'cetak' => InvoiceCetak::dari($invoice),
+        'qrTagihan' => null,
     ])->assertSee('BESTFIBER')->assertSee($invoice->pelanggan->namaLengkap())->assertDontSee('BF2309202604_55555')->assertDontSee('RTR-RAHASIA-01');
 
     $this->get(URL::signedRoute('portal.invoice.show', ['invoice' => $invoice->id]))

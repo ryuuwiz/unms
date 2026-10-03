@@ -5,7 +5,7 @@ Sistem manajemen ISP: pelanggan, layanan, invoice, dan pembayaran.
 ## Pembayaran
 
 **Koneksi Gateway**:
-Satu akun penyedia payment gateway (Xendit, iPaymu, …) beserta kredensialnya.
+Satu akun penyedia payment gateway (mis. iPaymu) beserta kredensialnya.
 _Avoid_: Pengaturan Gateway
 
 **Hosted Invoice**:

@@ -20,7 +20,6 @@ use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\WebhookLog;
 use App\Services\PaymentGateway\Drivers\IpaymuDriver;
-use App\Services\PaymentGateway\Drivers\XenditDriver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -36,9 +35,6 @@ class PaymentGatewayManager
 
     public function __construct()
     {
-        // Xendit tetap terdaftar hanya untuk menuntaskan link dan transaksi lama (webhook &
-        // cek status); pembayaran baru diterbitkan lewat koneksi default iPaymu (ADR-0072).
-        $this->registerDriver('xendit', new XenditDriver);
         $this->registerDriver('ipaymu', new IpaymuDriver);
     }
 
@@ -72,7 +68,7 @@ class PaymentGatewayManager
     {
         if (empty($provider)) {
             $setting = PengaturanGateway::getDefault();
-            $provider = $setting ? $setting->provider : 'xendit';
+            $provider = $setting ? $setting->provider : 'ipaymu';
         }
 
         $normalized = strtolower(trim($provider));
@@ -101,7 +97,7 @@ class PaymentGatewayManager
             return $default;
         }
 
-        return PengaturanGateway::getXenditSetting();
+        throw new InvalidArgumentException('Belum ada Koneksi Gateway yang dikonfigurasi.');
     }
 
     /**
@@ -148,11 +144,9 @@ class PaymentGatewayManager
         $setting = $this->getSetting($provider);
         $driver = $this->driver($setting->provider);
 
-        // 2. Reservasi baris transaksi lokal SEBELUM memanggil API gateway. Fee dihitung dengan
-        // formula yang sama dengan payload 'amount' driver (lihat XenditDriver::createPaymentLink),
-        // sehingga total_tagihan pasti sama dengan paid_amount yang dilaporkan webhook.
-        $fee = $setting->hitungFee('virtual_account', (float) $invoice->jumlah_setelah_promo);
-        $transaksi = $this->reservasiTransaksi($invoice, $setting, $driver, $fee, GatewayChannel::Invoice, null);
+        // 2. Reservasi baris transaksi lokal SEBELUM memanggil API gateway. Hosted Invoice tidak
+        // menambah Fee Admin lokal: fee-nya dibebankan gateway lewat feeDirection (ADR-0072).
+        $transaksi = $this->reservasiTransaksi($invoice, $setting, $driver, 0.0, GatewayChannel::Invoice, null);
 
         // 3. Minta driver membuat payment link resmi menggunakan external_id yang sudah direservasi
         $response = $driver->createPaymentLink($invoice, $setting, $transaksi->external_id);
@@ -165,11 +159,6 @@ class PaymentGatewayManager
                 'payment_gateway_provider' => $driver->getProviderName(),
                 'payment_gateway_status' => 'PENDING',
                 'payment_gateway_expired_at' => $response->expiredAt,
-                // Kompatibilitas mundur
-                'xendit_invoice_id' => $response->paymentId,
-                'xendit_invoice_url' => $response->paymentUrl,
-                'xendit_status' => 'PENDING',
-                'xendit_expired_at' => $response->expiredAt,
             ]);
 
             return $this->catatResponsTransaksi($transaksi, $response);
@@ -272,7 +261,7 @@ class PaymentGatewayManager
     private function catatResponsTransaksi(TransaksiPaymentGateway $transaksi, PaymentLinkResponse $response): TransaksiPaymentGateway
     {
         $transaksi->update([
-            'xendit_reference_id' => $response->paymentId,
+            'provider_reference_id' => $response->paymentId,
             'channel' => $response->channel,
             'channel_detail' => $response->channelDetail,
             'nomor_pembayaran' => $response->paymentNumber ?? $response->paymentUrl,
@@ -302,7 +291,7 @@ class PaymentGatewayManager
             return null;
         }
 
-        if (! empty($invoice->payment_gateway_id) || ! empty($invoice->xendit_invoice_id)) {
+        if (! empty($invoice->payment_gateway_id)) {
             $this->sinkronkanStatus($invoice);
             $invoice->refresh();
 
@@ -316,7 +305,7 @@ class PaymentGatewayManager
             $invoice->refresh();
         }
 
-        return $invoice->payment_gateway_url ?: ($invoice->xendit_invoice_url ?: null);
+        return $invoice->payment_gateway_url ?: null;
     }
 
     /**
@@ -332,7 +321,7 @@ class PaymentGatewayManager
             return $this->sinkronkanTransaksi($transaksi);
         }
 
-        $provider = $invoice->payment_gateway_provider ?: 'xendit';
+        $provider = $invoice->payment_gateway_provider ?: 'ipaymu';
         $statusData = $this->driver($provider)->checkStatus($invoice, $this->getSetting($provider));
 
         return $this->terapkanStatusGateway($invoice, null, $provider, $statusData);
@@ -382,7 +371,7 @@ class PaymentGatewayManager
 
     protected function providerTransaksi(TransaksiPaymentGateway $transaksi): string
     {
-        return $transaksi->gateway ?: ($transaksi->invoice?->payment_gateway_provider ?: 'xendit');
+        return $transaksi->gateway ?: ($transaksi->invoice?->payment_gateway_provider ?: 'ipaymu');
     }
 
     /**
@@ -396,20 +385,6 @@ class PaymentGatewayManager
         array $statusData
     ): array {
         $statusStr = strtoupper((string) ($statusData['status'] ?? ''));
-
-        if ($this->isMissingRemoteInvoice($statusData)) {
-            if (($statusData['error_code'] ?? null) === 'ambiguous_external_id') {
-                return $statusData;
-            }
-
-            $this->invalidateMissingRemoteInvoice($invoice, $transaksi);
-
-            return $statusData;
-        }
-
-        if ($this->transaksiTerakhir($invoice, $transaksi)) {
-            $this->adoptRecoveredRemoteReference($invoice, $statusData);
-        }
 
         $this->recordStatusSync($provider, $statusStr, $statusData, $transaksi);
         $this->applySyncedStatus($invoice, $statusStr, $statusData, $transaksi, $provider);
@@ -442,7 +417,6 @@ class PaymentGatewayManager
         $transaksi->update([
             'payload_response' => $statusData,
             'provider_reference_id' => $statusData['id'] ?? $transaksi->provider_reference_id,
-            'xendit_reference_id' => $statusData['id'] ?? $transaksi->xendit_reference_id,
         ]);
 
         $eventId = (string) ($statusData['id'] ?? ($transaksi->provider_reference_id ?: $transaksi->external_id));
@@ -458,7 +432,6 @@ class PaymentGatewayManager
             [
                 'transaksi_payment_gateway_id' => $transaksi->id,
                 'event_type' => "sync.{$provider}",
-                'xendit_event_id' => $eventId,
                 'payload' => $statusData,
                 'status_proses' => in_array($statusStr, ['PAID', 'SETTLED', 'SUCCEEDED', 'BERHASIL', 'EXPIRED'], true) ? StatusWebhookLog::Diproses : StatusWebhookLog::Diterima,
                 'diterima_pada' => Carbon::now(),
@@ -530,72 +503,6 @@ class PaymentGatewayManager
             $lockedInvoice->update([
                 'payment_gateway_url' => null,
                 'payment_gateway_status' => 'EXPIRED',
-                'xendit_invoice_url' => null,
-                'xendit_status' => 'EXPIRED',
-            ]);
-        });
-    }
-
-    /**
-     * Xendit mengembalikan pesan ini saat ID invoice tidak ada pada akun/key aktif.
-     * Link lokal harus dianggap tidak valid agar pembayaran berikutnya membuat invoice baru.
-     *
-     * @param  array<string, mixed>  $statusData
-     */
-    protected function isMissingRemoteInvoice(array $statusData): bool
-    {
-        return str_contains(
-            strtolower((string) ($statusData['error'] ?? '')),
-            'could not find invoice by id'
-        ) || ($statusData['error_code'] ?? null) === 'external_id_not_found';
-    }
-
-    /**
-     * @param  array<string, mixed>  $statusData
-     */
-    protected function adoptRecoveredRemoteReference(Invoice $invoice, array $statusData): void
-    {
-        if (($statusData['recovered_by'] ?? null) !== 'external_id' || empty($statusData['id'])) {
-            return;
-        }
-
-        $invoice->update([
-            'payment_gateway_id' => $statusData['id'],
-            'payment_gateway_url' => $statusData['invoice_url'] ?? $invoice->payment_gateway_url,
-            'payment_gateway_status' => $statusData['status'] ?? $invoice->payment_gateway_status,
-            'xendit_invoice_id' => $statusData['id'],
-            'xendit_invoice_url' => $statusData['invoice_url'] ?? $invoice->xendit_invoice_url,
-            'xendit_status' => $statusData['status'] ?? $invoice->xendit_status,
-        ]);
-    }
-
-    /**
-     * Invoice tidak ditemukan di gateway: lepaskan referensinya dari invoice agar pembayaran
-     * berikutnya membuat invoice baru (ADR-0065). Status transaksi sengaja tidak diubah --
-     * "tidak ditemukan" bukan pernyataan kedaluwarsa dari gateway (ADR-0067).
-     */
-    protected function invalidateMissingRemoteInvoice(Invoice $invoice, ?TransaksiPaymentGateway $transaksi): void
-    {
-        $transaksiTerakhir = $this->transaksiTerakhir($invoice, $transaksi);
-
-        DB::transaction(function () use ($invoice, $transaksiTerakhir): void {
-            /** @var Invoice $lockedInvoice */
-            $lockedInvoice = Invoice::query()
-                ->whereKey($invoice->id)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            if ($lockedInvoice->isLunas() || ! $transaksiTerakhir) {
-                return;
-            }
-
-            $lockedInvoice->update([
-                'payment_gateway_url' => null,
-                'payment_gateway_id' => null,
-                'payment_gateway_status' => 'EXPIRED',
-                'xendit_invoice_url' => null,
-                'xendit_invoice_id' => null,
-                'xendit_status' => 'EXPIRED',
             ]);
         });
     }
@@ -624,7 +531,7 @@ class PaymentGatewayManager
             $provider = $callbackData->provider;
         } else {
             $rawPayload = $payloadOrData;
-            $provider = (string) ($rawPayload['provider'] ?? 'xendit');
+            $provider = (string) ($rawPayload['provider'] ?? 'ipaymu');
             $amount = (float) ($rawPayload['paid_amount'] ?? ($rawPayload['amount'] ?? $invoice->jumlah_setelah_promo));
             $paidAtStr = (string) ($rawPayload['paid_at'] ?? now()->toIso8601String());
             $channel = (string) ($rawPayload['channel'] ?? 'invoice');
@@ -666,7 +573,6 @@ class PaymentGatewayManager
                 }
                 $lockedInvoice->update([
                     'payment_gateway_status' => 'PAID',
-                    'xendit_status' => 'PAID',
                 ]);
                 if ($webhookLog) {
                     $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
@@ -682,7 +588,6 @@ class PaymentGatewayManager
                 $transaksi->update([
                     'status' => StatusTransaksiGateway::Paid,
                     'provider_reference_id' => $paymentRef ?: $transaksi->provider_reference_id,
-                    'xendit_reference_id' => $paymentRef ?: $transaksi->xendit_reference_id,
                     'payload_response' => $rawPayload,
                     // Channel yang benar-benar dipakai membayar (link dibuat sebagai `invoice` generik).
                     'channel' => GatewayChannel::tryFrom($channel) ?? $transaksi->channel,
@@ -715,7 +620,6 @@ class PaymentGatewayManager
                 'tanggal_lunas' => $dibayarPada->copy()->setTimezone(config('app.zona_waktu_bisnis'))->toDateString(),
                 'metode_pembayaran' => MetodePembayaran::PaymentGateway,
                 'payment_gateway_status' => 'PAID',
-                'xendit_status' => 'PAID',
             ]);
 
             // 4. Perpanjang Masa Aktif Layanan Pelanggan -- aturan tunggal isFuture()

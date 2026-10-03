@@ -17,9 +17,6 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string $nama
  * @property array<string, mixed>|null $credentials
  * @property string|null $gateway
- * @property float $fee_va_nominal
- * @property float $fee_qris_persen
- * @property float $fee_qris_nominal
  * @property bool $bebankan_ke_pelanggan
  * @property bool $is_default
  * @property bool $is_active
@@ -33,9 +30,6 @@ use Spatie\Activitylog\Support\LogOptions;
     'nama',
     'credentials',
     'gateway',
-    'fee_va_nominal',
-    'fee_qris_persen',
-    'fee_qris_nominal',
     'bebankan_ke_pelanggan',
     'is_default',
     'is_active',
@@ -49,9 +43,6 @@ class PengaturanGateway extends Model
     protected $table = 'pengaturan_gateway';
 
     protected $attributes = [
-        'fee_va_nominal' => 4000.00,
-        'fee_qris_persen' => 0.70,
-        'fee_qris_nominal' => 0.00,
         'bebankan_ke_pelanggan' => true,
         'is_active' => true,
         'sandbox_mode' => true,
@@ -60,7 +51,7 @@ class PengaturanGateway extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['provider', 'nama', 'is_default', 'is_active', 'sandbox_mode', 'bebankan_ke_pelanggan', 'fee_va_nominal', 'fee_qris_persen'])
+            ->logOnly(['provider', 'nama', 'is_default', 'is_active', 'sandbox_mode', 'bebankan_ke_pelanggan'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('pengaturan_gateway');
@@ -73,9 +64,6 @@ class PengaturanGateway extends Model
     {
         return [
             'credentials' => 'encrypted:array',
-            'fee_va_nominal' => 'decimal:2',
-            'fee_qris_persen' => 'decimal:2',
-            'fee_qris_nominal' => 'decimal:2',
             'bebankan_ke_pelanggan' => 'boolean',
             'is_default' => 'boolean',
             'is_active' => 'boolean',
@@ -151,53 +139,6 @@ class PengaturanGateway extends Model
             ->orderByDesc('is_default')
             ->orderBy('id')
             ->first();
-    }
-
-    /**
-     * Ambil pengaturan Xendit (kompatibilitas mundur).
-     */
-    public static function getXenditSetting(): self
-    {
-        /** @var self $setting */
-        $setting = static::firstOrCreate(
-            ['provider' => 'xendit'],
-            [
-                'nama' => 'Xendit Gateway',
-                'gateway' => 'xendit',
-                'fee_va_nominal' => 4000.00,
-                'fee_qris_persen' => 0.70,
-                'fee_qris_nominal' => 0.00,
-                'bebankan_ke_pelanggan' => true,
-                'is_default' => true,
-                'is_active' => true,
-                'sandbox_mode' => config('services.xendit.env') !== 'production',
-            ]
-        );
-
-        return $setting;
-    }
-
-    /**
-     * Hitung total fee gateway berdasarkan channel dan nominal tagihan.
-     */
-    public function hitungFee(string $channel, float $nominalInvoice): float
-    {
-        // Fee VA/QRIS hanya untuk Xendit; iPaymu menghitung fee-nya sendiri lewat feeDirection.
-        if (! $this->bebankan_ke_pelanggan || $this->provider !== 'xendit') {
-            return 0.0;
-        }
-
-        if ($channel === 'virtual_account') {
-            return (float) $this->fee_va_nominal;
-        }
-
-        if ($channel === 'qris') {
-            $feePersen = ($nominalInvoice * ((float) $this->fee_qris_persen / 100));
-
-            return round($feePersen + (float) $this->fee_qris_nominal, 2);
-        }
-
-        return 0.0;
     }
 
     /**

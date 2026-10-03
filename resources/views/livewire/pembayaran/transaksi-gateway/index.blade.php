@@ -2,7 +2,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <flux:heading size="xl">Transaksi Payment Gateway</flux:heading>
-            <flux:subheading>Monitoring transaksi pembayaran otomatis melalui Xendit (Virtual Account & QRIS)</flux:subheading>
+            <flux:subheading>Monitoring transaksi pembayaran otomatis melalui payment gateway (Virtual Account, QRIS, gerai retail)</flux:subheading>
         </div>
     </div>
 

@@ -2,7 +2,7 @@
 
 **Status**: Accepted, sebagian digantikan ADR-0073 (Hosted kini hanya fallback) — memperbarui ADR-0026 (gateway default) dan ADR-0007 (Xendit sebagai penerbit).
 
-Pembayaran baru diterbitkan sebagai Hosted Invoice iPaymu (`/api/v2/payment`); pelanggan memilih metode di halaman iPaymu, dan fee dibebankan iPaymu ke pembeli lewat `feeDirection` (mengikuti `bebankan_ke_pelanggan`). Xendit tetap terdaftar hanya untuk menuntaskan link dan transaksi lama sampai habis kedaluwarsa, tanpa pembayaran ganda.
+Pembayaran baru diterbitkan sebagai Hosted Invoice iPaymu (`/api/v2/payment`); pelanggan memilih metode di halaman iPaymu, dan fee dibebankan iPaymu ke pembeli lewat `feeDirection` (mengikuti `bebankan_ke_pelanggan`). Xendit sempat tetap terdaftar untuk menuntaskan link lama, lalu dihapus seluruhnya (driver, command, package, kolom `xendit_*`, fee khusus Xendit) setelah tidak ada lagi transaksi Xendit Pending yang aktif (issue #76). Transaksi Xendit lama tetap tersimpan sebagai riwayat, tetapi tidak lagi dicek statusnya.
 
 Callback iPaymu diverifikasi dua lapis: HMAC-SHA256 `X-Signature` (kunci = Nomor VA merchant, body mentah yang dinormalisasi lalu di-`ksort`), lalu job pembayaran mengonfirmasi `trx_id` ke `/api/v2/transaction` sebelum invoice dilunasi. Lapis kedua dipilih karena dokumentasi signature iPaymu tidak konsisten (header vs body, normalisasi tipe) dan jalur ini melunasi uang.
 

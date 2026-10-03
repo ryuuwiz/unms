@@ -16,7 +16,7 @@ enum GatewayChannel: string
     public function label(): string
     {
         return match ($this) {
-            self::Invoice => 'Xendit Invoice',
+            self::Invoice => 'Hosted Invoice',
             self::VirtualAccount => 'Virtual Account',
             self::Qris => 'QRIS',
             self::Ewallet => 'E-Wallet',

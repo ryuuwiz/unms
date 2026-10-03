@@ -15,27 +15,26 @@ use App\Models\PengaturanGateway;
 use App\Models\Router;
 use App\Models\TransaksiPaymentGateway;
 use App\Services\Billing\InvoiceCetak;
-use App\Services\PaymentGateway\Drivers\XenditDriver;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Http;
+use Tests\Support\GatewayUjiDriver;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
 
-    $this->manager = app(PaymentGatewayManager::class);
+    $this->manager = pakaiGatewayUji();
 
-    $this->xenditSetting = PengaturanGateway::create([
-        'provider' => 'xendit',
-        'gateway' => 'xendit',
-        'nama' => 'Xendit Utama',
+    $this->gatewaySetting = PengaturanGateway::create([
+        'provider' => 'uji',
+        'gateway' => 'uji',
+        'nama' => 'Gateway Uji',
         'credentials' => [
             'secret_key' => 'xnd_development_test_123',
-            'callback_token' => 'xendit_token_123',
+            'callback_token' => 'uji_token_123',
         ],
         'is_default' => true,
         'is_active' => true,
@@ -88,118 +87,56 @@ beforeEach(function () {
     ]);
 });
 
-test('manager dapat resolve driver xendit', function () {
-    expect($this->manager->driver('xendit')->getProviderName())->toBe('xendit');
-});
-
 test('manager dapat resolve driver ipaymu', function () {
     expect($this->manager->driver('ipaymu')->getProviderName())->toBe('ipaymu');
 });
 
-test('manager dapat membuat link pembayaran xendit dan menyimpan url di invoice', function () {
-    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+test('manager dapat membuat link pembayaran dan menyimpan url di invoice', function () {
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'uji');
 
     expect($trx)->toBeInstanceOf(TransaksiPaymentGateway::class)
-        ->and($trx->gateway)->toBe('xendit')
+        ->and($trx->gateway)->toBe('uji')
         ->and($trx->status)->toBe(StatusTransaksiGateway::Pending);
 
     $this->invoice->refresh();
     expect($this->invoice->payment_gateway_url)->not->toBeNull()
-        ->and($this->invoice->payment_gateway_provider)->toBe('xendit')
+        ->and($this->invoice->payment_gateway_provider)->toBe('uji')
         ->and($this->invoice->hasActivePaymentLink())->toBeTrue();
 });
 
 test('kegagalan panggilan API gateway meninggalkan baris transaksi Pending sebagai jejak rekonsiliasi', function () {
-    // Simulasikan timeout/exception dari Xendit SETELAH baris TransaksiPaymentGateway
+    // Simulasikan timeout/exception dari gateway SETELAH baris TransaksiPaymentGateway
     // direservasi lokal (lihat PaymentGatewayManager::buatPaymentLink). Baris Pending harus
     // tetap ada dengan nominal yang benar, dan invoice TIDAK boleh menunjuk payment_gateway_url
     // yang sebetulnya tidak pernah berhasil dibuat.
-    $failingDriver = new class extends XenditDriver
+    $failingDriver = new class extends GatewayUjiDriver
     {
         public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): PaymentLinkResponse
         {
-            throw new Exception('Simulasi timeout Xendit');
+            throw new Exception('Simulasi timeout gateway');
         }
     };
-    $this->manager->registerDriver('xendit', $failingDriver);
+    $this->manager->registerDriver('uji', $failingDriver);
 
-    expect(fn () => $this->manager->buatPaymentLink($this->invoice, 'xendit'))
-        ->toThrow(Exception::class, 'Simulasi timeout Xendit');
+    expect(fn () => $this->manager->buatPaymentLink($this->invoice, 'uji'))
+        ->toThrow(Exception::class, 'Simulasi timeout gateway');
 
     $trx = TransaksiPaymentGateway::where('invoice_id', $this->invoice->id)->first();
     expect($trx)->not->toBeNull()
         ->and($trx->status)->toBe(StatusTransaksiGateway::Pending)
-        ->and((float) $trx->total_tagihan)->toBe(254000.0); // 250000 + fee VA default 4000
+        ->and((float) $trx->total_tagihan)->toBe(250000.0); // Hosted Invoice tanpa Fee Admin lokal (ADR-0072)
 
     $this->invoice->refresh();
     expect($this->invoice->payment_gateway_url)->toBeNull();
 });
 
-test('invoice gateway yang tidak ditemukan ditandai invalid agar dapat diterbitkan ulang', function () {
-    $transaksi = $this->manager->buatPaymentLink($this->invoice, 'xendit');
-
-    $missingInvoiceDriver = new class extends XenditDriver
-    {
-        public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
-        {
-            return ['error' => 'Could not find invoice by id 6abe1e4ade2f5074a6d5f3c1'];
-        }
-    };
-    $this->manager->registerDriver('xendit', $missingInvoiceDriver);
-
-    $result = $this->manager->sinkronkanStatus($this->invoice);
-
-    $this->invoice->refresh();
-    $transaksi->refresh();
-
-    expect($result['error'])->toContain('Could not find invoice by id')
-        ->and($this->invoice->payment_gateway_id)->toBeNull()
-        ->and($this->invoice->payment_gateway_url)->toBeNull()
-        ->and($this->invoice->payment_gateway_status)->toBe('EXPIRED')
-        // "Tidak ditemukan" bukan pernyataan kedaluwarsa dari gateway (ADR-0067).
-        ->and($transaksi->status)->toBe(StatusTransaksiGateway::Pending);
-});
-
-test('invoice lunas dapat dipulihkan melalui external_id setelah id gateway tidak ditemukan', function () {
-    $transaksi = $this->manager->buatPaymentLink($this->invoice, 'xendit');
-
-    $recoveredDriver = new class extends XenditDriver
-    {
-        public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
-        {
-            return [
-                'id' => '6abe1a0cad9cd3582f98b526',
-                'external_id' => $target instanceof TransaksiPaymentGateway ? $target->external_id : 'unused',
-                'invoice_url' => 'https://checkout.xendit.co/web/6abe1a0cad9cd3582f98b526',
-                'status' => 'PAID',
-                'amount' => (float) ($target instanceof TransaksiPaymentGateway ? $target->total_tagihan : 0),
-                'paid_amount' => (float) ($target instanceof TransaksiPaymentGateway ? $target->total_tagihan : 0),
-                'recovered_by' => 'external_id',
-            ];
-        }
-    };
-    $this->manager->registerDriver('xendit', $recoveredDriver);
-
-    $this->invoice->update([
-        'payment_gateway_id' => '6abe1e4ade2f5074a6d5f3c1',
-        'xendit_invoice_id' => '6abe1e4ade2f5074a6d5f3c1',
-    ]);
-    $result = $this->manager->sinkronkanStatus($this->invoice);
-
-    $this->invoice->refresh();
-    expect($result['recovered_by'])->toBe('external_id')
-        ->and($this->invoice->status)->toBe(StatusInvoice::Lunas)
-        ->and($this->invoice->payment_gateway_id)->toBe('6abe1a0cad9cd3582f98b526')
-        ->and($transaksi->fresh()->status)->toBe(StatusTransaksiGateway::Paid);
-});
-
 test('proses pelunasan memperbarui status invoice, layanan, dan memancarkan event InvoicePaidEvent', function () {
     Event::fake([InvoicePaidEvent::class]);
 
-    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'uji');
 
     $callbackData = new PaymentCallbackData(
-        provider: 'xendit',
+        provider: 'uji',
         externalId: (string) $trx->external_id,
         status: 'PAID',
         paidAmount: (float) $trx->total_tagihan,
@@ -227,32 +164,4 @@ test('proses pelunasan memperbarui status invoice, layanan, dan memancarkan even
     expect(InvoiceCetak::dari($this->invoice->fresh())->metode)->toBe('Virtual Account BCA');
 
     Event::assertDispatched(InvoicePaidEvent::class);
-});
-
-test('xendit driver checkPaymentRequestV3Status dapat memproses respon v3 dengan benar', function () {
-    Http::fake([
-        'https://api.xendit.co/v3/payment_requests/pr-123456789' => Http::response([
-            'id' => 'pr-123456789',
-            'reference_id' => 'INV-TEST-001',
-            'status' => 'SUCCEEDED',
-            'amount' => 250000,
-            'capture_amount' => 250000,
-            'currency' => 'IDR',
-            'payment_method' => [
-                'type' => 'QR_CODE',
-                'qr_code' => [
-                    'channel_code' => 'QRIS',
-                ],
-            ],
-        ], 200),
-    ]);
-
-    /** @var XenditDriver $driver */
-    $driver = $this->manager->driver('xendit');
-    $result = $driver->checkPaymentRequestV3Status('pr-123456789', 'xnd_development_test_123');
-
-    expect($result)->toBeArray()
-        ->and($result['status'])->toBe('PAID')
-        ->and($result['paid_amount'])->toBe(250000.0)
-        ->and($result['id'])->toBe('pr-123456789');
 });

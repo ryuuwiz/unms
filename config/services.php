@@ -35,12 +35,6 @@ return [
         ],
     ],
 
-    'xendit' => [
-        'secret_key' => env('XENDIT_SECRET_KEY'),
-        'callback_token' => env('XENDIT_CALLBACK_TOKEN'),
-        'env' => env('XENDIT_ENV', 'development'),
-    ],
-
     'gowa' => [
         'host' => rtrim((string) env('GOWA_HOST', 'http://localhost:3000'), '/'),
         'username' => env('GOWA_USERNAME', ''),

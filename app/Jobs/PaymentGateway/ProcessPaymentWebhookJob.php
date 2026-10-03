@@ -66,7 +66,7 @@ class ProcessPaymentWebhookJob implements ShouldQueue
             return;
         }
 
-        $provider = strtolower(trim($webhookLog->provider ?: 'xendit'));
+        $provider = strtolower(trim($webhookLog->provider ?: 'ipaymu'));
         $payload = (array) ($webhookLog->payload ?? []);
 
         try {
@@ -96,7 +96,6 @@ class ProcessPaymentWebhookJob implements ShouldQueue
         if (! empty($callbackData->eventId) && empty($webhookLog->provider_event_id)) {
             $webhookLog->update([
                 'provider_event_id' => $callbackData->eventId,
-                'xendit_event_id' => $callbackData->eventId,
             ]);
         }
 
@@ -109,18 +108,14 @@ class ProcessPaymentWebhookJob implements ShouldQueue
         }
 
         if (! $transaksi && ! empty($callbackData->eventId)) {
-            $transaksi = TransaksiPaymentGateway::where('provider_reference_id', $callbackData->eventId)
-                ->orWhere('xendit_reference_id', $callbackData->eventId)
-                ->first();
+            $transaksi = TransaksiPaymentGateway::where('provider_reference_id', $callbackData->eventId)->first();
         }
 
         /** @var Invoice|null $invoice */
         $invoice = $transaksi ? $transaksi->invoice : null;
 
         if (! $invoice && ! empty($callbackData->eventId)) {
-            $invoice = Invoice::where('payment_gateway_id', $callbackData->eventId)
-                ->orWhere('xendit_invoice_id', $callbackData->eventId)
-                ->first();
+            $invoice = Invoice::where('payment_gateway_id', $callbackData->eventId)->first();
         }
 
         if (! $invoice && ! empty($callbackData->externalId)) {

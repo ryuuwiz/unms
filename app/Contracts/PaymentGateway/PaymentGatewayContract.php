@@ -14,12 +14,12 @@ use Illuminate\Http\Request;
 interface PaymentGatewayContract
 {
     /**
-     * Dapatkan kode unik provider (e.g. 'xendit', 'ipaymu').
+     * Dapatkan kode unik provider (e.g. 'ipaymu').
      */
     public function getProviderName(): string;
 
     /**
-     * Dapatkan nama label provider (e.g. 'Xendit Hosted Invoice', 'iPaymu API v2').
+     * Dapatkan nama label provider (e.g. 'iPaymu Hosted Invoice').
      */
     public function getProviderLabel(): string;
 

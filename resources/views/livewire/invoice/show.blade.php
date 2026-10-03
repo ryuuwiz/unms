@@ -24,9 +24,9 @@
             @endcan
             @can('pembayaran.lihat')
                 @if(!$invoice->isLunas())
-                    <flux:button wire:click="cekStatusPembayaranXendit" variant="subtle" icon="arrow-path" wire:loading.attr="disabled" wire:target="cekStatusPembayaranXendit">
-                        <span wire:loading.remove wire:target="cekStatusPembayaranXendit">Cek Status Pembayaran Xendit</span>
-                        <span wire:loading wire:target="cekStatusPembayaranXendit">Mengecek...</span>
+                    <flux:button wire:click="cekStatusPembayaran" variant="subtle" icon="arrow-path" wire:loading.attr="disabled" wire:target="cekStatusPembayaran">
+                        <span wire:loading.remove wire:target="cekStatusPembayaran">Cek Status Pembayaran</span>
+                        <span wire:loading wire:target="cekStatusPembayaran">Mengecek...</span>
                     </flux:button>
                 @endif
             @endcan
@@ -194,11 +194,11 @@
         </div>
     </div>
 
-    <!-- Transaksi Payment Gateway (Xendit) -->
+    <!-- Transaksi Payment Gateway -->
     @if($invoice->transaksiPaymentGateways->isNotEmpty())
         <div class="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
             <div class="p-4 bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-700 font-semibold text-zinc-900 dark:text-white flex justify-between items-center">
-                <span>Transaksi Payment Gateway (Xendit)</span>
+                <span>Transaksi Payment Gateway</span>
                 <span class="text-xs text-zinc-500 font-normal">Total: {{ $invoice->transaksiPaymentGateways->count() }} transaksi</span>
             </div>
             <div class="p-6">

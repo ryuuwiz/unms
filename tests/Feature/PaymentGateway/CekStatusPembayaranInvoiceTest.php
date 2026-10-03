@@ -15,12 +15,12 @@ use App\Models\Pelanggan;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\User;
-use App\Services\PaymentGateway\Drivers\XenditDriver;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Livewire\Livewire;
+use Tests\Support\GatewayUjiDriver;
 
 uses(RefreshDatabase::class);
 
@@ -29,9 +29,9 @@ beforeEach(function () {
     Event::fake([InvoicePaidEvent::class]);
 
     $this->koneksi = PengaturanGateway::create([
-        'provider' => 'xendit',
-        'gateway' => 'xendit',
-        'nama' => 'Xendit Produksi',
+        'provider' => 'uji',
+        'gateway' => 'uji',
+        'nama' => 'Gateway Uji Produksi',
         'credentials' => ['secret_key' => 'xnd_production_a', 'callback_token' => 'token-a'],
         'is_default' => true,
         'is_active' => true,
@@ -47,21 +47,21 @@ beforeEach(function () {
         'status' => StatusLayanan::Suspend,
     ]);
 
-    // Status Xendit per xendit_reference_id yang dikembalikan driver palsu; selain itu EXPIRED.
-    $this->statusXendit = [];
+    // Status gateway per provider_reference_id yang dikembalikan driver palsu; selain itu EXPIRED.
+    $this->statusGateway = [];
     $this->dicek = [];
     $manager = app(PaymentGatewayManager::class);
     $test = $this;
-    $manager->registerDriver('xendit', new class($test) extends XenditDriver
+    $manager->registerDriver('uji', new class($test) extends GatewayUjiDriver
     {
         public function __construct(private $test) {}
 
         public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
         {
-            $id = $target instanceof TransaksiPaymentGateway ? $target->xendit_reference_id : $target->xendit_invoice_id;
+            $id = $target instanceof TransaksiPaymentGateway ? $target->provider_reference_id : $target->payment_gateway_id;
             $this->test->dicek[] = $id;
 
-            return $this->test->statusXendit[$id] ?? ['id' => $id, 'status' => 'EXPIRED'];
+            return $this->test->statusGateway[$id] ?? ['id' => $id, 'status' => 'EXPIRED'];
         }
     });
     $this->app->instance(PaymentGatewayManager::class, $manager);
@@ -88,9 +88,9 @@ function transaksiCekStatus(Invoice $invoice, PengaturanGateway $koneksi, string
     return TransaksiPaymentGateway::create([
         'invoice_id' => $invoice->id,
         'pengaturan_gateway_id' => $koneksi->id,
-        'gateway' => 'xendit',
+        'gateway' => 'uji',
         'external_id' => $invoice->no_invoice.'-'.$ref,
-        'xendit_reference_id' => $ref,
+        'provider_reference_id' => $ref,
         'channel' => GatewayChannel::Invoice,
         'total_tagihan' => $invoice->jumlah_setelah_promo,
         'fee_gateway' => 0,
@@ -98,10 +98,10 @@ function transaksiCekStatus(Invoice $invoice, PengaturanGateway $koneksi, string
     ]);
 }
 
-function lunasDiXendit(TransaksiPaymentGateway $transaksi, float $nominal = 150000): array
+function lunasDiGateway(TransaksiPaymentGateway $transaksi, float $nominal = 150000): array
 {
     return [
-        'id' => $transaksi->xendit_reference_id,
+        'id' => $transaksi->provider_reference_id,
         'external_id' => $transaksi->external_id,
         'status' => 'PAID',
         'amount' => $nominal,
@@ -123,7 +123,7 @@ function invoiceDibayarLewatLinkLama(object $test): array
     $invoice = invoiceCekStatus($test->layanan);
     $linkLama = transaksiCekStatus($invoice, $test->koneksi, 'inv_lama');
     transaksiCekStatus($invoice, $test->koneksi, 'inv_baru', StatusTransaksiGateway::Pending);
-    $test->statusXendit['inv_lama'] = lunasDiXendit($linkLama);
+    $test->statusGateway['inv_lama'] = lunasDiGateway($linkLama);
 
     return [$invoice, $linkLama];
 }
@@ -133,8 +133,8 @@ test('tombol di detail Invoice melunasi invoice yang dibayar lewat link lama', f
 
     Livewire::actingAs($this->staf)
         ->test(InvoiceShow::class, ['invoice' => $invoice])
-        ->call('cekStatusPembayaranXendit')
-        ->assertSee('Hasil cek status pembayaran Xendit: Lunas');
+        ->call('cekStatusPembayaran')
+        ->assertSee('Hasil cek status pembayaran gateway: Lunas');
 
     expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas)
         ->and($linkLama->fresh()->status)->toBe(StatusTransaksiGateway::Paid)
@@ -147,8 +147,8 @@ test('tombol Rekonsiliasi di detail Transaksi Gateway melunasi invoice yang diba
 
     Livewire::actingAs($this->staf)
         ->test(TransaksiGatewayShow::class, ['transaksi' => $transaksiTerbaru])
-        ->call('cekStatusPembayaranXendit')
-        ->assertSee('Hasil cek status pembayaran Xendit: Lunas');
+        ->call('cekStatusPembayaran')
+        ->assertSee('Hasil cek status pembayaran gateway: Lunas');
 
     expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas);
 });
@@ -168,17 +168,17 @@ test('invoice Digabung yang sudah dibayar tidak dilunasi otomatis: staf melihat 
     $oktober = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-10', 'jumlah_setelah_promo' => 300000, 'jumlah_tunggakan' => 150000]);
     $september = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-09', 'status' => StatusInvoice::Digabung, 'digabung_ke_invoice_id' => $oktober->id]);
     $trxSeptember = transaksiCekStatus($september, $this->koneksi, 'inv_sep');
-    $this->statusXendit['inv_sep'] = lunasDiXendit($trxSeptember);
+    $this->statusGateway['inv_sep'] = lunasDiGateway($trxSeptember);
 
     Livewire::actingAs($this->staf)
         ->test(InvoiceShow::class, ['invoice' => $september])
-        ->call('cekStatusPembayaranXendit')
+        ->call('cekStatusPembayaran')
         ->assertSee('Perlu diproses manual')
         ->assertSee('periksa dan proses manual');
 
     Livewire::actingAs($this->staf)
         ->test(TransaksiGatewayShow::class, ['transaksi' => $trxSeptember])
-        ->call('cekStatusPembayaranXendit')
+        ->call('cekStatusPembayaran')
         ->assertSee('Perlu diproses manual');
 
     Livewire::actingAs($this->pelanggan->akunPelanggan, 'pelanggan')
@@ -194,11 +194,11 @@ test('invoice Digabung yang sudah dibayar tidak dilunasi otomatis: staf melihat 
 
 test('pembayaran dengan nominal tidak sama tidak dilunasi: staf melihat alasannya, Portal hanya pesan umum', function () {
     $invoice = invoiceCekStatus($this->layanan);
-    $this->statusXendit['inv_kurang'] = lunasDiXendit(transaksiCekStatus($invoice, $this->koneksi, 'inv_kurang'), 99000);
+    $this->statusGateway['inv_kurang'] = lunasDiGateway(transaksiCekStatus($invoice, $this->koneksi, 'inv_kurang'), 99000);
 
     Livewire::actingAs($this->staf)
         ->test(InvoiceShow::class, ['invoice' => $invoice])
-        ->call('cekStatusPembayaranXendit')
+        ->call('cekStatusPembayaran')
         ->assertSee('Perlu diproses manual')
         ->assertSee('Nominal tidak sama');
 
@@ -218,8 +218,8 @@ test('invoice yang belum dibayar di semua link tampil belum dibayar', function (
 
     Livewire::actingAs($this->staf)
         ->test(InvoiceShow::class, ['invoice' => $invoice])
-        ->call('cekStatusPembayaranXendit')
-        ->assertSee('Hasil cek status pembayaran Xendit: Belum dibayar');
+        ->call('cekStatusPembayaran')
+        ->assertSee('Hasil cek status pembayaran gateway: Belum dibayar');
 
     expect($invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran)
         ->and($this->dicek)->toBe(['inv_b', 'inv_a']);
@@ -232,16 +232,16 @@ test('tombol cek status di detail Invoice hanya untuk pengguna dengan izin pemba
 
     Livewire::actingAs($tanpaIzin)
         ->test(InvoiceShow::class, ['invoice' => $invoice])
-        ->assertDontSee('Cek Status Pembayaran Xendit')
-        ->call('cekStatusPembayaranXendit')
+        ->assertDontSee('Cek Status Pembayaran')
+        ->call('cekStatusPembayaran')
         ->assertForbidden();
 
     Livewire::actingAs($this->staf)
         ->test(InvoiceShow::class, ['invoice' => $invoice])
-        ->assertSee('Cek Status Pembayaran Xendit');
+        ->assertSee('Cek Status Pembayaran');
 });
 
-test('tombol Cek Status Pembayaran di Portal dibatasi agar tidak membanjiri Xendit', function () {
+test('tombol Cek Status Pembayaran di Portal dibatasi agar tidak membanjiri gateway', function () {
     $invoice = invoiceCekStatus($this->layanan);
     transaksiCekStatus($invoice, $this->koneksi, 'inv_a');
     $portal = Livewire::actingAs($this->pelanggan->akunPelanggan, 'pelanggan')->test(PortalInvoiceShow::class, ['invoice' => $invoice]);

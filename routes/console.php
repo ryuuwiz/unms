@@ -35,7 +35,7 @@ Schedule::command('mikrotik:provisi-tertunda')
     ->withoutOverlapping(5)
     ->onOneServer();
 
-Schedule::command('xendit:cek-va-expired')->hourly()->onOneServer();
+Schedule::command('pembayaran:cek-kedaluwarsa')->hourly()->onOneServer();
 
 // Sweeper rekonsiliasi pembayaran dua arah: dispatch ulang webhook mandek + polling
 // gateway untuk transaksi pending -- jaring pengaman agar pembayaran tidak pernah

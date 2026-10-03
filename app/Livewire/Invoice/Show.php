@@ -53,9 +53,9 @@ class Show extends Component
     }
 
     /**
-     * Cek semua link pembayaran invoice ke Xendit (termasuk link lama); PAID melunasi invoice lewat sinkron biasa.
+     * Cek semua link pembayaran invoice ke gateway (termasuk link lama); PAID melunasi invoice lewat sinkron biasa.
      */
-    public function cekStatusPembayaranXendit(CekStatusPembayaranInvoice $cekStatus): void
+    public function cekStatusPembayaran(CekStatusPembayaranInvoice $cekStatus): void
     {
         $this->authorize('viewAny', Pembayaran::class);
 

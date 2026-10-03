@@ -15,7 +15,6 @@ use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
 use App\Models\Router;
 use App\Models\WebhookLog;
-use App\Services\PaymentGateway\PaymentGatewayManager;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,12 +27,12 @@ beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
     Event::fake([InvoicePaidEvent::class]);
 
-    $this->manager = app(PaymentGatewayManager::class);
+    $this->manager = pakaiGatewayUji();
 
-    $this->xenditSetting = PengaturanGateway::create([
-        'provider' => 'xendit',
-        'gateway' => 'xendit',
-        'nama' => 'Xendit Utama',
+    $this->gatewaySetting = PengaturanGateway::create([
+        'provider' => 'uji',
+        'gateway' => 'uji',
+        'nama' => 'Gateway Uji',
         'credentials' => [
             'secret_key' => 'xnd_development_test_123',
             'callback_token' => 'test_callback_token',
@@ -73,13 +72,13 @@ beforeEach(function () {
         'status' => StatusInvoice::MenungguPembayaran,
     ]);
 
-    $this->transaksi = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+    $this->transaksi = $this->manager->buatPaymentLink($this->invoice, 'uji');
 });
 
 test('ProcessPaymentWebhookJob memproses pelunasan secara asinkron dan memperbarui invoice serta layanan', function () {
     $webhookLog = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_job_test_100',
         'payload' => [
             'id' => 'evt_job_test_100',
@@ -114,8 +113,8 @@ test('ProcessPaymentWebhookJob menolak pembayaran jika terjadi anomali nominal u
     $underpaidAmount = $this->transaksi->total_tagihan - 10000; // Selisih 10.000 lebih murah
 
     $webhookLog = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_underpaid_101',
         'payload' => [
             'id' => 'evt_underpaid_101',
@@ -149,8 +148,8 @@ test('ProcessPaymentWebhookJob menolak pembayaran jika terjadi anomali nominal o
     $overpaidAmount = $this->transaksi->total_tagihan + 50000; // Kelebihan bayar 50.000
 
     $webhookLog = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_overpaid_102',
         'payload' => [
             'id' => 'evt_overpaid_102',
@@ -182,8 +181,8 @@ test('ProcessPaymentWebhookJob menolak pembayaran jika terjadi anomali nominal o
 
 test('ProcessPaymentWebhookJob menolak callback yang melaporkan paid_amount nol', function () {
     $webhookLog = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_zero_amount_103',
         'payload' => [
             'id' => 'evt_zero_amount_103',
@@ -215,8 +214,8 @@ test('ProcessPaymentWebhookJob menolak callback yang melaporkan paid_amount nol'
 
 test('ProcessPaymentWebhookJob menolak pembayaran dengan mata uang selain IDR', function () {
     $webhookLog = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_foreign_currency_104',
         'payload' => [
             'id' => 'evt_foreign_currency_104',
@@ -248,8 +247,8 @@ test('ProcessPaymentWebhookJob menolak pembayaran dengan mata uang selain IDR', 
 
 test('ProcessPaymentWebhookJob::failed menandai webhook log Gagal dengan pesan exception setelah retry habis', function () {
     $webhookLog = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_exhausted_105',
         'payload' => ['id' => 'evt_exhausted_105'],
         'status_proses' => StatusWebhookLog::Diterima,
@@ -257,17 +256,17 @@ test('ProcessPaymentWebhookJob::failed menandai webhook log Gagal dengan pesan e
     ]);
 
     $job = new ProcessPaymentWebhookJob($webhookLog->id);
-    $job->failed(new Exception('Simulasi koneksi Xendit gagal total setelah 3x percobaan'));
+    $job->failed(new Exception('Simulasi koneksi gateway gagal total setelah 3x percobaan'));
 
     $webhookLog->refresh();
     expect($webhookLog->status_proses)->toBe(StatusWebhookLog::Gagal)
-        ->and($webhookLog->catatan_error)->toContain('Simulasi koneksi Xendit gagal total setelah 3x percobaan');
+        ->and($webhookLog->catatan_error)->toContain('Simulasi koneksi gateway gagal total setelah 3x percobaan');
 });
 
 test('ProcessPaymentWebhookJob menjamin idempotensi jika job dieksekusi berkali-kali', function () {
     $webhookLog = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_idempotent_102',
         'payload' => [
             'id' => 'evt_idempotent_102',
@@ -303,18 +302,18 @@ test('ProcessPaymentWebhookJob menjamin idempotensi jika job dieksekusi berkali-
 
 test('database unique constraint mencegah duplikasi webhook_log untuk provider dan event_id yang sama', function () {
     WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
-        'provider_event_id' => 'evt_unique_xendit_103',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
+        'provider_event_id' => 'evt_unique_uji_103',
         'payload' => ['test' => true],
         'status_proses' => StatusWebhookLog::Diproses,
         'diterima_pada' => now(),
     ]);
 
     expect(fn () => WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
-        'provider_event_id' => 'evt_unique_xendit_103',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
+        'provider_event_id' => 'evt_unique_uji_103',
         'payload' => ['test' => true],
         'status_proses' => StatusWebhookLog::Diterima,
         'diterima_pada' => now(),
@@ -343,8 +342,8 @@ test('ProcessPaymentWebhookJob tidak melunasi invoice yang sudah digabung dan me
     $this->invoice->update(['status' => StatusInvoice::Digabung]);
 
     $webhookLog = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_digabung_105',
         'payload' => [
             'id' => 'evt_digabung_105',

@@ -329,7 +329,6 @@ class WhatsappWebhookService
                 'provider' => $provider,
                 'provider_event_id' => $eventId,
                 'event_type' => $eventType,
-                'xendit_event_id' => $eventId,
                 'payload' => $payload,
                 'status_proses' => StatusWebhookLog::Diterima,
                 'diterima_pada' => Carbon::now(),

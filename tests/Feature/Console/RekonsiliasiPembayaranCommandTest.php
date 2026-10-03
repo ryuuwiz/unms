@@ -13,23 +13,23 @@ use App\Models\PengaturanGateway;
 use App\Models\Router;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\WebhookLog;
-use App\Services\PaymentGateway\Drivers\XenditDriver;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\GatewayUjiDriver;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
 
-    $this->manager = app(PaymentGatewayManager::class);
+    $this->manager = pakaiGatewayUji();
 
-    $this->xenditSetting = PengaturanGateway::create([
-        'provider' => 'xendit',
-        'gateway' => 'xendit',
-        'nama' => 'Xendit Utama',
+    $this->gatewaySetting = PengaturanGateway::create([
+        'provider' => 'uji',
+        'gateway' => 'uji',
+        'nama' => 'Gateway Uji',
         'credentials' => [
             'secret_key' => 'xnd_development_test_123',
             'callback_token' => 'test_callback_token',
@@ -69,8 +69,8 @@ test('arah A: dispatch ulang WebhookLog yang mandek di status diterima melewati 
     Queue::fake();
 
     $mandek = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_mandek_1',
         'payload' => ['id' => 'evt_mandek_1'],
         'status_proses' => StatusWebhookLog::Diterima,
@@ -78,8 +78,8 @@ test('arah A: dispatch ulang WebhookLog yang mandek di status diterima melewati 
     ]);
 
     $baruSaja = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_baru_1',
         'payload' => ['id' => 'evt_baru_1'],
         'status_proses' => StatusWebhookLog::Diterima,
@@ -87,8 +87,8 @@ test('arah A: dispatch ulang WebhookLog yang mandek di status diterima melewati 
     ]);
 
     $gagal = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_gagal_1',
         'payload' => ['id' => 'evt_gagal_1'],
         'status_proses' => StatusWebhookLog::Gagal,
@@ -96,8 +96,8 @@ test('arah A: dispatch ulang WebhookLog yang mandek di status diterima melewati 
     ]);
 
     $sudahDiproses = WebhookLog::create([
-        'provider' => 'xendit',
-        'event_type' => 'payment.xendit',
+        'provider' => 'uji',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_sukses_1',
         'payload' => ['id' => 'evt_sukses_1'],
         'status_proses' => StatusWebhookLog::Diproses,
@@ -122,10 +122,10 @@ test('arah A: dispatch ulang WebhookLog yang mandek di status diterima melewati 
 
 test('arah B: transaksi pending yang ternyata sudah PAID di gateway ikut dilunasi oleh sweeper', function () {
     // Driver palsu yang selalu melaporkan PAID ke checkStatus(), mensimulasikan webhook
-    // yang hilang tapi pembayaran sebenarnya sudah sukses di sisi Xendit.
-    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+    // yang hilang tapi pembayaran sebenarnya sudah sukses di sisi gateway.
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'uji');
 
-    $paidDriver = new class extends XenditDriver
+    $paidDriver = new class extends GatewayUjiDriver
     {
         public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
         {
@@ -139,7 +139,7 @@ test('arah B: transaksi pending yang ternyata sudah PAID di gateway ikut dilunas
             ];
         }
     };
-    $this->manager->registerDriver('xendit', $paidDriver);
+    $this->manager->registerDriver('uji', $paidDriver);
     // PaymentGatewayManager bukan singleton -- ikat instance yang sudah dikonfigurasi
     // dengan driver palsu ini agar command mengambil instance yang sama, bukan yang baru.
     $this->app->instance(PaymentGatewayManager::class, $this->manager);
@@ -154,19 +154,19 @@ test('arah B: transaksi pending yang ternyata sudah PAID di gateway ikut dilunas
 });
 
 test('transaksi pending yang invoicenya sudah lunas tidak lagi disentuh sweeper', function () {
-    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'uji');
     $this->invoice->update(['status' => StatusInvoice::Lunas]);
 
     // Driver yang akan melempar exception jika checkStatus() dipanggil -- membuktikan
     // sweeper tidak lagi memproses transaksi milik invoice yang sudah lunas.
-    $shouldNotBeCalledDriver = new class extends XenditDriver
+    $shouldNotBeCalledDriver = new class extends GatewayUjiDriver
     {
         public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
         {
             throw new Exception('checkStatus tidak seharusnya dipanggil untuk invoice yang sudah lunas.');
         }
     };
-    $this->manager->registerDriver('xendit', $shouldNotBeCalledDriver);
+    $this->manager->registerDriver('uji', $shouldNotBeCalledDriver);
     $this->app->instance(PaymentGatewayManager::class, $this->manager);
 
     $this->artisan('pembayaran:rekonsiliasi')->assertSuccessful();
@@ -176,10 +176,10 @@ test('transaksi pending yang invoicenya sudah lunas tidak lagi disentuh sweeper'
 });
 
 test('arah B: pelunasan dari sinkron status memakai waktu bayar asli dari gateway, bukan waktu sinkron', function () {
-    $trx = $this->manager->buatPaymentLink($this->invoice, 'xendit');
+    $trx = $this->manager->buatPaymentLink($this->invoice, 'uji');
     $dibayar = now()->subDays(3)->setTime(10, 15);
 
-    $this->manager->registerDriver('xendit', new class($dibayar->toIso8601String()) extends XenditDriver
+    $this->manager->registerDriver('uji', new class($dibayar->toIso8601String()) extends GatewayUjiDriver
     {
         public function __construct(private string $paidAt) {}
 

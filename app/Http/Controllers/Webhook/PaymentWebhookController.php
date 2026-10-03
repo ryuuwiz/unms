@@ -27,7 +27,7 @@ class PaymentWebhookController extends Controller
     /**
      * Handle incoming payment gateway webhook callback for any supported gateway asynchronously.
      */
-    public function handle(Request $request, string $gateway = 'xendit'): JsonResponse
+    public function handle(Request $request, string $gateway): JsonResponse
     {
         $gateway = strtolower(trim($gateway));
         $payload = $request->all();
@@ -43,7 +43,7 @@ class PaymentWebhookController extends Controller
         // 1. Normalisasi payload dan cari transaksinya lebih dulu -- hanya membaca, belum
         // menulis apa pun -- karena token callback diverifikasi dengan kredensial Koneksi
         // Payment Gateway yang menerbitkan transaksi itu, bukan koneksi pertama/default
-        // (ADR-0067). Transaksi tak dikenal (mis. tombol "Test" dashboard Xendit) memakai
+        // (ADR-0067). Transaksi tak dikenal (mis. tombol "Test" dashboard gateway) memakai
         // koneksi aktif & default.
         /** @var PaymentCallbackData $callbackData */
         $callbackData = $driver->parseWebhookPayload($request);
@@ -99,7 +99,6 @@ class PaymentWebhookController extends Controller
             'provider_event_id' => $eventId,
             'transaksi_payment_gateway_id' => $transaksi?->id,
             'event_type' => $eventType,
-            'xendit_event_id' => $eventId,
             'payload' => $payload,
             'status_proses' => StatusWebhookLog::Diterima,
             'diterima_pada' => Carbon::now(),
@@ -200,9 +199,7 @@ class PaymentWebhookController extends Controller
             return null;
         }
 
-        return TransaksiPaymentGateway::where('provider_reference_id', $callbackData->eventId)
-            ->orWhere('xendit_reference_id', $callbackData->eventId)
-            ->first();
+        return TransaksiPaymentGateway::where('provider_reference_id', $callbackData->eventId)->first();
     }
 
     /**

@@ -39,7 +39,7 @@ class Show extends Component
         // (Sangat berguna saat pelanggan kembali di-redirect dari halaman checkout gateway)
         // Gangguan gateway tidak boleh membuat halaman tagihan gagal tampil: pelanggan tetap
         // melihat rinciannya dan bisa menekan "Cek Status" / "Bayar Sekarang".
-        if ($invoice->isMenungguPembayaran() && (! empty($invoice->payment_gateway_id) || ! empty($invoice->xendit_invoice_id))) {
+        if ($invoice->isMenungguPembayaran() && ! empty($invoice->payment_gateway_id)) {
             try {
                 $paymentManager->sinkronkanStatus($invoice);
             } catch (Throwable $e) {

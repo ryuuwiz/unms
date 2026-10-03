@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
+use App\Models\PengaturanGateway;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use Database\Seeders\RolesAndPermissionsSeeder;
@@ -22,6 +23,9 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
+
+    pakaiGatewayUji();
+    PengaturanGateway::create(['provider' => 'uji', 'gateway' => 'uji', 'nama' => 'Gateway Uji', 'is_default' => true, 'is_active' => true, 'sandbox_mode' => true]);
 
     $this->profil = ProfilBandwidth::factory()->create();
     $this->paket = PaketLayanan::factory()->create([
@@ -86,16 +90,16 @@ test('pelanggan tidak dapat melihat tagihan milik pelanggan lain (403)', functio
         ->assertForbidden();
 });
 
-test('pelanggan dapat menekan tombol bayar dan di-redirect ke xendit_invoice_url', function () {
+test('pelanggan dapat menekan tombol bayar dan di-redirect ke payment_gateway_url', function () {
     Livewire::actingAs($this->akun, 'pelanggan')
         ->test(Show::class, ['invoice' => $this->invoice])
         ->call('bayar')
         ->assertRedirect();
 
     $this->invoice->refresh();
-    expect($this->invoice->xendit_invoice_url)->not->toBeNull()
-        ->and($this->invoice->xendit_invoice_id)->not->toBeNull()
-        ->and($this->invoice->xendit_status)->toBe('PENDING');
+    expect($this->invoice->payment_gateway_url)->not->toBeNull()
+        ->and($this->invoice->payment_gateway_id)->not->toBeNull()
+        ->and($this->invoice->payment_gateway_status)->toBe('PENDING');
 
     $transaksi = $this->invoice->transaksiPaymentGateways()->latest()->first();
     expect($transaksi)->not->toBeNull()
@@ -104,10 +108,10 @@ test('pelanggan dapat menekan tombol bayar dan di-redirect ke xendit_invoice_url
 
 test('pelanggan otomatis mendapatkan link baru jika link lama sudah expired', function () {
     $this->invoice->update([
-        'xendit_invoice_id' => 'inv_old_123',
-        'xendit_invoice_url' => 'https://checkout-staging.xendit.co/v2/inv_old_123',
-        'xendit_status' => 'EXPIRED',
-        'xendit_expired_at' => Carbon::now()->subDay(),
+        'payment_gateway_id' => 'inv_old_123',
+        'payment_gateway_url' => 'https://gateway-uji.test/bayar/inv_old_123',
+        'payment_gateway_status' => 'EXPIRED',
+        'payment_gateway_expired_at' => Carbon::now()->subDay(),
     ]);
 
     Livewire::actingAs($this->akun, 'pelanggan')
@@ -116,8 +120,8 @@ test('pelanggan otomatis mendapatkan link baru jika link lama sudah expired', fu
         ->assertRedirect();
 
     $this->invoice->refresh();
-    expect($this->invoice->xendit_invoice_id)->not->toBe('inv_old_123')
-        ->and($this->invoice->xendit_status)->toBe('PENDING');
+    expect($this->invoice->payment_gateway_id)->not->toBe('inv_old_123')
+        ->and($this->invoice->payment_gateway_status)->toBe('PENDING');
 });
 
 test('pelanggan dapat memicu cek status pembayaran secara manual pada portal', function () {

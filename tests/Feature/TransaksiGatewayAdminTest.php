@@ -48,7 +48,7 @@ beforeEach(function () {
 
     $this->transaksi = TransaksiPaymentGateway::create([
         'invoice_id' => $this->invoice->id,
-        'gateway' => 'xendit',
+        'gateway' => 'uji',
         'external_id' => 'INV-TEST-VA-001',
         'channel' => GatewayChannel::VirtualAccount,
         'channel_detail' => 'bca',
@@ -71,7 +71,7 @@ test('admin dapat melihat daftar transaksi payment gateway', function () {
 test('admin dapat melihat rincian transaksi gateway termasuk request dan response payload', function () {
     $this->transaksi->update([
         'payload_request' => [
-            'provider' => 'xendit',
+            'provider' => 'uji',
             'amount' => 200000,
             'external_id' => $this->transaksi->external_id,
         ],
@@ -79,16 +79,16 @@ test('admin dapat melihat rincian transaksi gateway termasuk request dan respons
             'id' => 'inv_test_response_123',
             'status' => 'PENDING',
             'amount' => 200000,
-            'invoice_url' => 'https://checkout-staging.xendit.co/web/inv_test_response_123',
+            'invoice_url' => 'https://gateway-uji.test/bayar/inv_test_response_123',
         ],
     ]);
 
     $webhookLog = WebhookLog::create([
-        'provider' => 'xendit',
+        'provider' => 'uji',
         'transaksi_payment_gateway_id' => $this->transaksi->id,
-        'event_type' => 'payment.xendit',
+        'event_type' => 'payment.uji',
         'provider_event_id' => 'evt_detailed_999',
-        'xendit_event_id' => 'evt_detailed_999',
+        'provider_event_id' => 'evt_detailed_999',
         'payload' => [
             'id' => 'evt_detailed_999',
             'status' => 'PAID',

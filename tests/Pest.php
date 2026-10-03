@@ -1,5 +1,6 @@
 <?php
 
+use App\Contracts\PaymentGateway\PaymentGatewayContract;
 use App\Enums\JenisKoneksi;
 use App\Models\IpPool;
 use App\Models\LayananPelanggan;
@@ -8,11 +9,13 @@ use App\Models\Pelanggan;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\RouterPaket;
+use App\Services\PaymentGateway\PaymentGatewayManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use RouterOS\Client;
 use RouterOS\Query;
+use Tests\Support\GatewayUjiDriver;
 use Tests\TestCase;
 
 /*
@@ -165,4 +168,17 @@ function berkasImpor(array $sheets): string
     (new Xlsx($spreadsheet))->save($path);
 
     return $path;
+}
+
+/**
+ * Daftarkan driver gateway uji (`uji`) ke manager yang dipakai container, untuk menguji
+ * manager/job/webhook tanpa terikat format gateway sungguhan.
+ */
+function pakaiGatewayUji(?PaymentGatewayContract $driver = null): PaymentGatewayManager
+{
+    $manager = new PaymentGatewayManager;
+    $manager->registerDriver('uji', $driver ?? new GatewayUjiDriver);
+    app()->instance(PaymentGatewayManager::class, $manager);
+
+    return $manager;
 }

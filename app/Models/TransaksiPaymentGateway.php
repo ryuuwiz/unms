@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\GatewayChannel;
 use App\Enums\StatusTransaksiGateway;
+use App\Services\PaymentGateway\PaymentGatewayManager;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -21,7 +22,6 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property int|null $pengaturan_gateway_id
  * @property string $external_id
  * @property string|null $provider_reference_id
- * @property string|null $xendit_reference_id
  * @property GatewayChannel $channel
  * @property string|null $channel_detail
  * @property string|null $nomor_pembayaran
@@ -44,7 +44,6 @@ use Spatie\Activitylog\Support\LogOptions;
     'pengaturan_gateway_id',
     'external_id',
     'provider_reference_id',
-    'xendit_reference_id',
     'channel',
     'channel_detail',
     'nomor_pembayaran',
@@ -62,17 +61,16 @@ class TransaksiPaymentGateway extends Model
 
     protected $table = 'transaksi_payment_gateway';
 
-    public function setXenditReferenceIdAttribute(?string $value): void
+    /**
+     * Hanya transaksi yang driver gateway-nya masih terdaftar; transaksi gateway yang sudah
+     * dipensiunkan (mis. Xendit, issue #76) tidak bisa dicek statusnya lagi.
+     *
+     * @param  Builder<TransaksiPaymentGateway>  $query
+     * @return Builder<TransaksiPaymentGateway>
+     */
+    public function scopeGatewayTerdaftar(Builder $query): Builder
     {
-        $this->attributes['xendit_reference_id'] = $value;
-        if (empty($this->attributes['provider_reference_id'])) {
-            $this->attributes['provider_reference_id'] = $value;
-        }
-    }
-
-    public function getXenditReferenceIdAttribute(?string $value): ?string
-    {
-        return $value ?: ($this->attributes['provider_reference_id'] ?? null);
+        return $query->whereIn('gateway', array_keys(app(PaymentGatewayManager::class)->getSupportedProviders()));
     }
 
     public function getActivitylogOptions(): LogOptions

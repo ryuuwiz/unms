@@ -6,7 +6,6 @@ use App\DTO\PaymentGateway\PingConnectionResult;
 use App\Models\PengaturanGateway as PengaturanGatewayModel;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Flux\Flux;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -25,26 +24,14 @@ class PengaturanGateway extends Component
 
     public ?int $editingId = null;
 
-    public string $provider = 'xendit';
+    public string $provider = 'ipaymu';
 
     public string $nama = '';
-
-    // Xendit Credentials
-    public string $xendit_secret_key = '';
-
-    public string $xendit_callback_token = '';
 
     // iPaymu Credentials
     public string $ipaymu_va = '';
 
     public string $ipaymu_api_key = '';
-
-    // General & Fee Settings (Standar Riset Industri: VA Rp 4.000, QRIS 0.70%)
-    public ?float $fee_va_nominal = 4000.0;
-
-    public ?float $fee_qris_persen = 0.70;
-
-    public ?float $fee_qris_nominal = 0.0;
 
     public bool $bebankan_ke_pelanggan = true;
 
@@ -65,8 +52,6 @@ class PengaturanGateway extends Component
 
     public ?PingConnectionResult $pingResult = null;
 
-    public ?PingConnectionResult $callbackTokenResult = null;
-
     public bool $isPinging = false;
 
     public function openCreateModal(): void
@@ -80,11 +65,8 @@ class PengaturanGateway extends Component
         $gateway = PengaturanGatewayModel::findOrFail($id);
 
         $this->editingId = $gateway->id;
-        $this->provider = $gateway->provider ?: 'xendit';
+        $this->provider = $gateway->provider ?: 'ipaymu';
         $this->nama = $gateway->nama ?: 'Gateway Connection';
-        $this->fee_va_nominal = (float) $gateway->fee_va_nominal;
-        $this->fee_qris_persen = (float) $gateway->fee_qris_persen;
-        $this->fee_qris_nominal = (float) $gateway->fee_qris_nominal;
         $this->bebankan_ke_pelanggan = (bool) $gateway->bebankan_ke_pelanggan;
         $this->is_default = (bool) $gateway->is_default;
         $this->is_active = (bool) $gateway->is_active;
@@ -93,13 +75,8 @@ class PengaturanGateway extends Component
 
         // Load credentials
         $creds = $gateway->credentials ?? [];
-        if ($this->provider === 'xendit') {
-            $this->xendit_secret_key = (string) ($creds['secret_key'] ?? '');
-            $this->xendit_callback_token = (string) ($creds['callback_token'] ?? '');
-        } elseif ($this->provider === 'ipaymu') {
-            $this->ipaymu_va = (string) ($creds['va'] ?? '');
-            $this->ipaymu_api_key = (string) ($creds['api_key'] ?? '');
-        }
+        $this->ipaymu_va = (string) ($creds['va'] ?? '');
+        $this->ipaymu_api_key = (string) ($creds['api_key'] ?? '');
 
         $this->showModal = true;
     }
@@ -111,41 +88,22 @@ class PengaturanGateway extends Component
         $this->validate([
             'provider' => ['required', Rule::in($supportedProviders)],
             'nama' => ['required', 'string', 'max:100'],
-            'fee_va_nominal' => ['required', 'numeric', 'min:0'],
-            'fee_qris_persen' => ['required', 'numeric', 'min:0', 'max:100'],
-            'fee_qris_nominal' => ['required', 'numeric', 'min:0'],
             'bebankan_ke_pelanggan' => ['required', 'boolean'],
             'is_default' => ['required', 'boolean'],
             'is_active' => ['required', 'boolean'],
             'sandbox_mode' => ['required', 'boolean'],
             'keterangan' => ['nullable', 'string', 'max:500'],
+            'ipaymu_va' => ['nullable', 'string', 'max:50'],
+            'ipaymu_api_key' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $credentials = [];
-        if ($this->provider === 'xendit') {
-            $this->validate([
-                'xendit_secret_key' => ['nullable', 'string', 'max:255'],
-                'xendit_callback_token' => ['nullable', 'string', 'max:255'],
-            ]);
-            $credentials['secret_key'] = trim($this->xendit_secret_key);
-            $credentials['callback_token'] = trim($this->xendit_callback_token);
-        } elseif ($this->provider === 'ipaymu') {
-            $this->validate([
-                'ipaymu_va' => ['nullable', 'string', 'max:50'],
-                'ipaymu_api_key' => ['nullable', 'string', 'max:255'],
-            ]);
-            $credentials['va'] = trim($this->ipaymu_va);
-            $credentials['api_key'] = trim($this->ipaymu_api_key);
-        }
+        $credentials = ['va' => trim($this->ipaymu_va), 'api_key' => trim($this->ipaymu_api_key)];
 
         $data = [
             'provider' => $this->provider,
             'gateway' => $this->provider,
             'nama' => trim($this->nama),
             'credentials' => $credentials,
-            'fee_va_nominal' => $this->fee_va_nominal,
-            'fee_qris_persen' => $this->fee_qris_persen,
-            'fee_qris_nominal' => $this->fee_qris_nominal,
             'bebankan_ke_pelanggan' => $this->bebankan_ke_pelanggan,
             'is_active' => $this->is_active,
             'sandbox_mode' => $this->sandbox_mode,
@@ -174,30 +132,6 @@ class PengaturanGateway extends Component
 
         $this->showModal = false;
         $this->resetForm();
-    }
-
-    public function save(): void
-    {
-        $this->validate([
-            'fee_va_nominal' => ['required', 'numeric', 'min:0'],
-            'fee_qris_persen' => ['required', 'numeric', 'min:0', 'max:100'],
-            'fee_qris_nominal' => ['required', 'numeric', 'min:0'],
-            'bebankan_ke_pelanggan' => ['required', 'boolean'],
-            'is_active' => ['required', 'boolean'],
-            'sandbox_mode' => ['required', 'boolean'],
-        ]);
-
-        $setting = PengaturanGatewayModel::getDefault() ?: PengaturanGatewayModel::getXenditSetting();
-        $setting->update([
-            'fee_va_nominal' => $this->fee_va_nominal,
-            'fee_qris_persen' => $this->fee_qris_persen,
-            'fee_qris_nominal' => $this->fee_qris_nominal,
-            'bebankan_ke_pelanggan' => $this->bebankan_ke_pelanggan,
-            'is_active' => $this->is_active,
-            'sandbox_mode' => $this->sandbox_mode,
-        ]);
-
-        Flux::toast(variant: 'success', text: 'Pengaturan payment gateway berhasil disimpan!');
     }
 
     public function setAsDefault(int $id): void
@@ -238,11 +172,9 @@ class PengaturanGateway extends Component
         $this->pingGatewayId = $id;
         $this->pingingGateway = PengaturanGatewayModel::findOrFail($id);
         $this->pingResult = null;
-        $this->callbackTokenResult = null;
         $this->showPingModal = true;
 
         $this->eksekusiPing();
-        $this->ujiCallbackToken();
     }
 
     public function eksekusiPing(): void
@@ -272,59 +204,13 @@ class PengaturanGateway extends Component
         }
     }
 
-    public function ujiCallbackToken(): void
-    {
-        if (! $this->pingingGateway || $this->pingingGateway->provider !== 'xendit') {
-            $this->callbackTokenResult = null;
-
-            return;
-        }
-
-        $callbackToken = trim((string) $this->pingingGateway->getCredential('callback_token'));
-        if ($callbackToken === '') {
-            $this->callbackTokenResult = new PingConnectionResult(
-                success: false,
-                message: 'Callback Token Xendit belum diisi pada koneksi gateway ini.'
-            );
-
-            return;
-        }
-
-        $request = Request::create('/webhook/payment/xendit', 'POST', [], [], [], [
-            'HTTP_X_CALLBACK_TOKEN' => $callbackToken,
-        ]);
-
-        $canonicalValid = app(PaymentGatewayManager::class)
-            ->driver('xendit')
-            ->verifyWebhook($request, $this->pingingGateway);
-
-        if (! $canonicalValid) {
-            $this->callbackTokenResult = new PingConnectionResult(
-                success: false,
-                message: 'Callback Token tidak cocok dengan kredensial koneksi yang dipakai route canonical /webhook/payment/xendit.'
-            );
-
-            return;
-        }
-
-        $this->callbackTokenResult = new PingConnectionResult(
-            success: true,
-            message: 'Callback Token valid untuk route canonical /webhook/payment/xendit.'
-        );
-    }
-
     protected function resetForm(): void
     {
         $this->editingId = null;
-        $this->provider = 'xendit';
+        $this->provider = 'ipaymu';
         $this->nama = '';
-        $this->xendit_secret_key = '';
-        $this->xendit_callback_token = '';
         $this->ipaymu_va = '';
         $this->ipaymu_api_key = '';
-        $this->fee_va_nominal = 4000.0;
-        $this->fee_qris_persen = 0.70;
-        $this->fee_qris_nominal = 0.0;
         $this->bebankan_ke_pelanggan = true;
         $this->is_default = false;
         $this->is_active = true;

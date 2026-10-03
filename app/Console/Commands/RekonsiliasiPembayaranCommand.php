@@ -24,7 +24,7 @@ class RekonsiliasiPembayaranCommand extends Command
     /**
      * Jendela waktu transaksi Pending yang masih layak dipolling ke gateway.
      * Di luar jendela ini, transaksi dianggap sudah kedaluwarsa secara wajar dan
-     * ditangani oleh xendit:cek-va-expired, bukan oleh sweeper ini.
+     * ditangani oleh pembayaran:cek-kedaluwarsa, bukan oleh sweeper ini.
      */
     protected const HARI_JENDELA_PENDING = 7;
 
@@ -106,6 +106,7 @@ class RekonsiliasiPembayaranCommand extends Command
         $awalJendela = now()->subDays(self::HARI_JENDELA_PENDING);
 
         $transaksis = TransaksiPaymentGateway::query()
+            ->gatewayTerdaftar()
             ->where('status', StatusTransaksiGateway::Pending)
             ->where('created_at', '>=', $awalJendela)
             ->whereHas('invoice', fn ($query) => $query->where('status', '!=', StatusInvoice::Lunas))

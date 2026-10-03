@@ -25,7 +25,7 @@ class CekStatusPembayaranInvoice
             return new HasilCekStatusPembayaran(true);
         }
 
-        $transaksis = $invoice->transaksiPaymentGateways()->with('pengaturanGateway')->latest('id')->get();
+        $transaksis = $invoice->transaksiPaymentGateways()->gatewayTerdaftar()->with('pengaturanGateway')->latest('id')->get();
 
         if ($transaksis->isEmpty()) {
             $this->manager->sinkronkanStatus($invoice);
@@ -76,7 +76,7 @@ class CekStatusPembayaranInvoice
     private function tanganiPaid(Invoice $invoice, TransaksiPaymentGateway $transaksi, array $statusData): HasilCekStatusPembayaran
     {
         if ($invoice->isDigabung() || $invoice->isDibatalkan() || $invoice->trashed()) {
-            return new HasilCekStatusPembayaran(false, alasanManual: "Link {$transaksi->external_id} sudah dibayar di Xendit, tetapi invoice berstatus {$invoice->status->label()}: periksa dan proses manual.");
+            return new HasilCekStatusPembayaran(false, alasanManual: "Link {$transaksi->external_id} sudah dibayar di gateway, tetapi invoice berstatus {$invoice->status->label()}: periksa dan proses manual.");
         }
 
         // Validasi Ketat Nominal Gateway, sama dengan webhook: selisih sekecil apa pun diproses manual.

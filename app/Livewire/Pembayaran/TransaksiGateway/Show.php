@@ -2,13 +2,10 @@
 
 namespace App\Livewire\Pembayaran\TransaksiGateway;
 
-use App\Enums\StatusTransaksiGateway;
 use App\Models\Invoice;
 use App\Models\Pembayaran;
-use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use App\Services\PaymentGateway\CekStatusPembayaranInvoice;
-use App\Services\Xendit\XenditPaymentService;
 use Flux\Flux;
 use Illuminate\View\View;
 use Livewire\Attributes\Layout;
@@ -33,7 +30,7 @@ class Show extends Component
     /**
      * Cek semua transaksi invoice ke gateway (termasuk link lama); PAID melunasi invoice lewat sinkron biasa.
      */
-    public function cekStatusPembayaranXendit(CekStatusPembayaranInvoice $cekStatus): void
+    public function cekStatusPembayaran(CekStatusPembayaranInvoice $cekStatus): void
     {
         $this->authorize('viewAny', Pembayaran::class);
 
@@ -51,34 +48,6 @@ class Show extends Component
         } catch (\Throwable $e) {
             report($e);
             Flux::toast(variant: 'danger', text: 'Gagal rekonsiliasi: '.$e->getMessage());
-        }
-    }
-
-    public function simulasikanPembayaran(XenditPaymentService $paymentService): void
-    {
-        $this->authorize('viewAny', Pembayaran::class);
-
-        $setting = PengaturanGateway::getXenditSetting();
-        if (! $setting->sandbox_mode && ! app()->environment('local', 'testing')) {
-            Flux::toast(variant: 'danger', text: 'Simulasi pembayaran hanya diizinkan dalam Sandbox/Development mode.');
-
-            return;
-        }
-
-        if ($this->transaksi->status !== StatusTransaksiGateway::Pending) {
-            Flux::toast(variant: 'warning', text: 'Hanya transaksi berstatus Pending yang dapat disimulasikan.');
-
-            return;
-        }
-
-        $result = $paymentService->simulasikanWebhookLokal($this->transaksi);
-
-        if ($result['success']) {
-            $this->transaksi->refresh();
-            $this->transaksi->load(['invoice.pelanggan', 'webhookLogs' => fn ($q) => $q->latest('id')]);
-            Flux::toast(variant: 'success', text: 'Simulasi pembayaran berhasil! Invoice telah ditandai lunas.');
-        } else {
-            Flux::toast(variant: 'danger', text: 'Simulasi gagal: '.($result['message'] ?? 'Error tidak diketahui'));
         }
     }
 

@@ -14,13 +14,7 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
-            @if(($transaksi->status === \App\Enums\StatusTransaksiGateway::Pending) && (\App\Models\PengaturanGateway::getXenditSetting()->sandbox_mode || app()->environment('local', 'testing')))
-                <flux:button wire:click="simulasikanPembayaran" size="sm" variant="primary" icon="bolt" wire:loading.attr="disabled">
-                    Simulasikan Pembayaran (Sandbox)
-                </flux:button>
-            @endif
-
-            <flux:button wire:click="cekStatusPembayaranXendit" wire:target="cekStatusPembayaranXendit" size="sm" variant="ghost" icon="arrow-path" wire:loading.attr="disabled">
+            <flux:button wire:click="cekStatusPembayaran" wire:target="cekStatusPembayaran" size="sm" variant="ghost" icon="arrow-path" wire:loading.attr="disabled">
                 Rekonsiliasi Status Gateway
             </flux:button>
         </div>
@@ -66,7 +60,7 @@
 
                 <div class="flex justify-between py-1.5 border-b border-zinc-100 dark:border-zinc-800">
                     <span class="text-zinc-500">Provider Reference ID:</span>
-                    <span class="font-mono text-zinc-800 dark:text-zinc-200">{{ $transaksi->provider_reference_id ?: ($transaksi->xendit_reference_id ?? '-') }}</span>
+                    <span class="font-mono text-zinc-800 dark:text-zinc-200">{{ $transaksi->provider_reference_id ?: '-' }}</span>
                 </div>
 
                 <div class="flex justify-between py-1.5 border-b border-zinc-100 dark:border-zinc-800">
@@ -218,7 +212,7 @@
                             <div class="flex items-center gap-2 flex-wrap">
                                 <span class="font-mono font-bold text-zinc-900 dark:text-zinc-100">{{ $log->event_type }}</span>
                                 <flux:badge size="xs" variant="pill" color="indigo">
-                                    {{ strtoupper($log->provider ?: 'xendit') }}
+                                    {{ strtoupper($log->provider ?: '-') }}
                                 </flux:badge>
                                 <flux:badge size="xs" variant="pill" :color="$log->status_proses->color()">
                                     {{ $log->status_proses->label() }}
@@ -233,7 +227,7 @@
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-2.5 bg-white dark:bg-zinc-900/70 rounded-lg border border-zinc-100 dark:border-zinc-800 text-[11px]">
                             <div>
                                 <span class="text-zinc-400 block">Event ID:</span>
-                                <span class="font-mono font-semibold text-zinc-800 dark:text-zinc-200 truncate block">{{ $log->provider_event_id ?: ($log->xendit_event_id ?? '-') }}</span>
+                                <span class="font-mono font-semibold text-zinc-800 dark:text-zinc-200 truncate block">{{ $log->provider_event_id ?: '-' }}</span>
                             </div>
                             <div>
                                 <span class="text-zinc-400 block">Nominal Terbayar:</span>

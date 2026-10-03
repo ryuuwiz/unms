@@ -73,6 +73,7 @@ class PulihkanPembayaranCommand extends Command
     protected function transaksiUntukDipindai(CarbonInterface $dari, CarbonInterface $sampai): Collection
     {
         return TransaksiPaymentGateway::query()
+            ->gatewayTerdaftar()
             ->whereIn('status', [StatusTransaksiGateway::Expired, StatusTransaksiGateway::Pending])
             ->whereBetween('created_at', [$dari, $sampai])
             ->whereHas('invoice', fn ($query) => $query->where('status', '!=', StatusInvoice::Lunas))

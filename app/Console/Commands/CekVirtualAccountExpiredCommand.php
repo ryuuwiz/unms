@@ -16,7 +16,7 @@ class CekVirtualAccountExpiredCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'xendit:cek-va-expired {--limit=200 : Batas jumlah transaksi yang diperiksa per eksekusi}';
+    protected $signature = 'pembayaran:cek-kedaluwarsa {--limit=200 : Batas jumlah transaksi yang diperiksa per eksekusi}';
 
     protected const HARI_JENDELA = 30;
 
@@ -38,6 +38,7 @@ class CekVirtualAccountExpiredCommand extends Command
         $this->info('Memeriksa transaksi payment gateway yang melewati batas waktu ke gateway...');
 
         $transaksis = TransaksiPaymentGateway::query()
+            ->gatewayTerdaftar()
             ->where('status', StatusTransaksiGateway::Pending)
             ->whereNotNull('expired_at')
             ->where('expired_at', '<', now())
@@ -55,7 +56,7 @@ class CekVirtualAccountExpiredCommand extends Command
             try {
                 $statusData = $manager->sinkronkanTransaksi($transaksi);
             } catch (Throwable $e) {
-                Log::error("xendit:cek-va-expired: gagal memeriksa Transaksi ID {$transaksi->id}: ".$e->getMessage());
+                Log::error("pembayaran:cek-kedaluwarsa: gagal memeriksa Transaksi ID {$transaksi->id}: ".$e->getMessage());
 
                 continue;
             }
