@@ -149,6 +149,29 @@ test('admin dapat mengedit layanan meskipun router terkait sedang offline', func
         ->and($layanan->nama_site)->toBe('Titik Pasang Baru');
 });
 
+test('layanan milik pelanggan yang sudah dihapus tetap bisa dibuka dan disimpan di halaman edit', function () {
+    $layanan = LayananPelanggan::factory()->create([
+        'pelanggan_id' => $this->pelanggan->id,
+        'paket_layanan_id' => $this->paket->id,
+        'router_id' => $this->router->id,
+        'jenis_koneksi' => JenisKoneksi::Pppoe,
+        'ppp_username' => "{$this->pelanggan->no_reg}_00001",
+        'status' => StatusLayanan::Berhenti,
+    ]);
+    daftarkanRouterPaket($layanan);
+    $this->pelanggan->delete();
+
+    Livewire::actingAs($this->admin)
+        ->test(Edit::class, ['layananPelanggan' => $layanan->fresh()])
+        ->assertSet('pelangganNoReg', $this->pelanggan->no_reg)
+        ->set('nama_site', 'Titik Pasang Arsip')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertRedirect(route('layanan-pelanggan.index'));
+
+    expect($layanan->refresh()->nama_site)->toBe('Titik Pasang Arsip');
+});
+
 test('admin can edit layanan pelanggan and switch to ip_static', function () {
     Queue::fake([ProvisionPppoeAccountJob::class]);
     $layanan = LayananPelanggan::factory()->create([
