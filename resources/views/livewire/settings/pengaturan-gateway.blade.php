@@ -105,7 +105,7 @@
                                     </span>
                                 </div>
                                 <div class="text-zinc-500">
-                                    VA: Rp {{ number_format((float) $gateway->fee_va_nominal, 0, ',', '.') }} • QRIS: {{ $gateway->fee_qris_persen }}%
+                                    VA: Rp {{ number_format((float) $gateway->fee_va_nominal, 0, ',', '.') }} • QRIS: {{ $gateway->fee_qris_persen }}% • Proses: Rp {{ number_format((float) $gateway->biaya_pemrosesan, 0, ',', '.') }}
                                 </div>
                             </div>
                         </flux:table.cell>
@@ -275,25 +275,19 @@
                         <flux:description>Jika dicentang, biaya transaksi ditambahkan/dibebankan ke pelanggan. Jika tidak, disubsidi oleh ISP.</flux:description>
                     </flux:field>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <flux:input
-                            wire:model="fee_va_nominal"
-                            type="number"
-                            step="100"
-                            min="0"
-                            label="Biaya Admin VA (Rp)"
-                            placeholder="Contoh: 4000"
-                        />
+                    <flux:description>Isi sesuai tarif kontrak gateway. Biaya ke pelanggan = tarif metode + biaya pemrosesan, ditambah PPN bila tarif belum termasuk PPN, dibulatkan ke atas.</flux:description>
 
-                        <flux:input
-                            wire:model="fee_qris_persen"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            label="Biaya Admin QRIS (%)"
-                            placeholder="Contoh: 0.70"
-                        />
+                    @foreach (['va' => 'Virtual Account', 'qris' => 'QRIS'] as $kode => $labelMetode)
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                            <flux:input wire:model="fee_{{ $kode }}_nominal" type="number" step="1" min="0" label="{{ $labelMetode }} (Rp)" />
+                            <flux:input wire:model="fee_{{ $kode }}_persen" type="number" step="0.01" min="0" max="100" label="{{ $labelMetode }} (%)" />
+                            <flux:checkbox wire:model="fee_{{ $kode }}_termasuk_ppn" label="Sudah termasuk PPN" />
+                        </div>
+                    @endforeach
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <flux:input wire:model="biaya_pemrosesan" type="number" step="1" min="0" label="Biaya Pemrosesan per Transaksi (Rp)" />
+                        <flux:input wire:model="ppn_persen" type="number" step="0.01" min="0" max="100" label="PPN (%)" />
                     </div>
                 </div>
 

@@ -72,7 +72,7 @@ class XenditDriver extends AbstractPaymentDriver
     {
         $apiKey = $this->getApiKey($setting);
         $nominalInvoice = (float) $invoice->jumlah_setelah_promo;
-        $fee = $setting->hitungFee('virtual_account', $nominalInvoice);
+        $fee = $setting->hitungFee(GatewayChannel::VirtualAccount, $nominalInvoice);
         $totalTagihan = $nominalInvoice + $fee;
 
         $invoiceDurationSeconds = $this->hitungDurasiDetik($invoice);

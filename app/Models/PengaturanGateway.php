@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\GatewayChannel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -17,6 +19,11 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property array<string, mixed>|null $credentials
  * @property string|null $gateway
  * @property float $fee_va_nominal
+ * @property float $fee_va_persen
+ * @property bool $fee_va_termasuk_ppn
+ * @property bool $fee_qris_termasuk_ppn
+ * @property float $biaya_pemrosesan
+ * @property float $ppn_persen
  * @property float $fee_qris_persen
  * @property float $fee_qris_nominal
  * @property bool $bebankan_ke_pelanggan
@@ -35,6 +42,11 @@ use Spatie\Activitylog\Support\LogOptions;
     'fee_va_nominal',
     'fee_qris_persen',
     'fee_qris_nominal',
+    'fee_va_persen',
+    'fee_va_termasuk_ppn',
+    'fee_qris_termasuk_ppn',
+    'biaya_pemrosesan',
+    'ppn_persen',
     'bebankan_ke_pelanggan',
     'is_default',
     'is_active',
@@ -48,9 +60,14 @@ class PengaturanGateway extends Model
     protected $table = 'pengaturan_gateway';
 
     protected $attributes = [
-        'fee_va_nominal' => 4000.00,
+        'fee_va_nominal' => 9000.00,
+        'fee_va_persen' => 0.00,
+        'fee_va_termasuk_ppn' => false,
         'fee_qris_persen' => 0.70,
         'fee_qris_nominal' => 0.00,
+        'fee_qris_termasuk_ppn' => true,
+        'biaya_pemrosesan' => 4000.00,
+        'ppn_persen' => 11.00,
         'bebankan_ke_pelanggan' => true,
         'is_active' => true,
         'sandbox_mode' => true,
@@ -59,7 +76,7 @@ class PengaturanGateway extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['provider', 'nama', 'is_default', 'is_active', 'sandbox_mode', 'bebankan_ke_pelanggan', 'fee_va_nominal', 'fee_qris_persen'])
+            ->logOnly(['provider', 'nama', 'is_default', 'is_active', 'sandbox_mode', 'bebankan_ke_pelanggan', 'fee_va_nominal', 'fee_va_persen', 'fee_va_termasuk_ppn', 'fee_qris_nominal', 'fee_qris_persen', 'fee_qris_termasuk_ppn', 'biaya_pemrosesan', 'ppn_persen'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('pengaturan_gateway');
@@ -75,6 +92,11 @@ class PengaturanGateway extends Model
             'fee_va_nominal' => 'decimal:2',
             'fee_qris_persen' => 'decimal:2',
             'fee_qris_nominal' => 'decimal:2',
+            'fee_va_persen' => 'decimal:2',
+            'fee_va_termasuk_ppn' => 'boolean',
+            'fee_qris_termasuk_ppn' => 'boolean',
+            'biaya_pemrosesan' => 'decimal:2',
+            'ppn_persen' => 'decimal:2',
             'bebankan_ke_pelanggan' => 'boolean',
             'is_default' => 'boolean',
             'is_active' => 'boolean',
@@ -163,9 +185,6 @@ class PengaturanGateway extends Model
             [
                 'nama' => 'Xendit Gateway',
                 'gateway' => 'xendit',
-                'fee_va_nominal' => 4000.00,
-                'fee_qris_persen' => 0.70,
-                'fee_qris_nominal' => 0.00,
                 'bebankan_ke_pelanggan' => true,
                 'is_default' => true,
                 'is_active' => true,
@@ -177,25 +196,27 @@ class PengaturanGateway extends Model
     }
 
     /**
-     * Hitung total fee gateway berdasarkan channel dan nominal tagihan.
+     * Biaya Admin Gateway untuk satu metode bayar: tarif metode + biaya pemrosesan, masing-masing
+     * ditambah PPN bila tarifnya belum termasuk PPN, dibulatkan ke atas ke rupiah penuh (ADR-0072).
      */
-    public function hitungFee(string $channel, float $nominalInvoice): float
+    public function hitungFee(GatewayChannel $metode, float $nominalInvoice): int
     {
         if (! $this->bebankan_ke_pelanggan) {
-            return 0.0;
+            return 0;
         }
 
-        if ($channel === 'virtual_account') {
-            return (float) $this->fee_va_nominal;
-        }
+        [$nominal, $persen, $termasukPpn] = match ($metode) {
+            GatewayChannel::VirtualAccount => [$this->fee_va_nominal, $this->fee_va_persen, $this->fee_va_termasuk_ppn],
+            GatewayChannel::Qris => [$this->fee_qris_nominal, $this->fee_qris_persen, $this->fee_qris_termasuk_ppn],
+            default => throw new InvalidArgumentException("Metode bayar {$metode->value} tidak punya tarif."),
+        };
 
-        if ($channel === 'qris') {
-            $feePersen = ($nominalInvoice * ((float) $this->fee_qris_persen / 100));
+        $faktorPpn = 1 + (float) $this->ppn_persen / 100;
+        $biayaMetode = (float) $nominal + $nominalInvoice * (float) $persen / 100;
+        $fee = ($termasukPpn ? $biayaMetode : $biayaMetode * $faktorPpn) + (float) $this->biaya_pemrosesan * $faktorPpn;
 
-            return round($feePersen + (float) $this->fee_qris_nominal, 2);
-        }
-
-        return 0.0;
+        // round() dulu agar galat float (mis. 14430.000000000002) tidak ikut dibulatkan ke atas.
+        return (int) ceil(round($fee, 2));
     }
 
     /**

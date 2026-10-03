@@ -39,12 +39,22 @@ class PengaturanGateway extends Component
 
     public string $ipaymu_api_key = '';
 
-    // General & Fee Settings (Standar Riset Industri: VA Rp 4.000, QRIS 0.70%)
-    public ?float $fee_va_nominal = 4000.0;
+    // Tarif Biaya Admin Gateway per metode bayar (ADR-0072); nilai awal dari default model.
+    public ?float $fee_va_nominal = null;
 
-    public ?float $fee_qris_persen = 0.70;
+    public ?float $fee_va_persen = null;
 
-    public ?float $fee_qris_nominal = 0.0;
+    public bool $fee_va_termasuk_ppn = false;
+
+    public ?float $fee_qris_nominal = null;
+
+    public ?float $fee_qris_persen = null;
+
+    public bool $fee_qris_termasuk_ppn = true;
+
+    public ?float $biaya_pemrosesan = null;
+
+    public ?float $ppn_persen = null;
 
     public bool $bebankan_ke_pelanggan = true;
 
@@ -69,6 +79,11 @@ class PengaturanGateway extends Component
 
     public bool $isPinging = false;
 
+    public function mount(): void
+    {
+        $this->resetForm();
+    }
+
     public function openCreateModal(): void
     {
         $this->resetForm();
@@ -82,9 +97,7 @@ class PengaturanGateway extends Component
         $this->editingId = $gateway->id;
         $this->provider = $gateway->provider ?: 'xendit';
         $this->nama = $gateway->nama ?: 'Gateway Connection';
-        $this->fee_va_nominal = (float) $gateway->fee_va_nominal;
-        $this->fee_qris_persen = (float) $gateway->fee_qris_persen;
-        $this->fee_qris_nominal = (float) $gateway->fee_qris_nominal;
+        $this->isiTarif($gateway);
         $this->bebankan_ke_pelanggan = (bool) $gateway->bebankan_ke_pelanggan;
         $this->is_default = (bool) $gateway->is_default;
         $this->is_active = (bool) $gateway->is_active;
@@ -143,9 +156,7 @@ class PengaturanGateway extends Component
             'gateway' => $this->provider,
             'nama' => trim($this->nama),
             'credentials' => $credentials,
-            'fee_va_nominal' => $this->fee_va_nominal,
-            'fee_qris_persen' => $this->fee_qris_persen,
-            'fee_qris_nominal' => $this->fee_qris_nominal,
+            ...$this->only(array_keys($this->aturanTarif())),
             'bebankan_ke_pelanggan' => $this->bebankan_ke_pelanggan,
             'is_active' => $this->is_active,
             'sandbox_mode' => $this->sandbox_mode,
@@ -179,9 +190,7 @@ class PengaturanGateway extends Component
     public function save(): void
     {
         $this->validate([
-            'fee_va_nominal' => ['required', 'numeric', 'min:0'],
-            'fee_qris_persen' => ['required', 'numeric', 'min:0', 'max:100'],
-            'fee_qris_nominal' => ['required', 'numeric', 'min:0'],
+            ...$this->aturanTarif(),
             'bebankan_ke_pelanggan' => ['required', 'boolean'],
             'is_active' => ['required', 'boolean'],
             'sandbox_mode' => ['required', 'boolean'],
@@ -189,9 +198,7 @@ class PengaturanGateway extends Component
 
         $setting = PengaturanGatewayModel::getDefault() ?: PengaturanGatewayModel::getXenditSetting();
         $setting->update([
-            'fee_va_nominal' => $this->fee_va_nominal,
-            'fee_qris_persen' => $this->fee_qris_persen,
-            'fee_qris_nominal' => $this->fee_qris_nominal,
+            ...$this->only(array_keys($this->aturanTarif())),
             'bebankan_ke_pelanggan' => $this->bebankan_ke_pelanggan,
             'is_active' => $this->is_active,
             'sandbox_mode' => $this->sandbox_mode,
@@ -313,6 +320,35 @@ class PengaturanGateway extends Component
         );
     }
 
+    /**
+     * @return array<string, list<string>>
+     */
+    private function aturanTarif(): array
+    {
+        return [
+            'fee_va_nominal' => ['required', 'numeric', 'min:0'],
+            'fee_va_persen' => ['required', 'numeric', 'min:0', 'max:100'],
+            'fee_va_termasuk_ppn' => ['required', 'boolean'],
+            'fee_qris_nominal' => ['required', 'numeric', 'min:0'],
+            'fee_qris_persen' => ['required', 'numeric', 'min:0', 'max:100'],
+            'fee_qris_termasuk_ppn' => ['required', 'boolean'],
+            'biaya_pemrosesan' => ['required', 'numeric', 'min:0'],
+            'ppn_persen' => ['required', 'numeric', 'min:0', 'max:100'],
+        ];
+    }
+
+    private function isiTarif(PengaturanGatewayModel $gateway): void
+    {
+        $this->fee_va_nominal = (float) $gateway->fee_va_nominal;
+        $this->fee_va_persen = (float) $gateway->fee_va_persen;
+        $this->fee_va_termasuk_ppn = (bool) $gateway->fee_va_termasuk_ppn;
+        $this->fee_qris_nominal = (float) $gateway->fee_qris_nominal;
+        $this->fee_qris_persen = (float) $gateway->fee_qris_persen;
+        $this->fee_qris_termasuk_ppn = (bool) $gateway->fee_qris_termasuk_ppn;
+        $this->biaya_pemrosesan = (float) $gateway->biaya_pemrosesan;
+        $this->ppn_persen = (float) $gateway->ppn_persen;
+    }
+
     protected function resetForm(): void
     {
         $this->editingId = null;
@@ -322,9 +358,7 @@ class PengaturanGateway extends Component
         $this->xendit_callback_token = '';
         $this->ipaymu_va = '';
         $this->ipaymu_api_key = '';
-        $this->fee_va_nominal = 4000.0;
-        $this->fee_qris_persen = 0.70;
-        $this->fee_qris_nominal = 0.0;
+        $this->isiTarif(new PengaturanGatewayModel);
         $this->bebankan_ke_pelanggan = true;
         $this->is_default = false;
         $this->is_active = true;

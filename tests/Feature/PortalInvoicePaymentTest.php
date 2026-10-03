@@ -102,6 +102,17 @@ test('pelanggan dapat menekan tombol bayar dan di-redirect ke xendit_invoice_url
         ->and($transaksi->channel)->toBe(GatewayChannel::Invoice);
 });
 
+test('link bayar membebankan biaya VA pass-through termasuk PPN dan biaya pemrosesan', function () {
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('bayar');
+
+    // (9.000 + 4.000) x 1,11 = 14.430 (ADR-0072)
+    $transaksi = $this->invoice->transaksiPaymentGateways()->latest()->first();
+    expect((float) $transaksi->fee_gateway)->toBe(14430.0)
+        ->and((float) $transaksi->total_tagihan)->toBe(314430.0);
+});
+
 test('pelanggan otomatis mendapatkan link baru jika link lama sudah expired', function () {
     $this->invoice->update([
         'xendit_invoice_id' => 'inv_old_123',

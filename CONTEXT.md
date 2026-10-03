@@ -296,12 +296,12 @@ _Technical Reference_: Xendit PHP SDK (`xendit/xendit-php`), Context7: `/xendit/
 _Avoid_: Billing Gateway, Tagihan Xendit Saja, Order ID Bebas
 
 **Link Pembayaran Gateway**:
-Tautan resmi sesi pembayaran terkelola dari payment gateway aktif (`payment_gateway_url`) yang memuat pilihan metode bayar secara langsung di halaman hosted gateway tanpa form custom internal.
+Tautan resmi ke halaman checkout yang disediakan payment gateway (hosted), tempat pelanggan menyelesaikan pembayaran; kita tidak pernah membangun halaman bayar sendiri. Untuk gateway yang halaman checkout-nya bisa menghitung biaya per metode sendiri (iPaymu), satu link memuat semua metode. Untuk gateway yang halamannya hanya punya satu nominal (Xendit), satu link hanya memuat satu metode bayar beserta Biaya Admin Gateway-nya, dan baru dibuat saat pelanggan memilih metode itu; link yang masih aktif untuk metode yang sama dipakai ulang.
 _Avoid_: Custom Checkout URL, Link Bayar Bebas, Xendit URL Saja
 
 **Halaman Tagihan Mandiri**:
-Halaman tunggal tanpa autentikasi/login yang dituju oleh tautan pada notifikasi WhatsApp pengingat tagihan, berisi rincian satu Invoice dan satu tombol yang mengarah ke Link Pembayaran Gateway. Tampil dengan Brand Pelanggan pemilik invoice (bukan Petunjuk Brand). Berbeda dari Portal Pelanggan (yang mencakup banyak halaman dan wajib login): halaman ini diakses via Tautan Tagihan yang mengikat ke satu Invoice spesifik dan tidak kedaluwarsa, tanpa form perbandingan biaya custom internal apa pun. Pelanggan yang sudah login ke Portal Pelanggan tetap dapat mencapai halaman yang sama via sesi login sebagai jalur kedua.
-_Avoid_: Portal Pelanggan Saja, Halaman Bayar Terpisah, Custom Checkout Form, Kartu Estimasi Biaya Internal
+Halaman tunggal tanpa autentikasi/login yang dituju oleh tautan pada notifikasi WhatsApp pengingat tagihan, berisi rincian satu Invoice dan tombol bayar yang mengarah ke Link Pembayaran Gateway: satu tombol bila halaman checkout gateway menghitung biaya per metode sendiri (iPaymu), atau satu tombol per metode bayar dengan total masing-masing (mis. Virtual Account dan QRIS) bila tidak (Xendit). Tampil dengan Brand Pelanggan pemilik invoice (bukan Petunjuk Brand). Berbeda dari Portal Pelanggan (yang mencakup banyak halaman dan wajib login): halaman ini diakses via Tautan Tagihan yang mengikat ke satu Invoice spesifik dan tidak kedaluwarsa. Tombol per metode hanya memilih checkout gateway mana yang dibuka, bukan form pembayaran. Pelanggan yang sudah login ke Portal Pelanggan tetap dapat mencapai halaman yang sama via sesi login sebagai jalur kedua.
+_Avoid_: Portal Pelanggan Saja, Halaman Bayar Terpisah, Custom Checkout Form
 
 **Tautan Tagihan**:
 Alamat pendek dan tidak dapat ditebak yang membuka Halaman Tagihan Mandiri untuk satu Invoice tanpa login dan tanpa masa berlaku; siapa pun yang memegang tautan dapat melihat dan membayar invoice itu. Tautan bertanda tangan lama yang sudah terkirim tetap diterima meskipun tanggal kedaluwarsanya telah lewat.
@@ -324,8 +324,8 @@ Komponen adapter perangkat lunak yang mengimplementasikan protokol komunikasi AP
 _Avoid_: Payment Plugin, Modul Bayar Bebas
 
 **Biaya Admin Gateway**:
-Biaya pemrosesan transaksi dari penyedia payment gateway (default riset: VA Rp 4.000, QRIS 0.70%) yang secara default dibebankan kepada pelanggan (`bebankan_ke_pelanggan: true`) dengan penambahan nominal tagihan (Xendit `fees`) atau direct charge gateway (iPaymu `feeDirection: 'BUYER'`).
-_Avoid_: Biaya Tambahan Bebas, Hidden Fee, Potongan ISP Saja
+Biaya pemrosesan transaksi dari penyedia payment gateway yang secara default dibebankan kepada pelanggan, sebesar biaya yang benar-benar ditagih gateway untuk metode bayar yang dipakai, **termasuk PPN-nya** dan biaya pemrosesan per transaksi gateway (pass-through persis, tanpa margin, hanya dibulatkan ke atas ke rupiah penuh), sehingga ISP tidak untung maupun rugi atas biaya ini. Karena itu besarnya berbeda per metode bayar (mis. Virtual Account nominal tetap, QRIS persentase dari tagihan). Biaya percobaan bayar yang gagal tetap ditanggung ISP. Besarnya dibekukan pada Link Pembayaran Gateway saat link terbit; perubahan tarif hanya berlaku untuk link baru, link yang sudah terbit tidak diterbitkan ulang.
+_Avoid_: Biaya Tambahan Bebas, Hidden Fee, Potongan ISP Saja, Fee Flat Semua Metode
 
 **Impersonasi**:
 Aksi staf dengan peran `super_admin` untuk masuk sementara (*login as*) ke sesi pengguna staf lain atau akun portal pelanggan tanpa membutuhkan kata sandi untuk tujuan *troubleshooting*, audit hak akses, dan verifikasi tampilan portal secara *real-time*.

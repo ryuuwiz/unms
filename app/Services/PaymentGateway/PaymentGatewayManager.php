@@ -151,7 +151,7 @@ class PaymentGatewayManager
         // sehingga total_tagihan di sini sudah pasti sama dengan paid_amount yang akan
         // dilaporkan webhook.
         $externalId = $driver->generateExternalId($invoice);
-        $fee = $setting->hitungFee('virtual_account', (float) $invoice->jumlah_setelah_promo);
+        $fee = $setting->hitungFee(GatewayChannel::VirtualAccount, (float) $invoice->jumlah_setelah_promo);
         $totalTagihanEstimasi = (float) $invoice->jumlah_setelah_promo + $fee;
 
         $transaksi = TransaksiPaymentGateway::create([

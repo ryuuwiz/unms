@@ -17,29 +17,48 @@ beforeEach(function () {
     $this->superAdmin->assignRole('super_admin');
 });
 
-test('pengaturan gateway memiliki nilai default fee non-nol sesuai riset pasar', function () {
+test('pengaturan gateway memiliki tarif awal sesuai harga publik Xendit', function () {
     $setting = PengaturanGatewayModel::getXenditSetting();
 
-    expect((float) $setting->fee_va_nominal)->toBe(4000.0)
+    expect((float) $setting->fee_va_nominal)->toBe(9000.0)
+        ->and($setting->fee_va_termasuk_ppn)->toBeFalse()
         ->and((float) $setting->fee_qris_persen)->toBe(0.70)
-        ->and((float) $setting->fee_qris_nominal)->toBe(0.0)
+        ->and($setting->fee_qris_termasuk_ppn)->toBeTrue()
+        ->and((float) $setting->biaya_pemrosesan)->toBe(4000.0)
+        ->and((float) $setting->ppn_persen)->toBe(11.0)
         ->and($setting->bebankan_ke_pelanggan)->toBeTrue();
 });
 
-test('super admin dapat mengakses dan menyimpan konfigurasi fee gateway', function () {
+test('super admin dapat menyimpan tarif per metode bayar', function () {
     Livewire::actingAs($this->superAdmin)
         ->test(PengaturanGateway::class)
         ->assertOk()
-        ->set('fee_va_nominal', 4500)
+        ->set('fee_va_nominal', 9500)
+        ->set('fee_va_termasuk_ppn', true)
         ->set('fee_qris_persen', 0.75)
+        ->set('fee_qris_termasuk_ppn', false)
+        ->set('biaya_pemrosesan', 3000)
+        ->set('ppn_persen', 12)
         ->set('bebankan_ke_pelanggan', true)
         ->call('save')
         ->assertHasNoErrors();
 
     $setting = PengaturanGatewayModel::getXenditSetting();
-    expect((float) $setting->fee_va_nominal)->toBe(4500.0)
+    expect((float) $setting->fee_va_nominal)->toBe(9500.0)
+        ->and($setting->fee_va_termasuk_ppn)->toBeTrue()
         ->and((float) $setting->fee_qris_persen)->toBe(0.75)
-        ->and($setting->bebankan_ke_pelanggan)->toBeTrue();
+        ->and($setting->fee_qris_termasuk_ppn)->toBeFalse()
+        ->and((float) $setting->biaya_pemrosesan)->toBe(3000.0)
+        ->and((float) $setting->ppn_persen)->toBe(12.0);
+});
+
+test('tarif negatif atau persen di atas 100 ditolak', function () {
+    Livewire::actingAs($this->superAdmin)
+        ->test(PengaturanGateway::class)
+        ->set('biaya_pemrosesan', -1)
+        ->set('fee_va_persen', 101)
+        ->call('save')
+        ->assertHasErrors(['biaya_pemrosesan', 'fee_va_persen']);
 });
 
 test('super admin dapat melakukan ping test koneksi gateway via Livewire', function () {

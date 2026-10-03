@@ -130,7 +130,7 @@ test('kegagalan panggilan API gateway meninggalkan baris transaksi Pending sebag
     $trx = TransaksiPaymentGateway::where('invoice_id', $this->invoice->id)->first();
     expect($trx)->not->toBeNull()
         ->and($trx->status)->toBe(StatusTransaksiGateway::Pending)
-        ->and((float) $trx->total_tagihan)->toBe(254000.0); // 250000 + fee VA default 4000
+        ->and((float) $trx->total_tagihan)->toBe(264430.0); // 250000 + fee VA (9000 + 4000) x 1,11
 
     $this->invoice->refresh();
     expect($this->invoice->payment_gateway_url)->toBeNull();
