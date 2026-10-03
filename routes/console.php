@@ -46,14 +46,15 @@ Schedule::command('pembayaran:rekonsiliasi')
     ->onOneServer()
     ->sentryMonitor();
 
-// Ping router tiap 10 dtk: online<->offline terdeteksi < 10 dtk dan memicu notifikasi NOC + recovery.
-// Tugas sub-menit dijalankan berulang oleh schedule:run per menit (docker/supervisor.d/schedule.conf).
+// Ping Router (CONTEXT.md): router Offline/Tidak Diketahui tiap 5 menit, router Online tiap 2 jam
+// (penyaringan di mikrotik:ping). Ketersediaan jaringan dipantau PRTG, bukan UNMS.
 Schedule::command('mikrotik:ping')
-    ->everyTwentySeconds()
+    ->everyFiveMinutes()
     ->withoutOverlapping(1)
     ->onOneServer()
     ->runInBackground();
 
+// Tugas sub-menit dijalankan berulang oleh schedule:run per menit (docker/supervisor.d/schedule.conf).
 // Pemantauan Sesi PPP (ADR-0070): perubahan sesi didorong ke Detail Pelanggan lewat Reverb.
 Schedule::command('mikrotik:pantau-sesi')
     ->everyTenSeconds()

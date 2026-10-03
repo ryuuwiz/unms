@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\StatusRouter;
 use App\Jobs\Mikrotik\PingRouterJob;
 use App\Models\Router;
 use Illuminate\Console\Command;
@@ -32,6 +33,12 @@ class MikrotikPingCommand extends Command
         $query = Router::query();
         if ($routerId) {
             $query->where('id', $routerId);
+        } else {
+            // CONTEXT.md "Ping Router": router Online cukup dicek tiap 2 jam; yang lain tiap putaran jadwal (5 menit).
+            $query->where(fn ($q) => $q
+                ->where('status_koneksi', '!=', StatusRouter::Online)
+                ->orWhereNull('last_ping_at')
+                ->orWhere('last_ping_at', '<=', now()->subHours(2)));
         }
 
         $routers = $query->get();

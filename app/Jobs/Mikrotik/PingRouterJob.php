@@ -57,7 +57,7 @@ class PingRouterJob implements ShouldBeUnique, ShouldQueue
     {
         $sebelumnya = $this->router->status_koneksi;
 
-        if ($mikrotikService->pingRouter($this->router, 3)) {
+        if ($mikrotikService->pingRouter($this->router, config('mikrotik.status_timeout'))) {
             if ($sebelumnya !== StatusRouter::Online) {
                 RecoverPppRouterJob::dispatch($this->router);
             }

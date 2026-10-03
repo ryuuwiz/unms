@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\StatusLayanan;
+use App\Enums\StatusRouter;
 use App\Jobs\Mikrotik\DisablePppoeAccountJob;
 use App\Jobs\Mikrotik\PingRouterJob;
 use App\Models\LayananPelanggan;
@@ -29,6 +30,20 @@ test('mikrotik:ping command dispatches PingRouterJob for routers', function () {
         ->assertSuccessful();
 
     Queue::assertPushed(PingRouterJob::class, 2);
+});
+
+test('mikrotik:ping melewati router Online yang di-ping kurang dari 2 jam lalu', function () {
+    Queue::fake([PingRouterJob::class]);
+
+    Router::factory()->online()->create(['last_ping_at' => now()->subHour()]);
+    $online = Router::factory()->online()->create(['last_ping_at' => now()->subHours(3)]);
+    $offline = Router::factory()->create(['status_koneksi' => StatusRouter::Offline, 'last_ping_at' => now()]);
+
+    $this->artisan('mikrotik:ping')->assertSuccessful();
+
+    Queue::assertPushed(PingRouterJob::class, 2);
+    Queue::assertPushed(PingRouterJob::class, fn ($job) => $job->router->is($online));
+    Queue::assertPushed(PingRouterJob::class, fn ($job) => $job->router->is($offline));
 });
 
 test('layanan:cek-isolir command suspends expired services', function () {

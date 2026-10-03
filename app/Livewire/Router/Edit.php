@@ -148,7 +148,7 @@ class Edit extends Component
         $this->authorize('update', $router);
 
         try {
-            $mikrotikService->testConnection($router, 4);
+            $mikrotikService->testConnection($router, config('mikrotik.status_timeout'));
             $rosVersion = $router->routeros_version ? " (v{$router->routeros_version})" : '';
             Flux::toast(
                 variant: 'success',
