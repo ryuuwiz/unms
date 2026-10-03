@@ -1288,6 +1288,7 @@ class MikrotikService
             $queueName = "POOL-{$poolName}";
             $queueTarget = "{$ipPool->ip_network}/{$ipPool->cidr}";
             $queuePriority = "{$ipPool->priority_tx}/{$ipPool->priority_rx}";
+            $routerDiubah = false;
 
             // 1. Sinkronisasi /ip/pool
             $findPoolQuery = (new Query('/ip/pool/print'))->where('name', $poolName);
@@ -1296,12 +1297,15 @@ class MikrotikService
             if (! empty($existingPool) && isset($existingPool[0]['.id'])) {
                 $poolId = $existingPool[0]['.id'];
                 // next-pool=none: rantai pool (ADR-0060) dibongkar; tiap profile memakai tepat pool Router Paket-nya (ADR-0063).
-                $setPoolQuery = (new Query('/ip/pool/set'))
-                    ->equal('.id', $poolId)
-                    ->equal('ranges', $poolRanges)
-                    ->equal('next-pool', 'none')
-                    ->equal('comment', '');
-                $this->assertNoTrap($client->query($setPoolQuery)->read(), "pembaruan pool {$poolName}");
+                if (! $this->poolRouterSesuai($existingPool[0], $poolRanges)) {
+                    $setPoolQuery = (new Query('/ip/pool/set'))
+                        ->equal('.id', $poolId)
+                        ->equal('ranges', $poolRanges)
+                        ->equal('next-pool', 'none')
+                        ->equal('comment', '');
+                    $this->assertNoTrap($client->query($setPoolQuery)->read(), "pembaruan pool {$poolName}");
+                    $routerDiubah = true;
+                }
 
                 if (count($existingPool) > 1) {
                     for ($i = 1; $i < count($existingPool); $i++) {
@@ -1323,6 +1327,7 @@ class MikrotikService
                     ->equal('name', $poolName)
                     ->equal('ranges', $poolRanges);
                 $this->assertNoTrap($client->query($addPoolQuery)->read(), "pembuatan pool {$poolName}");
+                $routerDiubah = true;
             }
 
             // 2. Sinkronisasi /queue/simple
@@ -1331,25 +1336,33 @@ class MikrotikService
 
             if (! empty($existingQueue) && isset($existingQueue[0]['.id'])) {
                 $queueId = $existingQueue[0]['.id'];
-                $setQueueQuery = (new Query('/queue/simple/set'))
-                    ->equal('.id', $queueId)
-                    ->equal('target', $queueTarget)
-                    ->equal('priority', $queuePriority)
-                    ->equal('comment', '');
-                $this->assertNoTrap($client->query($setQueueQuery)->read(), "pembaruan queue {$queueName}");
+                if (! $this->queueRouterSesuai($existingQueue[0], $queueTarget, $queuePriority)) {
+                    $setQueueQuery = (new Query('/queue/simple/set'))
+                        ->equal('.id', $queueId)
+                        ->equal('target', $queueTarget)
+                        ->equal('priority', $queuePriority)
+                        ->equal('comment', '');
+                    $this->assertNoTrap($client->query($setQueueQuery)->read(), "pembaruan queue {$queueName}");
+                    $routerDiubah = true;
+                }
             } else {
                 $addQueueQuery = (new Query('/queue/simple/add'))
                     ->equal('name', $queueName)
                     ->equal('target', $queueTarget)
                     ->equal('priority', $queuePriority);
                 $this->assertNoTrap($client->query($addQueueQuery)->read(), "pembuatan queue {$queueName}");
+                $routerDiubah = true;
             }
 
-            $ipPool->update([
-                'applied_to_router_at' => Carbon::now(),
-                'sync_status' => 'success',
-                'last_sync_error' => null,
-            ]);
+            // Router sudah sesuai dan status tercatat sukses: tidak ada yang perlu ditulis. applied_to_router_at
+            // berarti kapan pool terakhir benar-benar diterapkan, bukan kapan terakhir dicek (Sentry UNMS-3A).
+            if ($routerDiubah || $ipPool->sync_status !== 'success' || $ipPool->applied_to_router_at === null) {
+                $ipPool->update([
+                    'applied_to_router_at' => Carbon::now(),
+                    'sync_status' => 'success',
+                    'last_sync_error' => null,
+                ]);
+            }
 
             $this->syncedPoolCache[$cacheKey] = true;
 
@@ -1370,6 +1383,30 @@ class MikrotikService
                 $e
             );
         }
+    }
+
+    /**
+     * Pool di router sudah sama dengan yang akan dikirim /ip/pool/set: rentang sama, tanpa next-pool, tanpa komentar.
+     *
+     * @param  array<string, string>  $poolRouter
+     */
+    private function poolRouterSesuai(array $poolRouter, string $rentang): bool
+    {
+        return ($poolRouter['ranges'] ?? null) === $rentang
+            && in_array($poolRouter['next-pool'] ?? 'none', ['none', ''], true)
+            && ($poolRouter['comment'] ?? '') === '';
+    }
+
+    /**
+     * Simple queue di router sudah sama dengan yang akan dikirim /queue/simple/set.
+     *
+     * @param  array<string, string>  $queueRouter
+     */
+    private function queueRouterSesuai(array $queueRouter, string $target, string $prioritas): bool
+    {
+        return ($queueRouter['target'] ?? null) === $target
+            && ($queueRouter['priority'] ?? null) === $prioritas
+            && ($queueRouter['comment'] ?? '') === '';
     }
 
     /**

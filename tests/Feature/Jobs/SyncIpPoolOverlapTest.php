@@ -40,11 +40,26 @@ test('saving the same pool twice via IpPoolObserver::saved() only queues one syn
     // Force the observer's real dispatch path (guarded by `if (app()->runningUnitTests())`),
     // same trick as ProfilBandwidthObserver's analogous regression test.
     app()->instance('env', 'production');
-    $pool->update(['deskripsi' => 'percobaan simpan pertama']);
-    $pool->update(['deskripsi' => 'percobaan simpan kedua']);
+    $pool->update(['priority_tx' => 5]);
+    $pool->update(['priority_tx' => 6]);
     app()->instance('env', 'testing');
 
     Queue::assertPushed(SyncIpPoolToRouterJob::class, 1);
+});
+
+test('saving only the sync bookkeeping columns does not queue another sync job', function () {
+    // Regression for Sentry UNMS-3A: MikrotikService::syncIpPool() writes applied_to_router_at/sync_status
+    // after every sync, and IpPoolObserver::saved() turned that write into one more SyncIpPoolToRouterJob
+    // per pool on every router reconciliation.
+    $pool = IpPool::factory()->create(['router_id' => $this->router->id]);
+
+    Queue::fake();
+
+    app()->instance('env', 'production');
+    $pool->update(['applied_to_router_at' => now(), 'sync_status' => 'success', 'last_sync_error' => null]);
+    app()->instance('env', 'testing');
+
+    Queue::assertNotPushed(SyncIpPoolToRouterJob::class);
 });
 
 test('syncs for different pools are both queued', function () {

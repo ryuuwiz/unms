@@ -12,6 +12,25 @@ use Illuminate\Support\Facades\Auth;
 class IpPoolObserver
 {
     /**
+     * Kolom yang dikirim ke RouterOS. Simpan yang hanya mengubah kolom lain (catatan sinkronisasi
+     * `applied_to_router_at`/`sync_status`/`last_sync_error` yang ditulis MikrotikService::syncIpPool())
+     * tidak boleh memicu sinkronisasi baru: tanpa ini tiap rekonsiliasi router mengantrekan satu
+     * SyncIpPoolToRouterJob per pool (Sentry UNMS-3A).
+     *
+     * @var array<int, string>
+     */
+    private const KOLOM_ROUTER = [
+        'router_id',
+        'nama_pool',
+        'ip_network',
+        'cidr',
+        'rentang_ip_awal',
+        'rentang_ip_akhir',
+        'priority_tx',
+        'priority_rx',
+    ];
+
+    /**
      * Sinkronkan pool (dan Rantai IP Pool Router) ke router. Rename bebas (ADR-0060): pool bernama lama baru
      * dibersihkan setelah pool baru, rantai, dan profile menunjuk nama baru.
      *
@@ -23,6 +42,10 @@ class IpPoolObserver
     public function saved(IpPool $ipPool): void
     {
         if (app()->runningUnitTests()) {
+            return;
+        }
+
+        if (! $ipPool->wasRecentlyCreated && ! $ipPool->wasChanged(self::KOLOM_ROUTER)) {
             return;
         }
 

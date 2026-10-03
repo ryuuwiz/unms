@@ -195,6 +195,59 @@ test('syncIpPool dismantles the old pool chain by setting next-pool to none', fu
     expect(sentAttributes($sent, '/ip/pool/set'))->toMatchArray(['.id' => '*A', 'next-pool' => 'none']);
 });
 
+test('syncIpPool writes nothing when the router pool and queue already match', function () {
+    $router = Router::factory()->online()->create();
+    $pool = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'nama_pool' => 'Pool-A',
+        'ip_network' => '10.0.0.0',
+        'cidr' => 24,
+        'rentang_ip_awal' => '10.0.0.2',
+        'rentang_ip_akhir' => '10.0.0.254',
+        'priority_tx' => 8,
+        'priority_rx' => 8,
+        'applied_to_router_at' => now()->subDay(),
+        'sync_status' => 'success',
+    ]);
+    $diterapkan = $pool->applied_to_router_at->toDateTimeString();
+    [$client, $sent] = fakeRouterOs([
+        '/ip/pool/print' => [['.id' => '*A', 'name' => 'Pool-A', 'ranges' => '10.0.0.2-10.0.0.254']],
+        '/queue/simple/print' => [['.id' => '*Q', 'name' => 'POOL-Pool-A', 'target' => '10.0.0.0/24', 'priority' => '8/8']],
+    ]);
+
+    $this->service->syncIpPool($router, $pool, $client);
+
+    expect(sentAttributes($sent, '/ip/pool/set'))->toBeNull()
+        ->and(sentAttributes($sent, '/queue/simple/set'))->toBeNull()
+        ->and($pool->fresh()->applied_to_router_at->toDateTimeString())->toBe($diterapkan);
+});
+
+test('syncIpPool updates the router and marks the pool applied when the queue priority drifted', function () {
+    $router = Router::factory()->online()->create();
+    $pool = IpPool::factory()->create([
+        'router_id' => $router->id,
+        'nama_pool' => 'Pool-A',
+        'ip_network' => '10.0.0.0',
+        'cidr' => 24,
+        'rentang_ip_awal' => '10.0.0.2',
+        'rentang_ip_akhir' => '10.0.0.254',
+        'priority_tx' => 8,
+        'priority_rx' => 8,
+        'applied_to_router_at' => now()->subDay(),
+        'sync_status' => 'success',
+    ]);
+    [$client, $sent] = fakeRouterOs([
+        '/ip/pool/print' => [['.id' => '*A', 'name' => 'Pool-A', 'ranges' => '10.0.0.2-10.0.0.254']],
+        '/queue/simple/print' => [['.id' => '*Q', 'name' => 'POOL-Pool-A', 'target' => '10.0.0.0/24', 'priority' => '1/1']],
+    ]);
+
+    $this->service->syncIpPool($router, $pool, $client);
+
+    expect(sentAttributes($sent, '/ip/pool/set'))->toBeNull()
+        ->and(sentAttributes($sent, '/queue/simple/set'))->toMatchArray(['.id' => '*Q', 'priority' => '8/8'])
+        ->and($pool->fresh()->applied_to_router_at->isToday())->toBeTrue();
+});
+
 test('createOrUpdatePppoeSecret for dynamic PPPoE sends no local/remote-address and uses the per-router profile', function () {
     [$router, $layanan] = layananPppoeDinamis();
     [$client, $sent] = fakeRouterOs();

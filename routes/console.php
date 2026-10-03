@@ -13,9 +13,11 @@ Schedule::command('layanan:cek-isolir')->dailyAt('02:30')->onOneServer()->sentry
 // di atas) supaya isolir benar-benar terjadi mendekati 1x24 jam, bukan sampai ~2 hari.
 Schedule::command('layanan:cek-tunggakan-pertama')->hourly()->onOneServer();
 
-// Periodic Fast Auto-Recovery for IP Pools, Profiles & PPP Secrets (In-Memory Diff via Queue mikrotik-low)
+// Periodic Fast Auto-Recovery for IP Pools, Profiles & PPP Secrets (In-Memory Diff via Queue mikrotik-low).
+// Tiap 15 menit (ADR-0030/0032): rekonsiliasi penuh per router, bukan tugas sub-menit. Router yang baru online
+// sudah dipulihkan instan oleh PingRouterJob, jadi interval ini hanya jaring pengaman drift.
 Schedule::command('mikrotik:provisi-router --async')
-    ->everySecond()
+    ->everyFifteenMinutes()
     ->withoutOverlapping(15)
     ->onOneServer()
     ->runInBackground();
