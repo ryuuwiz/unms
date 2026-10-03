@@ -513,8 +513,8 @@ Pipeline orkestrasi berurutan yang menyelaraskan seluruh data konfigurasi master
 _Avoid_: Sync Parsial Tanpa Urutan, Push Manual Bebas, Provisi Terfragmentasi
 
 **Rekonsiliasi Router (Router Reconciliation)**:
-Proses komparasi periodik terjadwal dan auto-recovery antara basis data UNMS dengan konfigurasi aktual di RouterOS untuk mendeteksi *configuration drift*, memulihkan PPP secret/profil yang hilang atau terhapus di router, dan menyelaraskan status disabled.
-_Avoid_: Cek Status Lepas, Sync Buta, Ping Tanpa Rekonsiliasi
+Proses komparasi periodik terjadwal dan auto-recovery antara basis data UNMS dengan konfigurasi aktual di RouterOS untuk mendeteksi *configuration drift*, memulihkan PPP secret/profil yang hilang atau terhapus di router, dan menyelaraskan status disabled. Berjalan tiap 15 menit per router, dan seketika saat router kembali Online. Objek router yang sudah sesuai tidak ditulis ulang, sehingga "Diterapkan" pada IP Pool berarti kapan pool terakhir benar-benar diterapkan ke router, bukan kapan terakhir dicek.
+_Avoid_: Cek Status Lepas, Sync Buta, Ping Tanpa Rekonsiliasi, Rekonsiliasi Tiap Detik
 
 **Provisi Cadangan**:
 Jaring pengaman terjadwal (tiap menit) untuk layanan yang sudah punya router dan username PPP tetapi belum berhasil diprovisi, misalnya karena job antrean hilang, gagal, atau tidak pernah dijalankan. Layanan diambil alih hanya bila tidak ada percobaan provisi dalam 5 menit terakhir dan routernya tidak tercatat offline. Galat yang sama dengan percobaan sebelumnya tidak diberitahukan ulang ke NOC (tetap tercatat di Job Log). Berbeda dari Rekonsiliasi Router yang membandingkan isi router dengan database untuk layanan yang sudah terprovisi.
