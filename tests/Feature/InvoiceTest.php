@@ -374,6 +374,15 @@ test('admin dapat membuat invoice manual dengan nominal dan keterangan bebas', f
     expect(Invoice::where('layanan_pelanggan_id', $this->layanan->id)->where('id', $invoice->id)->exists())->toBeTrue();
 });
 
+test('ringkasan invoice manual menghitung total dari jumlah yang diketik', function () {
+    Livewire::actingAs($this->adminUser)
+        ->test(Create::class, ['pelanggan' => $this->pelanggan])
+        ->set('jenisInvoice', 'manual')
+        ->set('jumlahManual', 250000)
+        ->assertSet('totalTagihan', 250000.0)
+        ->assertSeeInOrder(['Total yang Harus Dibayar:', 'Rp 250.000']);
+});
+
 test('invoice manual dengan promo dropodown menerapkan diskon yang benar', function () {
     $promo = Promo::factory()->create([
         'kode_promo' => 'INSTALL50',

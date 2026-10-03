@@ -91,6 +91,11 @@ class Create extends Component
         $this->recalculate();
     }
 
+    public function updatedJumlahManual(): void
+    {
+        $this->recalculate();
+    }
+
     public function updatedPromoId(): void
     {
         // Pilihan dropdown selalu menang atas kode yang diketik manual.
