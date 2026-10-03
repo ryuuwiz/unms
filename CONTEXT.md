@@ -496,6 +496,10 @@ _Avoid_: Ringkasan Tagihan Pelanggan, Daftar Penunggak, Ringkasan Tagihan Period
 Tiket terbuka (bukan Selesai atau Batal) yang menunggu tindakan Pengguna yang sedang login. Untuk Teknisi: tiket yang PIC-nya dirinya. Untuk peran lain: tiket yang ditugaskan ke divisinya dan Status Per-Divisi divisinya belum selesai.
 _Avoid_: Tiket Assigned, Tiket Saya (PIC) untuk non-Teknisi
 
+**Papan Antrean Teknisi**:
+Satu halaman yang ditampilkan di layar kantor (TV/monitor) untuk dilihat Pelanggan yang datang, tanpa login. Hanya ada satu papan untuk semua Brand Pelanggan, dengan identitas Perusahaan. Isinya tiket Pemasangan dan Gangguan yang masih terbuka, dikelompokkan menjadi "Sedang Dikerjakan" (Diproses/Menunggu Konfirmasi), "Sudah Ada Teknisi" (Baru, sudah punya PIC), dan "Menunggu Teknisi" (belum punya PIC). Di dalam tiap kelompok, tiket terlama di atas. Setiap baris memuat nomor tiket, nama Pelanggan yang disamarkan, Jenis Ticket, status, serta foto dan nama Teknisi PIC. Alamat, prioritas, dan SLA tidak pernah ditampilkan. Pelanggan mengenali tiketnya dari nomor tiket. Tiket yang sudah Selesai atau Batal hilang dari papan, begitu juga tiket milik Pelanggan yang sudah dihapus. PIC yang sudah nonaktif tetap ditampilkan sampai tiketnya ditugaskan ulang. Berbeda dari Antrian Tiket Saya, yang merupakan daftar kerja pribadi staf.
+_Avoid_: Antrian Tiket Saya, Layar Antrean, Antrean Publik
+
 **Area Dashboard**:
 Kelompok widget Dashboard per bidang kerja: Admin (pelanggan dan keuangan), NOC & Infrastruktur, serta Ticketing & Support. Sebuah area tampil bila Pengguna berhak melihat minimal satu widget di dalamnya; area tidak terikat ke peran tertentu.
 _Avoid_: Dashboard per Role, Halaman Divisi

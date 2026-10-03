@@ -24,6 +24,7 @@ use App\Livewire\MediaLibrary;
 use App\Livewire\Odp\Create;
 use App\Livewire\Odp\Edit;
 use App\Livewire\PaketLayanan;
+use App\Livewire\PapanAntrean;
 use App\Livewire\Pelanggan;
 use App\Livewire\Pembayaran;
 use App\Livewire\Portal\Auth\GantiPassword;
@@ -99,6 +100,9 @@ Route::get('/apple-touch-icon.png', function () {
 });
 
 Route::redirect('/', 'login')->name('home');
+
+// Papan Antrean Teknisi: publik tanpa login (lihat CONTEXT.md).
+Route::get('/papan-antrean', PapanAntrean::class)->name('papan-antrean');
 
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');

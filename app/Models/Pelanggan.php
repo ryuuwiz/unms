@@ -297,6 +297,16 @@ class Pelanggan extends Model implements HasMedia
     }
 
     /**
+     * Nama untuk layar publik (Papan Antrean Teknisi): dua huruf pertama tiap kata, sisanya `*`.
+     */
+    public function namaDisamarkan(): string
+    {
+        return collect(preg_split('/\s+/', $this->namaLengkap(), -1, PREG_SPLIT_NO_EMPTY))
+            ->map(fn (string $kata) => mb_substr($kata, 0, 2).str_repeat('*', max(0, mb_strlen($kata) - 2)))
+            ->implode(' ');
+    }
+
+    /**
      * Format identitas lengkap pelanggan terpadu (No. Reg_Nama Pelanggan).
      */
     public function identitasLengkap(): string
