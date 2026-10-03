@@ -23,6 +23,7 @@ use Livewire\Livewire;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    fakeXenditSession();
     $this->seed(RolesAndPermissionsSeeder::class);
 
     $this->superAdmin = User::factory()->create(['status' => UserStatus::Active]);

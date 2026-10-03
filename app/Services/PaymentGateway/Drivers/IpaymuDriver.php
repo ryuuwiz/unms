@@ -22,6 +22,11 @@ class IpaymuDriver extends AbstractPaymentDriver
         return 'ipaymu';
     }
 
+    public function menghitungBiayaSendiri(): bool
+    {
+        return true;
+    }
+
     public function getProviderLabel(): string
     {
         return 'iPaymu API v2';
@@ -76,7 +81,7 @@ class IpaymuDriver extends AbstractPaymentDriver
         ];
     }
 
-    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): PaymentLinkResponse
+    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null, ?GatewayChannel $metode = null, int $biayaAdmin = 0): PaymentLinkResponse
     {
         $va = $this->getVa($setting);
         $apiKey = $this->getApiKey($setting);

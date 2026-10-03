@@ -5,6 +5,7 @@ namespace App\Contracts\PaymentGateway;
 use App\DTO\PaymentGateway\PaymentCallbackData;
 use App\DTO\PaymentGateway\PaymentLinkResponse;
 use App\DTO\PaymentGateway\PingConnectionResult;
+use App\Enums\GatewayChannel;
 use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
@@ -37,8 +38,17 @@ interface PaymentGatewayContract
      * @param  string|null  $externalId  External ID yang sudah direservasi lokal oleh manager.
      *                                   Jika null, driver membangkitkan external_id sendiri
      *                                   (kompatibilitas mundur untuk pemanggilan langsung).
+     * @param  GatewayChannel|null  $metode  Metode bayar yang boleh dipakai di checkout. Null untuk driver yang
+     *                                       checkout-nya memuat semua metode dan menghitung biayanya sendiri.
+     * @param  int  $biayaAdmin  Biaya Admin Gateway yang ditambahkan ke nominal tagihan (ADR-0072).
      */
-    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): PaymentLinkResponse;
+    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null, ?GatewayChannel $metode = null, int $biayaAdmin = 0): PaymentLinkResponse;
+
+    /**
+     * Apakah halaman checkout gateway menghitung Biaya Admin Gateway per kanal sendiri (satu link untuk semua
+     * metode). Jika tidak, pelanggan memilih metode lebih dulu dan tiap metode mendapat link sendiri (ADR-0073).
+     */
+    public function menghitungBiayaSendiri(): bool;
 
     /**
      * Cek status transaksi pembayaran langsung ke API gateway.

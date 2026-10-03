@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Portal\Invoice;
 
+use App\Enums\GatewayChannel;
 use App\Livewire\Portal\Invoice\Concerns\AuthorizesInvoiceAccess;
 use App\Models\Invoice;
 use App\Services\PaymentGateway\CekStatusPembayaranInvoice;
@@ -92,11 +93,41 @@ class Show extends Component
         };
     }
 
+    /** Metode yang mendapat tombol sendiri bila checkout gateway tidak menghitung biaya per kanal (ADR-0073). */
+    private const METODE_PER_TOMBOL = [GatewayChannel::VirtualAccount, GatewayChannel::Qris];
+
     /**
-     * Arahkan pelanggan ke tautan hosted payment page resmi payment gateway.
+     * Tombol bayar: satu tombol bila checkout gateway menghitung biaya sendiri (iPaymu), selain itu satu
+     * tombol per metode dengan total termasuk Biaya Admin Gateway (Xendit).
+     *
+     * @return list<array{metode: string|null, label: string, total: int|null}>
      */
-    public function bayar(PaymentGatewayManager $paymentManager): mixed
+    private function opsiBayar(PaymentGatewayManager $paymentManager): array
     {
+        $setting = $paymentManager->getSetting();
+        if ($paymentManager->driver($setting->provider)->menghitungBiayaSendiri()) {
+            return [['metode' => null, 'label' => 'Bayar Sekarang', 'total' => null]];
+        }
+
+        $nominal = (float) $this->invoice->jumlah_setelah_promo;
+
+        return array_map(fn (GatewayChannel $metode) => [
+            'metode' => $metode->value,
+            'label' => $metode->label(),
+            'total' => (int) round($nominal) + $setting->hitungFee($metode, $nominal),
+        ], self::METODE_PER_TOMBOL);
+    }
+
+    /**
+     * Arahkan pelanggan ke tautan hosted payment page resmi payment gateway untuk metode terpilih.
+     */
+    public function bayar(PaymentGatewayManager $paymentManager, ?string $metode = null): mixed
+    {
+        $metodeBayar = $metode === null ? null : GatewayChannel::tryFrom($metode);
+        if ($metode !== null && ! in_array($metodeBayar, self::METODE_PER_TOMBOL, true)) {
+            return null;
+        }
+
         if ($this->invoice->isDibatalkan()) {
             Flux::toast(variant: 'warning', text: 'Tagihan ini telah dibatalkan dan tidak dapat dibayar.');
 
@@ -110,7 +141,7 @@ class Show extends Component
         }
 
         try {
-            $paymentUrl = $paymentManager->resolvePaymentUrl($this->invoice);
+            $paymentUrl = $paymentManager->resolvePaymentUrl($this->invoice, $metodeBayar);
 
             if ($paymentUrl) {
                 return redirect()->away($paymentUrl);
@@ -130,6 +161,8 @@ class Show extends Component
 
     public function render(): View
     {
-        return view('livewire.portal.invoice.show');
+        return view('livewire.portal.invoice.show', [
+            'opsiBayar' => $this->invoice->isMenungguPembayaran() ? $this->opsiBayar(app(PaymentGatewayManager::class)) : [],
+        ]);
     }
 }

@@ -9,12 +9,15 @@ use App\Models\Invoice;
 use App\Models\LayananPelanggan;
 use App\Models\PaketLayanan;
 use App\Models\Pelanggan;
+use App\Models\PengaturanGateway;
 use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use Livewire\Livewire;
 
@@ -22,6 +25,13 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
+
+    PengaturanGateway::create([
+        'provider' => 'xendit',
+        'nama' => 'Xendit',
+        'credentials' => ['secret_key' => 'xnd_development_test', 'callback_token' => 'token-test'],
+        'is_default' => true,
+    ]);
 
     $this->profil = ProfilBandwidth::factory()->create();
     $this->paket = PaketLayanan::factory()->create([
@@ -86,49 +96,84 @@ test('pelanggan tidak dapat melihat tagihan milik pelanggan lain (403)', functio
         ->assertForbidden();
 });
 
-test('pelanggan dapat menekan tombol bayar dan di-redirect ke xendit_invoice_url', function () {
+test('pelanggan melihat tombol bayar per metode dengan total termasuk biaya admin', function () {
+    // VA: 300.000 + (9.000 + 4.000) x 1,11 = 314.430; QRIS: 300.000 + 0,7% x 300.000 + 4.000 x 1,11 = 306.540
     Livewire::actingAs($this->akun, 'pelanggan')
         ->test(Show::class, ['invoice' => $this->invoice])
-        ->call('bayar')
-        ->assertRedirect();
-
-    $this->invoice->refresh();
-    expect($this->invoice->xendit_invoice_url)->not->toBeNull()
-        ->and($this->invoice->xendit_invoice_id)->not->toBeNull()
-        ->and($this->invoice->xendit_status)->toBe('PENDING');
-
-    $transaksi = $this->invoice->transaksiPaymentGateways()->latest()->first();
-    expect($transaksi)->not->toBeNull()
-        ->and($transaksi->channel)->toBe(GatewayChannel::Invoice);
+        ->assertSeeInOrder(['Virtual Account', 'Rp 314.430'])
+        ->assertSeeInOrder(['QRIS', 'Rp 306.540']);
 });
 
-test('link bayar membebankan biaya VA pass-through termasuk PPN dan biaya pemrosesan', function () {
+test('tombol Virtual Account membuka checkout Xendit yang hanya berisi VA dengan biaya VA', function () {
+    fakeXenditSession();
+
     Livewire::actingAs($this->akun, 'pelanggan')
         ->test(Show::class, ['invoice' => $this->invoice])
-        ->call('bayar');
+        ->call('bayar', 'virtual_account')
+        ->assertRedirectContains('https://xen.to/ps-');
 
-    // (9.000 + 4.000) x 1,11 = 14.430 (ADR-0072)
-    $transaksi = $this->invoice->transaksiPaymentGateways()->latest()->first();
-    expect((float) $transaksi->fee_gateway)->toBe(14430.0)
-        ->and((float) $transaksi->total_tagihan)->toBe(314430.0);
+    Http::assertSent(fn (Request $request) => $request->url() === 'https://api.xendit.co/sessions'
+        && $request['amount'] === 314430
+        && $request['mode'] === 'PAYMENT_LINK'
+        && in_array('BCA_VIRTUAL_ACCOUNT', $request['allowed_payment_channels'], true)
+        && ! in_array('QRIS', $request['allowed_payment_channels'], true));
+
+    $transaksi = $this->invoice->transaksiPaymentGateways()->sole();
+    expect($transaksi->channel)->toBe(GatewayChannel::VirtualAccount)
+        ->and((float) $transaksi->fee_gateway)->toBe(14430.0)
+        ->and((float) $transaksi->total_tagihan)->toBe(314430.0)
+        ->and($transaksi->xendit_reference_id)->toStartWith('ps-');
 });
 
-test('pelanggan otomatis mendapatkan link baru jika link lama sudah expired', function () {
-    $this->invoice->update([
-        'xendit_invoice_id' => 'inv_old_123',
-        'xendit_invoice_url' => 'https://checkout-staging.xendit.co/v2/inv_old_123',
-        'xendit_status' => 'EXPIRED',
-        'xendit_expired_at' => Carbon::now()->subDay(),
-    ]);
+test('tombol QRIS membuka checkout Xendit yang hanya berisi QRIS dengan biaya persentase', function () {
+    fakeXenditSession();
 
     Livewire::actingAs($this->akun, 'pelanggan')
         ->test(Show::class, ['invoice' => $this->invoice])
-        ->call('bayar')
-        ->assertRedirect();
+        ->call('bayar', 'qris')
+        ->assertRedirectContains('https://xen.to/ps-');
 
-    $this->invoice->refresh();
-    expect($this->invoice->xendit_invoice_id)->not->toBe('inv_old_123')
-        ->and($this->invoice->xendit_status)->toBe('PENDING');
+    Http::assertSent(fn (Request $request) => $request['amount'] === 306540
+        && $request['allowed_payment_channels'] === ['QRIS']);
+
+    $transaksi = $this->invoice->transaksiPaymentGateways()->sole();
+    expect($transaksi->channel)->toBe(GatewayChannel::Qris)
+        ->and((float) $transaksi->fee_gateway)->toBe(6540.0);
+});
+
+test('menekan metode yang sama lagi memakai ulang checkout aktif, metode lain membuat checkout sendiri', function () {
+    fakeXenditSession();
+    $halaman = Livewire::actingAs($this->akun, 'pelanggan')->test(Show::class, ['invoice' => $this->invoice]);
+
+    $halaman->call('bayar', 'virtual_account');
+    $halaman->call('bayar', 'virtual_account');
+    $halaman->call('bayar', 'qris');
+
+    Http::assertSentCount(2);
+    expect($this->invoice->transaksiPaymentGateways()->pluck('channel')->all())
+        ->toEqualCanonicalizing([GatewayChannel::VirtualAccount, GatewayChannel::Qris]);
+});
+
+test('checkout yang sudah kedaluwarsa diganti checkout baru', function () {
+    fakeXenditSession();
+    $halaman = Livewire::actingAs($this->akun, 'pelanggan')->test(Show::class, ['invoice' => $this->invoice]);
+    $halaman->call('bayar', 'virtual_account');
+    $this->invoice->transaksiPaymentGateways()->update(['expired_at' => Carbon::now()->subMinute()]);
+
+    $halaman->call('bayar', 'virtual_account');
+
+    Http::assertSentCount(2);
+});
+
+test('metode bayar yang tidak ditawarkan ditolak tanpa memanggil gateway', function () {
+    fakeXenditSession();
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('bayar', 'ewallet')
+        ->assertNoRedirect();
+
+    Http::assertNothingSent();
 });
 
 test('pelanggan dapat memicu cek status pembayaran secara manual pada portal', function () {
@@ -204,8 +249,8 @@ test('pelanggan tidak dapat memicu pembayaran untuk invoice yang dibatalkan', fu
         ->assertOk()
         ->assertSee('Tagihan Ini Telah Dibatalkan')
         ->assertSee('Dibatalkan karena koreksi tagihan ganda')
-        ->assertDontSee('Bayar Sekarang')
-        ->call('bayar')
+        ->assertDontSee('Virtual Account')
+        ->call('bayar', 'virtual_account')
         ->assertNoRedirect();
 
     expect($this->invoice->fresh()->payment_gateway_url)->toBeNull();

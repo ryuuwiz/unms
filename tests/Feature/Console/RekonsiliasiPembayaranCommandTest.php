@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\Queue;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    fakeXenditSession();
     $this->seed(RolesAndPermissionsSeeder::class);
 
     $this->manager = app(PaymentGatewayManager::class);

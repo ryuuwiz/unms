@@ -18,16 +18,14 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Xendit\BalanceAndTransaction\BalanceApi;
 use Xendit\Configuration;
-use Xendit\Invoice\CreateInvoiceRequest;
-use Xendit\Invoice\CustomerObject;
 use Xendit\Invoice\InvoiceApi;
-use Xendit\Invoice\InvoiceFee;
-use Xendit\Invoice\InvoiceItem;
 use Xendit\XenditSdkException;
 
 class XenditDriver extends AbstractPaymentDriver
 {
     public const PROVIDER = 'xendit';
+
+    private const BASE_URL = 'https://api.xendit.co';
 
     public function getProviderName(): string
     {
@@ -36,7 +34,7 @@ class XenditDriver extends AbstractPaymentDriver
 
     public function getProviderLabel(): string
     {
-        return 'Xendit Hosted Invoice';
+        return 'Xendit Payment Session';
     }
 
     /**
@@ -68,155 +66,145 @@ class XenditDriver extends AbstractPaymentDriver
         );
     }
 
-    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): PaymentLinkResponse
+    /**
+     * Kode kanal Payment Session per metode bayar; `allowed_payment_channels` menerima kode kanal,
+     * bukan kategori, jadi "hanya VA" berarti mendaftarkan semua bank VA (ADR-0073).
+     *
+     * @var array<string, list<string>>
+     */
+    public const KANAL_PER_METODE = [
+        'virtual_account' => [
+            'BCA_VIRTUAL_ACCOUNT', 'BNI_VIRTUAL_ACCOUNT', 'BRI_VIRTUAL_ACCOUNT', 'MANDIRI_VIRTUAL_ACCOUNT',
+            'PERMATA_VIRTUAL_ACCOUNT', 'BSI_VIRTUAL_ACCOUNT', 'BNC_VIRTUAL_ACCOUNT', 'BSS_VIRTUAL_ACCOUNT',
+            'MUAMALAT_VIRTUAL_ACCOUNT',
+        ],
+        'qris' => ['QRIS'],
+    ];
+
+    // ponytail: masa berlaku tetap 24 jam; batas maksimum expires_at Session tidak didokumentasikan Xendit.
+    // Session yang lewat diganti saat pelanggan menekan tombol lagi.
+    private const MASA_BERLAKU_SESSION_JAM = 24;
+
+    public function menghitungBiayaSendiri(): bool
     {
+        return false;
+    }
+
+    /**
+     * Buat Payment Session hosted (`POST /sessions`) yang hanya memuat kanal metode bayar terpilih,
+     * dengan nominal tagihan + Biaya Admin Gateway metode itu.
+     */
+    public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null, ?GatewayChannel $metode = null, int $biayaAdmin = 0): PaymentLinkResponse
+    {
+        $kanal = self::KANAL_PER_METODE[$metode->value ?? ''] ?? throw new Exception('Metode bayar Xendit harus Virtual Account atau QRIS.');
+
         $apiKey = $this->getApiKey($setting);
-        $nominalInvoice = (float) $invoice->jumlah_setelah_promo;
-        $fee = $setting->hitungFee(GatewayChannel::VirtualAccount, $nominalInvoice);
-        $totalTagihan = $nominalInvoice + $fee;
+        if (empty($apiKey)) {
+            throw new Exception('Xendit Secret Key belum dikonfigurasi. Payment link tidak dapat diterbitkan.');
+        }
 
-        $invoiceDurationSeconds = $this->hitungDurasiDetik($invoice);
-        $expiredAt = Carbon::now()->addSeconds($invoiceDurationSeconds);
+        $nominalInvoice = (int) round((float) $invoice->jumlah_setelah_promo);
+        $totalTagihan = $nominalInvoice + $biayaAdmin;
         $externalId = $externalId ?: $this->generateExternalId($invoice);
-
-        $pelanggan = $invoice->pelanggan;
-        $mobileNumber = self::formatNomorHpE164($pelanggan?->no_hp);
-        $payerEmail = (! empty($pelanggan->email) && filter_var($pelanggan->email, FILTER_VALIDATE_EMAIL))
-            ? $pelanggan->email
-            : null;
-
-        // Line Items
-        $items = [];
-        $namaPaket = $invoice->layananPelanggan?->paketLayanan->nama_paket ?? 'Langganan Internet';
-        $items[] = new InvoiceItem([
-            'name' => "Paket Internet: {$namaPaket}",
-            'price' => (float) $invoice->jumlah,
-            'quantity' => 1,
-            'category' => 'Internet',
-        ]);
-
-        if ($invoice->promo_id && $invoice->promo) {
-            $diskon = (float) ($invoice->jumlah - $invoice->jumlah_setelah_promo);
-            if ($diskon > 0) {
-                $items[] = new InvoiceItem([
-                    'name' => "Diskon Promo: {$invoice->promo->nama_promo} ({$invoice->promo->kode_promo})",
-                    'price' => -1 * $diskon,
-                    'quantity' => 1,
-                    'category' => 'Discount',
-                ]);
-            }
-        }
-
-        // Fees
-        $fees = [];
-        if ($fee > 0) {
-            $fees[] = new InvoiceFee([
-                'type' => 'Biaya Layanan Gateway',
-                'value' => (float) $fee,
-            ]);
-        }
-
-        // Struk gerai retail (Alfamart/Indomaret) mencetak `given_names` sebagai Nama Konsumen,
-        // jadi diisi No. Registrasi agar kasir dan admin dapat mencocokkan pembayaran; nama asli
-        // tetap tercatat di `surname`.
-        $namaLengkap = trim(($pelanggan->nama_depan ?? '').' '.($pelanggan->nama_belakang ?? ''));
-        $customerData = [
-            'given_names' => ! empty($pelanggan->no_reg) ? $pelanggan->no_reg : ($namaLengkap ?: 'Pelanggan'),
-        ];
-
-        if (! empty($pelanggan->no_reg) && $namaLengkap !== '') {
-            $customerData['surname'] = $namaLengkap;
-        }
-        if (! empty($payerEmail)) {
-            $customerData['email'] = $payerEmail;
-        }
-        if (! empty($mobileNumber)) {
-            $customerData['mobile_number'] = $mobileNumber;
-            $customerData['phone_number'] = $mobileNumber;
-        }
-
-        $customerObj = new CustomerObject($customerData);
+        $expiredAt = Carbon::now()->addHours(self::MASA_BERLAKU_SESSION_JAM);
         // Tautan Tagihan, bukan /tagihan/{id}: pelanggan yang membayar tanpa login harus bisa
         // kembali ke halaman tagihannya setelah membayar (ADR-0067).
         $redirectUrl = $invoice->tautanTagihan();
 
-        // Mock (tanpa panggilan API sama sekali) HANYA boleh aktif di environment 'testing' --
-        // satu-satunya nilai APP_ENV yang tidak pernah bisa muncul di server sungguhan (hanya
-        // di-set oleh phpunit.xml). 'local' SENGAJA tidak lagi termasuk: developer lokal yang
-        // sudah mengonfigurasi XENDIT_SECRET_KEY asli (mode test Xendit, prefix xnd_development_)
-        // berhak mendapat panggilan API sungguhan ke sandbox Xendit -- bukan URL palsu yang
-        // tidak pernah bisa dibuka. PengaturanGateway.sandbox_mode juga BUKAN sinyal yang tepat
-        // di sini: field itu berarti "pakai kredensial mode test Xendit", bukan "jangan pernah
-        // hubungi Xendit sama sekali" -- percobaan sebelumnya memakainya untuk hal itu salah
-        // kaprah (lihat ADR 0039) dan sekaligus membuat link palsu tetap bisa lolos ke produksi
-        // kalau APP_ENV salah baca sebagai 'local'. Dengan hanya 'testing' yang dipercaya, APP_ENV
-        // yang salah konfigurasi di produksi tidak lagi bisa memicu mock sama sekali -- sistem
-        // akan mencoba panggilan API sungguhan (berhasil jika key valid, gagal keras dan tercatat
-        // jika tidak), bukan diam-diam menyerahkan URL palsu ke pelanggan.
-        $isSandboxEnv = app()->environment('testing');
+        $body = [
+            'reference_id' => $externalId,
+            'session_type' => 'PAY',
+            'mode' => 'PAYMENT_LINK',
+            'country' => 'ID',
+            'currency' => 'IDR',
+            'amount' => $totalTagihan,
+            'allowed_payment_channels' => $kanal,
+            'expires_at' => $expiredAt->toIso8601ZuluString(),
+            'description' => app(DeskripsiTagihanBuilder::class)->buat($invoice),
+            'customer' => $this->dataCustomer($invoice),
+            'items' => $this->itemTagihan($invoice, $nominalInvoice, $biayaAdmin),
+            'success_return_url' => $redirectUrl,
+            'cancel_return_url' => $redirectUrl,
+        ];
 
-        if (empty($apiKey) && ! $isSandboxEnv) {
-            throw new Exception('Xendit Secret Key belum dikonfigurasi. Payment link tidak dapat diterbitkan.');
-        }
+        $response = Http::withBasicAuth($apiKey, '')
+            ->timeout(30)
+            ->post(self::BASE_URL.'/sessions', $body);
 
-        try {
-            if (! $isSandboxEnv) {
-                $invoiceApi = $this->getInvoiceApi($apiKey);
-                $params = new CreateInvoiceRequest([
-                    'external_id' => $externalId,
-                    'amount' => $totalTagihan,
-                    'payer_email' => $payerEmail,
-                    'description' => app(DeskripsiTagihanBuilder::class)->buat($invoice),
-                    'invoice_duration' => (float) $invoiceDurationSeconds,
-                    'customer' => $customerObj,
-                    'items' => $items,
-                    'fees' => $fees,
-                    'success_redirect_url' => $redirectUrl,
-                    'failure_redirect_url' => $redirectUrl,
-                    'currency' => 'IDR',
-                ]);
-
-                $response = $invoiceApi->createInvoice(
-                    create_invoice_request: $params
-                );
-
-                $responseArray = json_decode((string) json_encode($response), true) ?: [];
-                $paymentId = (string) $response->getId();
-                $paymentUrl = (string) $response->getInvoiceUrl();
-            } else {
-                // Mock fallback untuk testing lokal
-                $paymentId = 'inv_mock_'.uniqid();
-                $paymentUrl = 'https://checkout-staging.xendit.co/v2/'.$paymentId;
-                $responseArray = [
-                    'mock' => true,
-                    'id' => $paymentId,
-                    'invoice_url' => $paymentUrl,
-                    'status' => 'PENDING',
-                    'external_id' => $externalId,
-                    'amount' => $totalTagihan,
-                ];
-            }
-
-            return new PaymentLinkResponse(
-                paymentId: $paymentId,
-                paymentUrl: $paymentUrl,
-                externalId: $externalId,
-                amount: $totalTagihan,
-                expiredAt: $expiredAt,
-                channel: GatewayChannel::Invoice,
-                channelDetail: 'hosted_invoice',
-                rawResponse: $responseArray
-            );
-        } catch (XenditSdkException $e) {
-            Log::error('Gagal membuat Hosted Invoice Xendit: '.$e->getMessage(), [
+        if ($response->failed()) {
+            Log::error('Gagal membuat Payment Session Xendit', [
                 'invoice' => $invoice->no_invoice,
-                'error' => $e->getFullError(),
+                'status' => $response->status(),
+                'error' => $response->json(),
             ]);
-            throw new Exception('Gagal membuat Invoice Xendit: '.$e->getMessage());
-        } catch (Exception $e) {
-            Log::error('Error pembuatan Hosted Invoice Xendit: '.$e->getMessage());
-            throw $e;
+
+            throw new Exception('Gagal membuat Payment Session Xendit: '.($response->json('message') ?? 'HTTP '.$response->status()));
         }
+
+        return new PaymentLinkResponse(
+            paymentId: (string) $response->json('payment_session_id'),
+            paymentUrl: (string) $response->json('payment_link_url'),
+            externalId: $externalId,
+            amount: (float) $totalTagihan,
+            expiredAt: $expiredAt,
+            channel: $metode,
+            channelDetail: 'payment_session',
+            rawResponse: $response->json() ?? [],
+        );
+    }
+
+    /**
+     * Struk gerai mencetak `given_names` sebagai Nama Konsumen, jadi diisi No. Registrasi agar kasir
+     * dan admin dapat mencocokkan pembayaran; nama asli tetap tercatat di `surname`.
+     *
+     * @return array<string, mixed>
+     */
+    private function dataCustomer(Invoice $invoice): array
+    {
+        $pelanggan = $invoice->pelanggan;
+        $namaLengkap = trim(($pelanggan->nama_depan ?? '').' '.($pelanggan->nama_belakang ?? ''));
+
+        return array_filter([
+            'type' => 'INDIVIDUAL',
+            'reference_id' => $pelanggan->no_reg ?: 'pelanggan-'.$invoice->pelanggan_id,
+            'email' => filter_var($pelanggan->email, FILTER_VALIDATE_EMAIL) ? $pelanggan->email : null,
+            'mobile_number' => self::formatNomorHpE164($pelanggan->no_hp),
+            'individual_detail' => array_filter([
+                'given_names' => $pelanggan->no_reg ?: ($namaLengkap ?: 'Pelanggan'),
+                'surname' => $pelanggan->no_reg && $namaLengkap !== '' ? $namaLengkap : null,
+            ]),
+        ]);
+    }
+
+    /**
+     * Rincian di halaman checkout; jumlah item = `amount` (tagihan setelah promo + biaya admin).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function itemTagihan(Invoice $invoice, int $nominalInvoice, int $biayaAdmin): array
+    {
+        $namaPaket = $invoice->layananPelanggan?->paketLayanan->nama_paket ?? 'Langganan Internet';
+        $items = [[
+            'reference_id' => $invoice->no_invoice,
+            'type' => 'DIGITAL_SERVICE',
+            'name' => "Paket Internet: {$namaPaket}",
+            'net_unit_amount' => $nominalInvoice,
+            'quantity' => 1,
+            'category' => 'Internet',
+        ]];
+
+        if ($biayaAdmin > 0) {
+            $items[] = [
+                'reference_id' => 'biaya-admin',
+                'type' => 'FEE',
+                'name' => 'Biaya Layanan Gateway',
+                'net_unit_amount' => $biayaAdmin,
+                'quantity' => 1,
+                'category' => 'Fee',
+            ];
+        }
+
+        return $items;
     }
 
     public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array

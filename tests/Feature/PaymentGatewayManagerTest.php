@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Http;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    fakeXenditSession();
     $this->seed(RolesAndPermissionsSeeder::class);
 
     $this->manager = app(PaymentGatewayManager::class);
@@ -117,7 +118,7 @@ test('kegagalan panggilan API gateway meninggalkan baris transaksi Pending sebag
     // yang sebetulnya tidak pernah berhasil dibuat.
     $failingDriver = new class extends XenditDriver
     {
-        public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): PaymentLinkResponse
+        public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null, ?GatewayChannel $metode = null, int $biayaAdmin = 0): PaymentLinkResponse
         {
             throw new Exception('Simulasi timeout Xendit');
         }

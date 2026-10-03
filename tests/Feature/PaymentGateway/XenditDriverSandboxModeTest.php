@@ -42,8 +42,9 @@ beforeEach(function () {
     ]);
 });
 
-test('APP_ENV testing selalu menghasilkan link mock, terlepas dari sandbox_mode', function () {
-    // Test suite selalu berjalan dengan APP_ENV=testing (phpunit.xml) -- ini alur normalnya.
+test('link baru selalu dibuat lewat API Xendit, tanpa mock, terlepas dari sandbox_mode', function () {
+    fakeXenditSession();
+    app()->detectEnvironment(fn () => 'testing');
     $setting = PengaturanGateway::create([
         'provider' => 'xendit',
         'gateway' => 'xendit',
@@ -51,13 +52,12 @@ test('APP_ENV testing selalu menghasilkan link mock, terlepas dari sandbox_mode'
         'credentials' => ['secret_key' => 'xnd_development_test_123'],
         'is_default' => true,
         'is_active' => true,
-        'sandbox_mode' => false, // sengaja false: sandbox_mode tidak lagi relevan untuk mock
+        'sandbox_mode' => false,
     ]);
 
-    $response = $this->driver->createPaymentLink($this->invoice, $setting);
+    $response = $this->driver->createPaymentLink($this->invoice, $setting, metode: GatewayChannel::VirtualAccount);
 
-    expect($response->paymentUrl)->toContain('checkout-staging.xendit.co')
-        ->and($response->rawResponse['mock'] ?? null)->toBeTrue();
+    expect($response->paymentUrl)->toStartWith('https://xen.to/ps-');
 });
 
 test('APP_ENV local TIDAK lagi diam-diam membuat link mock', function () {
@@ -78,7 +78,7 @@ test('APP_ENV local TIDAK lagi diam-diam membuat link mock', function () {
         'sandbox_mode' => true, // sengaja true: sandbox_mode juga tidak boleh lagi memicu mock
     ]);
 
-    expect(fn () => $this->driver->createPaymentLink($this->invoice, $setting))
+    expect(fn () => $this->driver->createPaymentLink($this->invoice, $setting, metode: GatewayChannel::VirtualAccount))
         ->toThrow(Exception::class, 'Xendit Secret Key belum dikonfigurasi');
 });
 

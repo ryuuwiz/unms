@@ -42,7 +42,8 @@ test('tamu dapat membuka Halaman Tagihan Mandiri lewat Tautan Tagihan tanpa logi
     $this->get($this->invoice->tautanTagihan())
         ->assertOk()
         ->assertSee($this->invoice->no_invoice)
-        ->assertSee('Bayar Sekarang');
+        ->assertSee('Virtual Account')
+        ->assertSee('QRIS');
 });
 
 test('tamu lewat Tautan Tagihan tidak melihat tautan yang membutuhkan login', function () {

@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Event;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    fakeXenditSession();
     $this->seed(RolesAndPermissionsSeeder::class);
     Event::fake([InvoicePaidEvent::class]);
 

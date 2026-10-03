@@ -5,6 +5,7 @@ namespace App\Services\PaymentGateway\Drivers;
 use App\Contracts\PaymentGateway\PaymentGatewayContract;
 use App\Models\Invoice;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 abstract class AbstractPaymentDriver implements PaymentGatewayContract
 {
@@ -25,11 +26,12 @@ abstract class AbstractPaymentDriver implements PaymentGatewayContract
     }
 
     /**
-     * Generate format external ID unik per sesi pembuatan invoice.
+     * Generate format external ID unik per sesi pembuatan invoice. Akhiran acak karena satu invoice
+     * bisa mendapat beberapa link (satu per metode) dalam detik yang sama.
      */
     public function generateExternalId(Invoice $invoice): string
     {
-        return sprintf('%s-%s', $invoice->no_invoice, now()->timestamp);
+        return sprintf('%s-%s-%s', $invoice->no_invoice, now()->timestamp, Str::lower(Str::random(4)));
     }
 
     /**

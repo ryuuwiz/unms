@@ -127,31 +127,28 @@ class PaymentGatewayManager
     public function buatPaymentLink(
         Invoice $invoice,
         ?string $provider = null,
-        bool $forceRegenerate = false
+        bool $forceRegenerate = false,
+        ?GatewayChannel $metode = null,
     ): TransaksiPaymentGateway {
-        // 1. Cek apakah invoice sudah memiliki link aktif yang belum kedaluwarsa
-        if (! $forceRegenerate && $invoice->hasActivePaymentLink()) {
-            $existingTrx = TransaksiPaymentGateway::where('invoice_id', $invoice->id)
-                ->where('status', StatusTransaksiGateway::Pending)
-                ->where('expired_at', '>', now())
-                ->latest('id')
-                ->first();
-
-            if ($existingTrx) {
-                return $existingTrx;
-            }
-        }
-
         $setting = $this->getSetting($provider);
         $driver = $this->driver($setting->provider);
 
-        // 2. Reservasi baris transaksi lokal SEBELUM memanggil API gateway.
-        // fee dihitung dengan formula yang identik dengan yang dipakai driver saat
-        // menyusun payload 'amount' ke gateway (lihat XenditDriver::createPaymentLink),
-        // sehingga total_tagihan di sini sudah pasti sama dengan paid_amount yang akan
-        // dilaporkan webhook.
+        // Checkout yang tidak menghitung biaya sendiri (Xendit) selalu per metode; pemanggil lama
+        // tanpa metode mendapat Virtual Account (ADR-0073).
+        if (! $driver->menghitungBiayaSendiri()) {
+            $metode ??= GatewayChannel::VirtualAccount;
+        }
+
+        if (! $forceRegenerate && ($existingTrx = $this->transaksiAktif($invoice, $setting, $metode))) {
+            return $existingTrx;
+        }
+
+        // Reservasi baris transaksi lokal SEBELUM memanggil API gateway. Biaya dihitung sekali di
+        // sini lalu diteruskan ke driver, sehingga total_tagihan pasti sama dengan nominal yang
+        // dikirim ke gateway dan dilaporkan webhook. Gateway yang menghitung biaya sendiri (iPaymu)
+        // menerima nominal tagihan tanpa biaya.
         $externalId = $driver->generateExternalId($invoice);
-        $fee = $setting->hitungFee(GatewayChannel::VirtualAccount, (float) $invoice->jumlah_setelah_promo);
+        $fee = $metode ? $setting->hitungFee($metode, (float) $invoice->jumlah_setelah_promo) : 0;
         $totalTagihanEstimasi = (float) $invoice->jumlah_setelah_promo + $fee;
 
         $transaksi = TransaksiPaymentGateway::create([
@@ -159,7 +156,7 @@ class PaymentGatewayManager
             'gateway' => $driver->getProviderName(),
             'pengaturan_gateway_id' => $setting->id,
             'external_id' => $externalId,
-            'channel' => GatewayChannel::Invoice,
+            'channel' => $metode ?? GatewayChannel::Invoice,
             'total_tagihan' => $totalTagihanEstimasi,
             'fee_gateway' => $fee,
             'status' => StatusTransaksiGateway::Pending,
@@ -173,7 +170,7 @@ class PaymentGatewayManager
 
         // 3. Minta driver membuat payment link resmi menggunakan external_id yang sudah direservasi
         /** @var PaymentLinkResponse $response */
-        $response = $driver->createPaymentLink($invoice, $setting, $externalId);
+        $response = $driver->createPaymentLink($invoice, $setting, $externalId, $metode, $fee);
 
         // 4. Update invoice lokal & baris transaksi hasil reservasi dalam satu transaksi DB
         return DB::transaction(function () use ($invoice, $driver, $response, $transaksi) {
@@ -210,7 +207,7 @@ class PaymentGatewayManager
      * hosted payment page resmi -- null jika invoice sudah lunas atau tautan gagal diterbitkan.
      * Titik reuse tunggal untuk semua tombol "Bayar Sekarang" (portal login maupun tautan publik).
      */
-    public function resolvePaymentUrl(Invoice $invoice): ?string
+    public function resolvePaymentUrl(Invoice $invoice, ?GatewayChannel $metode = null): ?string
     {
         $invoice->refresh();
 
@@ -231,12 +228,22 @@ class PaymentGatewayManager
             }
         }
 
-        if (! $invoice->hasActivePaymentLink()) {
-            $this->buatPaymentLink($invoice, forceRegenerate: true);
-            $invoice->refresh();
-        }
+        return $this->buatPaymentLink($invoice, metode: $metode)->nomor_pembayaran ?: null;
+    }
 
-        return $invoice->payment_gateway_url ?: ($invoice->xendit_invoice_url ?: null);
+    /**
+     * Link Pending yang masih berlaku untuk metode ini dari koneksi yang sama.
+     */
+    private function transaksiAktif(Invoice $invoice, PengaturanGateway $setting, ?GatewayChannel $metode): ?TransaksiPaymentGateway
+    {
+        return TransaksiPaymentGateway::where('invoice_id', $invoice->id)
+            ->where('pengaturan_gateway_id', $setting->id)
+            ->where('channel', $metode ?? GatewayChannel::Invoice)
+            ->where('status', StatusTransaksiGateway::Pending)
+            ->where('expired_at', '>', now())
+            ->whereNotNull('nomor_pembayaran')
+            ->latest('id')
+            ->first();
     }
 
     /**

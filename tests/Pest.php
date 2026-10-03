@@ -9,6 +9,8 @@ use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Models\RouterPaket;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use RouterOS\Client;
@@ -28,6 +30,7 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(fn () => Http::preventStrayRequests())
     ->in('Feature');
 
 /*
@@ -165,4 +168,26 @@ function berkasImpor(array $sheets): string
     (new Xlsx($spreadsheet))->save($path);
 
     return $path;
+}
+
+/**
+ * Palsukan `POST https://api.xendit.co/sessions`: setiap panggilan menghasilkan Payment Session
+ * baru dengan id unik dan payment_link_url yang memuat id tersebut.
+ */
+function fakeXenditSession(): void
+{
+    Http::fake([
+        'api.xendit.co/sessions' => function (Request $request) {
+            $id = 'ps-'.bin2hex(random_bytes(12));
+
+            return Http::response([
+                'payment_session_id' => $id,
+                'reference_id' => $request['reference_id'],
+                'status' => 'ACTIVE',
+                'amount' => $request['amount'],
+                'expires_at' => $request['expires_at'],
+                'payment_link_url' => 'https://xen.to/'.$id,
+            ], 201);
+        },
+    ]);
 }
