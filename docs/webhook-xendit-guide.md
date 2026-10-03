@@ -1,5 +1,7 @@
 # Panduan Webhook Xendit (Payment Gateway)
 
+> ⛔ **Dipensiunkan (issue #76, ADR-0072):** driver Xendit sudah dihapus dan `POST /webhook/payment/xendit` kini ditolak sebagai gateway tak dikenal. Dokumen ini disimpan sebagai riwayat saja.
+
 > ⚠️ **Diperbarui oleh ADR-0067:** rute alias `/webhook/xendit*`, middleware `xendit.token`, dan `XenditWebhookVerifier` sudah dihapus. Satu-satunya URL callback adalah `POST /webhook/payment/xendit`, dan URL ini wajib dipasang di dashboard Xendit untuk mode Live maupun Test. Token diverifikasi dengan Koneksi Payment Gateway yang menerbitkan transaksi, atau koneksi aktif dan default bila transaksinya tidak dikenal. Bagian di bawah yang menyebut rute alias sudah tidak berlaku.
 
 Panduan operasional untuk memahami, menguji, dan men-debug webhook payment gateway (Xendit &

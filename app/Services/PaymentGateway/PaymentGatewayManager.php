@@ -316,12 +316,17 @@ class PaymentGatewayManager
     public function sinkronkanStatus(Invoice $invoice): array
     {
         $transaksi = $invoice->transaksiPaymentGatewayAktif();
+        $provider = $transaksi ? $this->providerTransaksi($transaksi) : ($invoice->payment_gateway_provider ?: 'ipaymu');
+
+        // Tautan dari gateway yang sudah dipensiunkan (mis. Xendit, ADR-0072) tidak bisa ditanyakan lagi.
+        if (! isset($this->drivers[strtolower($provider)])) {
+            return [];
+        }
 
         if ($transaksi) {
             return $this->sinkronkanTransaksi($transaksi);
         }
 
-        $provider = $invoice->payment_gateway_provider ?: 'ipaymu';
         $statusData = $this->driver($provider)->checkStatus($invoice, $this->getSetting($provider));
 
         return $this->terapkanStatusGateway($invoice, null, $provider, $statusData);

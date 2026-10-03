@@ -15,6 +15,7 @@ use App\Models\Router;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\URL;
 use Livewire\Livewire;
@@ -121,6 +122,25 @@ test('pelanggan otomatis mendapatkan link baru jika link lama sudah expired', fu
 
     $this->invoice->refresh();
     expect($this->invoice->payment_gateway_id)->not->toBe('inv_old_123')
+        ->and($this->invoice->payment_gateway_status)->toBe('PENDING');
+});
+
+test('invoice dengan tautan gateway yang sudah dipensiunkan tetap bisa dibuka dan dibayar lewat gateway aktif', function () {
+    Exceptions::fake();
+    $this->invoice->update([
+        'payment_gateway_provider' => 'xendit',
+        'payment_gateway_id' => 'xnd_lama_123',
+        'payment_gateway_status' => 'EXPIRED',
+        'payment_gateway_expired_at' => Carbon::now()->subDay(),
+    ]);
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('bayar')
+        ->assertRedirect();
+
+    Exceptions::assertNothingReported();
+    expect($this->invoice->refresh()->payment_gateway_provider)->toBe('uji')
         ->and($this->invoice->payment_gateway_status)->toBe('PENDING');
 });
 

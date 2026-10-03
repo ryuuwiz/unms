@@ -310,10 +310,6 @@ erDiagram
         date tanggal_jatuh_tempo
         date tanggal_lunas
         string metode_pembayaran
-        string xendit_invoice_id
-        text xendit_invoice_url
-        string xendit_status
-        timestamp xendit_expired_at
         bigint dibuat_oleh FK
         bigint dihapus_oleh FK
         text keterangan_hapus
@@ -339,7 +335,6 @@ erDiagram
         bigint invoice_id FK
         string gateway "xendit"
         string external_id UK
-        string xendit_reference_id
         string channel "virtual_account/qris/ewallet"
         string channel_detail
         string nomor_pembayaran
@@ -357,7 +352,6 @@ erDiagram
         bigint id PK
         bigint transaksi_payment_gateway_id FK
         string event_type
-        string xendit_event_id
         json payload
         string status_proses "diterima/diproses/gagal/diabaikan"
         text catatan_error
@@ -368,9 +362,6 @@ erDiagram
     pengaturan_gateway {
         bigint id PK
         string gateway UK "xendit"
-        decimal fee_va_nominal "12,2"
-        decimal fee_qris_persen "5,2"
-        decimal fee_qris_nominal "12,2"
         boolean bebankan_ke_pelanggan
         boolean is_active
         boolean sandbox_mode
@@ -474,7 +465,7 @@ Berikut adalah deskripsi lengkap dari **26 entitas domain dan operasional** yang
 | 18 | **`pembayaran`** | Transaksi penerimaan dana atas invoice yang memicu perpanjangan otomatis masa aktif layanan. | **PK**: `id`<br/>**FK**: `invoice_id` $\rightarrow$ `invoice(id)`, `dicatat_oleh` $\rightarrow$ `users(id)`. |
 | 19 | **`transaksi_payment_gateway`** | Sesi transaksi digital Xendit Hosted Invoice dengan ID eksternal unik (`external_id`), nomor VA, dan QR string. | **PK**: `id`<br/>**FK**: `invoice_id` $\rightarrow$ `invoice(id)`<br/>**Relasi**: 1:N ke `webhook_log`. |
 | 20 | **`webhook_log`** | Catatan audit trail *immutable* penerimaan callback HTTP dari payment gateway Xendit untuk rekonsiliasi pembayaran. | **PK**: `id`<br/>**FK**: `transaksi_payment_gateway_id` $\rightarrow$ `transaksi_payment_gateway(id)`. |
-| 21 | **`pengaturan_gateway`** | Konfigurasi sistem gateway pembayaran Xendit (mode sandbox/produksi, pembagian biaya transaksi/fee). | **PK**: `id`<br/>**Constraint**: Unique `gateway` ('xendit'). |
+| 21 | **`pengaturan_gateway`** | Koneksi gateway pembayaran (iPaymu; koneksi Xendit lama tersimpan nonaktif sebagai riwayat): kredensial, mode sandbox/produksi, pembebanan fee. | **PK**: `id`<br/>**Constraint**: Unique `gateway` ('xendit'). |
 | 22 | **`ticket`** | Berkas kerja permohonan layanan, aduan gangguan, pencabutan, dan pindah alamat (`TCK-YYYY-NNNNNN`) dengan SLA tracking. | **PK**: `id`<br/>**FK**: `pelanggan_id`, `layanan_pelanggan_id`, `pic_id`, `dibuat_oleh`<br/>**Relasi**: 1:N ke `ticket_divisi`, 1:N ke `ticket_histori`. |
 | 23 | **`ticket_divisi`** | Pivot table penugasan multi-divisi penanggung jawab penanganan tiket. | **PK**: `(ticket_id, divisi)`<br/>**FK**: `ticket_id` $\rightarrow$ `ticket(id)`. |
 | 24 | **`ticket_histori`** | Log kronologis *immutable* perubahan status tiket, pergantian PIC, dan catatan teknis (publik/internal). | **PK**: `id`<br/>**FK**: `ticket_id` $\rightarrow$ `ticket(id)`, `oleh_pengguna_id` $\rightarrow$ `users(id)`. |

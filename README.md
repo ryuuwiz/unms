@@ -204,8 +204,7 @@ vendor/bin/sail composer types:check                   # Larastan
 
 | Method | Path | Fungsi | Proteksi |
 | --- | --- | --- | --- |
-| `POST` | `/webhook/payment/{gateway}` | Webhook pembayaran semua gateway (`xendit`, `ipaymu`) → `ProcessPaymentWebhookJob` | `throttle:webhook`, verifikasi per driver |
-| `POST` | `/webhook/xendit`, `/webhook/xendit/virtual-account`, `/webhook/xendit/qris` | Webhook khusus Xendit (invoice, VA, QRIS) | `throttle:webhook`, `xendit.token` |
+| `POST` | `/webhook/payment/{gateway}` | Webhook pembayaran gateway (`ipaymu`) → `ProcessPaymentWebhookJob` | `throttle:webhook`, verifikasi per driver |
 | `POST` | `/webhook/whatsapp` | Status pesan dan pairing sesi WhatsApp | `throttle:webhook` |
 | `GET` | `/api/maps/markers` | Marker GeoJSON pelanggan/ODP untuk peta | login staf |
 | `GET` | `/invoice/{invoice}/cetak` | PDF invoice | staf `invoice.cetak` atau pelanggan pemilik |
@@ -238,12 +237,12 @@ Driver pembayaran (`XenditDriver`, `IpaymuDriver`) mewarisi `AbstractPaymentDriv
 | `invoice:kirim-pengingat` | tiap jam | Pengingat tagihan WhatsApp sesuai aturan aktif |
 | `wa:proses-antrian` | 5 menit | Kirim antrean WhatsApp blast |
 | `pembayaran:rekonsiliasi` | 15 menit | Proses ulang webhook macet + polling transaksi pending |
-| `xendit:cek-va-expired` | tiap jam | Tutup virtual account kedaluwarsa |
+| `pembayaran:cek-kedaluwarsa` | tiap jam | Tutup transaksi gateway kedaluwarsa |
 | `mikrotik:provisi-router --async` | 15 menit / 03:00 audit | Rekonsiliasi router |
 | `mikrotik:ping` | 5 menit | Cek kesehatan router |
 | `horizon:snapshot`, `horizon:monitor-health` | 5 menit | Metrik Horizon dan alert worker macet |
 
-**Operasional (manual):** `app:install`, `mikrotik:provisi-layanan`, `mikrotik:recover-ppp`, `mikrotik:sync-profil`, `xendit:ping`, `xendit:simulate`, `whatsapp:ping`, `whatsapp:simulate-webhook`, `inventaris:reset`. Pakai `--help` untuk opsinya.
+**Operasional (manual):** `app:install`, `mikrotik:provisi-layanan`, `mikrotik:recover-ppp`, `mikrotik:sync-profil`, `whatsapp:ping`, `whatsapp:simulate-webhook`, `inventaris:reset`. Pakai `--help` untuk opsinya.
 
 ## 6. Dokumentasi Lanjutan
 
@@ -254,7 +253,7 @@ Driver pembayaran (`XenditDriver`, `IpaymuDriver`) mewarisi `AbstractPaymentDriv
 | [docs/docker-deployment-guide.md](docs/docker-deployment-guide.md) | Docker, Dokploy, backup/restore |
 | [docs/ERD.md](docs/ERD.md) | Relasi tabel |
 | [docs/SRS.md](docs/SRS.md), [docs/prd/](docs/prd/) | Kebutuhan dan PRD |
-| [docs/webhook-xendit-guide.md](docs/webhook-xendit-guide.md), [docs/webhook-whatsapp-guide.md](docs/webhook-whatsapp-guide.md) | Setup webhook |
+| [docs/webhook-whatsapp-guide.md](docs/webhook-whatsapp-guide.md) | Setup webhook |
 | [.ai/rules/index.md](.ai/rules/index.md) | Aturan per area kode untuk developer dan agen AI |
 
 > `docs/comprehensive_documentation.md` ditulis untuk versi lama (Laravel 12, MariaDB). Jika bertentangan dengan README ini atau kode, ikuti kode.

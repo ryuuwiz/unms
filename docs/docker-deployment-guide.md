@@ -125,7 +125,6 @@ Masuk ke tab **Environment** pada Dokploy dan salin seluruh isi dari template [`
 - `RUSTFS_DOMAIN` (misal `s3.buroq.gobilling.id`)
 - `DB_PASSWORD` & `REDIS_PASSWORD`
 - `WAHA_API_KEY`
-- `XENDIT_SECRET_KEY`
 
 ### Langkah 4: Atur Domain & Port
 Pada tab **Domains**, tambahkan `APP_DOMAIN` dengan **Container Port `80`** (Caddy di dalam image mendengarkan `:80` dengan HTTP polos; TLS ditangani Traefik) dan aktifkan HTTPS (Let's Encrypt). Port selain 80 juga menghasilkan 502.
