@@ -5,6 +5,7 @@ namespace App\Contracts\PaymentGateway;
 use App\DTO\PaymentGateway\PaymentCallbackData;
 use App\DTO\PaymentGateway\PaymentLinkResponse;
 use App\DTO\PaymentGateway\PingConnectionResult;
+use App\Models\ChannelPembayaran;
 use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
@@ -39,6 +40,27 @@ interface PaymentGatewayContract
      *                                   (kompatibilitas mundur untuk pemanggilan langsung).
      */
     public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null): PaymentLinkResponse;
+
+    /**
+     * Kode Channel Pembayaran yang dikenal driver, per Tipe Channel (nilai GatewayChannel).
+     * Kosong berarti driver hanya mendukung Hosted Invoice.
+     *
+     * @return array<string, list<string>>
+     */
+    public function kodeChannel(): array;
+
+    /**
+     * Daftar channel yang aktif di akun gateway, untuk mengisi form Metode Pembayaran.
+     *
+     * @return list<array{tipe: string, kode: string, nama: string, logo: string|null, fee: float, fee_persen: bool}>
+     */
+    public function daftarChannelGateway(PengaturanGateway $setting): array;
+
+    /**
+     * Buat pembayaran langsung pada satu Channel Pembayaran (nomor VA / kode bayar / QR)
+     * dengan nominal final yang sudah termasuk Fee Admin.
+     */
+    public function createChannelPayment(Invoice $invoice, PengaturanGateway $setting, ChannelPembayaran $channel, string $externalId, float $amount): PaymentLinkResponse;
 
     /**
      * Cek status transaksi pembayaran langsung ke API gateway.

@@ -104,7 +104,9 @@ test('callback bersignature valid dan terkonfirmasi API melunasi invoice dengan 
     kirimCallbackIpaymu()->assertOk();
 
     expect($this->invoice->refresh()->status)->toBe(StatusInvoice::Lunas)
-        ->and($this->trx->refresh()->provider_reference_id)->toBe('184854');
+        ->and($this->trx->refresh()->provider_reference_id)->toBe('184854')
+        // paid_at iPaymu adalah WIB (10:10:51) -> 03:10:51 UTC di database.
+        ->and($this->invoice->pembayarans()->sole()->dibayar_pada->utc()->format('H:i:s'))->toBe('03:10:51');
     Http::assertSent(fn ($request) => $request['transactionId'] === '184854');
 });
 

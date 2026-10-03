@@ -197,6 +197,13 @@ return [
                     'permission' => 'payment_gateway.lihat',
                 ],
                 [
+                    'title' => 'Metode Pembayaran',
+                    'icon' => 'credit-card',
+                    'route' => 'settings.metode-pembayaran.index',
+                    'active' => 'settings.metode-pembayaran.*',
+                    'permission' => 'payment_gateway.lihat',
+                ],
+                [
                     'title' => 'Template Deskripsi Tagihan',
                     'icon' => 'document-text',
                     'route' => 'settings.template-deskripsi-tagihan',

@@ -4,15 +4,33 @@ namespace App\Services\PaymentGateway\Drivers;
 
 use App\Contracts\PaymentGateway\PaymentGatewayContract;
 use App\DTO\PaymentGateway\PaymentCallbackData;
+use App\DTO\PaymentGateway\PaymentLinkResponse;
+use App\Models\ChannelPembayaran;
 use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use Illuminate\Support\Carbon;
+use LogicException;
 
 abstract class AbstractPaymentDriver implements PaymentGatewayContract
 {
     public function konfirmasiPembayaran(PaymentCallbackData $callback, PengaturanGateway $setting): bool
     {
         return true;
+    }
+
+    public function kodeChannel(): array
+    {
+        return [];
+    }
+
+    public function daftarChannelGateway(PengaturanGateway $setting): array
+    {
+        return [];
+    }
+
+    public function createChannelPayment(Invoice $invoice, PengaturanGateway $setting, ChannelPembayaran $channel, string $externalId, float $amount): PaymentLinkResponse
+    {
+        throw new LogicException("Driver [{$this->getProviderName()}] belum mendukung pembayaran per channel.");
     }
 
     /**

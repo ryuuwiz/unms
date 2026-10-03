@@ -1,6 +1,6 @@
 # ADR 0072: iPaymu Hosted Invoice Menggantikan Xendit, Callback Dikonfirmasi ke API
 
-**Status**: Accepted — memperbarui ADR-0026 (gateway default) dan ADR-0007 (Xendit sebagai penerbit).
+**Status**: Accepted, sebagian digantikan ADR-0073 (Hosted kini hanya fallback) — memperbarui ADR-0026 (gateway default) dan ADR-0007 (Xendit sebagai penerbit).
 
 Pembayaran baru diterbitkan sebagai Hosted Invoice iPaymu (`/api/v2/payment`); pelanggan memilih metode di halaman iPaymu, dan fee dibebankan iPaymu ke pembeli lewat `feeDirection` (mengikuti `bebankan_ke_pelanggan`). Xendit tetap terdaftar hanya untuk menuntaskan link dan transaksi lama sampai habis kedaluwarsa, tanpa pembayaran ganda.
 

@@ -13,6 +13,7 @@ use App\Enums\StatusInvoice;
 use App\Enums\StatusTransaksiGateway;
 use App\Enums\StatusWebhookLog;
 use App\Events\InvoicePaidEvent;
+use App\Models\ChannelPembayaran;
 use App\Models\Invoice;
 use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
@@ -21,6 +22,7 @@ use App\Models\WebhookLog;
 use App\Services\PaymentGateway\Drivers\IpaymuDriver;
 use App\Services\PaymentGateway\Drivers\XenditDriver;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -132,6 +134,7 @@ class PaymentGatewayManager
         // 1. Cek apakah invoice sudah memiliki link aktif yang belum kedaluwarsa
         if (! $forceRegenerate && $invoice->hasActivePaymentLink()) {
             $existingTrx = TransaksiPaymentGateway::where('invoice_id', $invoice->id)
+                ->where('channel', GatewayChannel::Invoice)
                 ->where('status', StatusTransaksiGateway::Pending)
                 ->where('expired_at', '>', now())
                 ->latest('id')
@@ -145,35 +148,14 @@ class PaymentGatewayManager
         $setting = $this->getSetting($provider);
         $driver = $this->driver($setting->provider);
 
-        // 2. Reservasi baris transaksi lokal SEBELUM memanggil API gateway.
-        // fee dihitung dengan formula yang identik dengan yang dipakai driver saat
-        // menyusun payload 'amount' ke gateway (lihat XenditDriver::createPaymentLink),
-        // sehingga total_tagihan di sini sudah pasti sama dengan paid_amount yang akan
-        // dilaporkan webhook.
-        $externalId = $driver->generateExternalId($invoice);
+        // 2. Reservasi baris transaksi lokal SEBELUM memanggil API gateway. Fee dihitung dengan
+        // formula yang sama dengan payload 'amount' driver (lihat XenditDriver::createPaymentLink),
+        // sehingga total_tagihan pasti sama dengan paid_amount yang dilaporkan webhook.
         $fee = $setting->hitungFee('virtual_account', (float) $invoice->jumlah_setelah_promo);
-        $totalTagihanEstimasi = (float) $invoice->jumlah_setelah_promo + $fee;
-
-        $transaksi = TransaksiPaymentGateway::create([
-            'invoice_id' => $invoice->id,
-            'gateway' => $driver->getProviderName(),
-            'pengaturan_gateway_id' => $setting->id,
-            'external_id' => $externalId,
-            'channel' => GatewayChannel::Invoice,
-            'total_tagihan' => $totalTagihanEstimasi,
-            'fee_gateway' => $fee,
-            'status' => StatusTransaksiGateway::Pending,
-            'payload_request' => [
-                'provider' => $driver->getProviderName(),
-                'invoice_no' => $invoice->no_invoice,
-                'external_id' => $externalId,
-                'amount' => $totalTagihanEstimasi,
-            ],
-        ]);
+        $transaksi = $this->reservasiTransaksi($invoice, $setting, $driver, $fee, GatewayChannel::Invoice, null);
 
         // 3. Minta driver membuat payment link resmi menggunakan external_id yang sudah direservasi
-        /** @var PaymentLinkResponse $response */
-        $response = $driver->createPaymentLink($invoice, $setting, $externalId);
+        $response = $driver->createPaymentLink($invoice, $setting, $transaksi->external_id);
 
         // 4. Update invoice lokal & baris transaksi hasil reservasi dalam satu transaksi DB
         return DB::transaction(function () use ($invoice, $driver, $response, $transaksi) {
@@ -190,19 +172,117 @@ class PaymentGatewayManager
                 'xendit_expired_at' => $response->expiredAt,
             ]);
 
-            $transaksi->update([
-                'xendit_reference_id' => $response->paymentId,
-                'channel' => $response->channel,
-                'channel_detail' => $response->channelDetail,
-                'nomor_pembayaran' => $response->paymentUrl,
-                'qr_string' => $response->qrString,
-                'total_tagihan' => $response->amount,
-                'expired_at' => $response->expiredAt,
-                'payload_response' => $response->rawResponse,
+            return $this->catatResponsTransaksi($transaksi, $response);
+        });
+    }
+
+    /**
+     * Channel Pembayaran yang boleh ditawarkan ke pelanggan saat ini (ADR-0073).
+     *
+     * @return Collection<int, ChannelPembayaran>
+     */
+    public function channelTersedia(): Collection
+    {
+        $provider = array_keys(array_filter($this->drivers, fn (PaymentGatewayContract $driver) => $driver->kodeChannel() !== []));
+
+        return ChannelPembayaran::query()
+            ->tersedia($provider)
+            ->orderBy('tipe')
+            ->orderBy('kode')
+            ->get();
+    }
+
+    /**
+     * Terbitkan pembayaran langsung pada satu Channel Pembayaran (ADR-0073). Transaksi Pending
+     * channel yang sama dengan nominal sama dipakai ulang; ganti channel membuat transaksi baru
+     * dan transaksi lama dibiarkan kedaluwarsa (pembayaran ganda ditangani pelunasan susulan).
+     */
+    public function bayarLewatChannel(Invoice $invoice, ChannelPembayaran $channel): TransaksiPaymentGateway
+    {
+        $nominal = (float) $invoice->jumlah_setelah_promo;
+        $fee = $channel->hitungFee($nominal);
+
+        $aktif = TransaksiPaymentGateway::where('invoice_id', $invoice->id)
+            ->where('pengaturan_gateway_id', $channel->pengaturan_gateway_id)
+            ->where('channel_detail', $channel->kode)
+            ->where('status', StatusTransaksiGateway::Pending)
+            ->where('expired_at', '>', now())
+            ->where('total_tagihan', $nominal + $fee)
+            ->latest('id')
+            ->first();
+
+        if ($aktif) {
+            return $aktif;
+        }
+
+        $setting = $channel->pengaturanGateway;
+        $driver = $this->driver($setting->provider);
+        $transaksi = $this->reservasiTransaksi($invoice, $setting, $driver, $fee, $channel->tipe, $channel->kode);
+        $response = $driver->createChannelPayment($invoice, $setting, $channel, $transaksi->external_id, $nominal + $fee);
+
+        return DB::transaction(function () use ($invoice, $driver, $response, $transaksi) {
+            $invoice->update([
+                'payment_gateway_id' => $response->paymentId,
+                'payment_gateway_provider' => $driver->getProviderName(),
+                'payment_gateway_status' => 'PENDING',
+                'payment_gateway_expired_at' => $response->expiredAt,
             ]);
 
-            return $transaksi;
+            return $this->catatResponsTransaksi($transaksi, $response);
         });
+    }
+
+    /**
+     * Reservasi baris transaksi lokal (external_id + total final termasuk fee) SEBELUM API gateway
+     * dipanggil. Jika panggilan API gagal/timeout, baris Pending ini tertinggal sebagai jejak yang
+     * dapat direkonsiliasi (RekonsiliasiPembayaranCommand); webhook menemukannya lewat external_id
+     * sehingga tidak jatuh ke pembanding jumlah_setelah_promo tanpa fee yang memicu anomali palsu.
+     */
+    private function reservasiTransaksi(
+        Invoice $invoice,
+        PengaturanGateway $setting,
+        PaymentGatewayContract $driver,
+        float $fee,
+        GatewayChannel $channel,
+        ?string $channelDetail
+    ): TransaksiPaymentGateway {
+        $externalId = $driver->generateExternalId($invoice);
+        $totalTagihan = (float) $invoice->jumlah_setelah_promo + $fee;
+
+        return TransaksiPaymentGateway::create([
+            'invoice_id' => $invoice->id,
+            'gateway' => $driver->getProviderName(),
+            'pengaturan_gateway_id' => $setting->id,
+            'external_id' => $externalId,
+            'channel' => $channel,
+            'channel_detail' => $channelDetail,
+            'total_tagihan' => $totalTagihan,
+            'fee_gateway' => $fee,
+            'status' => StatusTransaksiGateway::Pending,
+            'payload_request' => [
+                'provider' => $driver->getProviderName(),
+                'invoice_no' => $invoice->no_invoice,
+                'external_id' => $externalId,
+                'amount' => $totalTagihan,
+                'channel' => $channelDetail,
+            ],
+        ]);
+    }
+
+    private function catatResponsTransaksi(TransaksiPaymentGateway $transaksi, PaymentLinkResponse $response): TransaksiPaymentGateway
+    {
+        $transaksi->update([
+            'xendit_reference_id' => $response->paymentId,
+            'channel' => $response->channel,
+            'channel_detail' => $response->channelDetail,
+            'nomor_pembayaran' => $response->paymentNumber ?? $response->paymentUrl,
+            'qr_string' => $response->qrString,
+            'total_tagihan' => $response->amount,
+            'expired_at' => $response->expiredAt,
+            'payload_response' => $response->rawResponse,
+        ]);
+
+        return $transaksi;
     }
 
     /**

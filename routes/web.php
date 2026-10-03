@@ -38,6 +38,7 @@ use App\Livewire\Promo;
 use App\Livewire\Rab;
 use App\Livewire\Roles;
 use App\Livewire\Router;
+use App\Livewire\Settings\MetodePembayaran;
 use App\Livewire\Settings\PengaturanGateway;
 use App\Livewire\Settings\PengaturanPrefixRegistrasi;
 use App\Livewire\Settings\TemplateDeskripsiTagihan;
@@ -204,6 +205,9 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('permission:payment_gateway.lihat')->group(function () {
         Route::get('/settings/gateway', PengaturanGateway::class)->name('settings.gateway');
         Route::get('/settings/template-deskripsi-tagihan', TemplateDeskripsiTagihan::class)->name('settings.template-deskripsi-tagihan');
+        Route::get('/settings/metode-pembayaran', MetodePembayaran\Index::class)->name('settings.metode-pembayaran.index');
+        Route::get('/settings/metode-pembayaran/create', MetodePembayaran\Form::class)->name('settings.metode-pembayaran.create');
+        Route::get('/settings/metode-pembayaran/{channel}/edit', MetodePembayaran\Form::class)->name('settings.metode-pembayaran.edit');
     });
 
     // ─── Pengaturan Prefix Registrasi ──────────────────────────────

@@ -6,6 +6,7 @@ use App\DTO\PaymentGateway\PaymentCallbackData;
 use App\DTO\PaymentGateway\PaymentLinkResponse;
 use App\DTO\PaymentGateway\PingConnectionResult;
 use App\Enums\GatewayChannel;
+use App\Models\ChannelPembayaran;
 use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
@@ -90,12 +91,7 @@ class IpaymuDriver extends AbstractPaymentDriver
         $expiredAt = Carbon::now()->addSeconds($invoiceDurationSeconds);
         $externalId = $externalId ?: $this->generateExternalId($invoice);
 
-        $pelanggan = $invoice->pelanggan;
-        $buyerPhone = self::formatNomorHpNumeric($pelanggan?->no_hp) ?: '081234567890';
-        $buyerName = trim(($pelanggan->nama_depan ?? 'Pelanggan').' '.($pelanggan->nama_belakang ?? ''));
-        $buyerEmail = (! empty($pelanggan->email) && filter_var($pelanggan->email, FILTER_VALIDATE_EMAIL))
-            ? $pelanggan->email
-            : 'noreply@gobilling.id';
+        ['nama' => $buyerName, 'email' => $buyerEmail, 'hp' => $buyerPhone] = $this->dataPembeli($invoice);
 
         $namaPaket = $invoice->layananPelanggan?->paketLayanan->nama_paket ?? 'Langganan Internet';
         // Tautan Tagihan, bukan /tagihan/{id}: pelanggan yang membayar tanpa login harus bisa
@@ -168,6 +164,143 @@ class IpaymuDriver extends AbstractPaymentDriver
             Log::error("Gagal membuat Payment Link iPaymu untuk Invoice [{$invoice->no_invoice}]: ".$e->getMessage());
             throw new Exception('Gagal membuat Payment Link iPaymu: '.$e->getMessage());
         }
+    }
+
+    /**
+     * Tipe Channel lokal -> `paymentMethod` iPaymu.
+     */
+    private const METODE = [
+        'virtual_account' => 'va',
+        'qris' => 'qris',
+        'retail_outlet' => 'cstore',
+    ];
+
+    public function kodeChannel(): array
+    {
+        return [
+            GatewayChannel::VirtualAccount->value => ['bag', 'bca', 'bpd_bali', 'bni', 'cimb', 'mandiri', 'bmi', 'bri', 'bsi', 'permata', 'danamon', 'btn'],
+            GatewayChannel::Qris->value => ['mpm'],
+            GatewayChannel::RetailOutlet->value => ['alfamart', 'indomaret'],
+        ];
+    }
+
+    /**
+     * `GET /api/v2/payment-channels`, hanya channel berstatus active dari tipe yang didukung.
+     */
+    public function daftarChannelGateway(PengaturanGateway $setting): array
+    {
+        $va = $this->getVa($setting);
+        $apiKey = $this->getApiKey($setting);
+
+        // Dokumentasi iPaymu menyebut body GET = "{}" mentah, tetapi sandbox hanya menerima
+        // SHA-256 dari "{}" -- aturan yang sama dengan POST (diverifikasi 2026-10-03).
+        $bodyHash = hash('sha256', '{}');
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'va' => $va,
+            'signature' => hash_hmac('sha256', "GET:{$va}:{$bodyHash}:{$apiKey}", $apiKey),
+            'timestamp' => Carbon::now()->format('YmdHis'),
+        ])->timeout(8)->get($this->getBaseUrl($setting).'payment-channels');
+
+        if (! $response->successful() || (int) $response->json('Status') !== 200) {
+            throw new Exception("iPaymu payment-channels gagal: HTTP {$response->status()} ".($response->json('Message') ?? ''));
+        }
+
+        $tipePerMetode = array_flip(self::METODE);
+        $hasil = [];
+        foreach ((array) $response->json('Data') as $metode) {
+            $tipe = $tipePerMetode[$metode['Code'] ?? ''] ?? null;
+            if ($tipe === null) {
+                continue;
+            }
+
+            foreach ((array) ($metode['Channels'] ?? []) as $channel) {
+                if (($channel['FeatureStatus'] ?? 'active') !== 'active') {
+                    continue;
+                }
+
+                $fee = (array) ($channel['TransactionFee'] ?? []);
+                $flat = strtoupper((string) ($fee['ActualFeeType'] ?? 'FLAT')) === 'FLAT';
+                $hasil[] = [
+                    'tipe' => $tipe,
+                    'kode' => strtolower((string) $channel['Code']),
+                    'nama' => (string) ($channel['Name'] ?? $channel['Code']),
+                    'logo' => $channel['Logo'] ?? null,
+                    'fee' => (float) ($fee['ActualFee'] ?? 0) + ($flat ? (float) ($fee['AdditionalFee'] ?? 0) : 0),
+                    'fee_persen' => ! $flat,
+                ];
+            }
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Direct Payment (`/api/v2/payment/direct`): nomor VA, kode bayar, atau QR dikembalikan
+     * langsung dan ditampilkan di portal. Fee Admin sudah ada di `amount`, jadi iPaymu tidak
+     * boleh menambah fee lagi ke pembeli (ADR-0073).
+     */
+    public function createChannelPayment(Invoice $invoice, PengaturanGateway $setting, ChannelPembayaran $channel, string $externalId, float $amount): PaymentLinkResponse
+    {
+        ['nama' => $nama, 'email' => $email, 'hp' => $hp] = $this->dataPembeli($invoice);
+        $jam = max(1, (int) ceil($this->hitungDurasiDetik($invoice) / 3600));
+        $nominal = (int) round($amount);
+        $namaPaket = $invoice->layananPelanggan?->paketLayanan->nama_paket ?? 'Langganan Internet';
+
+        $data = $this->kirim($setting, 'payment/direct', [
+            'name' => $nama,
+            'phone' => $hp,
+            'email' => $email,
+            'amount' => $nominal,
+            'notifyUrl' => url('/webhook/payment/ipaymu'),
+            'expired' => $jam,
+            'expiredType' => 'hours',
+            'comments' => app(DeskripsiTagihanBuilder::class)->buat($invoice),
+            'referenceId' => $externalId,
+            'paymentMethod' => self::METODE[$channel->tipe->value],
+            'paymentChannel' => $channel->kode,
+            'product' => ["Paket: {$namaPaket}"],
+            'qty' => [1],
+            'price' => [$nominal],
+            'feeDirection' => 'MERCHANT',
+        ]);
+
+        $isQris = $channel->tipe === GatewayChannel::Qris;
+        // ponytail: contoh respons resmi hanya untuk VA (PaymentNo); nama field QR belum
+        // terdokumentasi, jadi QrString lalu PaymentNo dicoba. Url iPaymu tetap disimpan sebagai cadangan.
+        $qrString = $isQris ? ($data['QrString'] ?? ($data['PaymentNo'] ?? null)) : null;
+
+        $kedaluwarsa = self::waktuWib($data['Expired'] ?? null);
+
+        return new PaymentLinkResponse(
+            paymentId: (string) ($data['TransactionId'] ?? ''),
+            paymentUrl: (string) ($data['Url'] ?? ''),
+            externalId: $externalId,
+            // Callback dicocokkan lewat sub_total = nominal yang kita kirim, bukan Total iPaymu.
+            amount: (float) $nominal,
+            expiredAt: $kedaluwarsa ? Carbon::parse($kedaluwarsa) : Carbon::now()->addHours($jam),
+            channel: $channel->tipe,
+            channelDetail: $channel->kode,
+            paymentNumber: $isQris ? null : ($data['PaymentNo'] ?? null),
+            qrString: $qrString !== null ? (string) $qrString : null,
+            rawResponse: $data,
+        );
+    }
+
+    /**
+     * @return array{nama: string, email: string, hp: string}
+     */
+    private function dataPembeli(Invoice $invoice): array
+    {
+        $pelanggan = $invoice->pelanggan;
+        $email = (string) ($pelanggan->email ?? '');
+
+        return [
+            'nama' => trim(($pelanggan->nama_depan ?? 'Pelanggan').' '.($pelanggan->nama_belakang ?? '')),
+            'email' => filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : 'noreply@gobilling.id',
+            'hp' => self::formatNomorHpNumeric($pelanggan?->no_hp) ?: '081234567890',
+        ];
     }
 
     /**
@@ -282,11 +415,13 @@ class IpaymuDriver extends AbstractPaymentDriver
     }
 
     /**
-     * iPaymu mengirim waktu lokal WIB tanpa zona (`YYYY-MM-DD HH:MM:SS`).
+     * iPaymu mengirim waktu lokal WIB tanpa zona (`YYYY-MM-DD HH:MM:SS`). Dikembalikan dalam UTC:
+     * Eloquent menyimpan Carbon apa adanya tanpa konversi zona, jadi offset +07:00 akan tersimpan
+     * sebagai jam UTC dan menggeser expired_at / dibayar_pada 7 jam.
      */
     private static function waktuWib(mixed $waktu): ?string
     {
-        return is_string($waktu) && $waktu !== '' ? Carbon::parse($waktu, 'Asia/Jakarta')->toIso8601String() : null;
+        return is_string($waktu) && $waktu !== '' ? Carbon::parse($waktu, 'Asia/Jakarta')->utc()->toIso8601String() : null;
     }
 
     /**

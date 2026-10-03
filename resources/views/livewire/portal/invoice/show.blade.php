@@ -105,7 +105,83 @@
         </div>
 
         <!-- Aksi Tagihan: tombol utama selebar layar di ponsel -->
-        @if($invoice->isMenungguPembayaran())
+        @if($invoice->isMenungguPembayaran() && $channels->isNotEmpty())
+            @if($instruksi)
+                @php($channelInstruksi = $channels->firstWhere('kode', $instruksi->channel_detail))
+                <div wire:key="instruksi-{{ $instruksi->id }}" class="rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 p-4 space-y-3 text-center"
+                    x-data="{ sisa: {{ max(0, now()->diffInSeconds($instruksi->expired_at, false)) }} }"
+                    x-init="const t = setInterval(() => { sisa = Math.max(0, sisa - 1); if (sisa === 0) clearInterval(t) }, 1000)">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                        {{ $instruksi->channel->label() }} &bull; {{ $channelInstruksi?->keterangan ?: strtoupper($instruksi->channel_detail ?? '') }}
+                    </div>
+
+                    <div x-show="sisa > 0" class="space-y-3">
+                        @if($qrSvg)
+                            <div class="mx-auto w-60 rounded-lg bg-white p-2">{!! $qrSvg !!}</div>
+                        @elseif($instruksi->nomor_pembayaran && ! str_starts_with($instruksi->nomor_pembayaran, 'http'))
+                            <div class="text-xs text-zinc-500">{{ $instruksi->channel === \App\Enums\GatewayChannel::RetailOutlet ? 'Kode Pembayaran' : 'Nomor Virtual Account' }}</div>
+                            <div class="flex items-center justify-center gap-2">
+                                <span class="font-mono text-2xl font-bold tracking-wider text-zinc-900 dark:text-white">{{ $instruksi->nomor_pembayaran }}</span>
+                                <flux:button size="sm" variant="ghost" icon="clipboard" x-on:click="navigator.clipboard.writeText(@js($instruksi->nomor_pembayaran))" aria-label="Salin nomor pembayaran" />
+                            </div>
+                        @endif
+                        @if(str_starts_with((string) ($instruksi->payload_response['Url'] ?? ''), 'https://'))
+                            <a href="{{ $instruksi->payload_response['Url'] }}" target="_blank" rel="noopener" class="text-xs text-indigo-600 hover:underline dark:text-indigo-400">Buka instruksi di halaman iPaymu</a>
+                        @endif
+                        <div class="text-sm text-zinc-600 dark:text-zinc-300">
+                            Bayar tepat <strong class="text-zinc-900 dark:text-white">Rp {{ number_format((float) $instruksi->total_tagihan, 0, ',', '.') }}</strong>
+                            @if((float) $instruksi->fee_gateway > 0)
+                                <span class="text-xs">(termasuk biaya admin Rp {{ number_format((float) $instruksi->fee_gateway, 0, ',', '.') }})</span>
+                            @endif
+                        </div>
+                        <div class="text-xs text-zinc-500">
+                            Berlaku sampai {{ $instruksi->expired_at->timezone('Asia/Jakarta')->translatedFormat('d F Y, H:i') }} WIB
+                            <span x-show="sisa < 3600" x-text="'(' + Math.floor(sisa / 60) + ':' + String(sisa % 60).padStart(2, '0') + ')'"></span>
+                        </div>
+                    </div>
+
+                    <div x-show="sisa === 0" x-cloak class="space-y-2">
+                        <p class="text-sm text-zinc-600 dark:text-zinc-300">Kode pembayaran ini sudah kedaluwarsa.</p>
+                        @if($channelInstruksi)
+                            <flux:button size="sm" variant="primary" wire:click="pilihChannel({{ $channelInstruksi->id }})" icon="arrow-path">
+                                {{ $instruksi->channel === \App\Enums\GatewayChannel::Qris ? 'Buat QR baru' : 'Buat kode baru' }}
+                            </flux:button>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
+            <div class="space-y-2">
+                <flux:heading size="sm">{{ $instruksi ? 'Ganti metode pembayaran' : 'Pilih metode pembayaran' }}</flux:heading>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    @foreach($channels as $channel)
+                        <button type="button" wire:click="pilihChannel({{ $channel->id }})" wire:loading.attr="disabled"
+                            @class([
+                                'flex items-center gap-3 rounded-lg border p-3 text-left transition hover:border-indigo-400 disabled:opacity-50',
+                                'border-indigo-500 ring-1 ring-indigo-500' => $instruksi?->channel_detail === $channel->kode,
+                                'border-zinc-200 dark:border-zinc-700' => $instruksi?->channel_detail !== $channel->kode,
+                            ])>
+                            @if($channel->icon_url)
+                                <img src="{{ $channel->icon_url }}" alt="" class="h-8 w-12 object-contain" loading="lazy">
+                            @else
+                                <flux:icon icon="credit-card" class="size-6 text-zinc-400" />
+                            @endif
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-sm font-semibold text-zinc-900 dark:text-white">{{ $channel->keterangan ?: strtoupper($channel->kode) }}</span>
+                                <span class="block text-xs text-zinc-500">{{ $channel->tipe->label() }} &bull; Biaya admin {{ $channel->labelFee() }}</span>
+                            </span>
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="flex sm:justify-end">
+                <flux:button wire:click="cekStatusPembayaran" wire:loading.attr="disabled" variant="subtle" icon="arrow-path" class="w-full sm:w-auto">
+                    <span wire:loading.remove wire:target="cekStatusPembayaran">Cek Status Pembayaran</span>
+                    <span wire:loading wire:target="cekStatusPembayaran" class="animate-pulse">Mengecek...</span>
+                </flux:button>
+            </div>
+        @elseif($invoice->isMenungguPembayaran())
             <div class="flex flex-col sm:flex-row-reverse sm:items-center gap-2">
                 <flux:button wire:click="bayar" wire:loading.attr="disabled" variant="primary" class="w-full sm:w-auto bg-indigo-600 text-white">
                     <span wire:loading.remove wire:target="bayar" class="flex items-center justify-center gap-1.5">

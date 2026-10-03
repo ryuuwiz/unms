@@ -2,11 +2,18 @@
 
 namespace App\Livewire\Portal\Invoice;
 
+use App\Enums\GatewayChannel;
+use App\Enums\StatusTransaksiGateway;
 use App\Livewire\Portal\Invoice\Concerns\AuthorizesInvoiceAccess;
+use App\Models\ChannelPembayaran;
 use App\Models\Invoice;
 use App\Services\PaymentGateway\CekStatusPembayaranInvoice;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use App\Support\BrandPelanggan;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
 use Exception;
 use Flux\Flux;
 use Illuminate\Support\Facades\RateLimiter;
@@ -92,20 +99,76 @@ class Show extends Component
         };
     }
 
+    /** Batas pembuatan pembayaran channel per tagihan per menit -- setiap ganti channel memanggil API gateway. */
+    private const BATAS_PILIH_CHANNEL_PER_MENIT = 5;
+
     /**
-     * Arahkan pelanggan ke tautan hosted payment page resmi payment gateway.
+     * Terbitkan nomor VA / kode bayar / QR untuk Channel Pembayaran pilihan pelanggan (ADR-0073).
+     * Memilih ulang channel yang sama setelah kedaluwarsa (QRIS: 5 menit) membuat yang baru.
      */
-    public function bayar(PaymentGatewayManager $paymentManager): mixed
+    public function pilihChannel(int $channelId, PaymentGatewayManager $paymentManager): void
     {
+        if (! $this->bolehDibayarOnline()) {
+            return;
+        }
+
+        $channel = $paymentManager->channelTersedia()->firstWhere('id', $channelId);
+        if (! $channel) {
+            Flux::toast(variant: 'warning', text: 'Metode pembayaran ini sedang tidak tersedia.');
+
+            return;
+        }
+
+        $diizinkan = RateLimiter::attempt(
+            'portal-pilih-channel:'.$this->invoice->id,
+            self::BATAS_PILIH_CHANNEL_PER_MENIT,
+            fn () => $this->terbitkanPembayaranChannel($paymentManager, $channel),
+        );
+
+        if (! $diizinkan) {
+            Flux::toast(variant: 'warning', text: 'Terlalu sering mengganti metode. Silakan coba lagi dalam satu menit.');
+        }
+    }
+
+    private function terbitkanPembayaranChannel(PaymentGatewayManager $paymentManager, ChannelPembayaran $channel): void
+    {
+        try {
+            $paymentManager->bayarLewatChannel($this->invoice, $channel);
+        } catch (Exception $e) {
+            report($e);
+            Flux::toast(variant: 'danger', text: 'Gagal membuat pembayaran. Silakan coba lagi atau pilih metode lain.');
+        }
+    }
+
+    private function bolehDibayarOnline(): bool
+    {
+        if ($this->invoice->refresh()->isLunas()) {
+            Flux::toast(variant: 'success', text: 'Tagihan ini telah lunas.');
+
+            return false;
+        }
+
         if ($this->invoice->isDibatalkan()) {
             Flux::toast(variant: 'warning', text: 'Tagihan ini telah dibatalkan dan tidak dapat dibayar.');
 
-            return null;
+            return false;
         }
 
         if ($this->invoice->layananPelanggan?->tidakLagiDitagih()) {
             Flux::toast(variant: 'warning', text: 'Layanan untuk tagihan ini sudah tidak aktif dan tidak lagi bisa dibayar online. Hubungi kami untuk penyelesaian tunggakan.');
 
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Arahkan pelanggan ke tautan hosted payment page resmi payment gateway.
+     */
+    public function bayar(PaymentGatewayManager $paymentManager): mixed
+    {
+        if (! $this->bolehDibayarOnline()) {
             return null;
         }
 
@@ -130,6 +193,24 @@ class Show extends Component
 
     public function render(): View
     {
-        return view('livewire.portal.invoice.show');
+        $channels = $this->invoice->isMenungguPembayaran() ? app(PaymentGatewayManager::class)->channelTersedia() : collect();
+        $instruksi = $channels->isEmpty() ? null : $this->invoice->transaksiPaymentGateways()
+            ->where('channel', '!=', GatewayChannel::Invoice)
+            ->where('status', StatusTransaksiGateway::Pending)
+            ->latest('id')
+            ->first();
+
+        return view('livewire.portal.invoice.show', [
+            'channels' => $channels,
+            'instruksi' => $instruksi,
+            'qrSvg' => $instruksi?->qr_string ? $this->qrSvg($instruksi->qr_string) : null,
+        ]);
+    }
+
+    private function qrSvg(string $qrString): string
+    {
+        $renderer = new ImageRenderer(new RendererStyle(240, 1), new SvgImageBackEnd);
+
+        return (new Writer($renderer))->writeString($qrString);
     }
 }

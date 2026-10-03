@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -197,6 +198,14 @@ class PengaturanGateway extends Model
         }
 
         return 0.0;
+    }
+
+    /**
+     * @return HasMany<ChannelPembayaran, $this>
+     */
+    public function channelPembayaran(): HasMany
+    {
+        return $this->hasMany(ChannelPembayaran::class);
     }
 
     /**
