@@ -411,6 +411,8 @@ Route::middleware(['auth'])->group(function () {
 
 // ─── Webhook Payment Gateways (Public & CSRF-Exempt) ─────────────
 Route::middleware('throttle:webhook')->post('/webhook/payment/{gateway}', [PaymentWebhookController::class, 'handle'])->name('webhook.payment');
+// Simulator sandbox iPaymu membuka notifyUrl lewat browser (GET), bukan callback POST.
+Route::middleware('throttle:webhook')->get('/webhook/payment/{gateway}', [PaymentWebhookController::class, 'kembali'])->name('webhook.payment.kembali');
 
 // ─── Webhook WhatsApp / GOWA / WAHA (Public & CSRF-Exempt) ───────────────────────
 Route::middleware('throttle:webhook')->post('/webhook/whatsapp', [WhatsappWebhookController::class, 'handle'])->name('webhook.whatsapp');

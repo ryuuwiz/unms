@@ -11,6 +11,7 @@ use App\Models\WebhookLog;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -160,6 +161,30 @@ class PaymentWebhookController extends Controller
             'event_id' => $callbackData->eventId,
             'status' => 'QUEUED',
         ], 200);
+    }
+
+    /**
+     * Browser yang mendarat di URL webhook (simulator sandbox iPaymu membuka notifyUrl dengan GET).
+     * Isi request tidak dipercaya: transaksi yang disebut hanya dicek statusnya ke API gateway,
+     * lalu browser diarahkan ke portal. Sengaja bukan ke Tautan Tagihan, karena reference_id bisa
+     * ditebak dan Tautan Tagihan memberi akses ke tagihan.
+     */
+    public function kembali(Request $request, string $gateway): RedirectResponse
+    {
+        $referensi = (string) ($request->query('reference_id') ?? $request->query('referenceId') ?? '');
+        $transaksi = $referensi !== ''
+            ? TransaksiPaymentGateway::where('external_id', $referensi)->where('gateway', strtolower($gateway))->first()
+            : null;
+
+        if ($transaksi) {
+            try {
+                $this->manager->sinkronkanTransaksi($transaksi);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        return redirect()->route('portal.invoice.index');
     }
 
     private function cariTransaksi(PaymentCallbackData $callbackData): ?TransaksiPaymentGateway

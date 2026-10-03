@@ -179,3 +179,24 @@ test('callback transaksi channel tanpa Fee Admin di sub_total ditandai anomali, 
     expect($this->invoice->refresh()->status)->toBe(StatusInvoice::MenungguPembayaran)
         ->and(WebhookLog::latest('id')->first()->catatan_error)->toContain('Anomali nominal');
 });
+
+test('GET dari simulator sandbox iPaymu tidak 405: status dicek ke API lalu browser diarahkan ke portal', function () {
+    Http::fake(['*/api/v2/history' => Http::response(['Status' => 200, 'Data' => ['Total_Page' => 1, 'Results' => [
+        ['TransactionId' => 237287, 'ReferenceId' => $this->trx->external_id, 'Status' => 1, 'Amount' => 300000],
+    ]]])]);
+
+    $this->get('/webhook/payment/ipaymu?reference_id='.$this->trx->external_id.'&status=berhasil')
+        ->assertRedirect(route('portal.invoice.index'));
+
+    expect($this->invoice->refresh()->status)->toBe(StatusInvoice::Lunas);
+});
+
+test('GET webhook iPaymu tanpa transaksi dikenal tidak memanggil API dan tidak mengubah apa pun', function () {
+    Http::fake();
+
+    $this->get('/webhook/payment/ipaymu?reference_id=tidak-ada')->assertRedirect(route('portal.invoice.index'));
+    $this->get('/webhook/payment/ipaymu')->assertRedirect(route('portal.invoice.index'));
+
+    Http::assertNothingSent();
+    expect($this->invoice->refresh()->status)->toBe(StatusInvoice::MenungguPembayaran);
+});
