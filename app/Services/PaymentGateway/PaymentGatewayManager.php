@@ -528,6 +528,16 @@ class PaymentGatewayManager
     }
 
     /**
+     * Ada Pembayaran tercatat yang bukan milik transaksi ini (link lain atau pelunasan manual).
+     */
+    private function sudahDibayarLewatJalurLain(Invoice $invoice, TransaksiPaymentGateway $transaksi): bool
+    {
+        return $invoice->pembayarans()
+            ->whereNotIn('referensi_transaksi', array_filter([$transaksi->external_id, $transaksi->provider_reference_id, $transaksi->xendit_reference_id]))
+            ->exists();
+    }
+
+    /**
      * Eksekusi transaksi pelunasan invoice di database dengan row locking dan dispatch event post-commit.
      *
      * @param  PaymentCallbackData|array<string, mixed>  $payloadOrData
@@ -583,7 +593,18 @@ class PaymentGatewayManager
             /** @var Invoice $lockedInvoice */
             $lockedInvoice = Invoice::where('id', $invoice->id)->lockForUpdate()->firstOrFail();
 
-            // Guard clause idempotensi: Jika invoice sudah lunas sebelumnya
+            // Invoice sudah lunas lewat jalur lain (link metode lain atau pembayaran manual): uang
+            // transaksi ini masuk dua kali, jadi staf menanganinya manual (refund), bukan diabaikan.
+            if ($lockedInvoice->isLunas() && $transaksi && $transaksi->status !== StatusTransaksiGateway::Paid && $this->sudahDibayarLewatJalurLain($lockedInvoice, $transaksi)) {
+                $catatan = "Pembayaran ganda {$provider}: Invoice {$lockedInvoice->no_invoice} sudah lunas lewat pembayaran lain; transaksi {$transaksi->external_id} perlu penanganan manual (refund).";
+                $transaksi->update(['status' => StatusTransaksiGateway::Paid, 'payload_response' => $rawPayload]);
+                $webhookLog?->update(['status_proses' => StatusWebhookLog::Gagal, 'catatan_error' => $catatan]);
+                Log::error($catatan, ['invoice_id' => $lockedInvoice->id, 'transaksi_id' => $transaksi->id]);
+
+                return;
+            }
+
+            // Guard clause idempotensi: callback ulang untuk pembayaran yang sudah tercatat
             if ($lockedInvoice->isLunas()) {
                 if ($transaksi) {
                     $transaksi->update([
@@ -611,8 +632,9 @@ class PaymentGatewayManager
                     'provider_reference_id' => $paymentRef ?: $transaksi->provider_reference_id,
                     'xendit_reference_id' => $paymentRef ?: $transaksi->xendit_reference_id,
                     'payload_response' => $rawPayload,
-                    // Channel yang benar-benar dipakai membayar (link dibuat sebagai `invoice` generik).
-                    'channel' => GatewayChannel::tryFrom($channel) ?? $transaksi->channel,
+                    // Channel yang benar-benar dipakai membayar bila callback menyebutnya; callback tanpa
+                    // channel (Payment Session) tidak menimpa metode link.
+                    'channel' => $channel === GatewayChannel::Invoice->value ? $transaksi->channel : (GatewayChannel::tryFrom($channel) ?? $transaksi->channel),
                     'channel_detail' => $channelDetail ?: $transaksi->channel_detail,
                 ]);
             }

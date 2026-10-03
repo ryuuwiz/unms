@@ -149,7 +149,7 @@ test('menekan metode yang sama lagi memakai ulang checkout aktif, metode lain me
     $halaman->call('bayar', 'virtual_account');
     $halaman->call('bayar', 'qris');
 
-    Http::assertSentCount(2);
+    expect(Http::recorded(fn (Request $request) => $request->method() === 'POST'))->toHaveCount(2);
     expect($this->invoice->transaksiPaymentGateways()->pluck('channel')->all())
         ->toEqualCanonicalizing([GatewayChannel::VirtualAccount, GatewayChannel::Qris]);
 });
@@ -162,7 +162,7 @@ test('checkout yang sudah kedaluwarsa diganti checkout baru', function () {
 
     $halaman->call('bayar', 'virtual_account');
 
-    Http::assertSentCount(2);
+    expect(Http::recorded(fn (Request $request) => $request->method() === 'POST'))->toHaveCount(2);
 });
 
 test('metode bayar yang tidak ditawarkan ditolak tanpa memanggil gateway', function () {

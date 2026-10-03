@@ -23,6 +23,7 @@ use Database\Seeders\AturanPengingatTagihanSeeder;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Database\Seeders\WaTemplateSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -163,6 +164,7 @@ test('Teknisi yang bukan PIC tidak bisa melepas port ODP tiket Pencabutan orang 
 
 test('pengingat tagihan tidak dikirim untuk invoice milik layanan yang sudah Berhenti', function () {
     $this->seed([WaTemplateSeeder::class, AturanPengingatTagihanSeeder::class]);
+    Http::fake();
 
     $layananAktif = LayananPelanggan::factory()->create(['status' => StatusLayanan::Aktif, 'pelanggan_id' => Pelanggan::factory()->create(['no_hp' => '081111111111'])->id]);
     $layananBerhenti = LayananPelanggan::factory()->create(['status' => StatusLayanan::Berhenti, 'pelanggan_id' => Pelanggan::factory()->create(['no_hp' => '082222222222'])->id]);

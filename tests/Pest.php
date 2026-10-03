@@ -171,8 +171,9 @@ function berkasImpor(array $sheets): string
 }
 
 /**
- * Palsukan `POST https://api.xendit.co/sessions`: setiap panggilan menghasilkan Payment Session
- * baru dengan id unik dan payment_link_url yang memuat id tersebut.
+ * Palsukan Payment Session Xendit: `POST /sessions` menghasilkan session baru dengan id unik dan
+ * payment_link_url yang memuat id tersebut; `GET /sessions/{id}` selalu melaporkan ACTIVE.
+ * Tes yang butuh status lain mengganti factory lewat Http::swap() lalu memalsukan ulang.
  */
 function fakeXenditSession(): void
 {
@@ -189,5 +190,6 @@ function fakeXenditSession(): void
                 'payment_link_url' => 'https://xen.to/'.$id,
             ], 201);
         },
+        'api.xendit.co/sessions/*' => Http::response(['status' => 'ACTIVE']),
     ]);
 }

@@ -218,7 +218,11 @@ class XenditDriver extends AbstractPaymentDriver
 
         $apiKey = $this->getApiKey($setting);
 
-        // Sama seperti createPaymentLink() -- hanya 'testing' yang dipercaya, lihat ADR 0039.
+        if (str_starts_with((string) $xenditId, 'ps-')) {
+            return $this->statusPaymentSession((string) $xenditId, $apiKey);
+        }
+
+        // Hanya 'testing' yang dipercaya untuk mock link lama /v2/invoices, lihat ADR 0039.
         // APP_ENV yang salah konfigurasi di produksi tidak lagi bisa membuat status pembayaran
         // selalu dilaporkan PENDING palsu yang menutupi status asli invoice selamanya.
         if (app()->environment('testing')) {
@@ -286,6 +290,31 @@ class XenditDriver extends AbstractPaymentDriver
 
             return ['error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Status Payment Session (`GET /sessions/{id}`) dalam bentuk yang sama dengan status invoice lama.
+     *
+     * @return array<string, mixed>
+     */
+    private function statusPaymentSession(string $sessionId, string $apiKey): array
+    {
+        $response = Http::withBasicAuth($apiKey, '')->timeout(20)->get(self::BASE_URL."/sessions/{$sessionId}");
+
+        if ($response->failed()) {
+            return ['error' => "HTTP {$response->status()}: {$response->body()}"];
+        }
+
+        $data = $response->json();
+        $data['raw_status'] = strtoupper((string) ($data['status'] ?? ''));
+        $data['status'] = match ($data['raw_status']) {
+            'COMPLETED' => 'PAID',
+            'EXPIRED', 'CANCELED' => 'EXPIRED',
+            default => 'PENDING',
+        };
+        $data['paid_amount'] = $data['status'] === 'PAID' ? (float) ($data['amount'] ?? 0) : 0.0;
+
+        return $data;
     }
 
     /**
@@ -509,7 +538,7 @@ class XenditDriver extends AbstractPaymentDriver
 
         if (! empty($eventName)) {
             return match (true) {
-                str_contains($eventName, 'succeeded'), str_contains($eventName, 'paid'), str_contains($eventName, 'capture'), str_contains($eventName, 'settled') => 'PAID',
+                str_contains($eventName, 'succeeded'), str_contains($eventName, 'completed'), str_contains($eventName, 'paid'), str_contains($eventName, 'capture'), str_contains($eventName, 'settled') => 'PAID',
                 str_contains($eventName, 'failure'), str_contains($eventName, 'failed'), str_contains($eventName, 'declined') => 'FAILED',
                 str_contains($eventName, 'expired'), str_contains($eventName, 'cancelled') => 'EXPIRED',
                 default => in_array($statusStr, ['SUCCEEDED', 'PAID', 'SETTLED', 'CAPTURED', 'BERHASIL'], true) ? 'PAID' : (in_array($statusStr, ['FAILED', 'FAILURE', 'DECLINED'], true) ? 'FAILED' : (in_array($statusStr, ['EXPIRED', 'CANCELLED'], true) ? 'EXPIRED' : 'PENDING')),
@@ -517,7 +546,7 @@ class XenditDriver extends AbstractPaymentDriver
         }
 
         return match (true) {
-            in_array($statusStr, ['SUCCEEDED', 'PAID', 'SETTLED', 'CAPTURED', 'BERHASIL'], true) => 'PAID',
+            in_array($statusStr, ['SUCCEEDED', 'COMPLETED', 'PAID', 'SETTLED', 'CAPTURED', 'BERHASIL'], true) => 'PAID',
             in_array($statusStr, ['FAILED', 'FAILURE', 'DECLINED', 'GAGAL'], true) => 'FAILED',
             in_array($statusStr, ['EXPIRED', 'CANCELLED', 'KEDALUWARSA'], true) => 'EXPIRED',
             default => 'PENDING',
@@ -584,6 +613,7 @@ class XenditDriver extends AbstractPaymentDriver
         }
 
         $rawPaymentRef = $payload['payment_destination']
+            ?? ($payload['data']['payment_id'] ?? null)
             ?? ($payload['payment_id']
             ?? ($payload['id']
             ?? ($payload['data']['id'] ?? null)));
