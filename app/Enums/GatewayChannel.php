@@ -9,6 +9,8 @@ enum GatewayChannel: string
     case Qris = 'qris';
     case Ewallet = 'ewallet';
     case RetailOutlet = 'retail_outlet';
+    case Gopay = 'gopay';
+    case Shopeepay = 'shopeepay';
 
     /**
      * Mendapatkan label tampilan Bahasa Indonesia.
@@ -21,6 +23,8 @@ enum GatewayChannel: string
             self::Qris => 'QRIS',
             self::Ewallet => 'E-Wallet',
             self::RetailOutlet => 'Retail Outlet',
+            self::Gopay => 'GoPay',
+            self::Shopeepay => 'ShopeePay',
         };
     }
 
@@ -35,6 +39,8 @@ enum GatewayChannel: string
             self::Qris => 'emerald',
             self::Ewallet => 'purple',
             self::RetailOutlet => 'amber',
+            self::Gopay => 'teal',
+            self::Shopeepay => 'orange',
         };
     }
 }

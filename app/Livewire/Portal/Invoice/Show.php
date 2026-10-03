@@ -5,6 +5,7 @@ namespace App\Livewire\Portal\Invoice;
 use App\Enums\GatewayChannel;
 use App\Livewire\Portal\Invoice\Concerns\AuthorizesInvoiceAccess;
 use App\Models\Invoice;
+use App\Models\PengaturanGateway;
 use App\Services\PaymentGateway\CekStatusPembayaranInvoice;
 use App\Services\PaymentGateway\PaymentGatewayManager;
 use App\Support\BrandPelanggan;
@@ -93,12 +94,9 @@ class Show extends Component
         };
     }
 
-    /** Metode yang mendapat tombol sendiri bila checkout gateway tidak menghitung biaya per kanal (ADR-0073). */
-    private const METODE_PER_TOMBOL = [GatewayChannel::VirtualAccount, GatewayChannel::Qris];
-
     /**
      * Tombol bayar: satu tombol bila checkout gateway menghitung biaya sendiri (iPaymu), selain itu satu
-     * tombol per metode dengan total termasuk Biaya Admin Gateway (Xendit).
+     * tombol per Metode Bayar Gateway dengan total termasuk Biaya Admin Gateway (Xendit, ADR-0073).
      *
      * @return list<array{metode: string|null, label: string, total: int|null}>
      */
@@ -111,11 +109,11 @@ class Show extends Component
 
         $nominal = (float) $this->invoice->jumlah_setelah_promo;
 
-        return array_map(fn (GatewayChannel $metode) => [
-            'metode' => $metode->value,
-            'label' => $metode->label(),
-            'total' => (int) round($nominal) + $setting->hitungFee($metode, $nominal),
-        ], self::METODE_PER_TOMBOL);
+        return array_map(fn (string $metode) => [
+            'metode' => $metode,
+            'label' => GatewayChannel::from($metode)->label(),
+            'total' => (int) round($nominal) + $setting->hitungFee(GatewayChannel::from($metode), $nominal),
+        ], array_keys(PengaturanGateway::METODE_BERTARIF));
     }
 
     /**
@@ -124,7 +122,7 @@ class Show extends Component
     public function bayar(PaymentGatewayManager $paymentManager, ?string $metode = null): mixed
     {
         $metodeBayar = $metode === null ? null : GatewayChannel::tryFrom($metode);
-        if ($metode !== null && ! in_array($metodeBayar, self::METODE_PER_TOMBOL, true)) {
+        if ($metode !== null && ! isset(PengaturanGateway::METODE_BERTARIF[$metode])) {
             Flux::toast(variant: 'warning', text: 'Metode pembayaran tidak tersedia.');
 
             return null;

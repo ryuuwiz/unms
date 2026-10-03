@@ -98,7 +98,9 @@ class XenditDriver extends AbstractPaymentDriver
                 'MUAMALAT_VIRTUAL_ACCOUNT',
             ],
             GatewayChannel::Qris => ['QRIS'],
-            default => throw new Exception('Metode bayar Xendit harus Virtual Account atau QRIS.'),
+            GatewayChannel::Gopay => ['GOPAY'],
+            GatewayChannel::Shopeepay => ['SHOPEEPAY'],
+            default => throw new Exception("Metode bayar {$metode?->value} tidak tersedia di Xendit."),
         };
     }
 

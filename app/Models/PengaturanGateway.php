@@ -22,6 +22,12 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property float $fee_va_persen
  * @property bool $fee_va_termasuk_ppn
  * @property bool $fee_qris_termasuk_ppn
+ * @property float $fee_gopay_nominal
+ * @property float $fee_gopay_persen
+ * @property bool $fee_gopay_termasuk_ppn
+ * @property float $fee_shopeepay_nominal
+ * @property float $fee_shopeepay_persen
+ * @property bool $fee_shopeepay_termasuk_ppn
  * @property float $biaya_pemrosesan
  * @property float $ppn_persen
  * @property float $fee_qris_persen
@@ -45,6 +51,12 @@ use Spatie\Activitylog\Support\LogOptions;
     'fee_va_persen',
     'fee_va_termasuk_ppn',
     'fee_qris_termasuk_ppn',
+    'fee_gopay_nominal',
+    'fee_gopay_persen',
+    'fee_gopay_termasuk_ppn',
+    'fee_shopeepay_nominal',
+    'fee_shopeepay_persen',
+    'fee_shopeepay_termasuk_ppn',
     'biaya_pemrosesan',
     'ppn_persen',
     'bebankan_ke_pelanggan',
@@ -57,6 +69,19 @@ class PengaturanGateway extends Model
 {
     use LogsActivity;
 
+    /**
+     * Metode Bayar Gateway yang punya tarif sendiri, dalam urutan tombol di Halaman Tagihan, dipetakan ke
+     * awalan kolom tarifnya (`fee_{kode}_nominal`, `fee_{kode}_persen`, `fee_{kode}_termasuk_ppn`).
+     *
+     * @var array<string, string>
+     */
+    public const METODE_BERTARIF = [
+        'virtual_account' => 'va',
+        'qris' => 'qris',
+        'gopay' => 'gopay',
+        'shopeepay' => 'shopeepay',
+    ];
+
     protected $table = 'pengaturan_gateway';
 
     protected $attributes = [
@@ -66,6 +91,12 @@ class PengaturanGateway extends Model
         'fee_qris_persen' => 0.70,
         'fee_qris_nominal' => 0.00,
         'fee_qris_termasuk_ppn' => true,
+        'fee_gopay_nominal' => 0.00,
+        'fee_gopay_persen' => 5.00,
+        'fee_gopay_termasuk_ppn' => false,
+        'fee_shopeepay_nominal' => 0.00,
+        'fee_shopeepay_persen' => 3.60,
+        'fee_shopeepay_termasuk_ppn' => false,
         'biaya_pemrosesan' => 4000.00,
         'ppn_persen' => 11.00,
         'bebankan_ke_pelanggan' => true,
@@ -76,7 +107,7 @@ class PengaturanGateway extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['provider', 'nama', 'is_default', 'is_active', 'sandbox_mode', 'bebankan_ke_pelanggan', 'fee_va_nominal', 'fee_va_persen', 'fee_va_termasuk_ppn', 'fee_qris_nominal', 'fee_qris_persen', 'fee_qris_termasuk_ppn', 'biaya_pemrosesan', 'ppn_persen'])
+            ->logOnly(['provider', 'nama', 'is_default', 'is_active', 'sandbox_mode', 'bebankan_ke_pelanggan', 'fee_va_nominal', 'fee_va_persen', 'fee_va_termasuk_ppn', 'fee_qris_nominal', 'fee_qris_persen', 'fee_qris_termasuk_ppn', 'fee_gopay_nominal', 'fee_gopay_persen', 'fee_gopay_termasuk_ppn', 'fee_shopeepay_nominal', 'fee_shopeepay_persen', 'fee_shopeepay_termasuk_ppn', 'biaya_pemrosesan', 'ppn_persen'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('pengaturan_gateway');
@@ -95,6 +126,12 @@ class PengaturanGateway extends Model
             'fee_va_persen' => 'decimal:2',
             'fee_va_termasuk_ppn' => 'boolean',
             'fee_qris_termasuk_ppn' => 'boolean',
+            'fee_gopay_nominal' => 'decimal:2',
+            'fee_gopay_persen' => 'decimal:2',
+            'fee_gopay_termasuk_ppn' => 'boolean',
+            'fee_shopeepay_nominal' => 'decimal:2',
+            'fee_shopeepay_persen' => 'decimal:2',
+            'fee_shopeepay_termasuk_ppn' => 'boolean',
             'biaya_pemrosesan' => 'decimal:2',
             'ppn_persen' => 'decimal:2',
             'bebankan_ke_pelanggan' => 'boolean',
@@ -205,11 +242,8 @@ class PengaturanGateway extends Model
             return 0;
         }
 
-        [$nominal, $persen, $termasukPpn] = match ($metode) {
-            GatewayChannel::VirtualAccount => [$this->fee_va_nominal, $this->fee_va_persen, $this->fee_va_termasuk_ppn],
-            GatewayChannel::Qris => [$this->fee_qris_nominal, $this->fee_qris_persen, $this->fee_qris_termasuk_ppn],
-            default => throw new InvalidArgumentException("Metode bayar {$metode->value} tidak punya tarif."),
-        };
+        $kode = self::METODE_BERTARIF[$metode->value] ?? throw new InvalidArgumentException("Metode bayar {$metode->value} tidak punya tarif.");
+        [$nominal, $persen, $termasukPpn] = [$this->{"fee_{$kode}_nominal"}, $this->{"fee_{$kode}_persen"}, $this->{"fee_{$kode}_termasuk_ppn"}];
 
         $faktorPpn = 1 + (float) $this->ppn_persen / 100;
         $biayaMetode = (float) $nominal + $nominalInvoice * (float) $persen / 100;

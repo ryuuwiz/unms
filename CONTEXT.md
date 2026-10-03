@@ -327,6 +327,10 @@ _Avoid_: Payment Plugin, Modul Bayar Bebas
 Biaya pemrosesan transaksi dari penyedia payment gateway yang secara default dibebankan kepada pelanggan, sebesar biaya yang benar-benar ditagih gateway untuk metode bayar yang dipakai, **termasuk PPN-nya** dan biaya pemrosesan per transaksi gateway (pass-through persis, tanpa margin, hanya dibulatkan ke atas ke rupiah penuh), sehingga ISP tidak untung maupun rugi atas biaya ini. Karena itu besarnya berbeda per metode bayar (mis. Virtual Account nominal tetap, QRIS persentase dari tagihan). Biaya percobaan bayar yang gagal tetap ditanggung ISP. Besarnya dibekukan pada Link Pembayaran Gateway saat link terbit; perubahan tarif hanya berlaku untuk link baru, link yang sudah terbit tidak diterbitkan ulang.
 _Avoid_: Biaya Tambahan Bebas, Hidden Fee, Potongan ISP Saja, Fee Flat Semua Metode
 
+**Metode Bayar Gateway**:
+Cara bayar yang dipilih pelanggan di Halaman Tagihan sebelum diarahkan ke checkout gateway, masing-masing dengan Biaya Admin Gateway sendiri: Virtual Account, QRIS, dan e-wallet tertentu (GoPay, ShopeePay), satu tombol per metode karena tarif tiap e-wallet berbeda. Tarifnya diisi dari akun live gateway (kontrak bisa berbeda dari harga publik maupun akun test), bukan dari daftar harga umum. Biaya pemrosesan gateway dibebankan satu kali per transaksi berhasil, apa pun metodenya.
+_Avoid_: Tombol E-Wallet Gabungan, Tarif Termahal untuk Semua E-Wallet, Tarif dari Akun Test
+
 **Impersonasi**:
 Aksi staf dengan peran `super_admin` untuk masuk sementara (*login as*) ke sesi pengguna staf lain atau akun portal pelanggan tanpa membutuhkan kata sandi untuk tujuan *troubleshooting*, audit hak akses, dan verifikasi tampilan portal secara *real-time*.
 _Avoid_: Ghost Login, Bypass Auth, Switch User Bebas

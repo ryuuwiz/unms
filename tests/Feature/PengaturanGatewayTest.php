@@ -26,6 +26,8 @@ test('pengaturan gateway memiliki tarif awal sesuai harga publik Xendit', functi
         ->and($setting->fee_qris_termasuk_ppn)->toBeTrue()
         ->and((float) $setting->biaya_pemrosesan)->toBe(4000.0)
         ->and((float) $setting->ppn_persen)->toBe(11.0)
+        ->and((float) $setting->fee_gopay_persen)->toBe(5.0)
+        ->and((float) $setting->fee_shopeepay_persen)->toBe(3.6)
         ->and($setting->bebankan_ke_pelanggan)->toBeTrue();
 });
 
@@ -33,10 +35,11 @@ test('super admin dapat menyimpan tarif per metode bayar', function () {
     Livewire::actingAs($this->superAdmin)
         ->test(PengaturanGateway::class)
         ->assertOk()
-        ->set('fee_va_nominal', 9500)
-        ->set('fee_va_termasuk_ppn', true)
-        ->set('fee_qris_persen', 0.75)
-        ->set('fee_qris_termasuk_ppn', false)
+        ->set('tarif.va.nominal', 9500)
+        ->set('tarif.va.termasuk_ppn', true)
+        ->set('tarif.qris.persen', 0.75)
+        ->set('tarif.qris.termasuk_ppn', false)
+        ->set('tarif.gopay.persen', 4.5)
         ->set('biaya_pemrosesan', 3000)
         ->set('ppn_persen', 12)
         ->set('bebankan_ke_pelanggan', true)
@@ -48,6 +51,7 @@ test('super admin dapat menyimpan tarif per metode bayar', function () {
         ->and($setting->fee_va_termasuk_ppn)->toBeTrue()
         ->and((float) $setting->fee_qris_persen)->toBe(0.75)
         ->and($setting->fee_qris_termasuk_ppn)->toBeFalse()
+        ->and((float) $setting->fee_gopay_persen)->toBe(4.5)
         ->and((float) $setting->biaya_pemrosesan)->toBe(3000.0)
         ->and((float) $setting->ppn_persen)->toBe(12.0);
 });
@@ -56,9 +60,9 @@ test('tarif negatif atau persen di atas 100 ditolak', function () {
     Livewire::actingAs($this->superAdmin)
         ->test(PengaturanGateway::class)
         ->set('biaya_pemrosesan', -1)
-        ->set('fee_va_persen', 101)
+        ->set('tarif.shopeepay.persen', 101)
         ->call('save')
-        ->assertHasErrors(['biaya_pemrosesan', 'fee_va_persen']);
+        ->assertHasErrors(['biaya_pemrosesan', 'tarif.shopeepay.persen']);
 });
 
 test('super admin dapat melakukan ping test koneksi gateway via Livewire', function () {
@@ -129,4 +133,19 @@ test('pengujian koneksi hanya memvalidasi callback token gateway yang dipilih', 
         ->call('openPingModal', $gatewayCanonical->id)
         ->assertSet('callbackTokenResult.success', true)
         ->assertSee('Callback Token valid untuk route canonical /webhook/payment/xendit.');
+});
+
+test('menambah koneksi gateway baru menyimpan dan memvalidasi tarif per metode', function () {
+    $halaman = Livewire::actingAs($this->superAdmin)
+        ->test(PengaturanGateway::class)
+        ->call('openCreateModal')
+        ->set('provider', 'xendit')
+        ->set('nama', 'Xendit Live')
+        ->set('tarif.gopay.persen', 150)
+        ->call('simpan')
+        ->assertHasErrors(['tarif.gopay.persen']);
+
+    $halaman->set('tarif.gopay.persen', 4.8)->call('simpan')->assertHasNoErrors();
+
+    expect((float) PengaturanGatewayModel::where('nama', 'Xendit Live')->sole()->fee_gopay_persen)->toBe(4.8);
 });

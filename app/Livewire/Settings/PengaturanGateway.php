@@ -39,18 +39,13 @@ class PengaturanGateway extends Component
 
     public string $ipaymu_api_key = '';
 
-    /** Tarif Biaya Admin Gateway per metode bayar (ADR-0072); nilai awal dari default model lewat mount(). */
-    public ?float $fee_va_nominal = null;
-
-    public ?float $fee_va_persen = null;
-
-    public bool $fee_va_termasuk_ppn = false;
-
-    public ?float $fee_qris_nominal = null;
-
-    public ?float $fee_qris_persen = null;
-
-    public bool $fee_qris_termasuk_ppn = true;
+    /**
+     * Tarif per Metode Bayar Gateway, dikunci awalan kolom (`va`, `qris`, `gopay`, `shopeepay`) lalu
+     * `nominal`, `persen`, `termasuk_ppn` (ADR-0072); nilai awal dari default model lewat mount().
+     *
+     * @var array<string, array{nominal: float|null, persen: float|null, termasuk_ppn: bool}>
+     */
+    public array $tarif = [];
 
     public ?float $biaya_pemrosesan = null;
 
@@ -124,9 +119,7 @@ class PengaturanGateway extends Component
         $this->validate([
             'provider' => ['required', Rule::in($supportedProviders)],
             'nama' => ['required', 'string', 'max:100'],
-            'fee_va_nominal' => ['required', 'numeric', 'min:0'],
-            'fee_qris_persen' => ['required', 'numeric', 'min:0', 'max:100'],
-            'fee_qris_nominal' => ['required', 'numeric', 'min:0'],
+            ...$this->aturanTarif(),
             'bebankan_ke_pelanggan' => ['required', 'boolean'],
             'is_default' => ['required', 'boolean'],
             'is_active' => ['required', 'boolean'],
@@ -156,7 +149,7 @@ class PengaturanGateway extends Component
             'gateway' => $this->provider,
             'nama' => trim($this->nama),
             'credentials' => $credentials,
-            ...$this->only(array_keys($this->aturanTarif())),
+            ...$this->dataTarif(),
             'bebankan_ke_pelanggan' => $this->bebankan_ke_pelanggan,
             'is_active' => $this->is_active,
             'sandbox_mode' => $this->sandbox_mode,
@@ -198,7 +191,7 @@ class PengaturanGateway extends Component
 
         $setting = PengaturanGatewayModel::getDefault() ?: PengaturanGatewayModel::getXenditSetting();
         $setting->update([
-            ...$this->only(array_keys($this->aturanTarif())),
+            ...$this->dataTarif(),
             'bebankan_ke_pelanggan' => $this->bebankan_ke_pelanggan,
             'is_active' => $this->is_active,
             'sandbox_mode' => $this->sandbox_mode,
@@ -325,26 +318,47 @@ class PengaturanGateway extends Component
      */
     private function aturanTarif(): array
     {
-        return [
-            'fee_va_nominal' => ['required', 'numeric', 'min:0'],
-            'fee_va_persen' => ['required', 'numeric', 'min:0', 'max:100'],
-            'fee_va_termasuk_ppn' => ['required', 'boolean'],
-            'fee_qris_nominal' => ['required', 'numeric', 'min:0'],
-            'fee_qris_persen' => ['required', 'numeric', 'min:0', 'max:100'],
-            'fee_qris_termasuk_ppn' => ['required', 'boolean'],
+        $aturan = [
             'biaya_pemrosesan' => ['required', 'numeric', 'min:0'],
             'ppn_persen' => ['required', 'numeric', 'min:0', 'max:100'],
         ];
+
+        foreach (PengaturanGatewayModel::METODE_BERTARIF as $kode) {
+            $aturan["tarif.{$kode}.nominal"] = ['required', 'numeric', 'min:0'];
+            $aturan["tarif.{$kode}.persen"] = ['required', 'numeric', 'min:0', 'max:100'];
+            $aturan["tarif.{$kode}.termasuk_ppn"] = ['required', 'boolean'];
+        }
+
+        return $aturan;
+    }
+
+    /**
+     * Kolom tarif model dari isian form.
+     *
+     * @return array<string, mixed>
+     */
+    private function dataTarif(): array
+    {
+        $data = ['biaya_pemrosesan' => $this->biaya_pemrosesan, 'ppn_persen' => $this->ppn_persen];
+
+        foreach (PengaturanGatewayModel::METODE_BERTARIF as $kode) {
+            foreach (['nominal', 'persen', 'termasuk_ppn'] as $bagian) {
+                $data["fee_{$kode}_{$bagian}"] = $this->tarif[$kode][$bagian];
+            }
+        }
+
+        return $data;
     }
 
     private function isiTarif(PengaturanGatewayModel $gateway): void
     {
-        $this->fee_va_nominal = (float) $gateway->fee_va_nominal;
-        $this->fee_va_persen = (float) $gateway->fee_va_persen;
-        $this->fee_va_termasuk_ppn = (bool) $gateway->fee_va_termasuk_ppn;
-        $this->fee_qris_nominal = (float) $gateway->fee_qris_nominal;
-        $this->fee_qris_persen = (float) $gateway->fee_qris_persen;
-        $this->fee_qris_termasuk_ppn = (bool) $gateway->fee_qris_termasuk_ppn;
+        foreach (PengaturanGatewayModel::METODE_BERTARIF as $kode) {
+            $this->tarif[$kode] = [
+                'nominal' => (float) $gateway->{"fee_{$kode}_nominal"},
+                'persen' => (float) $gateway->{"fee_{$kode}_persen"},
+                'termasuk_ppn' => (bool) $gateway->{"fee_{$kode}_termasuk_ppn"},
+            ];
+        }
         $this->biaya_pemrosesan = (float) $gateway->biaya_pemrosesan;
         $this->ppn_persen = (float) $gateway->ppn_persen;
     }

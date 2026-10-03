@@ -105,7 +105,7 @@
                                     </span>
                                 </div>
                                 <div class="text-zinc-500">
-                                    VA: Rp {{ number_format((float) $gateway->fee_va_nominal, 0, ',', '.') }} • QRIS: {{ $gateway->fee_qris_persen }}% • Proses: Rp {{ number_format((float) $gateway->biaya_pemrosesan, 0, ',', '.') }}
+                                    VA: Rp {{ number_format((float) $gateway->fee_va_nominal, 0, ',', '.') }} • QRIS: {{ $gateway->fee_qris_persen }}% • GoPay: {{ $gateway->fee_gopay_persen }}% • ShopeePay: {{ $gateway->fee_shopeepay_persen }}% • Proses: Rp {{ number_format((float) $gateway->biaya_pemrosesan, 0, ',', '.') }}
                                 </div>
                             </div>
                         </flux:table.cell>
@@ -277,11 +277,12 @@
 
                     <flux:description>Isi sesuai tarif kontrak gateway. Biaya ke pelanggan = tarif metode + biaya pemrosesan, ditambah PPN bila tarif belum termasuk PPN, dibulatkan ke atas.</flux:description>
 
-                    @foreach (['va' => 'Virtual Account', 'qris' => 'QRIS'] as $kode => $labelMetode)
+                    @foreach (\App\Models\PengaturanGateway::METODE_BERTARIF as $metode => $kode)
+                        @php($labelMetode = \App\Enums\GatewayChannel::from($metode)->label())
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                            <flux:input wire:model="fee_{{ $kode }}_nominal" type="number" step="1" min="0" label="{{ $labelMetode }} (Rp)" />
-                            <flux:input wire:model="fee_{{ $kode }}_persen" type="number" step="0.01" min="0" max="100" label="{{ $labelMetode }} (%)" />
-                            <flux:checkbox wire:model="fee_{{ $kode }}_termasuk_ppn" label="Sudah termasuk PPN" />
+                            <flux:input wire:model="tarif.{{ $kode }}.nominal" type="number" step="1" min="0" label="{{ $labelMetode }} (Rp)" />
+                            <flux:input wire:model="tarif.{{ $kode }}.persen" type="number" step="0.01" min="0" max="100" label="{{ $labelMetode }} (%)" />
+                            <flux:checkbox wire:model="tarif.{{ $kode }}.termasuk_ppn" label="Sudah termasuk PPN" />
                         </div>
                     @endforeach
 

@@ -174,6 +174,29 @@ test('metode bayar yang tidak dikenal memberi tahu pelanggan', function () {
         ->assertDispatched('toast-show');
 });
 
+test('pelanggan melihat tombol GoPay dan ShopeePay dengan tarif masing-masing, setelah VA dan QRIS', function () {
+    // GoPay: 5% x 300.000 x 1,11 + 4.440 = 21.090; ShopeePay: 3,6% x 300.000 x 1,11 + 4.440 = 16.428
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->assertSeeInOrder(['Virtual Account', 'QRIS', 'GoPay', 'Rp 321.090', 'ShopeePay', 'Rp 316.428']);
+});
+
+test('tombol e-wallet membuka checkout Xendit yang hanya berisi e-wallet itu', function (string $metode, string $kanal, int $total) {
+    fakeXenditSession();
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('bayar', $metode)
+        ->assertRedirectContains('https://xen.to/ps-');
+
+    Http::assertSent(fn (Request $request) => $request['amount'] === $total
+        && $request['allowed_payment_channels'] === [$kanal]);
+    expect($this->invoice->transaksiPaymentGateways()->sole()->channel->value)->toBe($metode);
+})->with([
+    'GoPay' => ['gopay', 'GOPAY', 321090],
+    'ShopeePay' => ['shopeepay', 'SHOPEEPAY', 316428],
+]);
+
 test('menekan metode yang sama lagi memakai ulang checkout aktif, metode lain membuat checkout sendiri', function () {
     fakeXenditSession();
     $halaman = Livewire::actingAs($this->akun, 'pelanggan')->test(Show::class, ['invoice' => $this->invoice]);

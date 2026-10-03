@@ -536,14 +536,17 @@ class PaymentGatewayManager
     }
 
     /**
-     * Channel yang benar-benar dipakai membayar bila callback menyebutnya; callback tanpa channel
-     * (Payment Session melapor `invoice` generik) tidak menimpa metode link.
+     * Link per metode (Payment Session) sudah tahu metodenya, dan callback-nya bisa lebih kasar
+     * (mis. `ewallet` untuk link GoPay), jadi tidak ditimpa. Hanya link generik (`invoice`, link lama
+     * /v2/invoices) yang mengambil channel dari callback.
      */
     private function channelTerbayar(string $channel, TransaksiPaymentGateway $transaksi): GatewayChannel
     {
-        $dariCallback = GatewayChannel::tryFrom($channel);
+        if ($transaksi->channel !== GatewayChannel::Invoice) {
+            return $transaksi->channel;
+        }
 
-        return $dariCallback === null || $dariCallback === GatewayChannel::Invoice ? $transaksi->channel : $dariCallback;
+        return GatewayChannel::tryFrom($channel) ?? $transaksi->channel;
     }
 
     /**
