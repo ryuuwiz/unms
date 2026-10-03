@@ -183,3 +183,18 @@ test('ganti metode dalam detik yang sama membuat transaksi baru tanpa bentrok ex
 
     expect($this->invoice->transaksiPaymentGateways()->count())->toBe(2);
 });
+
+test('dengan channel ON, pelanggan tetap bisa memilih Hosted Invoice iPaymu untuk metode lain', function () {
+    Http::fake();
+    ChannelPembayaran::factory()->create();
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->assertSee('Pilih metode pembayaran')
+        ->assertSee('Metode lain')
+        ->assertSee('Biaya admin mengikuti tarif iPaymu')
+        ->call('bayar')
+        ->assertRedirectContains('ipaymu.com/payment/');
+
+    expect($this->invoice->transaksiPaymentGateways()->sole()->channel)->toBe(GatewayChannel::Invoice);
+});

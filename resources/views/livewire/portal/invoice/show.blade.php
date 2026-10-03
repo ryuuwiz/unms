@@ -172,6 +172,18 @@
                             </span>
                         </button>
                     @endforeach
+                    {{-- Hosted Invoice iPaymu: semua metode aktif di akun iPaymu, fee mengikuti tarif iPaymu (ADR-0073). --}}
+                    <button type="button" wire:click="bayar" wire:loading.attr="disabled"
+                        class="flex items-center gap-3 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 p-3 text-left transition hover:border-indigo-400 disabled:opacity-50">
+                        <flux:icon icon="arrow-top-right-on-square" class="size-6 text-zinc-400" />
+                        <span class="flex-1 min-w-0">
+                            <span class="block text-sm font-semibold text-zinc-900 dark:text-white">
+                                <span wire:loading.remove wire:target="bayar">Metode lain — pilih di halaman iPaymu</span>
+                                <span wire:loading wire:target="bayar">Membuka halaman iPaymu...</span>
+                            </span>
+                            <span class="block text-xs text-zinc-500">Biaya admin mengikuti tarif iPaymu</span>
+                        </span>
+                    </button>
                 </div>
             </div>
 
