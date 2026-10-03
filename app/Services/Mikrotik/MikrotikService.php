@@ -1271,6 +1271,67 @@ class MikrotikService
      */
     public function syncIpPool(Router $router, IpPool $ipPool, ?Client $client = null): array
     {
+        $alreadySynced = isset($this->syncedPoolCache["{$router->id}:{$ipPool->id}"]);
+        $result = $this->applyIpPool($router, $ipPool, $client);
+
+        if (! $alreadySynced) {
+            $ipPool->update([
+                'applied_to_router_at' => Carbon::now(),
+                'sync_status' => 'success',
+                'last_sync_error' => null,
+            ]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Sinkronisasikan seluruh IP Pool router ke RouterOS; pool yang berhasil ditandai dengan satu query
+     * update, bukan satu per pool (N+1 di rekonsiliasi terjadwal).
+     *
+     * @param  iterable<IpPool>  $ipPools
+     * @return list<array{pool: IpPool, error: MikrotikException}> pool yang gagal
+     */
+    public function syncIpPools(Router $router, iterable $ipPools, ?Client $client): array
+    {
+        $syncedIds = [];
+        $failures = [];
+
+        foreach ($ipPools as $pool) {
+            try {
+                $this->applyIpPool($router, $pool, $client);
+                $syncedIds[] = $pool->id;
+            } catch (MikrotikException $e) {
+                Log::warning('Sinkronisasi IP pool gagal, dilewati.', [
+                    'router_id' => $router->id,
+                    'ip_pool_id' => $pool->id,
+                    'error' => $e->getMessage(),
+                ]);
+                $failures[] = ['pool' => $pool, 'error' => $e];
+            }
+        }
+
+        if ($syncedIds !== []) {
+            IpPool::whereKey($syncedIds)->update([
+                'applied_to_router_at' => Carbon::now(),
+                'sync_status' => 'success',
+                'last_sync_error' => null,
+            ]);
+        }
+
+        return $failures;
+    }
+
+    /**
+     * Terapkan /ip/pool & /queue/simple satu IP Pool ke RouterOS tanpa menandai sukses di database;
+     * kegagalan tetap ditandai `failed` pada pool.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws MikrotikException
+     */
+    private function applyIpPool(Router $router, IpPool $ipPool, ?Client $client): array
+    {
         $cacheKey = "{$router->id}:{$ipPool->id}";
 
         if (isset($this->syncedPoolCache[$cacheKey])) {
@@ -1284,72 +1345,10 @@ class MikrotikService
         try {
             $client = $client ?? $this->getClient($router);
             $poolName = $ipPool->nama_pool;
-            $poolRanges = "{$ipPool->rentang_ip_awal}-{$ipPool->rentang_ip_akhir}";
             $queueName = "POOL-{$poolName}";
-            $queueTarget = "{$ipPool->ip_network}/{$ipPool->cidr}";
-            $queuePriority = "{$ipPool->priority_tx}/{$ipPool->priority_rx}";
 
-            // 1. Sinkronisasi /ip/pool
-            $findPoolQuery = (new Query('/ip/pool/print'))->where('name', $poolName);
-            $existingPool = $client->query($findPoolQuery)->read();
-
-            if (! empty($existingPool) && isset($existingPool[0]['.id'])) {
-                $poolId = $existingPool[0]['.id'];
-                // next-pool=none: rantai pool (ADR-0060) dibongkar; tiap profile memakai tepat pool Router Paket-nya (ADR-0063).
-                $setPoolQuery = (new Query('/ip/pool/set'))
-                    ->equal('.id', $poolId)
-                    ->equal('ranges', $poolRanges)
-                    ->equal('next-pool', 'none')
-                    ->equal('comment', '');
-                $this->assertNoTrap($client->query($setPoolQuery)->read(), "pembaruan pool {$poolName}");
-
-                if (count($existingPool) > 1) {
-                    for ($i = 1; $i < count($existingPool); $i++) {
-                        if (isset($existingPool[$i]['.id'])) {
-                            try {
-                                $client->query((new Query('/ip/pool/remove'))->equal('.id', $existingPool[$i]['.id']))->read();
-                            } catch (Throwable $e) {
-                                Log::warning('Gagal menghapus duplikat IP pool, dilewati.', [
-                                    'router_id' => $router->id,
-                                    'pool_name' => $poolName,
-                                    'error' => $e->getMessage(),
-                                ]);
-                            }
-                        }
-                    }
-                }
-            } else {
-                $addPoolQuery = (new Query('/ip/pool/add'))
-                    ->equal('name', $poolName)
-                    ->equal('ranges', $poolRanges);
-                $this->assertNoTrap($client->query($addPoolQuery)->read(), "pembuatan pool {$poolName}");
-            }
-
-            // 2. Sinkronisasi /queue/simple
-            $findQueueQuery = (new Query('/queue/simple/print'))->where('name', $queueName);
-            $existingQueue = $client->query($findQueueQuery)->read();
-
-            if (! empty($existingQueue) && isset($existingQueue[0]['.id'])) {
-                $queueId = $existingQueue[0]['.id'];
-                $setQueueQuery = (new Query('/queue/simple/set'))
-                    ->equal('.id', $queueId)
-                    ->equal('target', $queueTarget)
-                    ->equal('priority', $queuePriority)
-                    ->equal('comment', '');
-                $this->assertNoTrap($client->query($setQueueQuery)->read(), "pembaruan queue {$queueName}");
-            } else {
-                $addQueueQuery = (new Query('/queue/simple/add'))
-                    ->equal('name', $queueName)
-                    ->equal('target', $queueTarget)
-                    ->equal('priority', $queuePriority);
-                $this->assertNoTrap($client->query($addQueueQuery)->read(), "pembuatan queue {$queueName}");
-            }
-
-            $ipPool->update([
-                'applied_to_router_at' => Carbon::now(),
-                'sync_status' => 'success',
-                'last_sync_error' => null,
-            ]);
+            $this->applyPoolRange($router, $client, $poolName, "{$ipPool->rentang_ip_awal}-{$ipPool->rentang_ip_akhir}");
+            $this->applyPoolQueue($client, $queueName, "{$ipPool->ip_network}/{$ipPool->cidr}", "{$ipPool->priority_tx}/{$ipPool->priority_rx}");
 
             $this->syncedPoolCache[$cacheKey] = true;
 
@@ -1370,6 +1369,76 @@ class MikrotikService
                 $e
             );
         }
+    }
+
+    /**
+     * Buat atau perbarui /ip/pool, lalu buang entri duplikat bernama sama.
+     *
+     * @throws MikrotikException
+     */
+    private function applyPoolRange(Router $router, Client $client, string $poolName, string $poolRanges): void
+    {
+        $existingPool = $client->query((new Query('/ip/pool/print'))->where('name', $poolName))->read();
+
+        if (empty($existingPool) || ! isset($existingPool[0]['.id'])) {
+            $addPoolQuery = (new Query('/ip/pool/add'))
+                ->equal('name', $poolName)
+                ->equal('ranges', $poolRanges);
+            $this->assertNoTrap($client->query($addPoolQuery)->read(), "pembuatan pool {$poolName}");
+
+            return;
+        }
+
+        // next-pool=none: rantai pool (ADR-0060) dibongkar; tiap profile memakai tepat pool Router Paket-nya (ADR-0063).
+        $setPoolQuery = (new Query('/ip/pool/set'))
+            ->equal('.id', $existingPool[0]['.id'])
+            ->equal('ranges', $poolRanges)
+            ->equal('next-pool', 'none')
+            ->equal('comment', '');
+        $this->assertNoTrap($client->query($setPoolQuery)->read(), "pembaruan pool {$poolName}");
+
+        foreach (array_slice($existingPool, 1) as $duplicate) {
+            if (! isset($duplicate['.id'])) {
+                continue;
+            }
+
+            try {
+                $client->query((new Query('/ip/pool/remove'))->equal('.id', $duplicate['.id']))->read();
+            } catch (Throwable $e) {
+                Log::warning('Gagal menghapus duplikat IP pool, dilewati.', [
+                    'router_id' => $router->id,
+                    'pool_name' => $poolName,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Buat atau perbarui /queue/simple milik IP Pool.
+     *
+     * @throws MikrotikException
+     */
+    private function applyPoolQueue(Client $client, string $queueName, string $queueTarget, string $queuePriority): void
+    {
+        $existingQueue = $client->query((new Query('/queue/simple/print'))->where('name', $queueName))->read();
+
+        if (! empty($existingQueue) && isset($existingQueue[0]['.id'])) {
+            $setQueueQuery = (new Query('/queue/simple/set'))
+                ->equal('.id', $existingQueue[0]['.id'])
+                ->equal('target', $queueTarget)
+                ->equal('priority', $queuePriority)
+                ->equal('comment', '');
+            $this->assertNoTrap($client->query($setQueueQuery)->read(), "pembaruan queue {$queueName}");
+
+            return;
+        }
+
+        $addQueueQuery = (new Query('/queue/simple/add'))
+            ->equal('name', $queueName)
+            ->equal('target', $queueTarget)
+            ->equal('priority', $queuePriority);
+        $this->assertNoTrap($client->query($addQueueQuery)->read(), "pembuatan queue {$queueName}");
     }
 
     /**
@@ -1420,17 +1489,7 @@ class MikrotikService
         $client = $client ?? $this->getClient($router);
 
         // 1. Auto-recover seluruh IP Pool milik router ini di RouterOS
-        foreach ($router->ipPools as $pool) {
-            try {
-                $this->syncIpPool($router, $pool, $client);
-            } catch (Throwable $e) {
-                Log::warning('Sinkronisasi IP pool gagal saat auto-recover, dilewati.', [
-                    'router_id' => $router->id,
-                    'ip_pool_id' => $pool->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
+        $this->syncIpPools($router, $router->ipPools, $client);
 
         // 2. Auto-recover seluruh profil bandwidth (PPP Profile) di RouterOS
         $profileStats = [
@@ -1990,21 +2049,12 @@ class MikrotikService
 
             // 2. Sinkronisasi IP Pool milik router ini
             $ipPools = $router->ipPools;
-            $poolSynced = 0;
-            $poolErrors = [];
-            foreach ($ipPools as $pool) {
-                try {
-                    $this->syncIpPool($router, $pool, $client);
-                    $poolSynced++;
-                } catch (Throwable $e) {
-                    $poolErrors[] = "Pool {$pool->nama_pool}: {$e->getMessage()}";
-                }
-            }
+            $poolFailures = $this->syncIpPools($router, $ipPools, $client);
 
             $poolResult = [
                 'total' => $ipPools->count(),
-                'synced' => $poolSynced,
-                'errors' => $poolErrors,
+                'synced' => $ipPools->count() - count($poolFailures),
+                'errors' => array_map(fn (array $failure) => "Pool {$failure['pool']->nama_pool}: {$failure['error']->getMessage()}", $poolFailures),
             ];
 
             // 3. Sinkronisasi Seluruh Profil Bandwidth (binary bps)

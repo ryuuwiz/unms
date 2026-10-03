@@ -61,14 +61,14 @@ test('provisionRouterFull executes complete pipeline and logs success', function
         ->with(Mockery::on(fn ($r) => $r->id === $this->router->id), Mockery::any(), Mockery::any())
         ->andReturn(['status' => 'success']);
 
-    $mockService->shouldReceive('syncIpPool')
+    $mockService->shouldReceive('syncIpPools')
         ->once()
         ->with(
             Mockery::on(fn ($r) => $r->id === $this->router->id),
-            Mockery::on(fn ($p) => $p->id === $pool->id),
+            Mockery::on(fn ($pools) => $pools->contains($pool)),
             Mockery::any()
         )
-        ->andReturn(['status' => 'success']);
+        ->andReturn([]);
 
     $mockService->shouldReceive('syncPaketProfiles')
         ->once()

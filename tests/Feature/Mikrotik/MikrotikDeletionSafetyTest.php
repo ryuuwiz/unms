@@ -11,6 +11,7 @@ use App\Models\ProfilBandwidth;
 use App\Models\Router;
 use App\Services\Mikrotik\MikrotikService;
 use App\Support\PppDeletionContext;
+use Illuminate\Support\Facades\DB;
 
 beforeEach(function () {
     $this->service = new MikrotikService;
@@ -230,4 +231,24 @@ test('removeIpPool membersihkan objek billing berdasarkan nama, bukan komentar, 
     expect($hasil['removed'])->toHaveCount(3)
         ->and($ids)->toBe(['=.id=*P1', '=.id=*Q', '=.id=*IP'])
         ->and(MikrotikJobLog::where('job_type', MikrotikJobType::DeleteIpPool)->first()->payload)->toMatchArray(['actor' => 'system:uji', 'pool' => 'Pool-X']);
+});
+
+test('rekonsiliasi terjadwal menandai seluruh IP pool tersinkron dengan satu query update, bukan satu per pool', function () {
+    IpPool::factory()->count(3)->create(['router_id' => $this->router->id]);
+    [$client] = fakeRouterOs([]);
+    // Run pertama membuat pool EXPIRED (ADR-0071); yang diukur adalah run terjadwal berikutnya.
+    $this->service->autoRecoverPppSecrets($this->router->fresh(), $client);
+    $this->travel(15)->minutes();
+
+    $updates = 0;
+    DB::listen(function ($query) use (&$updates) {
+        if (str_starts_with($query->sql, 'update `ip_pool`')) {
+            $updates++;
+        }
+    });
+
+    (new MikrotikService)->autoRecoverPppSecrets($this->router->fresh(), $client);
+
+    expect($updates)->toBe(1)
+        ->and(IpPool::where('router_id', $this->router->id)->where(fn ($q) => $q->where('sync_status', '!=', 'success')->orWhereNull('applied_to_router_at'))->exists())->toBeFalse();
 });
