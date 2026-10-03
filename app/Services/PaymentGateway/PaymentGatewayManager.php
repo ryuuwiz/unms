@@ -18,6 +18,7 @@ use App\Models\Pembayaran;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
 use App\Models\WebhookLog;
+use App\Services\PaymentGateway\Drivers\IpaymuDriver;
 use App\Services\PaymentGateway\Drivers\XenditDriver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -33,11 +34,10 @@ class PaymentGatewayManager
 
     public function __construct()
     {
-        // Daftarkan driver bawaan.
-        // IpaymuDriver sengaja TIDAK didaftarkan: verifikasi signature-nya belum
-        // diimplementasikan, sehingga mendaftarkannya akan membuka endpoint webhook publik
-        // yang dapat dipalsukan. Daftarkan kembali hanya setelah verifikasi HMAC iPaymu selesai.
+        // Xendit tetap terdaftar hanya untuk menuntaskan link dan transaksi lama (webhook &
+        // cek status); pembayaran baru diterbitkan lewat koneksi default iPaymu (ADR-0072).
         $this->registerDriver('xendit', new XenditDriver);
+        $this->registerDriver('ipaymu', new IpaymuDriver);
     }
 
     /**

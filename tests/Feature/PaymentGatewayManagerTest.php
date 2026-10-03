@@ -92,9 +92,8 @@ test('manager dapat resolve driver xendit', function () {
     expect($this->manager->driver('xendit')->getProviderName())->toBe('xendit');
 });
 
-test('manager menolak resolve driver ipaymu karena belum didaftarkan', function () {
-    expect(fn () => $this->manager->driver('ipaymu'))
-        ->toThrow(InvalidArgumentException::class);
+test('manager dapat resolve driver ipaymu', function () {
+    expect($this->manager->driver('ipaymu')->getProviderName())->toBe('ipaymu');
 });
 
 test('manager dapat membuat link pembayaran xendit dan menyimpan url di invoice', function () {

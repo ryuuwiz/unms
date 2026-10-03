@@ -184,6 +184,28 @@ return [
             ],
         ],
         [
+            'heading' => 'Payment Gateway',
+            'icon' => 'credit-card',
+            'expandable' => true,
+            'expanded' => false,
+            'items' => [
+                [
+                    'title' => 'Koneksi Gateway',
+                    'icon' => 'cog',
+                    'route' => 'settings.gateway',
+                    'active' => 'settings.gateway',
+                    'permission' => 'payment_gateway.lihat',
+                ],
+                [
+                    'title' => 'Template Deskripsi Tagihan',
+                    'icon' => 'document-text',
+                    'route' => 'settings.template-deskripsi-tagihan',
+                    'active' => 'settings.template-deskripsi-tagihan',
+                    'permission' => 'payment_gateway.lihat',
+                ],
+            ],
+        ],
+        [
             'heading' => 'Jaringan & Infrastruktur',
             'icon' => 'server-stack',
             'expandable' => true,
@@ -332,13 +354,6 @@ return [
                     'route' => 'settings.perusahaan',
                     'active' => 'settings.perusahaan',
                     'permission' => 'peran.lihat',
-                ],
-                [
-                    'title' => 'Pengaturan Gateway',
-                    'icon' => 'cog',
-                    'route' => 'settings.gateway',
-                    'active' => 'settings.gateway',
-                    'permission' => 'payment_gateway.lihat',
                 ],
                 [
                     'title' => 'Prefix Registrasi',

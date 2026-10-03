@@ -3,11 +3,18 @@
 namespace App\Services\PaymentGateway\Drivers;
 
 use App\Contracts\PaymentGateway\PaymentGatewayContract;
+use App\DTO\PaymentGateway\PaymentCallbackData;
 use App\Models\Invoice;
+use App\Models\PengaturanGateway;
 use Illuminate\Support\Carbon;
 
 abstract class AbstractPaymentDriver implements PaymentGatewayContract
 {
+    public function konfirmasiPembayaran(PaymentCallbackData $callback, PengaturanGateway $setting): bool
+    {
+        return true;
+    }
+
     /**
      * Hitung durasi detik kedaluwarsa payment link berbasis tanggal jatuh tempo (minimal 24 jam / 86400 detik).
      */

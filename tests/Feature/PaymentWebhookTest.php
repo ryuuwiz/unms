@@ -138,7 +138,7 @@ test('webhook xendit mendispatch ProcessPaymentWebhookJob ke antrean payments te
     Queue::assertPushedOn('payments', ProcessPaymentWebhookJob::class);
 });
 
-test('webhook ipaymu ditolak karena driver belum didaftarkan (verifikasi signature belum ada)', function () {
+test('webhook ipaymu tanpa X-Signature yang valid ditolak', function () {
     Event::fake([InvoicePaidEvent::class]);
 
     $payload = [
@@ -151,8 +151,7 @@ test('webhook ipaymu ditolak karena driver belum didaftarkan (verifikasi signatu
 
     $response = $this->postJson('/webhook/payment/ipaymu', $payload);
 
-    $response->assertStatus(400)
-        ->assertJson(['message' => 'Unsupported gateway: ipaymu']);
+    $response->assertStatus(401);
 
     $this->invoice->refresh();
     expect($this->invoice->status)->toBe(StatusInvoice::MenungguPembayaran);

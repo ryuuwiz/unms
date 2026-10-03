@@ -225,6 +225,20 @@ class ProcessPaymentWebhookJob implements ShouldQueue
                 return;
             }
 
+            // Konfirmasi ulang ke API gateway (iPaymu, ADR-0072). Gangguan API melempar exception
+            // sehingga job dicoba ulang; jawaban "belum lunas" berarti callback tidak dipercaya.
+            if (! $driver->konfirmasiPembayaran($callbackData, $manager->settingUntukTransaksi($transaksi, $provider))) {
+                $catatan = "Pembayaran {$provider} untuk Invoice {$invoice->no_invoice} tidak terkonfirmasi lunas oleh API gateway";
+                $webhookLog->update([
+                    'status_proses' => StatusWebhookLog::Gagal,
+                    'catatan_error' => $catatan,
+                ]);
+
+                Log::error($catatan, ['invoice_id' => $invoice->id, 'external_id' => $callbackData->externalId]);
+
+                return;
+            }
+
             // Eksekusi Pelunasan dengan Row Locking & Event Dispatching
             $manager->prosesPelunasan(
                 invoice: $invoice,
@@ -249,7 +263,11 @@ class ProcessPaymentWebhookJob implements ShouldQueue
             return;
         }
 
-        // Event status lainnya (misal PENDING)
+        // Event status lainnya (misal PENDING). Referensi gateway disimpan sejak awal agar cek
+        // status bisa langsung bertanya per transaksi (iPaymu hanya mengenal trx_id-nya sendiri).
+        if ($transaksi && $callbackData->paymentReference && $transaksi->provider_reference_id !== $callbackData->paymentReference) {
+            $transaksi->update(['provider_reference_id' => $callbackData->paymentReference]);
+        }
         $webhookLog->update(['status_proses' => StatusWebhookLog::Diproses]);
     }
 

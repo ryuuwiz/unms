@@ -181,7 +181,8 @@ class PengaturanGateway extends Model
      */
     public function hitungFee(string $channel, float $nominalInvoice): float
     {
-        if (! $this->bebankan_ke_pelanggan) {
+        // Fee VA/QRIS hanya untuk Xendit; iPaymu menghitung fee-nya sendiri lewat feeDirection.
+        if (! $this->bebankan_ke_pelanggan || $this->provider !== 'xendit') {
             return 0.0;
         }
 

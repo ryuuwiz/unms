@@ -104,9 +104,13 @@
                                         {{ $gateway->bebankan_ke_pelanggan ? 'Beban Pelanggan' : 'Disubsidi ISP' }}
                                     </span>
                                 </div>
-                                <div class="text-zinc-500">
-                                    VA: Rp {{ number_format((float) $gateway->fee_va_nominal, 0, ',', '.') }} • QRIS: {{ $gateway->fee_qris_persen }}%
-                                </div>
+                                @if($gateway->provider === 'xendit')
+                                    <div class="text-zinc-500">
+                                        VA: Rp {{ number_format((float) $gateway->fee_va_nominal, 0, ',', '.') }} • QRIS: {{ $gateway->fee_qris_persen }}%
+                                    </div>
+                                @else
+                                    <div class="text-zinc-500">Fee mengikuti tarif {{ $gateway->provider }}</div>
+                                @endif
                             </div>
                         </flux:table.cell>
 
@@ -275,6 +279,7 @@
                         <flux:description>Jika dicentang, biaya transaksi ditambahkan/dibebankan ke pelanggan. Jika tidak, disubsidi oleh ISP.</flux:description>
                     </flux:field>
 
+                    @if($provider === 'xendit')
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <flux:input
                             wire:model="fee_va_nominal"
@@ -295,6 +300,7 @@
                             placeholder="Contoh: 0.70"
                         />
                     </div>
+                    @endif
                 </div>
 
                 <flux:input

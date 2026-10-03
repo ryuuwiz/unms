@@ -83,3 +83,13 @@ test('super_admin sees contextual module navigation in sidebar when visiting a m
         ->assertSee('Paket Layanan')
         ->assertSee('Profil Bandwidth');
 });
+
+test('payment gateway punya grup sidebar sendiri, terpisah dari administrasi', function () {
+    $user = User::factory()->create(['status' => UserStatus::Active]);
+    $user->givePermissionTo('payment_gateway.lihat');
+
+    $this->actingAs($user)->get(route('dashboard'))
+        ->assertOk()
+        ->assertSeeInOrder(['Payment Gateway', 'Koneksi Gateway', 'Template Deskripsi Tagihan'])
+        ->assertDontSee('Administrasi');
+});

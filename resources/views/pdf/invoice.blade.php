@@ -109,6 +109,14 @@
                         <tr><td style="width: 35%;">Jatuh Tempo</td><td>{{ $tanggal($invoice->tanggal_jatuh_tempo) }}</td></tr>
                     @endif
                 </table>
+                @if ($qrTagihan)
+                    <table style="margin-top: 8px;">
+                        <tr>
+                            <td style="width: 76px;"><img src="{{ $qrTagihan }}" width="70" height="70" alt="QR Tagihan"></td>
+                            <td class="footer">Pindai untuk membuka tagihan ini dan membayar online.</td>
+                        </tr>
+                    </table>
+                @endif
             </td>
             <td style="width: 45%;">
                 <table class="kv">

@@ -1,5 +1,7 @@
 # ADR 0026: Arsitektur Multi-Payment Gateway dan Pengelolaan Kredensial Terenkripsi di Database
 
+**Status**: gateway penerbit default kini iPaymu Hosted Invoice; lihat ADR-0072.
+
 ## Konteks
 Sebelumnya pada ADR 0007, sistem integrasi gateway pembayaran hanya mendukung satu penyedia (Xendit) dengan kredensial yang di-*hardcode* di file `.env` (`XENDIT_SECRET_KEY`, `XENDIT_CALLBACK_TOKEN`). Kebutuhan operasional ISP mengharuskan dukungan multi-provider payment gateway (seperti iPaymu, Xendit, Midtrans, dll) yang dapat dikonfigurasi langsung dari antarmuka web admin, menyimpan seluruh kredensial terenkripsi di database tanpa dependensi file `.env`, serta mengarahkan pelanggan langsung ke *Hosted Payment Link* resmi penyedia gateway tanpa membangun form checkout kustom internal.
 

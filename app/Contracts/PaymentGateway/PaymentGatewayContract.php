@@ -53,6 +53,12 @@ interface PaymentGatewayContract
     public function verifyWebhook(Request $request, PengaturanGateway $setting): bool;
 
     /**
+     * Konfirmasi ulang callback berstatus lunas ke API gateway sebelum invoice dilunasi.
+     * Driver yang cukup dengan verifikasi callback mengembalikan true.
+     */
+    public function konfirmasiPembayaran(PaymentCallbackData $callback, PengaturanGateway $setting): bool;
+
+    /**
      * Normalisasi payload webhook menjadi DTO PaymentCallbackData.
      */
     public function parseWebhookPayload(Request $request): PaymentCallbackData;

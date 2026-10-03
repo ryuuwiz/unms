@@ -1,5 +1,7 @@
 # ADR 0043: Pemisahan Menu Pengaturan Personal, Payment Gateway, dan WhatsApp Template dari Grup Administrasi
 
+**Status**: poin 1 diperbarui — Payment Gateway kini grup sidebar sendiri (Koneksi Gateway, Template Deskripsi Tagihan) setelah sempat kembali ke grup Administrasi.
+
 ## Konteks
 Sebelumnya `config/menu.php` menaruh "Pengaturan Gateway" di grup generik "Administrasi" (numpang permission `peran.lihat` alih-alih permission dedicated), dan nav lokal halaman settings (`x-settings.layout`) mencampur item akun pribadi (Profile/Security/Appearance) dengan item admin perusahaan (Perusahaan, Payment Gateway, WhatsApp Gateway) dalam satu list rata tanpa pemisahan. Ditemukan pula label "WhatsApp Gateway" pada `settings.whatsapp` menyesatkan — halaman itu sebenarnya CRUD Template Pesan WhatsApp (`WaTemplate`), bukan konfigurasi koneksi gateway; koneksi gateway sesungguhnya sudah ada terpisah di menu SysBlast > Koneksi API (`App\Models\Sysblas`).
 

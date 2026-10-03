@@ -9,6 +9,7 @@ use App\Enums\GatewayChannel;
 use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use App\Models\TransaksiPaymentGateway;
+use App\Services\PaymentGateway\DeskripsiTagihanBuilder;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -24,7 +25,7 @@ class IpaymuDriver extends AbstractPaymentDriver
 
     public function getProviderLabel(): string
     {
-        return 'iPaymu API v2';
+        return 'iPaymu Hosted Invoice';
     }
 
     /**
@@ -105,7 +106,8 @@ class IpaymuDriver extends AbstractPaymentDriver
         $body = [
             'product' => ["Paket: {$namaPaket}"],
             'qty' => [1],
-            'price' => [$totalTagihan],
+            'price' => [(int) round($totalTagihan)],
+            'description' => [app(DeskripsiTagihanBuilder::class)->buat($invoice)],
             'returnUrl' => $redirectUrl,
             'cancelUrl' => $redirectUrl,
             'notifyUrl' => $notifyUrl,
@@ -168,60 +170,188 @@ class IpaymuDriver extends AbstractPaymentDriver
         }
     }
 
+    /**
+     * Cek status ke iPaymu. `/transaction` butuh `trx_id` iPaymu, yang baru diketahui setelah
+     * callback pertama; sebelum itu transaksi dicari lewat `/history` berdasarkan ReferenceId.
+     */
     public function checkStatus(Invoice|TransaksiPaymentGateway $target, PengaturanGateway $setting): array
     {
-        $va = $this->getVa($setting);
-        $apiKey = $this->getApiKey($setting);
-        $baseUrl = $this->getBaseUrl($setting);
-
-        $externalId = $target instanceof Invoice
-            ? ($target->transaksiPaymentGatewayAktif()?->external_id ?: $target->no_invoice)
-            : $target->external_id;
-
-        if (empty($va) || empty($apiKey) || app()->environment('testing')) {
-            return [
-                'status' => 'PENDING',
-                'message' => 'Mode Test/Offline: Status transaksi aktif.',
-            ];
+        $transaksi = $target instanceof Invoice ? $target->transaksiPaymentGatewayAktif() : $target;
+        if (! $transaksi) {
+            return ['error' => 'Invoice belum memiliki transaksi iPaymu.'];
         }
 
-        $body = [
-            'transactionId' => $externalId,
-        ];
+        if (empty($this->getVa($setting)) || empty($this->getApiKey($setting))) {
+            return ['error' => 'Virtual Account (Merchant ID) atau API Key iPaymu belum diisi.'];
+        }
 
         try {
-            $headers = $this->generateSignatureHeaders($va, $apiKey, $body, 'POST');
-            $response = Http::withHeaders($headers)
-                ->timeout(15)
-                ->post($baseUrl.'transaction', $body);
-
-            return $response->json() ?: ['error' => 'Empty response'];
+            $trxId = $transaksi->provider_reference_id;
+            $data = is_numeric($trxId)
+                ? $this->kirim($setting, 'transaction', ['transactionId' => (string) $trxId])
+                : $this->cariDiRiwayat($setting, $transaksi);
         } catch (Exception $e) {
-            Log::error("Gagal cek status transaksi iPaymu [{$externalId}]: ".$e->getMessage());
+            Log::error("Gagal cek status transaksi iPaymu [{$transaksi->external_id}]: ".$e->getMessage());
 
             return ['error' => $e->getMessage()];
         }
+
+        if ($data === null) {
+            return ['error' => 'Transaksi iPaymu belum ditemukan untuk referensi ini.'];
+        }
+
+        return [
+            'id' => (string) ($data['TransactionId'] ?? ''),
+            'status' => self::petakanStatus((int) ($data['Status'] ?? 0)),
+            'paid_amount' => (float) ($data['Amount'] ?? 0),
+            'paid_at' => self::waktuWib($data['SuccessDate'] ?? null),
+            'raw' => $data,
+        ];
     }
 
     /**
-     * Verifikasi callback iPaymu.
+     * Konfirmasi callback berstatus lunas langsung ke `/transaction` sebelum invoice dilunasi
+     * (ADR-0072): HMAC callback saja tidak cukup untuk jalur yang menyangkut uang.
      *
-     * Selalu menolak. Implementasi sebelumnya hanya memeriksa keberadaan `trx_id` dan
-     * `status` pada body, sehingga siapa pun yang menebak `reference_id` dapat memalsukan
-     * pelunasan pada endpoint webhook yang publik dan CSRF-exempt. Gagal-tertutup adalah
-     * satu-satunya perilaku yang aman sampai verifikasi kriptografis benar-benar ada.
+     * @throws Exception Bila API iPaymu tidak dapat dihubungi -- job webhook akan mencoba lagi.
+     */
+    public function konfirmasiPembayaran(PaymentCallbackData $callback, PengaturanGateway $setting): bool
+    {
+        if (! is_numeric($callback->paymentReference)) {
+            return false;
+        }
+
+        $data = $this->kirim($setting, 'transaction', ['transactionId' => (string) $callback->paymentReference]);
+        $referensi = $data['ReferenceId'] ?? null;
+
+        return self::petakanStatus((int) ($data['Status'] ?? 0)) === 'PAID'
+            && ($referensi === null || (string) $referensi === $callback->externalId);
+    }
+
+    /**
+     * ponytail: memindai maksimal 5 halaman x 20 transaksi sejak transaksi dibuat; perluas bila
+     * volume harian iPaymu melebihi 100 transaksi.
      *
-     * @todo Implementasikan verifikasi signature HMAC-SHA256 resmi iPaymu atas raw body
-     *       menggunakan API Key + VA, lalu daftarkan kembali driver ini di
-     *       PaymentGatewayManager::__construct() beserta tes penolakan signature.
+     * @return array<string, mixed>|null
+     */
+    private function cariDiRiwayat(PengaturanGateway $setting, TransaksiPaymentGateway $transaksi): ?array
+    {
+        $cocok = [];
+        for ($page = 1; $page <= 5; $page++) {
+            $data = $this->kirim($setting, 'history', [
+                'date' => 'created_at',
+                'startdate' => ($transaksi->created_at ?? now())->format('Y-m-d'),
+                'enddate' => now()->format('Y-m-d'),
+                'page' => $page,
+                'limit' => 20,
+                'orderBy' => 'id',
+                'order' => 'DESC',
+            ]);
+
+            foreach ((array) ($data['Results'] ?? []) as $hasil) {
+                if ((string) ($hasil['ReferenceId'] ?? '') === $transaksi->external_id) {
+                    $cocok[] = $hasil;
+                }
+            }
+
+            if ($page >= (int) ($data['Total_Page'] ?? 1)) {
+                break;
+            }
+        }
+
+        // Satu sesi hosted bisa punya beberapa transaksi (mis. QRIS kedaluwarsa lalu bayar VA).
+        usort($cocok, fn (array $a, array $b) => (self::petakanStatus((int) $b['Status']) === 'PAID') <=> (self::petakanStatus((int) $a['Status']) === 'PAID'));
+
+        return $cocok[0] ?? null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     * @return array<string, mixed>
+     */
+    private function kirim(PengaturanGateway $setting, string $endpoint, array $body): array
+    {
+        $headers = $this->generateSignatureHeaders($this->getVa($setting), $this->getApiKey($setting), $body, 'POST');
+        $response = Http::withHeaders($headers)->timeout(15)->post($this->getBaseUrl($setting).$endpoint, $body);
+
+        if (! $response->successful() || (int) $response->json('Status') !== 200) {
+            throw new Exception("iPaymu {$endpoint} gagal: HTTP {$response->status()} ".($response->json('Message') ?? ''));
+        }
+
+        return (array) $response->json('Data');
+    }
+
+    /**
+     * iPaymu mengirim waktu lokal WIB tanpa zona (`YYYY-MM-DD HH:MM:SS`).
+     */
+    private static function waktuWib(mixed $waktu): ?string
+    {
+        return is_string($waktu) && $waktu !== '' ? Carbon::parse($waktu, 'Asia/Jakarta')->toIso8601String() : null;
+    }
+
+    /**
+     * Kode status transaksi iPaymu: 1 berhasil, 6 berhasil belum settle, -2 kedaluwarsa,
+     * 2/4/5 batal/error/gagal, 0 pending.
+     */
+    public static function petakanStatus(int $kode): string
+    {
+        return match ($kode) {
+            1, 6 => 'PAID',
+            -2 => 'EXPIRED',
+            2, 4, 5 => 'FAILED',
+            default => 'PENDING',
+        };
+    }
+
+    /**
+     * Verifikasi `X-Signature` callback iPaymu: HMAC-SHA256 atas JSON body yang key-nya
+     * diurutkan, dengan Nomor VA merchant sebagai kunci. Body form-urlencoded (default
+     * dashboard iPaymu) harus dinormalisasi tipenya dulu agar JSON-nya identik dengan milik
+     * iPaymu. Body mentah dipakai, bukan $request->all(): middleware Laravel mengubah ""
+     * menjadi null dan memangkas spasi sehingga hash tidak cocok.
      */
     public function verifyWebhook(Request $request, PengaturanGateway $setting): bool
     {
-        Log::warning('iPaymu Webhook ditolak: verifikasi signature belum diimplementasikan.', [
-            'ip' => $request->ip(),
-        ]);
+        $va = $this->getVa($setting);
+        $signature = (string) $request->header('X-Signature', '');
 
-        return false;
+        if ($va === '' || $signature === '') {
+            return false;
+        }
+
+        $raw = $request->getContent();
+        if ($request->isJson()) {
+            $data = (array) json_decode($raw, true);
+        } else {
+            parse_str($raw, $data);
+            $data = self::normalisasiForm($data);
+        }
+
+        $signature = (string) ($data['signature'] ?? $signature);
+        unset($data['signature']);
+        ksort($data);
+
+        return hash_equals(hash_hmac('sha256', (string) json_encode($data), $va), $signature);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function normalisasiForm(array $data): array
+    {
+        foreach ($data as $key => $value) {
+            $data[$key] = match (true) {
+                $key === 'is_escrow' => in_array($value, ['1', 'true'], true),
+                in_array($key, ['trx_id', 'status_code', 'transaction_status_code', 'paid_off'], true) => (int) $value,
+                $key === 'additional_info' => $value === '[]' ? [] : $value,
+                default => is_array($value) ? $value : (string) $value,
+            };
+        }
+
+        $data['additional_info'] ??= [];
+
+        return $data;
     }
 
     public function parseWebhookPayload(Request $request): PaymentCallbackData
@@ -230,19 +360,12 @@ class IpaymuDriver extends AbstractPaymentDriver
 
         $rawStatus = strtoupper((string) ($payload['status'] ?? ''));
         $statusCode = (int) ($payload['status_code'] ?? 0);
+        $status = $statusCode === 1 || $rawStatus === 'BERHASIL' ? 'PAID' : self::petakanStatus($statusCode);
 
-        $isPaid = in_array($rawStatus, ['BERHASIL', 'SETTLEMENT', 'PAID', 'SUCCEEDED'], true) || $statusCode === 1;
-        $isExpired = in_array($rawStatus, ['EXPIRED', 'KEDALUWARSA', 'CANCELLED', 'BATAL'], true);
-
-        $status = $isPaid ? 'PAID' : ($isExpired ? 'EXPIRED' : $rawStatus);
         $externalId = (string) ($payload['reference_id'] ?? ($payload['referenceId'] ?? ''));
-        $amount = (float) ($payload['total'] ?? ($payload['amount'] ?? 0));
-        $rawEventId = $payload['trx_id'] ?? ($payload['sid'] ?? null);
-        $eventId = ! empty($rawEventId) ? trim((string) $rawEventId) : null;
+        $trxId = isset($payload['trx_id']) && $payload['trx_id'] !== '' ? (string) $payload['trx_id'] : null;
 
         $via = strtolower((string) ($payload['via'] ?? ''));
-        $channelDetail = (string) ($payload['channel'] ?? $via);
-
         $channel = match ($via) {
             'va', 'virtual_account', 'bank_transfer' => GatewayChannel::VirtualAccount,
             'qris', 'qr' => GatewayChannel::Qris,
@@ -251,19 +374,20 @@ class IpaymuDriver extends AbstractPaymentDriver
             default => GatewayChannel::Invoice,
         };
 
-        $isTestDummy = str_contains($externalId, 'test-') || ($payload['is_test'] ?? false);
-
         return new PaymentCallbackData(
             provider: 'ipaymu',
             externalId: $externalId,
             status: $status,
-            paidAmount: $amount,
-            eventId: $eventId,
-            paidAt: now()->toIso8601String(),
+            // sub_total = nominal tagihan; total sudah termasuk fee bila feeDirection BUYER.
+            paidAmount: (float) ($payload['sub_total'] ?? ($payload['total'] ?? 0)),
+            // Satu trx_id mengirim beberapa callback (pending lalu berhasil): status ikut jadi
+            // bagian event id agar callback lunas tidak dianggap duplikat oleh webhook_log.
+            eventId: $trxId !== null ? "{$trxId}-{$statusCode}" : null,
+            paidAt: self::waktuWib($payload['paid_at'] ?? null) ?? now()->toIso8601String(),
             channel: $channel,
-            channelDetail: $channelDetail,
-            paymentReference: $eventId,
-            isTest: (bool) $isTestDummy,
+            channelDetail: (string) ($payload['channel'] ?? $via),
+            paymentReference: $trxId,
+            isTest: str_contains($externalId, 'test-') || (bool) ($payload['is_test'] ?? false),
             rawPayload: $payload
         );
     }
