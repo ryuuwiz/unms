@@ -193,7 +193,8 @@ class Show extends Component
 
     public function render(): View
     {
-        $channels = $this->invoice->isMenungguPembayaran() ? app(PaymentGatewayManager::class)->channelTersedia() : collect();
+        $bisaDibayarOnline = $this->invoice->isMenungguPembayaran() && ! $this->invoice->layananPelanggan?->tidakLagiDitagih();
+        $channels = $bisaDibayarOnline ? app(PaymentGatewayManager::class)->channelTersedia() : collect();
         $instruksi = $channels->isEmpty() ? null : $this->invoice->transaksiPaymentGateways()
             ->where('channel', '!=', GatewayChannel::Invoice)
             ->where('status', StatusTransaksiGateway::Pending)

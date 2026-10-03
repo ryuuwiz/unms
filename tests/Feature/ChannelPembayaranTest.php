@@ -2,6 +2,7 @@
 
 use App\Enums\GatewayChannel;
 use App\Enums\StatusInvoice;
+use App\Enums\StatusLayanan;
 use App\Enums\UserStatus;
 use App\Livewire\Portal\Invoice\Show;
 use App\Livewire\Settings\MetodePembayaran\Form;
@@ -155,4 +156,30 @@ test('iPaymu tidak merespons: admin diberi tahu dan tetap bisa mengisi form manu
         ->assertHasNoErrors();
 
     expect(ChannelPembayaran::where('kode', 'bca')->exists())->toBeTrue();
+});
+
+test('tagihan yang layanannya sudah berhenti tidak menampilkan pilihan metode', function () {
+    Http::fake();
+    ChannelPembayaran::factory()->create(['keterangan' => 'BCA Virtual Account']);
+    $this->invoice->layananPelanggan->update(['status' => StatusLayanan::Berhenti]);
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->assertDontSee('Pilih metode pembayaran')
+        ->assertDontSee('BCA Virtual Account');
+});
+
+test('ganti metode dalam detik yang sama membuat transaksi baru tanpa bentrok external_id', function () {
+    fakeDirectIpaymu(['PaymentNo' => '8808123456']);
+    $va = ChannelPembayaran::factory()->create();
+    $qris = ChannelPembayaran::factory()->qris()->create(['pengaturan_gateway_id' => $va->pengaturan_gateway_id]);
+    $this->freezeSecond();
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('pilihChannel', $va->id)
+        ->call('pilihChannel', $qris->id)
+        ->assertNotDispatched('toast-show');
+
+    expect($this->invoice->transaksiPaymentGateways()->count())->toBe(2);
 });

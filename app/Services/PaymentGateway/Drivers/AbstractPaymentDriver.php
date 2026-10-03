@@ -9,6 +9,7 @@ use App\Models\ChannelPembayaran;
 use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use LogicException;
 
 abstract class AbstractPaymentDriver implements PaymentGatewayContract
@@ -50,11 +51,13 @@ abstract class AbstractPaymentDriver implements PaymentGatewayContract
     }
 
     /**
-     * Generate format external ID unik per sesi pembuatan invoice.
+     * Generate format external ID unik per sesi pembuatan invoice. Akhiran acak wajib: pelanggan
+     * bisa membuat dua transaksi untuk invoice yang sama dalam detik yang sama (ganti Channel
+     * Pembayaran), dan external_id unik di database.
      */
     public function generateExternalId(Invoice $invoice): string
     {
-        return sprintf('%s-%s', $invoice->no_invoice, now()->timestamp);
+        return sprintf('%s-%s-%s', $invoice->no_invoice, now()->timestamp, Str::lower(Str::random(4)));
     }
 
     /**

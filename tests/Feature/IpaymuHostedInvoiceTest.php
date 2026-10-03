@@ -3,6 +3,7 @@
 use App\Enums\StatusInvoice;
 use App\Enums\StatusWebhookLog;
 use App\Events\InvoicePaidEvent;
+use App\Models\ChannelPembayaran;
 use App\Models\Invoice;
 use App\Models\PengaturanGateway;
 use App\Models\WebhookLog;
@@ -149,4 +150,32 @@ test('cek status tanpa trx_id mencari transaksi lewat riwayat berdasarkan Refere
 
     expect($status['id'])->toBe('9003')
         ->and($status['status'])->toBe('PAID');
+});
+
+test('callback transaksi channel melunasi invoice bila sub_total sama dengan total termasuk Fee Admin', function () {
+    Http::fake([
+        '*/api/v2/payment/direct' => Http::response(['Status' => 200, 'Data' => ['TransactionId' => 184854, 'PaymentNo' => '8808123456']]),
+        '*/api/v2/transaction' => Http::response(['Status' => 200, 'Data' => ['TransactionId' => 184854, 'Status' => 1]]),
+    ]);
+    $channel = ChannelPembayaran::factory()->create(['pengaturan_gateway_id' => $this->trx->pengaturan_gateway_id]);
+    $transaksi = app(PaymentGatewayManager::class)->bayarLewatChannel($this->invoice, $channel);
+
+    kirimCallbackIpaymu(['reference_id' => $transaksi->external_id, 'sub_total' => '304000', 'total' => '304000', 'via' => 'va', 'channel' => 'bca'])->assertOk();
+
+    expect($this->invoice->refresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and((float) $this->invoice->pembayarans()->sole()->jumlah_dibayar)->toBe(304000.0);
+});
+
+test('callback transaksi channel tanpa Fee Admin di sub_total ditandai anomali, invoice tidak lunas', function () {
+    Http::fake([
+        '*/api/v2/payment/direct' => Http::response(['Status' => 200, 'Data' => ['TransactionId' => 184854, 'PaymentNo' => '8808123456']]),
+        '*/api/v2/transaction' => Http::response(['Status' => 200, 'Data' => ['TransactionId' => 184854, 'Status' => 1]]),
+    ]);
+    $channel = ChannelPembayaran::factory()->create(['pengaturan_gateway_id' => $this->trx->pengaturan_gateway_id]);
+    $transaksi = app(PaymentGatewayManager::class)->bayarLewatChannel($this->invoice, $channel);
+
+    kirimCallbackIpaymu(['reference_id' => $transaksi->external_id, 'sub_total' => '300000'])->assertOk();
+
+    expect($this->invoice->refresh()->status)->toBe(StatusInvoice::MenungguPembayaran)
+        ->and(WebhookLog::latest('id')->first()->catatan_error)->toContain('Anomali nominal');
 });
