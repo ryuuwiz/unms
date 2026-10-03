@@ -248,12 +248,21 @@ class XenditDriver extends AbstractPaymentDriver
             ];
         }
 
-        // 1. Jika ID bertipe V3 Payment Request (pr-xxx / py-xxx), panggil endpoint V3
+        // ID V3 Payment Request (pr-xxx / py-xxx) dicek lewat endpoint V3.
         if (str_starts_with($xenditId, 'pr-') || str_starts_with($xenditId, 'py-') || str_starts_with($xenditId, 'pr_')) {
             return $this->checkPaymentRequestV3Status($xenditId, $apiKey);
         }
 
-        // 2. Coba periksa via Invoice API (V1/V2)
+        return $this->statusInvoiceLama($xenditId, $target, $apiKey);
+    }
+
+    /**
+     * Status link lama `/v2/invoices`, dengan pemulihan lewat external_id dan fallback ke V3 Payment Requests.
+     *
+     * @return array<string, mixed>
+     */
+    private function statusInvoiceLama(string $xenditId, Invoice|TransaksiPaymentGateway $target, string $apiKey): array
+    {
         try {
             $invoiceApi = $this->getInvoiceApi($apiKey);
             $response = $invoiceApi->getInvoiceById($xenditId);
