@@ -108,6 +108,10 @@ class ProcessPaymentWebhookJob implements ShouldQueue
             $transaksi = TransaksiPaymentGateway::where('external_id', $callbackData->externalId)->first();
         }
 
+        if (! $transaksi && ! empty($callbackData->linkId)) {
+            $transaksi = TransaksiPaymentGateway::where('xendit_reference_id', $callbackData->linkId)->first();
+        }
+
         if (! $transaksi && ! empty($callbackData->eventId)) {
             $transaksi = TransaksiPaymentGateway::where('provider_reference_id', $callbackData->eventId)
                 ->orWhere('xendit_reference_id', $callbackData->eventId)

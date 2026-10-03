@@ -108,15 +108,16 @@
         @if($invoice->isMenungguPembayaran())
             <div class="flex flex-col sm:flex-row-reverse sm:items-center gap-2">
                 @foreach ($opsiBayar as $opsi)
-                    <flux:button wire:click="bayar({{ $opsi['metode'] ? "'{$opsi['metode']}'" : '' }})" wire:loading.attr="disabled" variant="primary" class="w-full sm:w-auto bg-indigo-600 text-white">
-                        <span wire:loading.remove wire:target="bayar" class="flex items-center justify-center gap-1.5">
+                    @php($aksiBayar = $opsi['metode'] ? "bayar('{$opsi['metode']}')" : 'bayar')
+                    <flux:button wire:click="{{ $aksiBayar }}" wire:loading.attr="disabled" variant="primary" class="w-full sm:w-auto bg-indigo-600 text-white">
+                        <span wire:loading.remove wire:target="{{ $aksiBayar }}" class="flex items-center justify-center gap-1.5">
                             <flux:icon :icon="$opsi['metode'] === 'qris' ? 'qr-code' : 'credit-card'" class="size-4" />
                             {{ $opsi['label'] }}
                             @if ($opsi['total'] !== null)
                                 — Rp {{ number_format($opsi['total'], 0, ',', '.') }}
                             @endif
                         </span>
-                        <span wire:loading wire:target="bayar" class="flex items-center justify-center gap-1.5">
+                        <span wire:loading wire:target="{{ $aksiBayar }}" class="flex items-center justify-center gap-1.5">
                             <flux:icon icon="arrow-path" class="size-4 animate-spin" />
                             Membuka Halaman Pembayaran...
                         </span>

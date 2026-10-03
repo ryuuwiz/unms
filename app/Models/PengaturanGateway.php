@@ -215,8 +215,9 @@ class PengaturanGateway extends Model
         $biayaMetode = (float) $nominal + $nominalInvoice * (float) $persen / 100;
         $fee = ($termasukPpn ? $biayaMetode : $biayaMetode * $faktorPpn) + (float) $this->biaya_pemrosesan * $faktorPpn;
 
-        // round() dulu agar galat float (mis. 14430.000000000002) tidak ikut dibulatkan ke atas.
-        return (int) ceil(round($fee, 2));
+        // Galat float (14430.000000000002) dibuang dengan round 6 desimal sebelum ceil, tanpa membuang
+        // pecahan rupiah sungguhan seperti 5141.001.
+        return (int) ceil(round($fee, 6));
     }
 
     /**

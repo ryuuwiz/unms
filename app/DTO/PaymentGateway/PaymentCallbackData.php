@@ -22,6 +22,8 @@ readonly class PaymentCallbackData
         public bool $isTest = false,
         public array $rawPayload = [],
         public ?string $currency = null,
+        // ID link/session di gateway (mis. Xendit `payment_session_id`), cadangan pencocokan transaksi.
+        public ?string $linkId = null,
     ) {}
 
     public function isPaid(): bool

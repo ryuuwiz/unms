@@ -12,6 +12,7 @@ use App\Models\TransaksiPaymentGateway;
 use App\Services\PaymentGateway\DeskripsiTagihanBuilder;
 use Exception;
 use GuzzleHttp\Client;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -67,23 +68,44 @@ class XenditDriver extends AbstractPaymentDriver
     }
 
     /**
-     * Kode kanal Payment Session per metode bayar; `allowed_payment_channels` menerima kode kanal,
+     * Event Payment Session/Payments API yang berarti uang sudah masuk. Dokumen Xendit menyebut
+     * `payment.capture` (referensi webhook) sekaligus `payment.succeeded` (panduan migrasi).
+     */
+    private const EVENT_LUNAS = ['payment.capture', 'payment.succeeded', 'payment_session.completed'];
+
+    /** Event Payment Session yang mengakhiri link tanpa pembayaran. */
+    private const EVENT_BERAKHIR = ['payment_session.expired'];
+
+    /**
+     * Masa berlaku Payment Session. Tetap 24 jam: aturan durasi invoice (hitungDurasiDetik) tidak pernah
+     * di bawah 24 jam, sedangkan batas maksimum expires_at tidak didokumentasikan Xendit. Session yang
+     * lewat diganti saat pelanggan menekan tombol lagi.
+     */
+    private const MASA_BERLAKU_SESSION_JAM = 24;
+
+    /**
+     * Kode kanal Payment Session untuk metode bayar; `allowed_payment_channels` menerima kode kanal,
      * bukan kategori, jadi "hanya VA" berarti mendaftarkan semua bank VA (ADR-0073).
      *
-     * @var array<string, list<string>>
+     * @return list<string>
      */
-    public const KANAL_PER_METODE = [
-        'virtual_account' => [
-            'BCA_VIRTUAL_ACCOUNT', 'BNI_VIRTUAL_ACCOUNT', 'BRI_VIRTUAL_ACCOUNT', 'MANDIRI_VIRTUAL_ACCOUNT',
-            'PERMATA_VIRTUAL_ACCOUNT', 'BSI_VIRTUAL_ACCOUNT', 'BNC_VIRTUAL_ACCOUNT', 'BSS_VIRTUAL_ACCOUNT',
-            'MUAMALAT_VIRTUAL_ACCOUNT',
-        ],
-        'qris' => ['QRIS'],
-    ];
+    public static function kanalUntuk(?GatewayChannel $metode): array
+    {
+        return match ($metode) {
+            GatewayChannel::VirtualAccount => [
+                'BCA_VIRTUAL_ACCOUNT', 'BNI_VIRTUAL_ACCOUNT', 'BRI_VIRTUAL_ACCOUNT', 'MANDIRI_VIRTUAL_ACCOUNT',
+                'PERMATA_VIRTUAL_ACCOUNT', 'BSI_VIRTUAL_ACCOUNT', 'BNC_VIRTUAL_ACCOUNT', 'BSS_VIRTUAL_ACCOUNT',
+                'MUAMALAT_VIRTUAL_ACCOUNT',
+            ],
+            GatewayChannel::Qris => ['QRIS'],
+            default => throw new Exception('Metode bayar Xendit harus Virtual Account atau QRIS.'),
+        };
+    }
 
-    // ponytail: masa berlaku tetap 24 jam; batas maksimum expires_at Session tidak didokumentasikan Xendit.
-    // Session yang lewat diganti saat pelanggan menekan tombol lagi.
-    private const MASA_BERLAKU_SESSION_JAM = 24;
+    private function http(string $apiKey): PendingRequest
+    {
+        return Http::withBasicAuth($apiKey, '')->timeout(30);
+    }
 
     public function menghitungBiayaSendiri(): bool
     {
@@ -96,7 +118,7 @@ class XenditDriver extends AbstractPaymentDriver
      */
     public function createPaymentLink(Invoice $invoice, PengaturanGateway $setting, ?string $externalId = null, ?GatewayChannel $metode = null, int $biayaAdmin = 0): PaymentLinkResponse
     {
-        $kanal = self::KANAL_PER_METODE[$metode->value ?? ''] ?? throw new Exception('Metode bayar Xendit harus Virtual Account atau QRIS.');
+        $kanal = self::kanalUntuk($metode);
 
         $apiKey = $this->getApiKey($setting);
         if (empty($apiKey)) {
@@ -127,9 +149,7 @@ class XenditDriver extends AbstractPaymentDriver
             'cancel_return_url' => $redirectUrl,
         ];
 
-        $response = Http::withBasicAuth($apiKey, '')
-            ->timeout(30)
-            ->post(self::BASE_URL.'/sessions', $body);
+        $response = $this->http($apiKey)->post(self::BASE_URL.'/sessions', $body);
 
         if ($response->failed()) {
             Log::error('Gagal membuat Payment Session Xendit', [
@@ -308,7 +328,7 @@ class XenditDriver extends AbstractPaymentDriver
      */
     private function statusPaymentSession(string $sessionId, string $apiKey): array
     {
-        $response = Http::withBasicAuth($apiKey, '')->timeout(20)->get(self::BASE_URL."/sessions/{$sessionId}");
+        $response = $this->http($apiKey)->get(self::BASE_URL."/sessions/{$sessionId}");
 
         if ($response->failed()) {
             return ['error' => "HTTP {$response->status()}: {$response->body()}"];
@@ -461,6 +481,7 @@ class XenditDriver extends AbstractPaymentDriver
             isTest: $this->payloadUjiCoba($payload, $externalId),
             rawPayload: $payload,
             currency: $this->mataUangDari($payload),
+            linkId: is_string($payload['data']['payment_session_id'] ?? null) ? $payload['data']['payment_session_id'] : null,
         );
     }
 
@@ -542,12 +563,19 @@ class XenditDriver extends AbstractPaymentDriver
     private function statusDari(array $payload): string
     {
         $eventName = strtolower(trim((string) ($payload['event'] ?? '')));
+        if (in_array($eventName, self::EVENT_LUNAS, true)) {
+            return 'PAID';
+        }
+        if (in_array($eventName, self::EVENT_BERAKHIR, true)) {
+            return 'EXPIRED';
+        }
+
         $rawStatus = $payload['status'] ?? ($payload['data']['status'] ?? '');
         $statusStr = is_string($rawStatus) ? strtoupper(trim($rawStatus)) : '';
 
         if (! empty($eventName)) {
             return match (true) {
-                str_contains($eventName, 'succeeded'), str_contains($eventName, 'completed'), str_contains($eventName, 'paid'), str_contains($eventName, 'capture'), str_contains($eventName, 'settled') => 'PAID',
+                str_contains($eventName, 'succeeded'), str_contains($eventName, 'paid'), str_contains($eventName, 'capture'), str_contains($eventName, 'settled') => 'PAID',
                 str_contains($eventName, 'failure'), str_contains($eventName, 'failed'), str_contains($eventName, 'declined') => 'FAILED',
                 str_contains($eventName, 'expired'), str_contains($eventName, 'cancelled') => 'EXPIRED',
                 default => in_array($statusStr, ['SUCCEEDED', 'PAID', 'SETTLED', 'CAPTURED', 'BERHASIL'], true) ? 'PAID' : (in_array($statusStr, ['FAILED', 'FAILURE', 'DECLINED'], true) ? 'FAILED' : (in_array($statusStr, ['EXPIRED', 'CANCELLED'], true) ? 'EXPIRED' : 'PENDING')),
@@ -568,9 +596,12 @@ class XenditDriver extends AbstractPaymentDriver
     private function nominalDari(array $payload): float
     {
         $rawAmount = $payload['paid_amount']
-            ?? ($payload['amount']
-            ?? ($payload['data']['capture_amount']
-            ?? ($payload['data']['amount'] ?? 0)));
+            ?? $payload['amount']
+            ?? $payload['data']['capture_amount']
+            ?? $payload['data']['captures'][0]['capture_amount']
+            ?? $payload['data']['request_amount']
+            ?? $payload['data']['amount']
+            ?? 0;
 
         return is_numeric($rawAmount) ? (float) $rawAmount : 0.0;
     }
@@ -583,9 +614,10 @@ class XenditDriver extends AbstractPaymentDriver
     private function eventIdDari(array $payload): ?string
     {
         $rawEventId = $payload['id']
+            ?? ($payload['data']['payment_id'] ?? null)
             ?? ($payload['data']['id'] ?? null)
             ?? ($payload['data']['payment_request_id'] ?? null)
-            ?? ($payload['data']['payment_id'] ?? null)
+            ?? ($payload['data']['payment_session_id'] ?? null)
             ?? ($payload['payment_id'] ?? null)
             ?? ($payload['event_id'] ?? null)
             ?? ($payload['callback_virtual_account_id'] ?? null)

@@ -39,7 +39,7 @@ class PengaturanGateway extends Component
 
     public string $ipaymu_api_key = '';
 
-    // Tarif Biaya Admin Gateway per metode bayar (ADR-0072); nilai awal dari default model.
+    /** Tarif Biaya Admin Gateway per metode bayar (ADR-0072); nilai awal dari default model lewat mount(). */
     public ?float $fee_va_nominal = null;
 
     public ?float $fee_va_persen = null;

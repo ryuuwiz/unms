@@ -134,3 +134,85 @@ test('cek status mendeteksi session yang sudah dibayar walau webhook-nya hilang'
 
     expect($this->invoice->fresh()->status)->toBe(StatusInvoice::Lunas);
 });
+
+test('webhook dengan token salah ditolak dan tidak melunasi', function () {
+    $transaksi = $this->manager->buatPaymentLink($this->invoice, metode: GatewayChannel::VirtualAccount);
+
+    $this->withHeaders(['x-callback-token' => 'token-palsu'])
+        ->postJson('/webhook/payment/xendit', sessionSelesai($transaksi))
+        ->assertUnauthorized();
+
+    expect($this->invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran);
+});
+
+test('payment.capture melunasi invoice, dan session.completed untuk payment_id yang sama tidak dicatat dua kali', function () {
+    $transaksi = $this->manager->buatPaymentLink($this->invoice, metode: GatewayChannel::VirtualAccount);
+    $capture = [
+        'event' => 'payment.capture',
+        'business_id' => 'biz-1',
+        'created' => now()->toIso8601ZuluString(),
+        'data' => [
+            'payment_id' => 'py-'.$transaksi->id,
+            'payment_request_id' => 'pr-'.$transaksi->id,
+            'reference_id' => $transaksi->external_id,
+            'request_amount' => (float) $transaksi->total_tagihan,
+            'currency' => 'IDR',
+            'channel_code' => 'BCA_VIRTUAL_ACCOUNT',
+            'status' => 'SUCCEEDED',
+            'captures' => [['capture_id' => 'cptr-1', 'capture_amount' => (float) $transaksi->total_tagihan]],
+        ],
+    ];
+
+    kirimWebhookXendit($capture);
+    kirimWebhookXendit(sessionSelesai($transaksi));
+
+    expect($this->invoice->fresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and($this->invoice->pembayarans()->count())->toBe(1);
+});
+
+test('session tanpa reference_id tetap dicocokkan lewat payment_session_id', function () {
+    $transaksi = $this->manager->buatPaymentLink($this->invoice, metode: GatewayChannel::Qris);
+    $payload = sessionSelesai($transaksi);
+    unset($payload['data']['reference_id']);
+
+    kirimWebhookXendit($payload);
+
+    expect($this->invoice->fresh()->status)->toBe(StatusInvoice::Lunas);
+});
+
+test('di produksi, transaksi dari koneksi sandbox tidak melunasi invoice', function () {
+    PengaturanGateway::query()->update(['sandbox_mode' => true]);
+    app()->detectEnvironment(fn () => 'production');
+    $transaksi = $this->manager->buatPaymentLink($this->invoice, metode: GatewayChannel::VirtualAccount);
+
+    kirimWebhookXendit(sessionSelesai($transaksi));
+
+    expect($this->invoice->fresh()->status)->toBe(StatusInvoice::MenungguPembayaran);
+});
+
+test('callback link lama /v2/invoices yang terbit sebelum migrasi tetap melunasi', function () {
+    $lama = TransaksiPaymentGateway::create([
+        'invoice_id' => $this->invoice->id,
+        'gateway' => 'xendit',
+        'pengaturan_gateway_id' => PengaturanGateway::sole()->id,
+        'external_id' => $this->invoice->no_invoice.'-1700000000',
+        'xendit_reference_id' => '6abe1a0cad9cd3582f98b526',
+        'channel' => GatewayChannel::Invoice,
+        'total_tagihan' => 304000,
+        'fee_gateway' => 4000,
+        'status' => StatusTransaksiGateway::Pending,
+    ]);
+
+    kirimWebhookXendit([
+        'id' => '6abe1a0cad9cd3582f98b526',
+        'external_id' => $lama->external_id,
+        'status' => 'PAID',
+        'paid_amount' => 304000,
+        'payment_method' => 'BANK_TRANSFER',
+        'payment_channel' => 'BCA',
+        'currency' => 'IDR',
+    ]);
+
+    expect($this->invoice->fresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and($lama->fresh()->channel)->toBe(GatewayChannel::VirtualAccount);
+});

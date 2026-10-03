@@ -362,7 +362,7 @@ test('webhook xendit memproses format callback payment requests v2 (/v2/payment_
     $response->assertOk()
         ->assertJson([
             'message' => 'Webhook received and queued for processing',
-            'event_id' => 'pr-9920102030',
+            'event_id' => 'py-12345678',
             'status' => 'QUEUED',
         ]);
 
@@ -412,7 +412,7 @@ test('webhook xendit memproses format callback payment request v3 dengan actions
     $response->assertOk()
         ->assertJson([
             'message' => 'Webhook received and queued for processing',
-            'event_id' => 'pr-v3-unique-887766',
+            'event_id' => 'py-v3-succ-112233',
             'status' => 'QUEUED',
         ]);
 

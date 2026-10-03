@@ -20,6 +20,7 @@ use App\Models\TransaksiPaymentGateway;
 use App\Models\WebhookLog;
 use App\Services\PaymentGateway\Drivers\XenditDriver;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -123,6 +124,10 @@ class PaymentGatewayManager
      * pembayaran tetap tertaut ke baris transaksi dengan nominal yang benar (termasuk
      * fee) -- webhook nantinya tetap menemukan baris ini via external_id, sehingga tidak
      * lagi jatuh ke pembanding jumlah_setelah_promo tanpa fee yang memicu anomali palsu.
+     *
+     * Checkout yang tidak menghitung biaya sendiri (Xendit) selalu per metode; pemanggil tanpa metode
+     * mendapat Virtual Account. Pemakaian ulang dan penerbitan dijaga lock per invoice+metode agar dua
+     * klik bersamaan berbagi satu link (ADR-0073).
      */
     public function buatPaymentLink(
         Invoice $invoice,
@@ -133,23 +138,28 @@ class PaymentGatewayManager
         $setting = $this->getSetting($provider);
         $driver = $this->driver($setting->provider);
 
-        // Checkout yang tidak menghitung biaya sendiri (Xendit) selalu per metode; pemanggil lama
-        // tanpa metode mendapat Virtual Account (ADR-0073).
         if (! $driver->menghitungBiayaSendiri()) {
             $metode ??= GatewayChannel::VirtualAccount;
         }
 
-        if (! $forceRegenerate && ($existingTrx = $this->transaksiAktif($invoice, $setting, $metode))) {
-            return $existingTrx;
-        }
+        return Cache::lock("link-bayar:{$invoice->id}:".($metode->value ?? 'semua'), 60)->block(
+            40,
+            fn () => (! $forceRegenerate ? $this->transaksiAktif($invoice, $setting, $metode) : null)
+                ?? $this->terbitkanLink($invoice, $setting, $driver, $metode),
+        );
+    }
 
-        // Reservasi baris transaksi lokal SEBELUM memanggil API gateway. Biaya dihitung sekali di
-        // sini lalu diteruskan ke driver, sehingga total_tagihan pasti sama dengan nominal yang
-        // dikirim ke gateway dan dilaporkan webhook. Gateway yang menghitung biaya sendiri (iPaymu)
-        // menerima nominal tagihan tanpa biaya.
+    /**
+     * Reservasi baris transaksi lokal SEBELUM memanggil API gateway, lalu minta driver membuat link resmi.
+     * Biaya dihitung sekali di sini dan diteruskan ke driver, sehingga total_tagihan sama persis dengan
+     * nominal yang dikirim ke gateway dan dilaporkan webhook. Gateway yang menghitung biaya sendiri
+     * (iPaymu) menerima nominal tagihan tanpa biaya.
+     */
+    private function terbitkanLink(Invoice $invoice, PengaturanGateway $setting, PaymentGatewayContract $driver, ?GatewayChannel $metode): TransaksiPaymentGateway
+    {
         $externalId = $driver->generateExternalId($invoice);
         $fee = $metode ? $setting->hitungFee($metode, (float) $invoice->jumlah_setelah_promo) : 0;
-        $totalTagihanEstimasi = (float) $invoice->jumlah_setelah_promo + $fee;
+        $totalTagihanEstimasi = (int) round((float) $invoice->jumlah_setelah_promo) + $fee;
 
         $transaksi = TransaksiPaymentGateway::create([
             'invoice_id' => $invoice->id,
@@ -168,11 +178,9 @@ class PaymentGatewayManager
             ],
         ]);
 
-        // 3. Minta driver membuat payment link resmi menggunakan external_id yang sudah direservasi
         /** @var PaymentLinkResponse $response */
         $response = $driver->createPaymentLink($invoice, $setting, $externalId, $metode, $fee);
 
-        // 4. Update invoice lokal & baris transaksi hasil reservasi dalam satu transaksi DB
         return DB::transaction(function () use ($invoice, $driver, $response, $transaksi) {
             $invoice->update([
                 'payment_gateway_url' => $response->paymentUrl,
@@ -528,13 +536,27 @@ class PaymentGatewayManager
     }
 
     /**
-     * Ada Pembayaran tercatat yang bukan milik transaksi ini (link lain atau pelunasan manual).
+     * Channel yang benar-benar dipakai membayar bila callback menyebutnya; callback tanpa channel
+     * (Payment Session melapor `invoice` generik) tidak menimpa metode link.
      */
-    private function sudahDibayarLewatJalurLain(Invoice $invoice, TransaksiPaymentGateway $transaksi): bool
+    private function channelTerbayar(string $channel, TransaksiPaymentGateway $transaksi): GatewayChannel
     {
-        return $invoice->pembayarans()
-            ->whereNotIn('referensi_transaksi', array_filter([$transaksi->external_id, $transaksi->provider_reference_id, $transaksi->xendit_reference_id]))
-            ->exists();
+        $dariCallback = GatewayChannel::tryFrom($channel);
+
+        return $dariCallback === null || $dariCallback === GatewayChannel::Invoice ? $transaksi->channel : $dariCallback;
+    }
+
+    /**
+     * Invoice sudah lunas lewat jalur lain (link metode lain atau pelunasan manual) dan transaksi ini belum
+     * tercatat lunas: uangnya masuk dua kali, jadi staf menanganinya manual (refund), bukan diabaikan.
+     */
+    private function pembayaranGanda(Invoice $invoice, TransaksiPaymentGateway $transaksi): bool
+    {
+        return $invoice->isLunas()
+            && $transaksi->status !== StatusTransaksiGateway::Paid
+            && $invoice->pembayarans()
+                ->whereNotIn('referensi_transaksi', array_filter([$transaksi->external_id, $transaksi->provider_reference_id, $transaksi->xendit_reference_id]))
+                ->exists();
     }
 
     /**
@@ -593,9 +615,7 @@ class PaymentGatewayManager
             /** @var Invoice $lockedInvoice */
             $lockedInvoice = Invoice::where('id', $invoice->id)->lockForUpdate()->firstOrFail();
 
-            // Invoice sudah lunas lewat jalur lain (link metode lain atau pembayaran manual): uang
-            // transaksi ini masuk dua kali, jadi staf menanganinya manual (refund), bukan diabaikan.
-            if ($lockedInvoice->isLunas() && $transaksi && $transaksi->status !== StatusTransaksiGateway::Paid && $this->sudahDibayarLewatJalurLain($lockedInvoice, $transaksi)) {
+            if ($transaksi && $this->pembayaranGanda($lockedInvoice, $transaksi)) {
                 $catatan = "Pembayaran ganda {$provider}: Invoice {$lockedInvoice->no_invoice} sudah lunas lewat pembayaran lain; transaksi {$transaksi->external_id} perlu penanganan manual (refund).";
                 $transaksi->update(['status' => StatusTransaksiGateway::Paid, 'payload_response' => $rawPayload]);
                 $webhookLog?->update(['status_proses' => StatusWebhookLog::Gagal, 'catatan_error' => $catatan]);
@@ -632,9 +652,7 @@ class PaymentGatewayManager
                     'provider_reference_id' => $paymentRef ?: $transaksi->provider_reference_id,
                     'xendit_reference_id' => $paymentRef ?: $transaksi->xendit_reference_id,
                     'payload_response' => $rawPayload,
-                    // Channel yang benar-benar dipakai membayar bila callback menyebutnya; callback tanpa
-                    // channel (Payment Session) tidak menimpa metode link.
-                    'channel' => $channel === GatewayChannel::Invoice->value ? $transaksi->channel : (GatewayChannel::tryFrom($channel) ?? $transaksi->channel),
+                    'channel' => $this->channelTerbayar($channel, $transaksi),
                     'channel_detail' => $channelDetail ?: $transaksi->channel_detail,
                 ]);
             }

@@ -22,11 +22,8 @@ return new class extends Migration
             $table->decimal('ppn_persen', 5, 2)->default(11.00)->after('biaya_pemrosesan');
         });
 
-        DB::table('pengaturan_gateway')->update([
-            'fee_va_nominal' => 9000.00,
-            'fee_qris_persen' => 0.70,
-            'fee_qris_nominal' => 0.00,
-        ]);
+        // Hanya koneksi yang masih memakai tarif VA default lama; tarif yang sudah diubah admin dipertahankan.
+        DB::table('pengaturan_gateway')->where('fee_va_nominal', 4000)->update(['fee_va_nominal' => 9000.00]);
     }
 
     public function down(): void

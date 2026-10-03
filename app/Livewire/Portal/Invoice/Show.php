@@ -125,6 +125,8 @@ class Show extends Component
     {
         $metodeBayar = $metode === null ? null : GatewayChannel::tryFrom($metode);
         if ($metode !== null && ! in_array($metodeBayar, self::METODE_PER_TOMBOL, true)) {
+            Flux::toast(variant: 'warning', text: 'Metode pembayaran tidak tersedia.');
+
             return null;
         }
 

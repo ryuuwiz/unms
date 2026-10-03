@@ -141,6 +141,39 @@ test('tombol QRIS membuka checkout Xendit yang hanya berisi QRIS dengan biaya pe
         ->and((float) $transaksi->fee_gateway)->toBe(6540.0);
 });
 
+test('biaya persentase dibulatkan ke atas walau pecahannya sangat kecil', function () {
+    fakeXenditSession();
+    $this->invoice->update(['jumlah' => 100143, 'jumlah_setelah_promo' => 100143]);
+
+    // 0,7% x 100.143 + 4.440 = 5.141,001 -> Rp 5.142
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('bayar', 'qris');
+
+    expect((float) $this->invoice->transaksiPaymentGateways()->sole()->fee_gateway)->toBe(5142.0);
+});
+
+test('total transaksi sama persis dengan nominal yang dikirim ke gateway walau tagihan setelah promo berpecahan', function () {
+    fakeXenditSession();
+    $this->invoice->update(['jumlah_setelah_promo' => 299999.6]);
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('bayar', 'virtual_account');
+
+    Http::assertSent(fn (Request $request) => $request['amount'] === 314430);
+    expect((float) $this->invoice->transaksiPaymentGateways()->sole()->total_tagihan)->toBe(314430.0);
+});
+
+test('metode bayar yang tidak dikenal memberi tahu pelanggan', function () {
+    fakeXenditSession();
+
+    Livewire::actingAs($this->akun, 'pelanggan')
+        ->test(Show::class, ['invoice' => $this->invoice])
+        ->call('bayar', 'ewallet')
+        ->assertDispatched('toast-show');
+});
+
 test('menekan metode yang sama lagi memakai ulang checkout aktif, metode lain membuat checkout sendiri', function () {
     fakeXenditSession();
     $halaman = Livewire::actingAs($this->akun, 'pelanggan')->test(Show::class, ['invoice' => $this->invoice]);
