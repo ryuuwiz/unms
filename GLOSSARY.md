@@ -2,6 +2,12 @@
 
 Sistem manajemen ISP: pelanggan, layanan, invoice, dan pembayaran.
 
+## Pelanggan
+
+**Pelanggan**:
+Orang atau badan yang berlangganan internet ke ISP; satu Pelanggan bisa memiliki beberapa Data Registrasi Billing.
+_Avoid_: Kontak, List Kontak, Customer
+
 ## Pembayaran
 
 **Lunas**:

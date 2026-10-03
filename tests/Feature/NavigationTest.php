@@ -19,24 +19,17 @@ test('super_admin sees all navigation groups and items in indonesian', function 
 
     $response->assertOk()
         ->assertSee('Dashboard')
-        ->assertSee('Pelanggan & Layanan')
-        ->assertSee('List Kontak')
-        ->assertSee('Data Registrasi Billing')
-        ->assertSee('Paket Layanan')
-        ->assertSee('Profil Bandwidth')
-        ->assertSee('Keuangan & Billing')
-        ->assertSee('Tagihan (Invoice)')
-        ->assertSee('Riwayat Pembayaran')
-        ->assertSee('Promo & Diskon')
-        ->assertSee('Laporan Keuangan')
-        ->assertSee('Jaringan & Infrastruktur')
-        ->assertSee('Router')
-        ->assertSee('IP Pool')
-        ->assertSee('Area & Wilayah')
-        ->assertSee('Kota')
-        ->assertSee('Administrasi')
-        ->assertSee('Pengguna')
-        ->assertSee('Peran');
+        ->assertSeeInOrder([
+            'Pelanggan', 'Data Pelanggan', 'Data Registrasi Billing',
+            'Keuangan', 'Tagihan (Invoice)', 'Riwayat Pembayaran', 'Laporan Keuangan',
+            'Tiket', 'Daftar Tiket',
+            'Jaringan', 'Router', 'IP Pool',
+            'Inventaris', 'Data Barang',
+            'WhatsApp Blast', 'Antrian Blast',
+            'Pengaturan Layanan &amp; Tagihan', 'Paket Layanan', 'Profil Bandwidth', 'Promo &amp; Diskon',
+            'Pengaturan Umum', 'Kota', 'Koneksi WhatsApp',
+            'Administrasi', 'Pengguna', 'Peran',
+        ], escape: false);
 });
 
 test('user without permissions only sees dashboard', function () {
@@ -47,13 +40,11 @@ test('user without permissions only sees dashboard', function () {
 
     $response->assertOk()
         ->assertSee('Dashboard')
-        ->assertDontSee('Pelanggan & Layanan')
+        ->assertDontSee('Data Pelanggan')
         ->assertDontSee('Data Registrasi Billing')
         ->assertDontSee('Profil Bandwidth')
-        ->assertDontSee('Keuangan & Billing')
         ->assertDontSee('Tagihan (Invoice)')
-        ->assertDontSee('Jaringan & Infrastruktur')
-        ->assertDontSee('Area & Wilayah')
+        ->assertDontSee('Pengaturan Umum')
         ->assertDontSee('Administrasi');
 });
 
@@ -67,7 +58,7 @@ test('user with pengguna.lihat permission sees pengguna menu item', function () 
         ->assertSee('Dashboard')
         ->assertSee('Administrasi')
         ->assertSee('Pengguna')
-        ->assertDontSee('Pelanggan & Layanan')
+        ->assertDontSee('Data Pelanggan')
         ->assertDontSee('Peran (Role)');
 });
 
@@ -78,18 +69,33 @@ test('super_admin sees contextual module navigation in sidebar when visiting a m
     $response = $this->actingAs($superAdmin)->get(route('pelanggan.index'));
 
     $response->assertOk()
-        ->assertSee('List Kontak')
+        ->assertSee('Data Pelanggan')
         ->assertSee('Data Registrasi Billing')
         ->assertSee('Paket Layanan')
         ->assertSee('Profil Bandwidth');
 });
 
-test('payment gateway punya grup sidebar sendiri, terpisah dari administrasi', function () {
+test('pengaturan payment gateway ada di grup Pengaturan Layanan & Tagihan, terpisah dari administrasi', function () {
     $user = User::factory()->create(['status' => UserStatus::Active]);
     $user->givePermissionTo('payment_gateway.lihat');
 
     $this->actingAs($user)->get(route('dashboard'))
         ->assertOk()
-        ->assertSeeInOrder(['Payment Gateway', 'Koneksi Gateway', 'Channel Pembayaran', 'Template Deskripsi Tagihan'])
+        ->assertSeeInOrder(['Pengaturan Layanan &amp; Tagihan', 'Koneksi Gateway', 'Channel Pembayaran', 'Template Deskripsi Tagihan'], escape: false)
+        ->assertDontSee('Administrasi');
+});
+
+test('teknisi hanya melihat grup area kerjanya: Pelanggan, Tiket, dan Inventaris', function () {
+    $teknisi = User::factory()->create(['status' => UserStatus::Active]);
+    $teknisi->assignRole('teknisi');
+
+    $this->actingAs($teknisi)->get(route('dashboard'))
+        ->assertOk()
+        ->assertSeeInOrder(['Data Pelanggan', 'Maps Lokasi', 'Estimasi Kabel', 'Daftar Tiket', 'Data Barang'])
+        ->assertDontSee('Tagihan (Invoice)')
+        ->assertDontSee('Jaringan')
+        ->assertDontSee('WhatsApp Blast')
+        ->assertDontSee('Pengaturan Layanan')
+        ->assertDontSee('Pengaturan Umum')
         ->assertDontSee('Administrasi');
 });
