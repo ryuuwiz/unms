@@ -165,7 +165,7 @@ test('tagihan yang layanannya sudah berhenti tidak menampilkan pilihan metode', 
 
     Livewire::actingAs($this->akun, 'pelanggan')
         ->test(Show::class, ['invoice' => $this->invoice])
-        ->assertDontSee('Pilih metode pembayaran')
+        ->assertDontSee('Pilih channel pembayaran')
         ->assertDontSee('BCA Virtual Account');
 });
 
@@ -190,7 +190,7 @@ test('dengan channel ON, pelanggan tetap bisa memilih Hosted Invoice iPaymu untu
 
     Livewire::actingAs($this->akun, 'pelanggan')
         ->test(Show::class, ['invoice' => $this->invoice])
-        ->assertSee('Pilih metode pembayaran')
+        ->assertSee('Pilih channel pembayaran')
         ->assertSee('Metode lain')
         ->assertSee('Biaya admin mengikuti tarif iPaymu')
         ->call('bayar')

@@ -10,7 +10,7 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-#[Title('Metode Pembayaran')]
+#[Title('Channel Pembayaran')]
 class Index extends Component
 {
     public function toggleStatus(int $id): void
@@ -20,7 +20,7 @@ class Index extends Component
         $channel = ChannelPembayaran::findOrFail($id);
         $channel->update(['is_active' => ! $channel->is_active]);
 
-        Flux::toast(variant: 'success', text: "Metode '{$channel->kode}' ".($channel->is_active ? 'diaktifkan (ON).' : 'dinonaktifkan (OFF).'));
+        Flux::toast(variant: 'success', text: "Channel '{$channel->kode}' ".($channel->is_active ? 'diaktifkan (ON).' : 'dinonaktifkan (OFF).'));
     }
 
     public function hapus(int $id): void
@@ -30,7 +30,7 @@ class Index extends Component
         $channel = ChannelPembayaran::findOrFail($id);
         $channel->delete();
 
-        Flux::toast(variant: 'success', text: "Metode '{$channel->kode}' berhasil dihapus.");
+        Flux::toast(variant: 'success', text: "Channel '{$channel->kode}' berhasil dihapus.");
     }
 
     public function render(): View

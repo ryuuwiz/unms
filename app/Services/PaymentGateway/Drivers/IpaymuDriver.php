@@ -336,7 +336,8 @@ class IpaymuDriver extends AbstractPaymentDriver
         return [
             'id' => (string) ($data['TransactionId'] ?? ''),
             'status' => self::petakanStatus((int) ($data['Status'] ?? 0)),
-            'paid_amount' => (float) ($data['Amount'] ?? 0),
+            // SubTotal, bukan Amount: lihat catatan sub_total di parseWebhookPayload.
+            'paid_amount' => (float) ($data['SubTotal'] ?? 0),
             'paid_at' => self::waktuWib($data['SuccessDate'] ?? null),
             'raw' => $data,
         ];
@@ -381,13 +382,13 @@ class IpaymuDriver extends AbstractPaymentDriver
                 'order' => 'DESC',
             ]);
 
-            foreach ((array) ($data['Results'] ?? []) as $hasil) {
+            foreach ((array) ($data['Transaction'] ?? []) as $hasil) {
                 if ((string) ($hasil['ReferenceId'] ?? '') === $transaksi->external_id) {
                     $cocok[] = $hasil;
                 }
             }
 
-            if ($page >= (int) ($data['Total_Page'] ?? 1)) {
+            if ($page >= (int) ($data['Pagination']['total_pages'] ?? 1)) {
                 break;
             }
         }

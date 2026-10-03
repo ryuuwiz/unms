@@ -50,7 +50,7 @@ interface PaymentGatewayContract
     public function kodeChannel(): array;
 
     /**
-     * Daftar channel yang aktif di akun gateway, untuk mengisi form Metode Pembayaran.
+     * Daftar channel yang aktif di akun gateway, untuk mengisi form Channel Pembayaran.
      *
      * @return list<array{tipe: string, kode: string, nama: string, logo: string|null, fee: float, fee_persen: bool}>
      */

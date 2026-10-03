@@ -152,7 +152,7 @@
             @endif
 
             <div class="space-y-2">
-                <flux:heading size="sm">{{ $instruksi ? 'Ganti metode pembayaran' : 'Pilih metode pembayaran' }}</flux:heading>
+                <flux:heading size="sm">{{ $instruksi ? 'Ganti channel pembayaran' : 'Pilih channel pembayaran' }}</flux:heading>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     @foreach($channels as $channel)
                         <button type="button" wire:click="pilihChannel({{ $channel->id }})" wire:loading.attr="disabled"

@@ -19,10 +19,10 @@ use Livewire\Component;
 use Throwable;
 
 /**
- * Halaman Tambah/Edit Channel Pembayaran (label UI: Metode Pembayaran), ADR-0073.
+ * Halaman Tambah/Edit Channel Pembayaran, ADR-0073.
  */
 #[Layout('layouts.app')]
-#[Title('Metode Pembayaran')]
+#[Title('Channel Pembayaran')]
 class Form extends Component
 {
     #[Locked]
@@ -150,8 +150,8 @@ class Form extends Component
     protected function messages(): array
     {
         return [
-            'kode.in' => 'Nama metode tidak dikenal gateway untuk tipe ini. Pilih salah satu: :values.',
-            'kode.unique' => 'Metode ini sudah terdaftar untuk gateway yang sama.',
+            'kode.in' => 'Nama channel tidak dikenal gateway untuk tipe ini. Pilih salah satu: :values.',
+            'kode.unique' => 'Channel ini sudah terdaftar untuk gateway yang sama.',
             'fee_admin.regex' => 'Isi angka rupiah (mis. 4100) atau persen (mis. 1%).',
         ];
     }
@@ -175,7 +175,7 @@ class Form extends Component
             'keterangan' => trim($this->keterangan) ?: null,
         ]);
 
-        Flux::toast(variant: 'success', text: "Metode pembayaran '{$this->kode}' berhasil disimpan.");
+        Flux::toast(variant: 'success', text: "Channel pembayaran '{$this->kode}' berhasil disimpan.");
 
         $this->redirectRoute('settings.metode-pembayaran.index', navigate: true);
     }

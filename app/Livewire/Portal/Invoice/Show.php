@@ -31,17 +31,20 @@ class Show extends Component
 
     public Invoice $invoice;
 
-    public function mount(Invoice $invoice, PaymentGatewayManager $paymentManager): void
+    /**
+     * Invoice yang masih menunggu pembayaran disinkronkan otomatis ke gateway, termasuk link
+     * lama yang masih Pending (pelanggan bisa membayar link sebelum menerbitkan yang baru);
+     * ini juga jalur saat pelanggan kembali dari halaman checkout gateway. Gangguan gateway
+     * tidak boleh membuat halaman tagihan gagal tampil: pelanggan tetap melihat rinciannya dan
+     * bisa menekan "Cek Status" / "Bayar Sekarang".
+     */
+    public function mount(Invoice $invoice, CekStatusPembayaranInvoice $cekStatus): void
     {
         $this->authorizeAksesTagihan($invoice);
 
-        // Sinkronisasi otomatis dengan payment gateway jika masih menunggu pembayaran
-        // (Sangat berguna saat pelanggan kembali di-redirect dari halaman checkout gateway)
-        // Gangguan gateway tidak boleh membuat halaman tagihan gagal tampil: pelanggan tetap
-        // melihat rinciannya dan bisa menekan "Cek Status" / "Bayar Sekarang".
         if ($invoice->isMenungguPembayaran() && ! empty($invoice->payment_gateway_id)) {
             try {
-                $paymentManager->sinkronkanStatus($invoice);
+                $cekStatus->periksa($invoice, hanyaPending: true);
             } catch (Throwable $e) {
                 report($e);
             }
@@ -114,7 +117,7 @@ class Show extends Component
 
         $channel = $paymentManager->channelTersedia()->firstWhere('id', $channelId);
         if (! $channel) {
-            Flux::toast(variant: 'warning', text: 'Metode pembayaran ini sedang tidak tersedia.');
+            Flux::toast(variant: 'warning', text: 'Channel pembayaran ini sedang tidak tersedia.');
 
             return;
         }
@@ -126,7 +129,7 @@ class Show extends Component
         );
 
         if (! $diizinkan) {
-            Flux::toast(variant: 'warning', text: 'Terlalu sering mengganti metode. Silakan coba lagi dalam satu menit.');
+            Flux::toast(variant: 'warning', text: 'Terlalu sering mengganti channel. Silakan coba lagi dalam satu menit.');
         }
     }
 
@@ -136,7 +139,7 @@ class Show extends Component
             $paymentManager->bayarLewatChannel($this->invoice, $channel);
         } catch (Exception $e) {
             report($e);
-            Flux::toast(variant: 'danger', text: 'Gagal membuat pembayaran. Silakan coba lagi atau pilih metode lain.');
+            Flux::toast(variant: 'danger', text: 'Gagal membuat pembayaran. Silakan coba lagi atau pilih channel lain.');
         }
     }
 

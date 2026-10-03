@@ -1,6 +1,6 @@
 <div class="mx-auto max-w-2xl space-y-6">
     <div>
-        <flux:heading size="xl">{{ $channelId ? 'Edit Metode Pembayaran' : 'Tambah Metode Pembayaran' }}</flux:heading>
+        <flux:heading size="xl">{{ $channelId ? 'Edit Channel Pembayaran' : 'Tambah Channel Pembayaran' }}</flux:heading>
         <flux:subheading>Atur gateway, tipe, fee admin, status, dan icon untuk channel ini.</flux:subheading>
     </div>
 
@@ -45,12 +45,12 @@
                     <flux:select.option value="{{ $tipeOption->value }}">{{ $tipeOption->label() }}</flux:select.option>
                 @endforeach
             </flux:select>
-            <flux:description>Menentukan kelompok metode, mis. QRIS, Virtual Account, atau gerai retail.</flux:description>
+            <flux:description>Menentukan kelompok channel, mis. QRIS, Virtual Account, atau gerai retail.</flux:description>
             <flux:error name="tipe" />
         </flux:field>
 
         <flux:field>
-            <flux:label>Nama Metode *</flux:label>
+            <flux:label>Nama Channel *</flux:label>
             <flux:input wire:model="kode" placeholder="Contoh: bca, bri, linkaja, alfamart" list="kode-channel-saran" />
             <datalist id="kode-channel-saran">
                 @foreach ($kodeSaran as $saran)
@@ -76,7 +76,7 @@
         <flux:field>
             <flux:label>URL Icon</flux:label>
             <flux:input wire:model="icon_url" type="url" placeholder="https://contoh.com/icon.png" />
-            <flux:description>Logo bank/QRIS yang ditampilkan di halaman pilih metode pembayaran.</flux:description>
+            <flux:description>Logo bank/QRIS yang ditampilkan di halaman pilih channel pembayaran.</flux:description>
             <flux:error name="icon_url" />
         </flux:field>
 
@@ -86,7 +86,7 @@
                 <flux:select.option value="on">ON</flux:select.option>
                 <flux:select.option value="off">OFF</flux:select.option>
             </flux:select>
-            <flux:description>Hanya metode dengan status ON yang bisa dipakai pelanggan.</flux:description>
+            <flux:description>Hanya channel dengan status ON yang bisa dipakai pelanggan.</flux:description>
             <flux:error name="status" />
         </flux:field>
 
@@ -98,7 +98,7 @@
 
         <div class="flex items-center justify-end gap-3 pt-2">
             <flux:button :href="route('settings.metode-pembayaran.index')" wire:navigate variant="ghost">Batal</flux:button>
-            <flux:button type="submit" variant="primary" icon="check">Simpan Metode</flux:button>
+            <flux:button type="submit" variant="primary" icon="check">Simpan Channel</flux:button>
         </div>
     </form>
 </div>

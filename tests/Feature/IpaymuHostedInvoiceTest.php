@@ -139,17 +139,34 @@ test('callback pending lalu berhasil dengan trx_id sama tidak dianggap duplikat'
 test('cek status tanpa trx_id mencari transaksi lewat riwayat berdasarkan ReferenceId', function () {
     Http::fake(['*/api/v2/history' => Http::response([
         'Status' => 200,
-        'Data' => ['Total_Page' => 1, 'Results' => [
+        'Data' => ['Transaction' => [
             ['TransactionId' => 9001, 'ReferenceId' => 'lain', 'Status' => 1],
             ['TransactionId' => 9002, 'ReferenceId' => $this->trx->external_id, 'Status' => -2],
-            ['TransactionId' => 9003, 'ReferenceId' => $this->trx->external_id, 'Status' => 1, 'Amount' => 300000],
-        ]],
+            ['TransactionId' => 9003, 'ReferenceId' => $this->trx->external_id, 'Status' => 1, 'SubTotal' => 300000, 'Amount' => 304000, 'Fee' => 4000],
+        ], 'Pagination' => ['total' => 3, 'count' => 3, 'per_page' => 20, 'current_page' => 1, 'total_pages' => 1]],
     ])]);
 
     $status = app(PaymentGatewayManager::class)->cekStatusTransaksi($this->trx);
 
+    // Amount sudah termasuk biaya iPaymu yang dibebankan ke pembeli; jumlah dibayar = nominal tagihan.
     expect($status['id'])->toBe('9003')
-        ->and($status['status'])->toBe('PAID');
+        ->and($status['status'])->toBe('PAID')
+        ->and($status['paid_amount'])->toBe(300000.0);
+});
+
+test('cek status menelusuri halaman riwayat iPaymu berikutnya sampai ReferenceId ditemukan', function () {
+    Http::fake(['*/api/v2/history' => Http::sequence()
+        ->push(['Status' => 200, 'Data' => [
+            'Transaction' => [['TransactionId' => 9001, 'ReferenceId' => 'lain', 'Status' => 1]],
+            'Pagination' => ['total' => 2, 'count' => 1, 'per_page' => 1, 'current_page' => 1, 'total_pages' => 2],
+        ]])
+        ->push(['Status' => 200, 'Data' => [
+            'Transaction' => [['TransactionId' => 9002, 'ReferenceId' => $this->trx->external_id, 'Status' => 1, 'SubTotal' => 300000]],
+            'Pagination' => ['total' => 2, 'count' => 1, 'per_page' => 1, 'current_page' => 2, 'total_pages' => 2],
+        ]]),
+    ]);
+
+    expect(app(PaymentGatewayManager::class)->cekStatusTransaksi($this->trx)['id'])->toBe('9002');
 });
 
 test('callback transaksi channel melunasi invoice bila sub_total sama dengan total termasuk Fee Admin', function () {
@@ -181,9 +198,9 @@ test('callback transaksi channel tanpa Fee Admin di sub_total ditandai anomali, 
 });
 
 test('GET dari simulator sandbox iPaymu tidak 405: status dicek ke API lalu browser diarahkan ke portal', function () {
-    Http::fake(['*/api/v2/history' => Http::response(['Status' => 200, 'Data' => ['Total_Page' => 1, 'Results' => [
-        ['TransactionId' => 237287, 'ReferenceId' => $this->trx->external_id, 'Status' => 1, 'Amount' => 300000],
-    ]]])]);
+    Http::fake(['*/api/v2/history' => Http::response(['Status' => 200, 'Data' => ['Transaction' => [
+        ['TransactionId' => 237287, 'ReferenceId' => $this->trx->external_id, 'Status' => 1, 'SubTotal' => 300000, 'Amount' => 300000],
+    ], 'Pagination' => ['total_pages' => 1]]])]);
 
     $this->get('/webhook/payment/ipaymu?reference_id='.$this->trx->external_id.'&status=berhasil')
         ->assertRedirect(route('portal.invoice.index'));

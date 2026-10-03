@@ -4,6 +4,10 @@ Sistem manajemen ISP: pelanggan, layanan, invoice, dan pembayaran.
 
 ## Pembayaran
 
+**Lunas**:
+Status invoice yang tagihannya sudah dibayar penuh. Lewat gateway, invoice Lunas begitu gateway menyatakan pembayaran berhasil, tanpa menunggu dana settle ke saldo merchant.
+_Avoid_: Settled, PAID (itu status di sisi gateway)
+
 **Koneksi Gateway**:
 Satu akun penyedia payment gateway (mis. iPaymu) beserta kredensialnya.
 _Avoid_: Pengaturan Gateway

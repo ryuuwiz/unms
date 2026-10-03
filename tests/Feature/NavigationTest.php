@@ -90,6 +90,6 @@ test('payment gateway punya grup sidebar sendiri, terpisah dari administrasi', f
 
     $this->actingAs($user)->get(route('dashboard'))
         ->assertOk()
-        ->assertSeeInOrder(['Payment Gateway', 'Koneksi Gateway', 'Metode Pembayaran', 'Template Deskripsi Tagihan'])
+        ->assertSeeInOrder(['Payment Gateway', 'Koneksi Gateway', 'Channel Pembayaran', 'Template Deskripsi Tagihan'])
         ->assertDontSee('Administrasi');
 });

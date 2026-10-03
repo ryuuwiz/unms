@@ -164,6 +164,33 @@ test('tombol Cek Status Pembayaran di Portal melunasi invoice yang dibayar lewat
     expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas);
 });
 
+test('membuka Portal melunasi invoice yang dibayar lewat link lama yang masih Pending, tanpa menanyakan link kedaluwarsa', function () {
+    $invoice = invoiceCekStatus($this->layanan, ['payment_gateway_id' => 'inv_baru']);
+    transaksiCekStatus($invoice, $this->koneksi, 'inv_kedaluwarsa');
+    $linkLama = transaksiCekStatus($invoice, $this->koneksi, 'inv_lama', StatusTransaksiGateway::Pending);
+    transaksiCekStatus($invoice, $this->koneksi, 'inv_baru', StatusTransaksiGateway::Pending);
+    $this->statusGateway['inv_baru'] = ['id' => 'inv_baru', 'status' => 'PENDING'];
+    $this->statusGateway['inv_lama'] = lunasDiGateway($linkLama);
+
+    Livewire::actingAs($this->pelanggan->akunPelanggan, 'pelanggan')
+        ->test(PortalInvoiceShow::class, ['invoice' => $invoice])
+        ->assertOk();
+
+    expect($invoice->fresh()->status)->toBe(StatusInvoice::Lunas)
+        ->and($this->dicek)->toBe(['inv_baru', 'inv_lama']);
+});
+
+test('membuka Portal untuk invoice yang semua link-nya kedaluwarsa tidak menanyakan gateway', function () {
+    $invoice = invoiceCekStatus($this->layanan, ['payment_gateway_id' => 'inv_kedaluwarsa']);
+    transaksiCekStatus($invoice, $this->koneksi, 'inv_kedaluwarsa');
+
+    Livewire::actingAs($this->pelanggan->akunPelanggan, 'pelanggan')
+        ->test(PortalInvoiceShow::class, ['invoice' => $invoice])
+        ->assertOk();
+
+    expect($this->dicek)->toBe([]);
+});
+
 test('invoice Digabung yang sudah dibayar tidak dilunasi otomatis: staf melihat alasannya, Portal hanya pesan umum', function () {
     $oktober = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-10', 'jumlah_setelah_promo' => 300000, 'jumlah_tunggakan' => 150000]);
     $september = invoiceCekStatus($this->layanan, ['periode_tagihan' => '2026-09', 'status' => StatusInvoice::Digabung, 'digabung_ke_invoice_id' => $oktober->id]);

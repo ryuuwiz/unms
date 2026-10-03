@@ -1,19 +1,19 @@
 <div class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <flux:heading size="xl">Metode Pembayaran</flux:heading>
-            <flux:subheading>Channel yang bisa dipilih pelanggan di halaman tagihan. Hanya metode berstatus ON yang tampil; bila tidak ada, pelanggan diarahkan ke Hosted Invoice iPaymu.</flux:subheading>
+            <flux:heading size="xl">Channel Pembayaran</flux:heading>
+            <flux:subheading>Channel yang bisa dipilih pelanggan di halaman tagihan. Hanya channel berstatus ON yang tampil; bila tidak ada, pelanggan diarahkan ke Hosted Invoice iPaymu.</flux:subheading>
         </div>
         @can('payment_gateway.buat')
             <flux:button :href="route('settings.metode-pembayaran.create')" wire:navigate variant="primary" icon="plus">
-                Tambah Metode
+                Tambah Channel
             </flux:button>
         @endcan
     </div>
 
     <flux:table>
         <flux:table.columns>
-            <flux:table.column>Metode</flux:table.column>
+            <flux:table.column>Channel</flux:table.column>
             <flux:table.column>Gateway</flux:table.column>
             <flux:table.column>Tipe</flux:table.column>
             <flux:table.column>Fee Admin</flux:table.column>
@@ -57,7 +57,7 @@
                                 <flux:button :href="route('settings.metode-pembayaran.edit', $channel)" wire:navigate size="sm" variant="ghost" icon="pencil-square" title="Edit Metode" />
                             @endcan
                             @can('payment_gateway.hapus')
-                                <flux:button wire:click="hapus({{ $channel->id }})" wire:confirm="Hapus metode '{{ $channel->kode }}'?" size="sm" variant="ghost" icon="trash" class="text-red-600 hover:text-red-700 dark:text-red-400" title="Hapus Metode" />
+                                <flux:button wire:click="hapus({{ $channel->id }})" wire:confirm="Hapus channel '{{ $channel->kode }}'?" size="sm" variant="ghost" icon="trash" class="text-red-600 hover:text-red-700 dark:text-red-400" title="Hapus Channel" />
                             @endcan
                         </div>
                     </flux:table.cell>
@@ -67,7 +67,7 @@
                     <flux:table.cell colspan="6" class="py-12 text-center text-zinc-500">
                         <div class="flex flex-col items-center gap-2">
                             <flux:icon name="credit-card" class="size-8 text-zinc-300 dark:text-zinc-600" />
-                            <p class="font-medium">Belum ada metode pembayaran. Pelanggan memakai Hosted Invoice iPaymu.</p>
+                            <p class="font-medium">Belum ada Channel Pembayaran. Pelanggan memakai Hosted Invoice iPaymu.</p>
                         </div>
                     </flux:table.cell>
                 </flux:table.row>

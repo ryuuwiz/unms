@@ -197,7 +197,7 @@ return [
                     'permission' => 'payment_gateway.lihat',
                 ],
                 [
-                    'title' => 'Metode Pembayaran',
+                    'title' => 'Channel Pembayaran',
                     'icon' => 'credit-card',
                     'route' => 'settings.metode-pembayaran.index',
                     'active' => 'settings.metode-pembayaran.*',

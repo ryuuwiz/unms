@@ -3,6 +3,7 @@
 namespace App\Services\PaymentGateway;
 
 use App\DTO\PaymentGateway\HasilCekStatusPembayaran;
+use App\Enums\StatusTransaksiGateway;
 use App\Models\Invoice;
 use App\Models\TransaksiPaymentGateway;
 use Illuminate\Database\Eloquent\Collection;
@@ -12,20 +13,29 @@ use Throwable;
  * Pengecekan status pembayaran tingkat invoice untuk tombol cek status (staf dan Portal):
  * menanyakan SETIAP transaksi gateway invoice, termasuk link lama, mulai dari yang terbaru.
  * PAID pertama melunasi invoice lewat sinkron biasa; invoice Digabung/Dibatalkan tidak
- * dilunasi otomatis dan diserahkan ke staf. Sinkron otomatis saat halaman dibuka tetap
- * memakai `PaymentGatewayManager::sinkronkanStatus` (transaksi terakhir).
+ * dilunasi otomatis dan diserahkan ke staf. Sinkron otomatis saat Portal dibuka memakai
+ * `$hanyaPending` agar link kedaluwarsa tidak ditanyakan ke gateway di setiap kunjungan.
  */
 class CekStatusPembayaranInvoice
 {
     public function __construct(private PaymentGatewayManager $manager) {}
 
-    public function periksa(Invoice $invoice): HasilCekStatusPembayaran
+    public function periksa(Invoice $invoice, bool $hanyaPending = false): HasilCekStatusPembayaran
     {
         if ($invoice->isLunas()) {
             return new HasilCekStatusPembayaran(true);
         }
 
-        $transaksis = $invoice->transaksiPaymentGateways()->gatewayTerdaftar()->with('pengaturanGateway')->latest('id')->get();
+        $transaksis = $invoice->transaksiPaymentGateways()
+            ->gatewayTerdaftar()
+            ->when($hanyaPending, fn ($query) => $query->where('status', StatusTransaksiGateway::Pending))
+            ->with('pengaturanGateway')
+            ->latest('id')
+            ->get();
+
+        if ($transaksis->isEmpty() && $hanyaPending) {
+            return new HasilCekStatusPembayaran(false);
+        }
 
         if ($transaksis->isEmpty()) {
             $this->manager->sinkronkanStatus($invoice);

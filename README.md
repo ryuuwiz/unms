@@ -168,6 +168,17 @@ vendor/bin/sail artisan horizon          # dashboard: /horizon
 vendor/bin/sail artisan schedule:work
 ```
 
+**Menguji callback iPaymu di lokal.** iPaymu tidak bisa mengirim callback ke `localhost`, dan `notifyUrl` dibangun dari `APP_URL`. Buka tunnel, lalu arahkan `APP_URL` ke URL publiknya sebelum menerbitkan tagihan:
+
+```bash
+vendor/bin/sail share                     # catat URL publik, mis. https://abcd.sharedwithexpose.com
+# set APP_URL=<URL publik> di .env, lalu:
+vendor/bin/sail artisan config:clear
+vendor/bin/sail artisan horizon           # wajib: callback diproses di antrean payments
+```
+
+Subdomain `sail share` berganti setiap kali dijalankan. Transaksi yang diterbitkan sebelum URL berganti tetap memakai `notifyUrl` lama, jadi lunasi lewat "Cek Status". Kembalikan `APP_URL=http://localhost` setelah selesai.
+
 ### Variabel environment penting
 
 | Variabel | Fungsi |
